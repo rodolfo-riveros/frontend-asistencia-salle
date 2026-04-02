@@ -1,7 +1,7 @@
 
 'use server';
 /**
- * @fileOverview AI flow to generate executive insights for the Admin Dashboard.
+ * @fileOverview AI flow to generate executive insights for the Admin Dashboard in Spanish.
  */
 
 import {ai} from '@/ai/genkit';
@@ -19,9 +19,9 @@ const AdminDashboardInputSchema = z.object({
 export type AdminDashboardInput = z.infer<typeof AdminDashboardInputSchema>;
 
 const AdminDashboardOutputSchema = z.object({
-  executiveSummary: z.string().describe('A high-level overview of institutional health.'),
-  criticalInsights: z.array(z.string()).describe('List of important data points or concerns identified.'),
-  strategicRecommendations: z.array(z.string()).describe('Actionable advice for institutional improvement.'),
+  executiveSummary: z.string().describe('Un resumen de alto nivel de la salud institucional.'),
+  criticalInsights: z.array(z.string()).describe('Lista de puntos de datos importantes o preocupaciones identificadas.'),
+  strategicRecommendations: z.array(z.string()).describe('Acciones recomendadas para la mejora institucional.'),
 });
 export type AdminDashboardOutput = z.infer<typeof AdminDashboardOutputSchema>;
 
@@ -29,21 +29,23 @@ const adminDashboardInsightsPrompt = ai.definePrompt({
   name: 'adminDashboardInsightsPrompt',
   input: { schema: AdminDashboardInputSchema },
   output: { schema: AdminDashboardOutputSchema },
-  prompt: `You are an AI Strategy Consultant for IES LA SALLE URUBAMBA. 
-Analyze the following institutional data:
+  prompt: `Eres un Consultor de Estrategia de IA para el IES LA SALLE URUBAMBA. 
+Analiza los siguientes datos institucionales:
 
-Programs: {{stats.totalPrograms}}
-Instructors: {{stats.totalInstructors}}
-Courses: {{stats.totalCourses}}
-Average Attendance: {{stats.averageAttendance}}
+Programas: {{stats.totalPrograms}}
+Docentes: {{stats.totalInstructors}}
+Cursos: {{stats.totalCourses}}
+Asistencia Promedio: {{stats.averageAttendance}}
 
-Recent Activities:
+Actividades Recientes:
 {{#each recentActivities}}
 - {{this}}
 {{/each}}
 
-Provide an executive analysis including institutional health summary, critical insights (trends or red flags), and strategic recommendations to improve performance and student retention. 
-Maintain a formal, professional, and institutional tone.`,
+Proporciona un análisis ejecutivo que incluya un resumen de la salud institucional, hallazgos críticos (tendencias o señales de alerta) y recomendaciones estratégicas para mejorar el rendimiento y la retención estudiantil. 
+
+Toda la respuesta DEBE estar obligatoriamente en ESPAÑOL.
+Mantén un tono formal, profesional e institucional.`,
 });
 
 const adminDashboardInsightsFlow = ai.defineFlow(
