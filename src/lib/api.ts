@@ -12,7 +12,7 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   const url = `${cleanBase}${API_VERSION}${cleanEndpoint}`;
   
-  // Obtenemos el token más reciente directamente de Supabase (Evitamos tokens expirados en localStorage)
+  // Obtenemos la sesión actual de forma asíncrona para asegurar que el token sea válido
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token;
 
@@ -23,6 +23,8 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
 
   if (token) {
     headers.set('Authorization', `Bearer ${token}`);
+  } else {
+    console.warn("API Warning: No se encontró un token de acceso. La petición a " + endpoint + " podría ser rechazada.");
   }
 
   try {
@@ -40,9 +42,18 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
         detail = `Error ${response.status}: ${response.statusText}`;
       }
       
-      // Si el backend dice que el token es inválido, puede ser un desajuste de secretos en Render
+      // Manejo específico de errores de autorización (401 o 403)
       if (response.status === 401 || response.status === 403) {
-        throw new Error("Sesión no autorizada. Verifique el JWT Secret en el panel de Render.");
+        console.error("DEBUG - Error de Autorización:", {
+          status: response.status,
+          token_presente: !!token,
+          backend_detail: detail
+        });
+        throw new Error(
+          "Sesión no autorizada (Error " + response.status + "). \n\n" +
+          "CAUSA PROBABLE: El 'SUPABASE_JWT_SECRET' en Render no coincide con el de tu proyecto Supabase. \n\n" +
+          "SOLUCIÓN: Copia el JWT Secret exacto desde Supabase (Settings -> API) y pégalo en Render."
+        );
       }
       
       throw new Error(detail);
@@ -53,8 +64,8 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
     if (err.message === 'Failed to fetch' || err.name === 'TypeError') {
       throw new Error(
         "No se pudo conectar con el servidor. \n\n" +
-        "1. Despierte el servidor entrando a: https://backend-asistencia-salle.onrender.com/health\n" +
-        "2. Asegúrese de que el backend tenga ALLOWED_ORIGINS=*"
+        "1. Asegúrate de que el backend en Render esté encendido.\n" +
+        "2. Verifica que ALLOWED_ORIGINS incluya esta URL en Render."
       );
     }
     throw err;
