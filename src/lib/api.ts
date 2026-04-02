@@ -4,7 +4,7 @@
  */
 
 // URL oficial de tu backend desplegado en Render
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://backend-asistencia-salle.onrender.com';
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'https://backend-asistencia-salle.onrender.com').replace(/\/$/, '');
 const API_VERSION = '/api/v1';
 
 export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -42,15 +42,13 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
     if (response.status === 204) return {} as T;
     return response.json();
   } catch (err: any) {
-    // Diagnóstico detallado para errores de conexión
+    // Si el error es de red (fetch falló)
     if (err instanceof TypeError && (err.message === 'Failed to fetch' || err.message.includes('fetch'))) {
-      console.error("Error de Red Crítico:", url);
       throw new Error(
-        "No se pudo conectar con el servidor en: " + API_BASE_URL + ". \n\n" +
-        "Acciones recomendadas: \n" +
-        "1. Espere 1 minuto (Render suele tardar en despertar). \n" +
-        "2. Verifique que la URL de este navegador esté en ALLOWED_ORIGINS de su backend. \n" +
-        "3. Revise los logs de Render para ver si el servidor está activo."
+        "El servidor en Render está despertando o bloqueando la conexión (CORS). \n\n" +
+        "Por favor: \n" +
+        "1. Abre https://backend-asistencia-salle.onrender.com/docs en otra pestaña para despertarlo. \n" +
+        "2. Verifica que el ALLOWED_ORIGINS de Render incluya la URL de este navegador."
       );
     }
     throw err;

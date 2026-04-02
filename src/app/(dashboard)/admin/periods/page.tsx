@@ -58,12 +58,12 @@ export default function AdminPeriodsPage() {
     setIsLoading(true)
     try {
       const data = await api.get<any[]>('/periodos/')
-      setPeriods(data)
+      setPeriods(Array.isArray(data) ? data : [])
     } catch (err: any) {
       toast({ 
         variant: "destructive", 
         title: "Error de Conexión", 
-        description: err.message || "No se pudo conectar con FastAPI."
+        description: err.message
       })
     } finally {
       setIsLoading(false)
@@ -85,10 +85,10 @@ export default function AdminPeriodsPage() {
     try {
       if (editingPeriod) {
         await api.patch(`/periodos/${editingPeriod.id}`, payload)
-        toast({ title: "Ciclo actualizado", description: `El periodo ${payload.nombre} fue modificado con éxito.` })
+        toast({ title: "Ciclo actualizado" })
       } else {
         await api.post('/periodos/', payload)
-        toast({ title: "Ciclo creado", description: `El periodo ${payload.nombre} se registró correctamente.` })
+        toast({ title: "Ciclo creado con éxito" })
       }
       fetchPeriods()
       setIsModalOpen(false)
@@ -102,7 +102,7 @@ export default function AdminPeriodsPage() {
     if(!confirm("¿Desea eliminar este periodo académico?")) return
     try {
       await api.delete(`/periodos/${id}`)
-      toast({ title: "Ciclo eliminado", description: "El registro ha sido retirado del sistema." })
+      toast({ title: "Ciclo eliminado" })
       fetchPeriods()
     } catch (err: any) {
       toast({ variant: "destructive", title: "Error", description: err.message })
@@ -112,8 +112,8 @@ export default function AdminPeriodsPage() {
   const filteredPeriods = React.useMemo(() => {
     const term = searchTerm.toLowerCase()
     return (periods || []).filter(p => 
-      p.nombre.toLowerCase().includes(term) ||
-      p.id.toLowerCase().includes(term)
+      p.nombre?.toLowerCase().includes(term) ||
+      p.id?.toLowerCase().includes(term)
     )
   }, [periods, searchTerm])
 
@@ -169,7 +169,7 @@ export default function AdminPeriodsPage() {
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
         <Input 
-          placeholder="Buscador inteligente: busca por nombre o ID de periodo..." 
+          placeholder="Busca por nombre o ID de periodo..." 
           className="pl-11 h-11 bg-white border-slate-100 shadow-sm"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
@@ -215,7 +215,7 @@ export default function AdminPeriodsPage() {
                         )}
                       </TableCell>
                       <TableCell className="font-mono text-[10px] text-slate-400">
-                        {p.id}
+                        {p.id?.substring(0, 8)}...
                       </TableCell>
                       <TableCell className="pr-6 text-right">
                         <DropdownMenu>
@@ -241,7 +241,7 @@ export default function AdminPeriodsPage() {
                     <TableCell colSpan={4} className="h-48 text-center text-slate-400">
                       <div className="flex flex-col items-center gap-3">
                         <AlertCircle className="h-10 w-10 opacity-10" />
-                        <p className="font-bold text-slate-900 uppercase text-xs tracking-widest">No hay periodos registrados</p>
+                        <p className="font-bold text-slate-900 uppercase text-xs tracking-widest">No hay periodos registrados o el servidor está inactivo</p>
                       </div>
                     </TableCell>
                   </TableRow>
