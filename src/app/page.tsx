@@ -28,13 +28,17 @@ export default function LoginPage() {
     setCurrentYear(new Date().getFullYear());
     
     // Verificar configuración de Supabase al cargar
-    const isMissingConfig = !process.env.NEXT_PUBLIC_SUPABASE_URL || 
-                             process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder') ||
-                             !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-                             process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY.includes('placeholder');
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    const isMissingConfig = !supabaseUrl || 
+                             supabaseUrl.includes('placeholder') ||
+                             !supabaseKey ||
+                             supabaseKey.includes('placeholder') ||
+                             supabaseUrl === 'undefined';
     
     if (isMissingConfig) {
-      setConfigError("Las claves de Supabase no están configuradas. Por favor, añada NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY a las variables de entorno.");
+      setConfigError("Las claves de Supabase no están configuradas. Por favor, añada NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY a las variables de entorno de su proyecto.");
     }
     
     router.prefetch('/admin');
@@ -49,7 +53,7 @@ export default function LoginPage() {
       toast({
         variant: "destructive",
         title: "Error de Configuración",
-        description: configError,
+        description: "No se puede iniciar sesión porque faltan las claves de Supabase.",
       });
       return;
     }
@@ -90,11 +94,12 @@ export default function LoginPage() {
       console.error("Login Error:", error);
       let errorMessage = "Credenciales inválidas o error de servidor.";
       
-      if (error.message === "Failed to fetch") {
-        errorMessage = "No se pudo conectar con el servicio de autenticación. Verifique la URL de Supabase y su conexión a internet.";
-      } else if (error.message.toLowerCase().includes("email not confirmed")) {
+      // Capturar error de red (común cuando la URL de Supabase es inválida/placeholder)
+      if (error.message === "Failed to fetch" || error.message?.includes("fetch")) {
+        errorMessage = "Error de conexión con el servicio de autenticación. Esto suele ocurrir si las variables de entorno NEXT_PUBLIC_SUPABASE_URL son incorrectas o el servicio está caído.";
+      } else if (error.message?.toLowerCase().includes("email not confirmed")) {
         errorMessage = "Su correo aún no ha sido confirmado.";
-      } else {
+      } else if (error.message) {
         errorMessage = error.message;
       }
 
