@@ -1,8 +1,8 @@
 'use server';
 /**
- * @fileOverview An AI-powered tool to analyze historical attendance data.
+ * @fileOverview An AI-powered tool to analyze historical attendance data and predict desertion risk.
  *
- * - aiAttendanceInsights - A function that analyzes attendance data to generate summaries, identify trends, and highlight patterns.
+ * - aiAttendanceInsights - A function that analyzes attendance data to generate summaries, identify trends, and highlight at-risk students.
  * - AttendanceInsightsInput - The input type for the aiAttendanceInsights function.
  * - AttendanceInsightsOutput - The return type for the aiAttendanceInsights function.
  */
@@ -21,15 +21,19 @@ const AttendanceRecordSchema = z.object({
 
 const AttendanceInsightsInputSchema = z.object({
   attendanceRecords: z.array(AttendanceRecordSchema).describe('An array of historical attendance records.'),
-  analysisContext: z.string().optional().describe('Optional: A specific student name or course unit name to focus the analysis on. E.g., "Student John Doe" or "Course: Advanced Mathematics".'),
+  analysisContext: z.string().optional().describe('Optional: A specific student name or course unit name to focus the analysis on.'),
 });
 export type AttendanceInsightsInput = z.infer<typeof AttendanceInsightsInputSchema>;
 
 const AttendanceInsightsOutputSchema = z.object({
   summary: z.string().describe('A general summary of the attendance data provided.'),
-  trends: z.array(z.string()).describe('List of identified attendance trends (e.g., "Student X is frequently late on Mondays.", "Course Y has a higher rate of unjustified absences.").'),
-  patterns: z.array(z.string()).describe('List of highlighted attendance patterns (e.g., "A group of students often misses the first class after a holiday.", "Specific course units show a drop in attendance towards the end of the semester.").'),
-  recommendations: z.array(z.string()).describe('Actionable recommendations based on the insights (e.g., "Consider reaching out to students with consistent \'Falta\' statuses.", "Review curriculum engagement for course units with low attendance.").'),
+  atRiskStudents: z.array(z.object({
+    name: z.string().describe('Full name of the student.'),
+    absencePercentage: z.number().describe('Calculated absence percentage.'),
+    reason: z.string().describe('Brief reason why they are at risk (e.g., "Frequent absences on Mondays").'),
+  })).describe('List of students with 30% or more absences or showing high desertion risk.'),
+  trends: z.array(z.string()).describe('List of identified attendance trends.'),
+  recommendations: z.array(z.string()).describe('Actionable recommendations for the instructor.'),
 });
 export type AttendanceInsightsOutput = z.infer<typeof AttendanceInsightsOutputSchema>;
 
@@ -37,31 +41,26 @@ const attendanceInsightsPrompt = ai.definePrompt({
   name: 'attendanceInsightsPrompt',
   input: { schema: AttendanceInsightsInputSchema },
   output: { schema: AttendanceInsightsOutputSchema },
-  prompt: `You are an AI-powered attendance data analyst for a technical education system. Your task is to analyze historical attendance records and provide insights.
+  prompt: `Eres un analista experto en retención estudiantil para el IES LA SALLE URUBAMBA. 
+Tu misión es identificar alumnos en riesgo de deserción basándote en la regla del 30% de inasistencias.
 
-Here is the historical attendance data:
+Analiza los siguientes registros históricos de asistencia:
 {{#each attendanceRecords}}
-- Student: {{this.studentName}} (ID: {{this.studentId}}), Course: {{this.courseUnitName}} (ID: {{this.courseUnitId}}), Date: {{this.date}}, Status: {{this.status}}
+- Alumno: {{this.studentName}}, Fecha: {{this.date}}, Estado: {{this.status}}
 {{/each}}
 
 {{#if analysisContext}}
-Focus your analysis on: {{{analysisContext}}}
+Contexto adicional: {{{analysisContext}}}
 {{/if}}
 
-Based on the provided attendance data, perform the following:
-1.  **Summarize** the overall attendance situation.
-2.  **Identify trends** such as:
-    -   Students with consistent lateness or absences.
-    -   Specific days or times with higher/lower attendance.
-    -   Course units with notable attendance issues.
-    -   Changes in attendance over time.
-3.  **Highlight patterns** such-as:
-    -   Groups of students exhibiting similar attendance behaviors.
-    -   Correlation between attendance status and specific events or dates.
-    -   Any unusual or significant attendance deviations.
-4.  **Provide actionable recommendations** for administrators or instructors to support students or improve attendance based on your findings.
+INSTRUCCIONES CRÍTICAS:
+1. Calcula el porcentaje de inasistencias (Falta) sobre el total de sesiones registradas para cada alumno.
+2. Si un alumno tiene el 30% o más de inasistencias, inclúyelo obligatoriamente en la lista de 'atRiskStudents'.
+3. Identifica patrones como inasistencias consecutivas o días específicos de falta.
+4. Genera todas las descripciones, nombres y recomendaciones en ESPAÑOL.
+5. Sé preciso con los nombres y proporciona recomendaciones pedagógicas para evitar la deserción.
 
-Ensure your output strictly adheres to the JSON schema for summary, trends, patterns, and recommendations.`,
+La salida debe ser un objeto JSON que siga estrictamente el esquema definido.`,
 });
 
 const aiAttendanceInsightsFlow = ai.defineFlow(
