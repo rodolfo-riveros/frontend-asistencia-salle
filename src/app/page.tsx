@@ -5,7 +5,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { GraduationCap, Mail, Lock, Eye, LogIn, ShieldCheck, Loader2, AlertCircle } from 'lucide-react';
+import { GraduationCap, Mail, Lock, Eye, LogIn, ShieldCheck, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,14 +13,12 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function LoginPage() {
   const router = useRouter();
   const [showPassword, setShowPassword] = React.useState(false);
   const [currentYear, setCurrentYear] = React.useState<number | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
-  const [configError, setConfigError] = React.useState<string | null>(null);
 
   const sjbImage = PlaceHolderImages.find(img => img.id === 'sjb-avatar')?.imageUrl || "https://picsum.photos/seed/sjb/200/200";
 
@@ -68,12 +66,15 @@ export default function LoginPage() {
       }
     } catch (error: any) {
       console.error("Login Error:", error);
+      
       let errorMessage = "Credenciales inválidas. Por favor, intente de nuevo.";
       
-      if (error.message === "Failed to fetch" || error.message?.includes("fetch")) {
-        errorMessage = "Error de conexión: No se pudo contactar con Supabase. Verifica tu conexión o las claves API.";
+      if (error.message?.includes("API key")) {
+        errorMessage = "Error de configuración: La clave API de Supabase no es válida. Contacte al administrador.";
+      } else if (error.message === "Failed to fetch") {
+        errorMessage = "Error de conexión: No se pudo contactar con el servidor de autenticación.";
       } else if (error.message) {
-        errorMessage = error.message; // Mostrar el error específico de Supabase (ej. Invalid login credentials)
+        errorMessage = error.message;
       }
 
       toast({
@@ -81,6 +82,7 @@ export default function LoginPage() {
         title: "Error de Acceso",
         description: errorMessage,
       });
+    } finally {
       setIsLoading(false);
     }
   };
