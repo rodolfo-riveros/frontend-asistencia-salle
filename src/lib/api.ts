@@ -32,12 +32,13 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
     const response = await fetch(url, {
       ...options,
       headers,
-      credentials: 'omit', // Importante para CORS con allow_origins="*"
+      credentials: 'omit',
     });
 
+    // Manejo específico de 401 (Token inválido o secreto JWT incorrecto en Render)
     if (response.status === 401) {
-      console.error("[API ERROR] 401: El servidor rechazó el token. Verifica el SUPABASE_JWT_SECRET en Render.");
-      throw new Error("Tu sesión no es válida en el servidor. Por favor, cierra sesión y vuelve a entrar.");
+      console.error("[API ERROR] 401: Sesión no válida en el servidor.");
+      throw new Error("Tu sesión ha expirado o el secreto JWT del servidor es incorrecto. Por favor, cierra sesión y vuelve a entrar.");
     }
 
     if (!response.ok) {
@@ -46,8 +47,11 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
       throw new Error(errorData.detail || `Error del servidor (${response.status})`);
     }
 
+    // Si no hay contenido (204) o el cuerpo está vacío, no intentamos parsear JSON
     if (response.status === 204) return {} as T;
-    return response.json();
+    
+    const text = await response.text();
+    return text ? JSON.parse(text) : {} as T;
   } catch (err: any) {
     console.error("[NETWORK ERROR]", err);
     throw err;

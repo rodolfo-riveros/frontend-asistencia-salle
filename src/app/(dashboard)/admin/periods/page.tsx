@@ -49,6 +49,7 @@ export default function AdminPeriodsPage() {
   const [periods, setPeriods] = React.useState<any[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
   const [isModalOpen, setIsModalOpen] = React.useState(false)
+  const [isDeleting, setIsDeleting] = React.useState<string | null>(null)
   const [searchTerm, setSearchTerm] = React.useState("")
 
   const fetchPeriods = React.useCallback(async () => {
@@ -90,13 +91,23 @@ export default function AdminPeriodsPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if(!confirm("¿Desea eliminar este periodo académico?")) return
+    if(!confirm("¿Desea eliminar este periodo académico? Se borrarán las asistencias vinculadas.")) return
+    
+    setIsDeleting(id)
     try {
+      // Sincronización con el endpoint DELETE /api/v1/periodos/{id}
       await api.delete(`/periodos/${id}`)
-      toast({ title: "Ciclo eliminado" })
-      fetchPeriods()
+      toast({ title: "Ciclo eliminado", description: "El registro ha sido retirado correctamente." })
+      await fetchPeriods() // Recargar la lista
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Error", description: err.message })
+      console.error("[DELETE ERROR]", err)
+      toast({ 
+        variant: "destructive", 
+        title: "No se pudo eliminar", 
+        description: err.message || "Es posible que existan dependencias activas."
+      })
+    } finally {
+      setIsDeleting(null)
     }
   }
 
@@ -118,7 +129,7 @@ export default function AdminPeriodsPage() {
         </div>
         
         <div className="flex gap-2">
-          <Button variant="outline" onClick={fetchPeriods} className="gap-2">
+          <Button variant="outline" onClick={fetchPeriods} className="gap-2 h-11" disabled={isLoading}>
             <RefreshCcw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
             Sincronizar
           </Button>
@@ -169,7 +180,7 @@ export default function AdminPeriodsPage() {
 
       <Card className="border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
         <CardContent className="p-0">
-          {isLoading ? (
+          {isLoading && periods.length === 0 ? (
             <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-3">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
               <p className="text-sm font-medium italic">Sincronizando con FastAPI...</p>
@@ -211,13 +222,16 @@ export default function AdminPeriodsPage() {
                       <TableCell className="pr-6 text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="rounded-full">
-                              <MoreVertical className="h-4 w-4 text-slate-400" />
+                            <Button variant="ghost" size="icon" className="rounded-full h-9 w-9" disabled={isDeleting === p.id}>
+                              {isDeleting === p.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreVertical className="h-4 w-4 text-slate-400" />}
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-40">
-                            <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(p.id)}>
-                              <Trash2 className="h-3.5 w-3.5" /> Eliminar
+                            <DropdownMenuItem 
+                              className="gap-2 text-destructive focus:text-destructive focus:bg-red-50 cursor-pointer" 
+                              onClick={() => handleDelete(p.id)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" /> Eliminar Ciclo
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
