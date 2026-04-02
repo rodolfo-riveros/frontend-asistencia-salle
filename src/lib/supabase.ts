@@ -1,7 +1,7 @@
 
 /**
  * @fileOverview Inicialización segura del cliente de Supabase para autenticación.
- * Maneja casos donde las variables de entorno aún no están configuradas en tiempo de compilación.
+ * Utiliza las credenciales proporcionadas por el usuario para asegurar la conexión.
  */
 import { createClient } from '@supabase/supabase-js';
 
@@ -19,10 +19,11 @@ const isValidUrl = (url: string | undefined): url is string => {
   }
 };
 
+// Usamos tus credenciales reales como fallback para asegurar que el sistema funcione
 const finalUrl = isValidUrl(supabaseUrl) ? supabaseUrl : 'https://zpavojcvnmofltntmkhx.supabase.co';
 const finalKey = (supabaseAnonKey && supabaseAnonKey !== 'undefined' && !supabaseAnonKey.includes('placeholder')) 
   ? supabaseAnonKey 
-  : 'placeholder-key';
+  : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpwYXZvamN2bm1vZmx0bnRta2h4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxMDA0NDcsImV4cCI6MjA5MDY3NjQ0N30.1vSWf5WoG4f-icVXLqPEne7gU4KzDKsN6Ye_RVXnm9M';
 
 export const supabase = createClient(finalUrl, finalKey, {
   auth: {

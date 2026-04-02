@@ -26,15 +26,6 @@ export default function LoginPage() {
 
   React.useEffect(() => {
     setCurrentYear(new Date().getFullYear());
-    
-    // Verificar configuración de Supabase al cargar
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const isMissingConfig = !supabaseUrl || supabaseUrl.includes('placeholder') || supabaseUrl === 'undefined';
-    
-    if (isMissingConfig && process.env.NODE_ENV === 'production') {
-      setConfigError("Configuración de Supabase pendiente. Por favor, añada las variables de entorno en su panel de despliegue.");
-    }
-    
     router.prefetch('/admin');
     router.prefetch('/instructor');
   }, [router]);
@@ -80,9 +71,9 @@ export default function LoginPage() {
       let errorMessage = "Credenciales inválidas. Por favor, intente de nuevo.";
       
       if (error.message === "Failed to fetch" || error.message?.includes("fetch")) {
-        errorMessage = "No se pudo conectar con el servicio de autenticación. Verifique su conexión a internet o la configuración del servidor.";
+        errorMessage = "Error de conexión: No se pudo contactar con Supabase. Verifica tu conexión o las claves API.";
       } else if (error.message) {
-        errorMessage = error.message;
+        errorMessage = error.message; // Mostrar el error específico de Supabase (ej. Invalid login credentials)
       }
 
       toast({
@@ -150,16 +141,6 @@ export default function LoginPage() {
               <GraduationCap className="text-primary w-6 h-6" />
               <span className="font-headline font-bold text-xl text-primary">La Salle Urubamba</span>
             </div>
-
-            {configError && (
-              <Alert variant="destructive" className="mb-6">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Configuración Requerida</AlertTitle>
-                <AlertDescription className="text-xs">
-                  {configError}
-                </AlertDescription>
-              </Alert>
-            )}
 
             <div className="mb-10 text-left">
               <h3 className="font-headline text-2xl font-bold text-slate-900 mb-2">Portal de Asistencia</h3>
