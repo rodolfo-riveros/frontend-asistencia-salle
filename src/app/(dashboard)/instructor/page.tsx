@@ -1,10 +1,11 @@
+
 "use client"
 
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { BookOpen, Users, Clock, ArrowRight, Sparkles, FileSpreadsheet } from "lucide-react"
+import { BookOpen, Users, Clock, ArrowRight, FileSpreadsheet } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 
 const courses = [
@@ -123,24 +124,6 @@ export default function InstructorDashboard() {
             </CardFooter>
           </Card>
         ))}
-      </div>
-
-      <div className="bg-gradient-to-br from-slate-900 to-blue-900 rounded-3xl p-10 text-white flex flex-col md:flex-row items-center justify-between gap-8 shadow-2xl">
-        <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <Sparkles className="h-6 w-6 text-yellow-400" />
-            <span className="text-xs font-black uppercase tracking-[0.4em] text-blue-300">Asistencia Inteligente</span>
-          </div>
-          <h3 className="text-3xl font-headline font-black leading-tight">
-            Optimice su tiempo con IA
-          </h3>
-          <p className="text-blue-100/70 max-w-md text-sm leading-relaxed">
-            Nuestro motor de IA analiza las tendencias de asistencia para alertarle sobre riesgos de deserción o patrones de tardanza en sus alumnos.
-          </p>
-        </div>
-        <Button className="bg-white text-primary hover:bg-white/90 h-14 px-8 text-base font-black rounded-2xl shrink-0">
-          Ver Reporte Mensual
-        </Button>
       </div>
     </div>
   )
