@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -11,7 +12,8 @@ import {
   Loader2,
   CheckCircle2,
   XCircle,
-  UserPlus
+  UserPlus,
+  RefreshCcw
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -31,7 +33,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Badge } from "@/badge"
+import { Badge } from "@/components/ui/badge"
 import {
   Dialog,
   DialogContent,
@@ -59,8 +61,10 @@ export default function AdminInstructorsPage() {
     setIsLoading(true)
     try {
       const data = await api.get<any[]>('/docentes/')
-      setInstructors(data)
+      console.log("[DEBUG] Docentes recibidos:", data)
+      setInstructors(Array.isArray(data) ? data : [])
     } catch (err: any) {
+      console.error("[ERROR] Fallo al listar docentes:", err)
       toast({ 
         variant: "destructive", 
         title: "Error de Conexión", 
@@ -88,7 +92,6 @@ export default function AdminInstructorsPage() {
 
     try {
       if (editingInstructor) {
-        // Actualización de perfil existente
         await api.patch(`/docentes/${editingInstructor.id}`, {
           nombre,
           especialidad,
@@ -96,10 +99,10 @@ export default function AdminInstructorsPage() {
         })
         toast({ title: "Perfil actualizado", description: "Los datos se guardaron correctamente." })
       } else {
-        // 1. Crear usuario en Supabase Auth usando el cliente administrativo (evita cambio de sesión)
+        // 1. Crear usuario en Supabase Auth usando el cliente administrativo
         const { data: authData, error: authError } = await supabaseAdminTask.auth.signUp({
           email,
-          password: dni, // El DNI será su clave inicial
+          password: dni,
           options: {
             data: {
               firstname: nombre.split(' ')[0],
@@ -113,7 +116,7 @@ export default function AdminInstructorsPage() {
         if (authError) throw authError
         if (!authData.user) throw new Error("No se pudo crear el usuario en Supabase Auth.")
 
-        // 2. Crear perfil en la tabla 'docentes' de tu base de datos mediante FastAPI
+        // 2. Crear perfil en la tabla 'docentes' mediante FastAPI
         await api.post('/docentes/', {
           id: authData.user.id,
           nombre,
@@ -168,59 +171,64 @@ export default function AdminInstructorsPage() {
           <p className="text-slate-500 text-sm">Registra y vincula perfiles profesionales.</p>
         </div>
 
-        <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if(!open) setEditingInstructor(null); }}>
-          <DialogTrigger asChild>
-            <Button className="bg-primary hover:bg-primary/90 gap-2 shadow-lg shadow-primary/20 h-11 px-6 font-bold">
-              <UserPlus className="h-4 w-4" /> Registrar Nuevo Docente
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[550px]">
-            <form onSubmit={handleSave}>
-              <DialogHeader>
-                <DialogTitle>{editingInstructor ? "Editar Perfil" : "Nuevo Registro de Docente"}</DialogTitle>
-                <DialogDescription>
-                  {editingInstructor 
-                    ? "Modifica los detalles profesionales del docente." 
-                    : "Se creará una cuenta institucional. El DNI será la contraseña inicial."}
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-6">
-                <div className="space-y-2">
-                  <Label htmlFor="nombre">Nombre Completo</Label>
-                  <Input id="nombre" name="nombre" defaultValue={editingInstructor?.nombre} placeholder="Apellidos y Nombres" required />
-                </div>
-                {!editingInstructor && (
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={fetchData} className="gap-2 h-11">
+            <RefreshCcw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+          </Button>
+          <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if(!open) setEditingInstructor(null); }}>
+            <DialogTrigger asChild>
+              <Button className="bg-primary hover:bg-primary/90 gap-2 shadow-lg shadow-primary/20 h-11 px-6 font-bold">
+                <UserPlus className="h-4 w-4" /> Registrar Nuevo Docente
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[550px]">
+              <form onSubmit={handleSave}>
+                <DialogHeader>
+                  <DialogTitle>{editingInstructor ? "Editar Perfil" : "Nuevo Registro de Docente"}</DialogTitle>
+                  <DialogDescription>
+                    {editingInstructor 
+                      ? "Modifica los detalles profesionales del docente." 
+                      : "Se creará una cuenta institucional. El DNI será la contraseña inicial."}
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-6">
                   <div className="space-y-2">
-                    <Label htmlFor="email">Correo Institucional</Label>
-                    <Input id="email" name="email" type="email" placeholder="usuario@lasalle.edu.pe" required />
+                    <Label htmlFor="nombre">Nombre Completo</Label>
+                    <Input id="nombre" name="nombre" defaultValue={editingInstructor?.nombre} placeholder="Apellidos y Nombres" required />
                   </div>
-                )}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="dni">DNI</Label>
-                    <Input id="dni" name="dni" placeholder="8 dígitos" required maxLength={8} disabled={!!editingInstructor} />
+                  {!editingInstructor && (
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Correo Institucional</Label>
+                      <Input id="email" name="email" type="email" placeholder="usuario@lasalle.edu.pe" required />
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="dni">DNI</Label>
+                      <Input id="dni" name="dni" placeholder="8 dígitos" required maxLength={8} disabled={!!editingInstructor} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="especialidad">Especialidad</Label>
+                      <Input id="especialidad" name="especialidad" defaultValue={editingInstructor?.especialidad} placeholder="Ej. Sistemas, Contabilidad" required />
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="especialidad">Especialidad</Label>
-                    <Input id="especialidad" name="especialidad" defaultValue={editingInstructor?.especialidad} placeholder="Ej. Sistemas, Contabilidad" required />
+                  <div className="flex items-center space-x-3 pt-4 border-t mt-2">
+                    <Checkbox id="es_transversal" name="es_transversal" defaultChecked={editingInstructor?.es_transversal} />
+                    <Label htmlFor="es_transversal" className="text-sm font-semibold text-slate-700 cursor-pointer">
+                      ¿Es Docente de Cursos Transversales?
+                    </Label>
                   </div>
                 </div>
-                <div className="flex items-center space-x-3 pt-4 border-t mt-2">
-                  <Checkbox id="es_transversal" name="es_transversal" defaultChecked={editingInstructor?.es_transversal} />
-                  <Label htmlFor="es_transversal" className="text-sm font-semibold text-slate-700 cursor-pointer">
-                    ¿Es Docente de Cursos Transversales?
-                  </Label>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
-                <Button type="submit" className="bg-primary font-bold min-w-[120px]" disabled={isSaving}>
-                  {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : editingInstructor ? "Actualizar" : "Registrar"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+                <DialogFooter>
+                  <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
+                  <Button type="submit" className="bg-primary font-bold min-w-[120px]" disabled={isSaving}>
+                    {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : editingInstructor ? "Actualizar" : "Registrar"}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       <div className="relative mb-6">
@@ -238,7 +246,7 @@ export default function AdminInstructorsPage() {
           {isLoading ? (
             <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-3">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-sm font-medium">Sincronizando con FastAPI...</p>
+              <p className="text-sm font-medium">Sincronizando con el servidor...</p>
             </div>
           ) : (
             <Table>
@@ -309,7 +317,7 @@ export default function AdminInstructorsPage() {
                     <TableCell colSpan={4} className="h-48 text-center text-slate-400">
                       <div className="flex flex-col items-center gap-3">
                         <AlertCircle className="h-10 w-10 opacity-10" />
-                        <p className="font-bold text-slate-900">No se encontraron docentes</p>
+                        <p className="font-bold text-slate-900">No se encontraron docentes registrados</p>
                       </div>
                     </TableCell>
                   </TableRow>
