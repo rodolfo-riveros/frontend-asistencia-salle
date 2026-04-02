@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -6,7 +5,6 @@ import {
   Plus, 
   Search, 
   MoreVertical, 
-  Edit2, 
   Trash2, 
   Calendar,
   AlertCircle,
@@ -51,7 +49,6 @@ export default function AdminPeriodsPage() {
   const [periods, setPeriods] = React.useState<any[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
   const [isModalOpen, setIsModalOpen] = React.useState(false)
-  const [editingPeriod, setEditingPeriod] = React.useState<any>(null)
   const [searchTerm, setSearchTerm] = React.useState("")
 
   const fetchPeriods = React.useCallback(async () => {
@@ -83,17 +80,10 @@ export default function AdminPeriodsPage() {
     }
 
     try {
-      if (editingPeriod) {
-        // Se usa PATCH y sin barra diagonal final para evitar 405
-        await api.patch(`/periodos/${editingPeriod.id}`, payload)
-        toast({ title: "Ciclo actualizado" })
-      } else {
-        await api.post('/periodos/', payload)
-        toast({ title: "Ciclo creado con éxito" })
-      }
+      await api.post('/periodos/', payload)
+      toast({ title: "Ciclo creado con éxito" })
       fetchPeriods()
       setIsModalOpen(false)
-      setEditingPeriod(null)
     } catch (err: any) {
       toast({ variant: "destructive", title: "Error al guardar", description: err.message })
     }
@@ -132,7 +122,7 @@ export default function AdminPeriodsPage() {
             <RefreshCcw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
             Sincronizar
           </Button>
-          <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if(!open) setEditingPeriod(null); }}>
+          <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
             <DialogTrigger asChild>
               <Button className="bg-primary hover:bg-primary/90 gap-2 shadow-lg shadow-primary/20 h-11 px-6 font-bold">
                 <Plus className="h-4 w-4" /> Nuevo Ciclo
@@ -141,20 +131,20 @@ export default function AdminPeriodsPage() {
             <DialogContent className="sm:max-w-[425px]">
               <form onSubmit={handleSave}>
                 <DialogHeader>
-                  <DialogTitle>{editingPeriod ? "Editar Ciclo" : "Crear Nuevo Ciclo"}</DialogTitle>
+                  <DialogTitle>Crear Nuevo Ciclo</DialogTitle>
                   <DialogDescription>Asigna el nombre oficial (Ej: 2024-I) y define su vigencia.</DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-6">
                   <div className="space-y-2">
                     <Label htmlFor="nombre">Nombre del Periodo</Label>
-                    <Input id="nombre" name="nombre" defaultValue={editingPeriod?.nombre} placeholder="Ej. 2024-II" required />
+                    <Input id="nombre" name="nombre" placeholder="Ej. 2024-II" required />
                   </div>
                   <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border">
                     <div className="space-y-0.5">
                       <Label className="text-sm font-bold">Ciclo Activo</Label>
                       <p className="text-xs text-slate-500">Marcar como periodo vigente del sistema.</p>
                     </div>
-                    <Switch name="es_activo" defaultChecked={editingPeriod?.es_activo} />
+                    <Switch name="es_activo" />
                   </div>
                 </div>
                 <DialogFooter>
@@ -226,9 +216,6 @@ export default function AdminPeriodsPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-40">
-                            <DropdownMenuItem className="gap-2" onClick={() => { setEditingPeriod(p); setIsModalOpen(true); }}>
-                              <Edit2 className="h-3.5 w-3.5" /> Editar
-                            </DropdownMenuItem>
                             <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(p.id)}>
                               <Trash2 className="h-3.5 w-3.5" /> Eliminar
                             </DropdownMenuItem>

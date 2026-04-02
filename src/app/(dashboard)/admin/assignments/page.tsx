@@ -1,11 +1,9 @@
-
 "use client"
 
 import * as React from "react"
 import { 
   Search, 
   MoreVertical, 
-  Edit2, 
   Trash2, 
   BookOpen,
   Link2,
@@ -53,7 +51,6 @@ export default function AcademicAssignmentsPage() {
   const [periods, setPeriods] = React.useState<any[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
   const [isModalOpen, setIsModalOpen] = React.useState(false)
-  const [editingAssignment, setEditingAssignment] = React.useState<any>(null)
   const [searchTerm, setSearchTerm] = React.useState("")
   const [selectedPeriodId, setSelectedPeriodId] = React.useState<string>("all")
 
@@ -103,16 +100,10 @@ export default function AcademicAssignmentsPage() {
     }
 
     try {
-      if (editingAssignment) {
-        await api.patch(`/asignaciones/${editingAssignment.id}`, payload)
-        toast({ title: "Asignación actualizada", description: "Los cambios han sido guardados." })
-      } else {
-        await api.post('/asignaciones/', payload)
-        toast({ title: "Carga asignada", description: "Docente vinculado correctamente." })
-      }
+      await api.post('/asignaciones/', payload)
+      toast({ title: "Carga asignada", description: "Docente vinculado correctamente." })
       fetchData()
       setIsModalOpen(false)
-      setEditingAssignment(null)
     } catch (err: any) {
       toast({ variant: "destructive", title: "Error al guardar", description: err.message })
     }
@@ -164,7 +155,7 @@ export default function AcademicAssignmentsPage() {
           <Button variant="outline" onClick={fetchData} className="gap-2 h-11">
             <RefreshCcw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
           </Button>
-          <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if(!open) setEditingAssignment(null); }}>
+          <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
             <DialogTrigger asChild>
               <Button className="bg-primary hover:bg-primary/90 gap-2 shadow-lg shadow-primary/20 h-11 px-6 font-bold">
                 <Link2 className="h-4 w-4" /> Vincular Docente
@@ -173,13 +164,13 @@ export default function AcademicAssignmentsPage() {
             <DialogContent className="sm:max-w-[500px]">
               <form onSubmit={handleSave}>
                 <DialogHeader>
-                  <DialogTitle>{editingAssignment ? "Editar Asignación" : "Nueva Asignación"}</DialogTitle>
+                  <DialogTitle>Nueva Asignación</DialogTitle>
                   <DialogDescription>Define el responsable de una unidad para un periodo académico.</DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-6">
                   <div className="space-y-2">
                     <Label>Periodo Académico</Label>
-                    <Select name="periodo_id" defaultValue={editingAssignment?.periodo_id || periods.find(p => p.es_activo)?.id}>
+                    <Select name="periodo_id" defaultValue={periods.find(p => p.es_activo)?.id}>
                       <SelectTrigger>
                         <SelectValue placeholder="Seleccione periodo" />
                       </SelectTrigger>
@@ -192,7 +183,7 @@ export default function AcademicAssignmentsPage() {
                   </div>
                   <div className="space-y-2">
                     <Label>Docente Responsable</Label>
-                    <Select name="docente_id" defaultValue={editingAssignment?.docente_id}>
+                    <Select name="docente_id">
                       <SelectTrigger>
                         <SelectValue placeholder="Seleccione docente..." />
                       </SelectTrigger>
@@ -205,7 +196,7 @@ export default function AcademicAssignmentsPage() {
                   </div>
                   <div className="space-y-2">
                     <Label>Unidad Didáctica</Label>
-                    <Select name="unidad_id" defaultValue={editingAssignment?.unidad_id}>
+                    <Select name="unidad_id">
                       <SelectTrigger>
                         <SelectValue placeholder="Seleccione unidad..." />
                       </SelectTrigger>
@@ -292,9 +283,6 @@ export default function AcademicAssignmentsPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-40">
-                            <DropdownMenuItem className="gap-2" onClick={() => { setEditingAssignment(asg); setIsModalOpen(true); }}>
-                              <Edit2 className="h-3.5 w-3.5" /> Editar
-                            </DropdownMenuItem>
                             <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(asg.id)}>
                               <Trash2 className="h-3.5 w-3.5" /> Eliminar
                             </DropdownMenuItem>
