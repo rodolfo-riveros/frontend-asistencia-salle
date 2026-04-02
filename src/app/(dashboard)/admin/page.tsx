@@ -16,8 +16,7 @@ import {
   Loader2,
   RefreshCcw,
   Sparkles,
-  Clock,
-  LayoutDashboard
+  Clock
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -30,7 +29,8 @@ export default function AdminDashboard() {
   const [isAnalyzing, setIsAnalyzing] = React.useState(false);
   const [isLoadingStats, setIsLoadingStats] = React.useState(true);
   const [aiInsights, setAiInsights] = React.useState<AdminDashboardOutput | null>(null);
-  const [activePeriod, setActivePeriod] = React.useState("2024-I");
+  const [periods, setPeriods] = React.useState<any[]>([]);
+  const [activePeriodId, setActivePeriodId] = React.useState<string>("");
   
   const [realStats, setRealStats] = React.useState({
     programs: 0,
@@ -43,13 +43,18 @@ export default function AdminDashboard() {
   const fetchData = React.useCallback(async () => {
     setIsLoadingStats(true);
     try {
-      const [progs, docs, units, students] = await Promise.all([
+      const [progs, docs, units, students, periodData] = await Promise.all([
         api.get<any[]>('/programas/'),
         api.get<any[]>('/docentes/'),
         api.get<any[]>('/unidades/'),
-        api.get<any[]>('/alumnos/')
+        api.get<any[]>('/alumnos/'),
+        api.get<any[]>('/periodos/')
       ]);
       
+      setPeriods(periodData);
+      const active = periodData.find((p: any) => p.es_activo);
+      if (active && !activePeriodId) setActivePeriodId(active.id);
+
       setRealStats({
         programs: progs.length,
         instructors: docs.length,
@@ -66,7 +71,7 @@ export default function AdminDashboard() {
     } finally {
       setIsLoadingStats(false);
     }
-  }, []);
+  }, [activePeriodId]);
 
   React.useEffect(() => {
     fetchData();
@@ -82,6 +87,7 @@ export default function AdminDashboard() {
   const handleGenerateAiInsights = async () => {
     setIsAnalyzing(true);
     try {
+      const selectedPeriod = periods.find(p => p.id === activePeriodId)?.nombre || "Actual";
       const insights = await getAdminInsights({
         stats: {
           totalPrograms: realStats.programs,
@@ -89,12 +95,12 @@ export default function AdminDashboard() {
           totalCourses: realStats.courses,
           averageAttendance: realStats.avgAttendance
         },
-        recentActivities: [`Análisis del periodo académico ${activePeriod}`]
+        recentActivities: [`Diagnóstico estratégico para el ciclo académico ${selectedPeriod}`]
       });
       setAiInsights(insights);
-      toast({ title: "Análisis IA Completo" });
+      toast({ title: "Análisis IA Completo", description: "Los resultados se muestran en el panel inferior." });
     } catch (error) {
-      toast({ variant: "destructive", title: "Error de IA" });
+      toast({ variant: "destructive", title: "Error de IA", description: "No se pudo generar el diagnóstico." });
     } finally {
       setIsAnalyzing(false);
     }
@@ -112,15 +118,15 @@ export default function AdminDashboard() {
           </h2>
           <div className="flex items-center gap-2 text-slate-500 font-medium">
             <Calendar className="h-4 w-4" />
-            <span>Periodo Académico:</span>
-            <Select value={activePeriod} onValueChange={setActivePeriod}>
-              <SelectTrigger className="w-[140px] h-8 font-bold border-none bg-white shadow-sm">
-                <SelectValue />
+            <span>Contexto Académico:</span>
+            <Select value={activePeriodId} onValueChange={setActivePeriodId}>
+              <SelectTrigger className="w-[180px] h-8 font-bold border-none bg-white shadow-sm">
+                <SelectValue placeholder="Seleccione ciclo" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="2023-II">2023-II</SelectItem>
-                <SelectItem value="2024-I">2024-I</SelectItem>
-                <SelectItem value="2024-II">2024-II</SelectItem>
+                {periods.map(p => (
+                  <SelectItem key={p.id} value={p.id}>{p.nombre} {p.es_activo && "(Activo)"}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -128,20 +134,20 @@ export default function AdminDashboard() {
         <div className="flex gap-3 w-full lg:w-auto">
           <Button variant="outline" onClick={fetchData} className="gap-2">
             <RefreshCcw className={`h-4 w-4 ${isLoadingStats ? 'animate-spin' : ''}`} />
-            Actualizar
+            Sincronizar
           </Button>
           <Button onClick={handleGenerateAiInsights} disabled={isAnalyzing} className="bg-accent text-white gap-2 font-bold shadow-lg shadow-accent/20">
             {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-            Analizar Periodo
+            Diagnóstico IA
           </Button>
         </div>
       </div>
 
       <div className="grid gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
-          <Card key={stat.name} className="border-none shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden">
+          <Card key={stat.name} className="border-none shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden group">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <div className={`p-2.5 rounded-2xl bg-gradient-to-br ${stat.color} text-white`}>
+              <div className={`p-2.5 rounded-2xl bg-gradient-to-br ${stat.color} text-white shadow-lg shadow-slate-200 group-hover:scale-110 transition-transform`}>
                 <stat.icon className="h-5 w-5" />
               </div>
             </CardHeader>
@@ -162,7 +168,7 @@ export default function AdminDashboard() {
           <CardHeader className="border-b border-white/10 p-6 flex flex-row items-center justify-between">
             <div className="flex items-center gap-3">
               <Zap className="h-5 w-5 text-yellow-400" />
-              <CardTitle className="text-xl font-black">Diagnóstico de IA - {activePeriod}</CardTitle>
+              <CardTitle className="text-xl font-black">Diagnóstico de IA - {periods.find(p => p.id === activePeriodId)?.nombre}</CardTitle>
             </div>
           </CardHeader>
           <CardContent className="p-8 space-y-6">
@@ -224,21 +230,21 @@ export default function AdminDashboard() {
 
         <Card className="border-none shadow-xl overflow-hidden bg-primary text-white">
           <CardHeader className="p-6">
-            <CardTitle className="text-xl font-black">Estado del Portal</CardTitle>
-            <p className="text-blue-100/60 text-xs">Gestión por Periodo</p>
+            <CardTitle className="text-xl font-black">Estado Institucional</CardTitle>
+            <p className="text-blue-100/60 text-xs">Gestión por Ciclo</p>
           </CardHeader>
           <CardContent className="p-6 space-y-6">
              <div className="p-4 bg-white/10 rounded-xl border border-white/10">
-                <p className="text-xs font-bold uppercase tracking-widest mb-2">Periodo Lectivo Actual</p>
-                <p className="text-3xl font-black">{activePeriod}</p>
+                <p className="text-xs font-bold uppercase tracking-widest mb-2">Ciclo Académico Actual</p>
+                <p className="text-3xl font-black">{periods.find(p => p.id === activePeriodId)?.nombre || "Cargando..."}</p>
              </div>
              <p className="text-sm text-blue-50/80 leading-relaxed italic">
-                "La gestión académica se centraliza en el periodo activo. Las asignaciones de docentes y el pase de lista dependen de esta configuración global."
+                "La gestión académica se centraliza en el periodo activo. Las asignaciones y el pase de lista dependen de esta configuración global en FastAPI."
              </p>
           </CardContent>
           <div className="p-6 bg-white/5 border-t border-white/10">
             <Button variant="ghost" className="w-full text-white hover:bg-white/10 font-bold uppercase text-[10px] tracking-widest gap-2">
-              <Clock className="h-4 w-4" /> Ver Historial de Periodos
+              <Clock className="h-4 w-4" /> Historial de Ciclos
             </Button>
           </div>
         </Card>

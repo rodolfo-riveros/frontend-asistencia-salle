@@ -62,7 +62,7 @@ export default function AdminPeriodsPage() {
       toast({ 
         variant: "destructive", 
         title: "Error de Conexión", 
-        description: err.message 
+        description: err.message || "No se pudo conectar con FastAPI."
       })
     } finally {
       setIsLoading(false)
@@ -84,10 +84,10 @@ export default function AdminPeriodsPage() {
     try {
       if (editingPeriod) {
         await api.patch(`/periodos/${editingPeriod.id}`, payload)
-        toast({ title: "Periodo actualizado" })
+        toast({ title: "Periodo actualizado", description: `El ciclo ${payload.nombre} fue modificado con éxito.` })
       } else {
         await api.post('/periodos/', payload)
-        toast({ title: "Periodo creado con éxito" })
+        toast({ title: "Periodo creado", description: `El ciclo ${payload.nombre} se registró correctamente.` })
       }
       fetchPeriods()
       setIsModalOpen(false)
@@ -101,7 +101,7 @@ export default function AdminPeriodsPage() {
     if(!confirm("¿Desea eliminar este periodo académico?")) return
     try {
       await api.delete(`/periodos/${id}`)
-      toast({ title: "Periodo eliminado" })
+      toast({ title: "Periodo eliminado", description: "El registro ha sido retirado del sistema." })
       fetchPeriods()
     } catch (err: any) {
       toast({ variant: "destructive", title: "Error", description: err.message })
@@ -109,8 +109,9 @@ export default function AdminPeriodsPage() {
   }
 
   const filteredPeriods = React.useMemo(() => {
+    const term = searchTerm.toLowerCase()
     return (periods || []).filter(p => 
-      p.nombre.toLowerCase().includes(searchTerm.toLowerCase())
+      p.nombre.toLowerCase().includes(term)
     )
   }, [periods, searchTerm])
 
@@ -118,9 +119,9 @@ export default function AdminPeriodsPage() {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div className="space-y-1">
-          <p className="text-primary font-bold uppercase tracking-[0.2em] text-xs">Gestión Temporal</p>
+          <p className="text-primary font-bold uppercase tracking-[0.2em] text-xs">Gestión Institucional</p>
           <h2 className="text-3xl font-headline font-extrabold tracking-tight text-slate-900">Periodos Académicos</h2>
-          <p className="text-slate-500 text-sm">Define el ciclo lectivo activo para toda la institución.</p>
+          <p className="text-slate-500 text-sm">Administra los ciclos lectivos activos para la matrícula y asistencia.</p>
         </div>
         
         <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if(!open) setEditingPeriod(null); }}>
@@ -132,35 +133,35 @@ export default function AdminPeriodsPage() {
           <DialogContent className="sm:max-w-[425px]">
             <form onSubmit={handleSave}>
               <DialogHeader>
-                <DialogTitle>{editingPeriod ? "Editar Periodo" : "Crear Periodo"}</DialogTitle>
-                <DialogDescription>Establece el nombre oficial del semestre (ej. 2024-II).</DialogDescription>
+                <DialogTitle>{editingPeriod ? "Editar Periodo" : "Crear Nuevo Periodo"}</DialogTitle>
+                <DialogDescription>Define el nombre oficial (Ej: 2024-I) y su estado de actividad.</DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-6">
                 <div className="space-y-2">
                   <Label htmlFor="nombre">Nombre del Periodo</Label>
-                  <Input id="nombre" name="nombre" defaultValue={editingPeriod?.nombre} placeholder="Ej. 2024-I" required />
+                  <Input id="nombre" name="nombre" defaultValue={editingPeriod?.nombre} placeholder="Ej. 2024-II" required />
                 </div>
-                <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border">
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border">
                   <div className="space-y-0.5">
                     <Label className="text-sm font-bold">Periodo Activo</Label>
-                    <p className="text-xs text-slate-500">Activa este periodo para los procesos de matrícula y asistencia.</p>
+                    <p className="text-xs text-slate-500">Activa este ciclo para las gestiones actuales.</p>
                   </div>
                   <Switch name="es_activo" defaultChecked={editingPeriod?.es_activo} />
                 </div>
               </div>
               <DialogFooter>
                 <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
-                <Button type="submit" className="bg-primary font-bold">Guardar Cambios</Button>
+                <Button type="submit" className="bg-primary font-bold">Guardar Periodo</Button>
               </DialogFooter>
             </form>
           </DialogContent>
         </Dialog>
       </div>
 
-      <div className="relative mb-6">
+      <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
         <Input 
-          placeholder="Buscador inteligente: busca periodos lectivos..." 
+          placeholder="Buscador inteligente: busca por nombre de ciclo..." 
           className="pl-11 h-11 bg-white border-slate-100 shadow-sm"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
@@ -172,13 +173,13 @@ export default function AdminPeriodsPage() {
           {isLoading ? (
             <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-3">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-sm font-medium">Sincronizando con el servidor...</p>
+              <p className="text-sm font-medium italic">Sincronizando periodos...</p>
             </div>
           ) : (
             <Table>
               <TableHeader className="bg-slate-50/50">
                 <TableRow className="hover:bg-transparent">
-                  <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest pl-6">ID Periodo</TableHead>
+                  <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest pl-6">ID</TableHead>
                   <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest">Nombre Oficial</TableHead>
                   <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest text-center">Estado</TableHead>
                   <TableHead className="w-[100px] pr-6 text-right">Acciones</TableHead>
@@ -229,10 +230,10 @@ export default function AdminPeriodsPage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={4} className="h-32 text-center text-slate-400">
-                      <div className="flex flex-col items-center gap-2">
-                        <AlertCircle className="h-8 w-8 opacity-20" />
-                        No se encontraron periodos registrados.
+                    <TableCell colSpan={4} className="h-48 text-center text-slate-400">
+                      <div className="flex flex-col items-center gap-3">
+                        <AlertCircle className="h-10 w-10 opacity-10" />
+                        <p className="font-bold text-slate-900 uppercase text-xs tracking-widest">No se encontraron periodos</p>
                       </div>
                     </TableCell>
                   </TableRow>

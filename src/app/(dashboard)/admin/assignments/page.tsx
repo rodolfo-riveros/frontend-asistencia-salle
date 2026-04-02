@@ -9,10 +9,9 @@ import {
   Trash2, 
   BookOpen,
   Link2,
-  Calendar,
   AlertCircle,
   Loader2,
-  UserRound
+  Calendar
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -61,9 +60,9 @@ export default function AcademicAssignmentsPage() {
   const fetchData = React.useCallback(async () => {
     setIsLoading(true)
     try {
-      const periodUrl = selectedPeriodId === "all" ? "/asignaciones/" : `/asignaciones/?periodo_id=${selectedPeriodId}`
+      const query = selectedPeriodId !== "all" ? `?periodo_id=${selectedPeriodId}` : ""
       const [asgData, instData, courseData, periodData] = await Promise.all([
-        api.get<any[]>(periodUrl),
+        api.get<any[]>(`/asignaciones/${query}`),
         api.get<any[]>('/docentes/'),
         api.get<any[]>('/unidades/'),
         api.get<any[]>('/periodos/')
@@ -76,7 +75,7 @@ export default function AcademicAssignmentsPage() {
       toast({ 
         variant: "destructive", 
         title: "Error de Sincronización", 
-        description: err.message 
+        description: err.message || "No se pudo conectar con el servidor."
       })
     } finally {
       setIsLoading(false)
@@ -100,10 +99,10 @@ export default function AcademicAssignmentsPage() {
     try {
       if (editingAssignment) {
         await api.patch(`/asignaciones/${editingAssignment.id}`, payload)
-        toast({ title: "Asignación actualizada" })
+        toast({ title: "Asignación actualizada", description: "Los cambios han sido guardados." })
       } else {
         await api.post('/asignaciones/', payload)
-        toast({ title: "Docente vinculado con éxito" })
+        toast({ title: "Vínculo creado", description: "Docente asignado correctamente al curso." })
       }
       fetchData()
       setIsModalOpen(false)
@@ -117,7 +116,7 @@ export default function AcademicAssignmentsPage() {
     if(!confirm("¿Desea eliminar esta carga académica?")) return
     try {
       await api.delete(`/asignaciones/${id}`)
-      toast({ title: "Asignación eliminada" })
+      toast({ title: "Asignación eliminada", description: "El registro fue retirado exitosamente." })
       fetchData()
     } catch (err: any) {
       toast({ variant: "destructive", title: "Error", description: err.message })
@@ -138,9 +137,9 @@ export default function AcademicAssignmentsPage() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div className="space-y-1">
           <p className="text-primary font-bold uppercase tracking-[0.2em] text-xs">Carga Académica</p>
-          <h2 className="text-3xl font-headline font-extrabold tracking-tight text-slate-900">Vínculo Docente - Curso</h2>
-          <div className="flex items-center gap-3 mt-2">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Filtrar por Periodo:</span>
+          <h2 className="text-3xl font-headline font-extrabold tracking-tight text-slate-900">Vínculo Docente - Unidad</h2>
+          <div className="flex items-center gap-3 mt-3">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Filtrar Ciclo:</span>
             <Select value={selectedPeriodId} onValueChange={setSelectedPeriodId}>
               <SelectTrigger className="h-8 w-[160px] bg-white border-none shadow-sm font-bold text-xs">
                 <SelectValue placeholder="Todos" />
@@ -165,14 +164,14 @@ export default function AcademicAssignmentsPage() {
             <form onSubmit={handleSave}>
               <DialogHeader>
                 <DialogTitle>{editingAssignment ? "Editar Asignación" : "Nueva Asignación"}</DialogTitle>
-                <DialogDescription>Define el responsable de la unidad en un periodo específico.</DialogDescription>
+                <DialogDescription>Define el responsable de una unidad para un ciclo académico específico.</DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-6">
                 <div className="space-y-2">
                   <Label>Periodo Lectivo</Label>
                   <Select name="periodo_id" defaultValue={editingAssignment?.periodo_id || periods.find(p => p.es_activo)?.id}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Seleccione periodo académico" />
+                      <SelectValue placeholder="Seleccione ciclo" />
                     </SelectTrigger>
                     <SelectContent>
                       {periods.map(p => (
@@ -182,10 +181,10 @@ export default function AcademicAssignmentsPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Docente Responsable</Label>
+                  <Label>Docente</Label>
                   <Select name="docente_id" defaultValue={editingAssignment?.docente_id}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Busca un docente..." />
+                      <SelectValue placeholder="Busca docente..." />
                     </SelectTrigger>
                     <SelectContent>
                       {instructors.map(inst => (
@@ -198,11 +197,11 @@ export default function AcademicAssignmentsPage() {
                   <Label>Unidad Didáctica</Label>
                   <Select name="unidad_id" defaultValue={editingAssignment?.unidad_id}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Busca un curso..." />
+                      <SelectValue placeholder="Busca curso..." />
                     </SelectTrigger>
                     <SelectContent>
                       {courses.map(course => (
-                        <SelectItem key={course.id} value={course.id}>{course.nombre} (Sem {course.semestre})</SelectItem>
+                        <SelectItem key={course.id} value={course.id}>{course.nombre} ({course.programa_nombre})</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -210,7 +209,7 @@ export default function AcademicAssignmentsPage() {
               </div>
               <DialogFooter>
                 <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
-                <Button type="submit" className="bg-primary font-bold">Guardar Asignación</Button>
+                <Button type="submit" className="bg-primary font-bold">Asignar Carga</Button>
               </DialogFooter>
             </form>
           </DialogContent>
@@ -220,7 +219,7 @@ export default function AcademicAssignmentsPage() {
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
         <Input 
-          placeholder="Buscador inteligente: filtra por docente, curso o periodo..." 
+          placeholder="Buscador inteligente: filtra por docente, unidad o periodo..." 
           className="pl-11 py-6 bg-white border-slate-100 shadow-sm"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
@@ -232,7 +231,7 @@ export default function AcademicAssignmentsPage() {
           {isLoading ? (
             <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-3">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-sm font-medium">Sincronizando carga académica con FastAPI...</p>
+              <p className="text-sm font-medium">Sincronizando carga académica...</p>
             </div>
           ) : (
             <Table>
@@ -240,7 +239,7 @@ export default function AcademicAssignmentsPage() {
                 <TableRow className="hover:bg-transparent">
                   <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest pl-6">Docente Responsable</TableHead>
                   <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest">Unidad Didáctica</TableHead>
-                  <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest text-center">Periodo Académico</TableHead>
+                  <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest text-center">Ciclo</TableHead>
                   <TableHead className="w-[80px] pr-6 text-right"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -286,10 +285,10 @@ export default function AcademicAssignmentsPage() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-40">
                             <DropdownMenuItem className="gap-2" onClick={() => { setEditingAssignment(asg); setIsModalOpen(true); }}>
-                              <Edit2 className="h-3.5 w-3.5" /> Editar Datos
+                              <Edit2 className="h-3.5 w-3.5" /> Editar
                             </DropdownMenuItem>
                             <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(asg.id)}>
-                              <Trash2 className="h-3.5 w-3.5" /> Eliminar Carga
+                              <Trash2 className="h-3.5 w-3.5" /> Eliminar
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
