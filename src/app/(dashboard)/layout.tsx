@@ -13,7 +13,8 @@ import {
   ClipboardList,
   UserCheck,
   Search,
-  LogOut
+  LogOut,
+  Loader2
 } from "lucide-react"
 
 import {
@@ -32,6 +33,7 @@ import {
 } from "@/components/ui/sidebar"
 import { NavUser } from "@/components/layout/nav-user"
 import { Button } from "@/components/ui/button"
+import { supabase } from "@/lib/supabase"
 
 const ADMIN_NAV = [
   { name: "Panel", href: "/admin", icon: LayoutDashboard },
@@ -43,23 +45,41 @@ const ADMIN_NAV = [
   { name: "Alumnos", href: "/admin/students", icon: Users },
 ]
 
-const ADMIN_USER = {
-  name: "Administrador Central",
-  email: "gestion@lasalleurubamba.edu.pe",
-  avatar: "https://picsum.photos/seed/admin/200/200",
-}
-
-const INSTRUCTOR_USER = {
-  name: "Docente La Salle",
-  email: "docente@lasalleurubamba.edu.pe",
-  avatar: "https://picsum.photos/seed/docente/200/200",
-}
-
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const isAdmin = pathname.startsWith('/admin')
   const currentYear = new Date().getFullYear()
+  
+  const [userData, setUserData] = React.useState<any>(null)
+  const [isLoading, setIsLoading] = React.useState(true)
+
+  React.useEffect(() => {
+    const fetchUser = async () => {
+      const { data: { user }, error } = await supabase.auth.getUser()
+      if (error || !user) {
+        router.replace('/')
+        return
+      }
+
+      const metadata = user.user_metadata
+      setUserData({
+        name: metadata?.firstname ? `${metadata.firstname} ${metadata.lastname || ''}` : "Usuario La Salle",
+        email: user.email,
+        avatar: `https://picsum.photos/seed/${user.id}/200/200`,
+        role: metadata?.role || 'docente'
+      })
+      setIsLoading(false)
+    }
+
+    fetchUser()
+  }, [router])
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    localStorage.removeItem('supabase_access_token')
+    router.replace('/')
+  }
 
   const InstitutionalFooter = () => (
     <footer className="w-full py-6 px-4 md:px-8 mt-auto flex flex-col md:flex-row justify-between items-center border-t border-slate-100 bg-white gap-4 text-[10px] uppercase tracking-widest font-bold">
@@ -71,6 +91,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
     </footer>
   )
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Verificando Credenciales...</p>
+      </div>
+    )
+  }
 
   if (isAdmin) {
     return (
@@ -110,7 +139,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </SidebarGroup>
           </SidebarContent>
           <SidebarFooter className="border-t border-white/10 p-4">
-            <NavUser user={ADMIN_USER} />
+            <NavUser user={userData} onLogout={handleLogout} />
           </SidebarFooter>
         </Sidebar>
         <SidebarInset className="bg-[#f8f9fa] flex flex-col min-h-screen">
@@ -148,14 +177,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </Link>
         <div className="flex items-center gap-3 md:gap-6 shrink-0">
           <div className="hidden sm:flex flex-col text-right">
-            <span className="text-xs md:text-sm font-black text-white leading-tight">{INSTRUCTOR_USER.name}</span>
-            <span className="text-[9px] md:text-[10px] text-white/80 font-bold uppercase tracking-widest">Docente de Especialidad</span>
+            <span className="text-xs md:text-sm font-black text-white leading-tight truncate max-w-[200px]">{userData?.name}</span>
+            <span className="text-[9px] md:text-[10px] text-white/80 font-bold uppercase tracking-widest">{userData?.role === 'admin' ? 'Administrador Central' : 'Docente de Especialidad'}</span>
           </div>
           <Button 
             variant="ghost" 
             size="icon" 
             className="rounded-full h-10 w-10 md:h-11 md:w-11 text-white/70 hover:text-white hover:bg-white/10"
-            onClick={() => router.push('/')}
+            onClick={handleLogout}
             title="Cerrar Sesión"
           >
             <LogOut className="h-4 w-4 md:h-5 md:w-5" />
