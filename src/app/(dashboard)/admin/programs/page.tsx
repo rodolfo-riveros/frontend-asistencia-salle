@@ -202,9 +202,9 @@ export default function AdminProgramsPage() {
           <Terminal className="h-4 w-4 text-emerald-400" />
           <AlertTitle className="font-mono text-emerald-400">Diagnóstico de Datos []</AlertTitle>
           <AlertDescription className="font-mono text-[10px] space-y-2 mt-2">
-            <p>> Si ves la lista vacía pero hay datos en Supabase, el RLS está bloqueando al usuario.</p>
-            <p>> Verifica que la política incluya: <span className="text-yellow-400">TO authenticated</span>.</p>
-            <p>> URL API: <span className="text-blue-400">{process.env.NEXT_PUBLIC_API_URL || 'https://backend-asistencia-salle.onrender.com'}/api/v1/programas/</span></p>
+            <p>{'>'} Si ves la lista vacía pero hay datos en Supabase, el RLS está bloqueando al usuario.</p>
+            <p>{'>'} Verifica que la política incluya: <span className="text-yellow-400">TO authenticated</span>.</p>
+            <p>{'>'} URL API: <span className="text-blue-400">{process.env.NEXT_PUBLIC_API_URL || 'https://backend-asistencia-salle.onrender.com'}/api/v1/programas/</span></p>
           </AlertDescription>
         </Alert>
       )}
