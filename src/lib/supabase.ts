@@ -1,6 +1,6 @@
 
 /**
- * @fileOverview Cliente Supabase centralizado con claves de producción forzadas.
+ * @fileOverview Cliente Supabase centralizado con persistencia de sesión mejorada.
  */
 import { createClient } from '@supabase/supabase-js';
 
@@ -12,6 +12,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
-    storageKey: 'salle-asistencia-auth-v1'
+    storageKey: 'salle-asistencia-v2' // Nueva versión para limpiar cache antigua
   }
 });
