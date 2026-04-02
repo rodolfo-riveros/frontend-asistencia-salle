@@ -11,7 +11,8 @@ import {
   GraduationCap,
   AlertCircle,
   Loader2,
-  Hash
+  Hash,
+  RefreshCcw
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -54,13 +55,16 @@ export default function AdminProgramsPage() {
   const fetchPrograms = React.useCallback(async () => {
     setIsLoading(true)
     try {
+      // Sincronización con el endpoint exacto del backend
       const data = await api.get<any[]>('/programas/')
-      setPrograms(data)
+      console.log("[DEBUG] Programas recibidos:", data)
+      setPrograms(Array.isArray(data) ? data : [])
     } catch (err: any) {
+      console.error("[FETCH ERROR]", err)
       toast({ 
         variant: "destructive", 
         title: "Error al cargar", 
-        description: "Asegúrate de que el servidor FastAPI esté encendido." 
+        description: "No se pudieron obtener los programas. Verifica la conexión con el servidor." 
       })
     } finally {
       setIsLoading(false)
@@ -75,19 +79,25 @@ export default function AdminProgramsPage() {
     e.preventDefault()
     setIsSaving(true)
     const formData = new FormData(e.currentTarget)
+    
+    const nombre = formData.get("nombre") as string
+    
+    // Generación automática del código si es nuevo
+    // Usamos las primeras 3 letras del nombre + un timestamp corto
+    const generatedCode = editingProgram?.codigo || `PRG-${nombre.substring(0, 3).toUpperCase()}-${Date.now().toString().slice(-4)}`
+
     const payload = {
-      nombre: formData.get("nombre") as string,
-      codigo: formData.get("codigo") as string,
+      nombre,
+      codigo: generatedCode,
     }
 
     try {
       if (editingProgram) {
-        // Se usa PATCH y sin barra diagonal
         await api.patch(`/programas/${editingProgram.id}`, payload)
         toast({ title: "Programa actualizado" })
       } else {
         await api.post('/programas/', payload)
-        toast({ title: "Programa creado con éxito" })
+        toast({ title: "Programa creado", description: `Código asignado: ${generatedCode}` })
       }
       fetchPrograms()
       setIsModalOpen(false)
@@ -100,22 +110,27 @@ export default function AdminProgramsPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if(!confirm("¿Desea eliminar este programa?")) return
+    if(!confirm("¿Desea eliminar este programa? Esta acción fallará si hay cursos vinculados.")) return
     try {
       await api.delete(`/programas/${id}`)
       toast({ title: "Programa eliminado" })
       fetchPrograms()
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Error", description: err.message })
+      toast({ 
+        variant: "destructive", 
+        title: "No se pudo eliminar", 
+        description: "Es posible que el programa tenga dependencias (cursos o alumnos)." 
+      })
     }
   }
 
   const filteredPrograms = React.useMemo(() => {
     const term = searchTerm.toLowerCase()
-    return (programs || []).filter(p => 
-      p.nombre.toLowerCase().includes(term) ||
-      p.codigo?.toLowerCase().includes(term)
-    )
+    return (programs || []).filter(p => {
+      const name = (p.nombre || "").toLowerCase()
+      const code = (p.codigo || "").toLowerCase()
+      return name.includes(term) || code.includes(term)
+    })
   }, [programs, searchTerm])
 
   return (
@@ -124,46 +139,61 @@ export default function AdminProgramsPage() {
         <div className="space-y-1">
           <p className="text-primary font-bold uppercase tracking-[0.2em] text-xs">Padrón Institucional</p>
           <h2 className="text-3xl font-headline font-extrabold tracking-tight text-slate-900">Programas de Estudio</h2>
-          <p className="text-slate-500 text-sm">Gestiona el catálogo de carreras.</p>
+          <p className="text-slate-500 text-sm">Gestiona el catálogo de carreras profesionales.</p>
         </div>
         
-        <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if(!open) setEditingProgram(null); }}>
-          <DialogTrigger asChild>
-            <Button className="bg-primary hover:bg-primary/90 gap-2 shadow-lg shadow-primary/20 h-11 px-6 font-bold">
-              <Plus className="h-4 w-4" /> Nuevo Programa
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
-            <form onSubmit={handleSave}>
-              <DialogHeader>
-                <DialogTitle>{editingProgram ? "Editar Programa" : "Registrar Carrera"}</DialogTitle>
-                <DialogDescription>Ingresa los datos del programa académico.</DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-6">
-                <div className="space-y-2">
-                  <Label htmlFor="nombre">Nombre del Programa</Label>
-                  <Input id="nombre" name="nombre" defaultValue={editingProgram?.nombre} placeholder="Ej. Sistemas" required />
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={fetchPrograms} className="gap-2 h-11">
+            <RefreshCcw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+          </Button>
+          <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if(!open) setEditingProgram(null); }}>
+            <DialogTrigger asChild>
+              <Button className="bg-primary hover:bg-primary/90 gap-2 shadow-lg shadow-primary/20 h-11 px-6 font-bold">
+                <Plus className="h-4 w-4" /> Nuevo Programa
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[500px]">
+              <form onSubmit={handleSave}>
+                <DialogHeader>
+                  <DialogTitle>{editingProgram ? "Editar Programa" : "Registrar Carrera"}</DialogTitle>
+                  <DialogDescription>
+                    Ingresa el nombre del programa académico. El código se generará automáticamente.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="nombre">Nombre del Programa</Label>
+                    <Input 
+                      id="nombre" 
+                      name="nombre" 
+                      defaultValue={editingProgram?.nombre} 
+                      placeholder="Ej. Desarrollo de Sistemas" 
+                      required 
+                    />
+                  </div>
+                  {editingProgram && (
+                    <div className="p-3 bg-slate-50 rounded-lg border border-slate-100 flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-400 uppercase">Código Actual:</span>
+                      <span className="font-mono text-sm font-bold text-primary">{editingProgram.codigo}</span>
+                    </div>
+                  )}
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="codigo">Código Modular</Label>
-                  <Input id="codigo" name="codigo" defaultValue={editingProgram?.codigo} placeholder="Ej. DS-2024" required />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
-                <Button type="submit" className="bg-primary font-bold" disabled={isSaving}>
-                  {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Guardar"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+                <DialogFooter>
+                  <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
+                  <Button type="submit" className="bg-primary font-bold" disabled={isSaving}>
+                    {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Guardar Programa"}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
-      <div className="relative mb-6">
+      <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
         <Input 
-          placeholder="Buscador inteligente: busca por nombre o código..." 
+          placeholder="Busca por nombre o código..." 
           className="pl-10 h-11 bg-white border-slate-100 shadow-sm"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
@@ -175,13 +205,13 @@ export default function AdminProgramsPage() {
           {isLoading ? (
             <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-3">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-sm font-medium">Cargando datos de FastAPI...</p>
+              <p className="text-sm font-medium">Sincronizando con el servidor...</p>
             </div>
           ) : (
             <Table>
               <TableHeader className="bg-slate-50/50">
                 <TableRow className="hover:bg-transparent">
-                  <TableHead className="w-[120px] font-bold text-slate-400 uppercase text-[10px] tracking-widest pl-6">Código</TableHead>
+                  <TableHead className="w-[150px] font-bold text-slate-400 uppercase text-[10px] tracking-widest pl-6">Código</TableHead>
                   <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest">Carrera Profesional</TableHead>
                   <TableHead className="w-[100px] pr-6 text-right">Acciones</TableHead>
                 </TableRow>
@@ -190,14 +220,15 @@ export default function AdminProgramsPage() {
                 {filteredPrograms.length > 0 ? (
                   filteredPrograms.map((program) => (
                     <TableRow key={program.id} className="group hover:bg-slate-50/50 transition-colors">
-                      <TableCell className="font-mono text-[10px] text-slate-500 pl-6">
-                        <div className="flex items-center gap-1">
-                          <Hash className="h-3 w-3 text-primary/40" /> {program.codigo}
+                      <TableCell className="font-mono text-[11px] text-slate-500 pl-6">
+                        <div className="flex items-center gap-1.5">
+                          <Hash className="h-3 w-3 text-primary/40" /> 
+                          <span className="font-bold text-slate-700">{program.codigo}</span>
                         </div>
                       </TableCell>
                       <TableCell className="font-bold text-slate-700">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded bg-primary/5 flex items-center justify-center text-primary shrink-0">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-primary/5 flex items-center justify-center text-primary shrink-0">
                             <GraduationCap className="h-4 w-4" />
                           </div>
                           {program.nombre}
@@ -206,16 +237,16 @@ export default function AdminProgramsPage() {
                       <TableCell className="pr-6 text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="rounded-full">
+                            <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
                               <MoreVertical className="h-4 w-4 text-slate-400" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-40">
                             <DropdownMenuItem className="gap-2" onClick={() => { setEditingProgram(program); setIsModalOpen(true); }}>
-                              <Edit2 className="h-3.5 w-3.5" /> Editar
+                              <Edit2 className="h-3.5 w-3.5" /> Editar Nombre
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(program.id)}>
-                              <Trash2 className="h-3.5 w-3.5" /> Eliminar
+                            <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive focus:bg-red-50" onClick={() => handleDelete(program.id)}>
+                              <Trash2 className="h-3.5 w-3.5" /> Eliminar Carrera
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -224,10 +255,13 @@ export default function AdminProgramsPage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={3} className="h-32 text-center text-slate-400">
-                      <div className="flex flex-col items-center gap-2">
-                        <AlertCircle className="h-8 w-8 opacity-20" />
-                        No hay programas registrados.
+                    <TableCell colSpan={3} className="h-48 text-center text-slate-400">
+                      <div className="flex flex-col items-center gap-3">
+                        <AlertCircle className="h-10 w-10 opacity-10" />
+                        <div className="space-y-1">
+                          <p className="font-bold text-slate-900">No hay programas registrados</p>
+                          <p className="text-xs">Usa el botón "Nuevo Programa" para comenzar.</p>
+                        </div>
                       </div>
                     </TableCell>
                   </TableRow>
