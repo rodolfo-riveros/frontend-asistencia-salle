@@ -11,7 +11,8 @@ import {
   Link2,
   Calendar,
   AlertCircle,
-  Loader2
+  Loader2,
+  Clock
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -54,12 +55,13 @@ export default function AcademicAssignmentsPage() {
   const [isModalOpen, setIsModalOpen] = React.useState(false)
   const [editingAssignment, setEditingAssignment] = React.useState<any>(null)
   const [searchTerm, setSearchTerm] = React.useState("")
+  const [activePeriod, setActivePeriod] = React.useState("2024-I")
 
   const fetchData = React.useCallback(async () => {
     setIsLoading(true)
     try {
       const [asgData, instData, courseData] = await Promise.all([
-        api.get<any[]>('/asignaciones/'),
+        api.get<any[]>(`/asignaciones/?periodo=${activePeriod}`),
         api.get<any[]>('/docentes/'),
         api.get<any[]>('/unidades/')
       ])
@@ -69,13 +71,13 @@ export default function AcademicAssignmentsPage() {
     } catch (err: any) {
       toast({ 
         variant: "destructive", 
-        title: "Error", 
-        description: "No se pudieron cargar las asignaciones académicas." 
+        title: "Error de Sincronización", 
+        description: "No se pudo conectar con FastAPI." 
       })
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [activePeriod])
 
   React.useEffect(() => {
     fetchData()
@@ -88,8 +90,7 @@ export default function AcademicAssignmentsPage() {
     const payload = {
       docente_id: formData.get("docente_id") as string,
       unidad_id: formData.get("unidad_id") as string,
-      dias: formData.get("days") as string,
-      horario: formData.get("time") as string
+      periodo_academico: formData.get("periodo_academico") as string,
     }
 
     try {
@@ -98,20 +99,21 @@ export default function AcademicAssignmentsPage() {
         toast({ title: "Asignación actualizada" })
       } else {
         await api.post('/asignaciones/', payload)
-        toast({ title: "Docente asignado con éxito" })
+        toast({ title: "Docente vinculado con éxito" })
       }
       fetchData()
       setIsModalOpen(false)
       setEditingAssignment(null)
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Error", description: err.message })
+      toast({ variant: "destructive", title: "Error al guardar", description: err.message })
     }
   }
 
   const handleDelete = async (id: string) => {
+    if(!confirm("¿Desea eliminar esta asignación?")) return
     try {
       await api.delete(`/asignaciones/${id}`)
-      toast({ variant: "destructive", title: "Asignación eliminada" })
+      toast({ title: "Asignación eliminada" })
       fetchData()
     } catch (err: any) {
       toast({ variant: "destructive", title: "Error", description: err.message })
@@ -121,8 +123,7 @@ export default function AcademicAssignmentsPage() {
   const filteredAssignments = React.useMemo(() => {
     return (assignments || []).filter(asg => 
       asg.docente_nombre?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      asg.unidad_nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      asg.programa_nombre?.toLowerCase().includes(searchTerm.toLowerCase())
+      asg.unidad_nombre?.toLowerCase().includes(searchTerm.toLowerCase())
     )
   }, [assignments, searchTerm])
 
@@ -130,9 +131,21 @@ export default function AcademicAssignmentsPage() {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div className="space-y-1">
-          <p className="text-primary font-bold uppercase tracking-[0.2em] text-xs">Gestión de Carga Académica</p>
-          <h2 className="text-3xl font-headline font-extrabold tracking-tight text-slate-900">Asignación de Docentes</h2>
-          <p className="text-slate-500 text-sm">Vincula docentes con sus unidades didácticas.</p>
+          <p className="text-primary font-bold uppercase tracking-[0.2em] text-xs">Carga Académica</p>
+          <h2 className="text-3xl font-headline font-extrabold tracking-tight text-slate-900">Vínculo Docente - Curso</h2>
+          <div className="flex items-center gap-3 mt-2">
+            <span className="text-xs font-bold text-slate-400 uppercase">Filtrar por Periodo:</span>
+            <Select value={activePeriod} onValueChange={setActivePeriod}>
+              <SelectTrigger className="h-8 w-[120px] bg-white border-none shadow-sm font-bold">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="2023-II">2023-II</SelectItem>
+                <SelectItem value="2024-I">2024-I</SelectItem>
+                <SelectItem value="2024-II">2024-II</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if(!open) setEditingAssignment(null); }}>
@@ -141,15 +154,27 @@ export default function AcademicAssignmentsPage() {
               <Link2 className="h-4 w-4" /> Nueva Asignación
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[550px]">
+          <DialogContent className="sm:max-w-[500px]">
             <form onSubmit={handleSave}>
               <DialogHeader>
-                <DialogTitle>{editingAssignment ? "Editar Asignación" : "Vincular Docente a Curso"}</DialogTitle>
-                <DialogDescription>Define qué docente dictará cada unidad didáctica.</DialogDescription>
+                <DialogTitle>{editingAssignment ? "Editar Asignación" : "Vincular Docente"}</DialogTitle>
+                <DialogDescription>Define el responsable de la unidad en un periodo específico.</DialogDescription>
               </DialogHeader>
-              <div className="grid gap-6 py-6">
+              <div className="grid gap-4 py-6">
                 <div className="space-y-2">
-                  <Label htmlFor="docente_id">Seleccionar Docente</Label>
+                  <Label>Periodo Académico</Label>
+                  <Select name="periodo_academico" defaultValue={editingAssignment?.periodo_academico || activePeriod}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccione periodo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="2024-I">2024-I</SelectItem>
+                      <SelectItem value="2024-II">2024-II</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Docente</Label>
                   <Select name="docente_id" defaultValue={editingAssignment?.docente_id}>
                     <SelectTrigger>
                       <SelectValue placeholder="Busca un docente..." />
@@ -161,12 +186,11 @@ export default function AcademicAssignmentsPage() {
                     </SelectContent>
                   </Select>
                 </div>
-
                 <div className="space-y-2">
-                  <Label htmlFor="unidad_id">Unidad Didáctica (Curso)</Label>
+                  <Label>Unidad Didáctica</Label>
                   <Select name="unidad_id" defaultValue={editingAssignment?.unidad_id}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Busca una unidad..." />
+                      <SelectValue placeholder="Busca un curso..." />
                     </SelectTrigger>
                     <SelectContent>
                       {courses.map(course => (
@@ -175,31 +199,20 @@ export default function AcademicAssignmentsPage() {
                     </SelectContent>
                   </Select>
                 </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="days">Días</Label>
-                    <Input id="days" name="days" placeholder="Ej. Lun - Mie" defaultValue={editingAssignment?.dias} required />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="time">Horario</Label>
-                    <Input id="time" name="time" placeholder="Ej. 08:00 - 10:30" defaultValue={editingAssignment?.horario} required />
-                  </div>
-                </div>
               </div>
               <DialogFooter>
                 <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
-                <Button type="submit" className="bg-primary font-bold">Confirmar Asignación</Button>
+                <Button type="submit" className="bg-primary font-bold">Guardar Asignación</Button>
               </DialogFooter>
             </form>
           </DialogContent>
         </Dialog>
       </div>
 
-      <div className="relative mb-6">
+      <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
         <Input 
-          placeholder="Buscador inteligente: busca por docente, curso o programa académico..." 
+          placeholder="Buscador inteligente: filtra por docente o curso..." 
           className="pl-11 py-6 bg-white border-slate-100 shadow-sm"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
@@ -211,7 +224,7 @@ export default function AcademicAssignmentsPage() {
           {isLoading ? (
             <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-3">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-sm font-medium">Cargando carga académica...</p>
+              <p className="text-sm font-medium">Sincronizando carga académica...</p>
             </div>
           ) : (
             <Table>
@@ -219,7 +232,7 @@ export default function AcademicAssignmentsPage() {
                 <TableRow className="hover:bg-transparent">
                   <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest pl-6">Docente Responsable</TableHead>
                   <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest">Unidad Didáctica</TableHead>
-                  <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest">Horario</TableHead>
+                  <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest text-center">Periodo</TableHead>
                   <TableHead className="w-[80px] pr-6 text-right"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -227,11 +240,12 @@ export default function AcademicAssignmentsPage() {
                 {filteredAssignments.length > 0 ? (
                   filteredAssignments.map((asg) => (
                     <TableRow key={asg.id} className="group hover:bg-slate-50/50 transition-colors">
-                      <TableCell className="pl-6">
+                      <TableCell className="pl-6 py-4">
                         <div className="flex items-center gap-3">
                           <Avatar className="h-9 w-9 border shadow-sm">
-                            <AvatarImage src={`https://picsum.photos/seed/${asg.docente_id}/200/200`} />
-                            <AvatarFallback>DOC</AvatarFallback>
+                            <AvatarFallback className="bg-primary/5 text-primary font-bold text-xs">
+                              {asg.docente_nombre?.[0]}
+                            </AvatarFallback>
                           </Avatar>
                           <div className="flex flex-col">
                             <span className="font-bold text-slate-900 text-sm">{asg.docente_nombre}</span>
@@ -250,24 +264,21 @@ export default function AcademicAssignmentsPage() {
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col">
-                          <span className="text-xs font-bold text-slate-700 flex items-center gap-1">
-                            <Calendar className="h-3 w-3 text-primary" /> {asg.dias}
-                          </span>
-                          <span className="text-xs text-slate-500">{asg.horario}</span>
-                        </div>
+                      <TableCell className="text-center">
+                        <Badge variant="outline" className="border-primary/20 text-primary font-bold bg-primary/5">
+                          {asg.periodo_academico}
+                        </Badge>
                       </TableCell>
                       <TableCell className="pr-6 text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="rounded-full">
+                            <Button variant="ghost" size="icon" className="rounded-full h-8 w-8">
                               <MoreVertical className="h-4 w-4 text-slate-400" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-48">
+                          <DropdownMenuContent align="end" className="w-40">
                             <DropdownMenuItem className="gap-2" onClick={() => { setEditingAssignment(asg); setIsModalOpen(true); }}>
-                              <Edit2 className="h-3.5 w-3.5" /> Cambiar Detalles
+                              <Edit2 className="h-3.5 w-3.5" /> Editar Datos
                             </DropdownMenuItem>
                             <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(asg.id)}>
                               <Trash2 className="h-3.5 w-3.5" /> Eliminar Carga
@@ -279,10 +290,10 @@ export default function AcademicAssignmentsPage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={4} className="h-32 text-center text-slate-400">
-                      <div className="flex flex-col items-center gap-2">
-                        <AlertCircle className="h-8 w-8 opacity-20" />
-                        No se encontraron asignaciones.
+                    <TableCell colSpan={4} className="h-48 text-center text-slate-400">
+                      <div className="flex flex-col items-center gap-3">
+                        <AlertCircle className="h-10 w-10 opacity-10" />
+                        <p className="font-bold text-slate-900">No hay asignaciones para {activePeriod}</p>
                       </div>
                     </TableCell>
                   </TableRow>

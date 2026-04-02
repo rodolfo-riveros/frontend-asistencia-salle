@@ -7,46 +7,30 @@ import {
   GraduationCap, 
   Users, 
   BookOpen, 
-  FileCheck, 
+  UserCheck, 
   TrendingUp, 
   Calendar, 
-  ArrowUpRight,
   Activity,
-  UserCheck,
-  Clock,
-  Sparkles,
   Zap,
   ShieldCheck,
   Loader2,
-  RefreshCcw
+  RefreshCcw,
+  Sparkles,
+  Clock,
+  LayoutDashboard
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer, 
-  AreaChart, 
-  Area 
-} from "recharts";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getAdminInsights, type AdminDashboardOutput } from "@/ai/flows/admin-dashboard-insights";
 import { toast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
-
-const data = [
-  { name: 'Lun', asistencia: 92 },
-  { name: 'Mar', asistencia: 88 },
-  { name: 'Mie', asistencia: 95 },
-  { name: 'Jue', asistencia: 94 },
-  { name: 'Vie', asistencia: 90 },
-];
 
 export default function AdminDashboard() {
   const [isAnalyzing, setIsAnalyzing] = React.useState(false);
   const [isLoadingStats, setIsLoadingStats] = React.useState(true);
   const [aiInsights, setAiInsights] = React.useState<AdminDashboardOutput | null>(null);
+  const [activePeriod, setActivePeriod] = React.useState("2024-I");
   
   const [realStats, setRealStats] = React.useState({
     programs: 0,
@@ -74,7 +58,6 @@ export default function AdminDashboard() {
         avgAttendance: "94.2%" 
       });
     } catch (err: any) {
-      console.error("Error fetching dashboard stats:", err);
       toast({
         variant: "destructive",
         title: "Error de Conexión",
@@ -90,17 +73,10 @@ export default function AdminDashboard() {
   }, [fetchData]);
 
   const stats = [
-    { name: "Programas", value: realStats.programs.toString(), icon: GraduationCap, color: "from-blue-600 to-blue-400", change: "En oferta académica" },
-    { name: "Docentes", value: realStats.instructors.toString(), icon: Users, color: "from-indigo-600 to-indigo-400", change: "Cuerpo profesional" },
-    { name: "Cursos", value: realStats.courses.toString(), icon: BookOpen, color: "from-slate-800 to-slate-600", change: "Unidades activas" },
-    { name: "Alumnos", value: realStats.students.toString(), icon: UserCheck, color: "from-emerald-600 to-emerald-400", change: "Matriculados" },
-  ];
-
-  const recentActivities = [
-    "Sincronización con base de datos completada",
-    "Monitor de IA activo para análisis predictivo",
-    "Actualización de carga académica detectada",
-    "Sistema de asistencia en tiempo real operando"
+    { name: "Programas", value: realStats.programs.toString(), icon: GraduationCap, color: "from-blue-600 to-blue-400", change: "Oferta Global" },
+    { name: "Docentes", value: realStats.instructors.toString(), icon: Users, color: "from-indigo-600 to-indigo-400", change: "Plana Activa" },
+    { name: "Cursos", value: realStats.courses.toString(), icon: BookOpen, color: "from-slate-800 to-slate-600", change: "Unidades en Catálogo" },
+    { name: "Alumnos", value: realStats.students.toString(), icon: UserCheck, color: "from-emerald-600 to-emerald-400", change: "Matrícula Vigente" },
   ];
 
   const handleGenerateAiInsights = async () => {
@@ -113,19 +89,12 @@ export default function AdminDashboard() {
           totalCourses: realStats.courses,
           averageAttendance: realStats.avgAttendance
         },
-        recentActivities: recentActivities
+        recentActivities: [`Análisis del periodo académico ${activePeriod}`]
       });
       setAiInsights(insights);
-      toast({
-        title: "Análisis IA Completo",
-        description: "Se han generado nuevos insights estratégicos basados en data real.",
-      });
+      toast({ title: "Análisis IA Completo" });
     } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Error de IA",
-        description: "No se pudo conectar con el motor de inteligencia artificial.",
-      });
+      toast({ variant: "destructive", title: "Error de IA" });
     } finally {
       setIsAnalyzing(false);
     }
@@ -134,51 +103,51 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-6 md:space-y-10">
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
-        <div className="space-y-2 w-full lg:w-auto">
+        <div className="space-y-2">
           <Badge className="bg-primary/10 text-primary border-none font-bold uppercase tracking-widest px-3 py-1 text-xs">
-            Módulo de Administración Central
+            Admin Central
           </Badge>
-          <h2 className="text-3xl md:text-4xl font-headline font-extrabold tracking-tight text-slate-900 leading-tight">
+          <h2 className="text-3xl font-headline font-extrabold tracking-tight text-slate-900 leading-tight">
             Panel de Control Estratégico
           </h2>
-          <p className="text-slate-500 text-sm md:text-lg font-medium">
-            Supervisión institucional del IES LA SALLE URUBAMBA
-          </p>
+          <div className="flex items-center gap-2 text-slate-500 font-medium">
+            <Calendar className="h-4 w-4" />
+            <span>Periodo Académico:</span>
+            <Select value={activePeriod} onValueChange={setActivePeriod}>
+              <SelectTrigger className="w-[140px] h-8 font-bold border-none bg-white shadow-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="2023-II">2023-II</SelectItem>
+                <SelectItem value="2024-I">2024-I</SelectItem>
+                <SelectItem value="2024-II">2024-II</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-        <div className="flex flex-col sm:flex-row gap-3 items-center w-full lg:w-auto">
-          <Button 
-            variant="outline"
-            onClick={fetchData}
-            disabled={isLoadingStats}
-            className="w-full sm:w-auto gap-2 h-11 border-slate-200"
-          >
+        <div className="flex gap-3 w-full lg:w-auto">
+          <Button variant="outline" onClick={fetchData} className="gap-2">
             <RefreshCcw className={`h-4 w-4 ${isLoadingStats ? 'animate-spin' : ''}`} />
-            Sincronizar
+            Actualizar
           </Button>
-          <Button 
-            onClick={handleGenerateAiInsights} 
-            disabled={isAnalyzing || isLoadingStats}
-            className="w-full sm:w-auto bg-accent text-white gap-2 h-11 md:h-12 px-6 shadow-lg shadow-accent/20 hover:opacity-90 transition-all font-bold text-sm"
-          >
+          <Button onClick={handleGenerateAiInsights} disabled={isAnalyzing} className="bg-accent text-white gap-2 font-bold shadow-lg shadow-accent/20">
             {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-            {isAnalyzing ? "Analizando..." : "Generar Análisis IA"}
+            Analizar Periodo
           </Button>
         </div>
       </div>
 
       <div className="grid gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
-          <Card key={stat.name} className="border-none shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden group">
+          <Card key={stat.name} className="border-none shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <div className={`p-2.5 rounded-2xl bg-gradient-to-br ${stat.color} text-white shadow-lg`}>
+              <div className={`p-2.5 rounded-2xl bg-gradient-to-br ${stat.color} text-white`}>
                 <stat.icon className="h-5 w-5" />
               </div>
             </CardHeader>
             <CardContent>
               <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">{stat.name}</div>
-              <div className="text-2xl md:text-3xl font-black text-slate-900 tracking-tighter mb-1">
-                {isLoadingStats ? "..." : stat.value}
-              </div>
+              <div className="text-2xl font-black text-slate-900">{isLoadingStats ? "..." : stat.value}</div>
               <p className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
                 <TrendingUp className="h-3 w-3 text-emerald-500" />
                 {stat.change}
@@ -189,51 +158,33 @@ export default function AdminDashboard() {
       </div>
 
       {aiInsights && (
-        <Card className="border-none shadow-2xl bg-slate-900 text-white overflow-hidden animate-in fade-in slide-in-from-top-4 duration-700">
+        <Card className="border-none shadow-2xl bg-slate-900 text-white overflow-hidden animate-in fade-in slide-in-from-top-4">
           <CardHeader className="border-b border-white/10 p-6 flex flex-row items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="bg-white/10 p-2 rounded-xl backdrop-blur-md">
-                <Zap className="h-5 w-5 text-yellow-400" />
-              </div>
-              <div>
-                <CardTitle className="text-xl font-black tracking-tight">Análisis Estratégico de IA</CardTitle>
-                <p className="text-blue-200/60 text-xs">Diagnóstico institucional automático</p>
-              </div>
+              <Zap className="h-5 w-5 text-yellow-400" />
+              <CardTitle className="text-xl font-black">Diagnóstico de IA - {activePeriod}</CardTitle>
             </div>
-            <Button variant="ghost" size="sm" onClick={() => setAiInsights(null)} className="text-white hover:bg-white/10 h-8 w-8 p-0">×</Button>
           </CardHeader>
-          <CardContent className="p-6 md:p-8 space-y-8">
+          <CardContent className="p-8 space-y-6">
             <div className="space-y-2">
-              <h4 className="text-[9px] font-black uppercase tracking-[0.3em] text-blue-300">Resumen Ejecutivo</h4>
-              <p className="text-sm md:text-lg leading-relaxed text-blue-50/90 font-medium">
-                {aiInsights.executiveSummary}
-              </p>
+              <h4 className="text-[9px] font-black uppercase tracking-widest text-blue-300">Resumen Ejecutivo</h4>
+              <p className="text-lg text-blue-50/90 font-medium">{aiInsights.executiveSummary}</p>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="space-y-4 bg-white/5 p-6 rounded-2xl border border-white/10">
-                <h4 className="text-[9px] font-black uppercase tracking-[0.3em] text-blue-300 flex items-center gap-2">
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="bg-white/5 p-6 rounded-xl border border-white/10">
+                <h4 className="text-[9px] font-black uppercase tracking-widest text-blue-300 mb-4 flex items-center gap-2">
                   <Activity className="h-4 w-4" /> Hallazgos Críticos
                 </h4>
-                <ul className="space-y-3">
-                  {aiInsights.criticalInsights.map((insight, i) => (
-                    <li key={i} className="flex gap-3 text-sm text-blue-50/80">
-                      <div className="h-1.5 w-1.5 rounded-full bg-blue-400 mt-1.5 shrink-0" />
-                      {insight}
-                    </li>
-                  ))}
+                <ul className="space-y-2 text-sm text-blue-50/70">
+                  {aiInsights.criticalInsights.map((insight, i) => <li key={i}>• {insight}</li>)}
                 </ul>
               </div>
-              <div className="space-y-4 bg-white/5 p-6 rounded-2xl border border-white/10">
-                <h4 className="text-[9px] font-black uppercase tracking-[0.3em] text-emerald-400 flex items-center gap-2">
-                  <ShieldCheck className="h-4 w-4" /> Recomendaciones
+              <div className="bg-white/5 p-6 rounded-xl border border-white/10">
+                <h4 className="text-[9px] font-black uppercase tracking-widest text-emerald-400 mb-4 flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4" /> Recomendaciones Estratégicas
                 </h4>
-                <ul className="space-y-3">
-                  {aiInsights.strategicRecommendations.map((rec, i) => (
-                    <li key={i} className="flex gap-3 text-sm text-blue-50/80">
-                      <div className="h-1.5 w-1.5 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
-                      {rec}
-                    </li>
-                  ))}
+                <ul className="space-y-2 text-sm text-blue-50/70">
+                  {aiInsights.strategicRecommendations.map((rec, i) => <li key={i}>• {rec}</li>)}
                 </ul>
               </div>
             </div>
@@ -242,62 +193,52 @@ export default function AdminDashboard() {
       )}
 
       <div className="grid gap-8 lg:grid-cols-3">
-        <Card className="lg:col-span-2 border-none shadow-xl overflow-hidden">
-          <CardHeader className="flex flex-row items-center justify-between border-b bg-slate-50/50 p-6">
+        <Card className="lg:col-span-2 border-none shadow-xl">
+          <CardHeader className="border-b bg-slate-50/50 p-6 flex items-center justify-between flex-row">
             <div className="space-y-1">
-              <CardTitle className="text-lg font-black tracking-tight text-slate-900">Rendimiento de Asistencia</CardTitle>
-              <p className="text-xs text-slate-500 font-medium italic">Promedio semanal institucional</p>
+              <CardTitle className="text-lg font-black text-slate-900">Actividad del Sistema</CardTitle>
+              <p className="text-xs text-slate-500">Monitor de sincronización en tiempo real</p>
             </div>
+            <Activity className="h-5 w-5 text-primary animate-pulse" />
           </CardHeader>
           <CardContent className="p-6">
-            <div className="h-[300px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={data}>
-                  <defs>
-                    <linearGradient id="colorAsistencia" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#003f98" stopOpacity={0.1}/>
-                      <stop offset="95%" stopColor="#003f98" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 600}} />
-                  <YAxis hide />
-                  <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '12px' }} />
-                  <Area type="monotone" dataKey="asistencia" stroke="#003f98" strokeWidth={3} fillOpacity={1} fill="url(#colorAsistencia)" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
+             <div className="space-y-6">
+                {[
+                  { title: "Servidor FastAPI", status: "Conectado", icon: Zap, color: "text-emerald-500", bg: "bg-emerald-50" },
+                  { title: "Supabase DB", status: "Sincronizado", icon: UserCheck, color: "text-blue-500", bg: "bg-blue-50" },
+                  { title: "Genkit AI", status: "Listo", icon: Sparkles, color: "text-indigo-500", bg: "bg-indigo-50" }
+                ].map((s, i) => (
+                  <div key={i} className="flex items-center gap-4">
+                    <div className={`h-12 w-12 rounded-xl ${s.bg} flex items-center justify-center ${s.color}`}>
+                      <s.icon className="h-6 w-6" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-bold text-slate-900 text-sm">{s.title}</p>
+                      <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest">{s.status}</p>
+                    </div>
+                  </div>
+                ))}
+             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-none shadow-xl overflow-hidden">
-          <CardHeader className="border-b bg-slate-50/50 p-6 flex flex-row items-center justify-between">
-            <CardTitle className="text-lg font-black tracking-tight">Estado del Sistema</CardTitle>
-            <Activity className="h-5 w-5 text-primary animate-pulse" />
+        <Card className="border-none shadow-xl overflow-hidden bg-primary text-white">
+          <CardHeader className="p-6">
+            <CardTitle className="text-xl font-black">Estado del Portal</CardTitle>
+            <p className="text-blue-100/60 text-xs">Gestión por Periodo</p>
           </CardHeader>
-          <CardContent className="p-0">
-            <div className="divide-y divide-slate-100">
-              {[
-                { title: "Servidor FastAPI", user: "Backend", status: "Monitorizado", icon: Zap, bg: "bg-emerald-50 text-emerald-600" },
-                { title: "Supabase DB", user: "Persistencia", status: "Sincronizado", icon: UserCheck, bg: "bg-blue-50 text-blue-600" },
-                { title: "Genkit AI", user: "Motor", status: "Listo", icon: Sparkles, bg: "bg-indigo-50 text-indigo-600" },
-                { title: "Seguridad Auth", user: "JWT", status: "Protegido", icon: Clock, bg: "bg-slate-50 text-slate-600" },
-              ].map((action, i) => (
-                <div key={i} className="flex items-center gap-3 p-5 hover:bg-slate-50/80 transition-all cursor-pointer group">
-                  <div className={`h-11 w-11 rounded-2xl ${action.bg} flex items-center justify-center shrink-0 transition-transform group-hover:scale-110`}>
-                    <action.icon className="h-5 w-5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold text-slate-900 text-sm truncate">{action.title}</p>
-                    <p className="text-[10px] text-slate-500 font-medium">{action.user} • {action.status}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+          <CardContent className="p-6 space-y-6">
+             <div className="p-4 bg-white/10 rounded-xl border border-white/10">
+                <p className="text-xs font-bold uppercase tracking-widest mb-2">Periodo Lectivo Actual</p>
+                <p className="text-3xl font-black">{activePeriod}</p>
+             </div>
+             <p className="text-sm text-blue-50/80 leading-relaxed italic">
+                "La gestión académica se centraliza en el periodo activo. Las asignaciones de docentes y el pase de lista dependen de esta configuración global."
+             </p>
           </CardContent>
-          <div className="p-6 bg-slate-50/50 border-t">
-            <Button variant="outline" className="w-full font-bold text-[10px] uppercase tracking-widest h-10" onClick={fetchData}>
-              Reintentar Conexión
+          <div className="p-6 bg-white/5 border-t border-white/10">
+            <Button variant="ghost" className="w-full text-white hover:bg-white/10 font-bold uppercase text-[10px] tracking-widest gap-2">
+              <Clock className="h-4 w-4" /> Ver Historial de Periodos
             </Button>
           </div>
         </Card>
