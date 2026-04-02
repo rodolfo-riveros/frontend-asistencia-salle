@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -32,7 +31,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
+import { Badge } from "@/badge"
 import {
   Dialog,
   DialogContent,
@@ -46,7 +45,7 @@ import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { toast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
-import { supabase } from "@/lib/supabase"
+import { supabaseAdminTask } from "@/lib/supabase"
 
 export default function AdminInstructorsPage() {
   const [instructors, setInstructors] = React.useState<any[]>([])
@@ -65,7 +64,7 @@ export default function AdminInstructorsPage() {
       toast({ 
         variant: "destructive", 
         title: "Error de Conexión", 
-        description: "No se pudo conectar con el servidor de FastAPI." 
+        description: "No se pudo conectar con el servidor para listar docentes." 
       })
     } finally {
       setIsLoading(false)
@@ -89,7 +88,7 @@ export default function AdminInstructorsPage() {
 
     try {
       if (editingInstructor) {
-        // Se usa PATCH y sin barra diagonal
+        // Actualización de perfil existente
         await api.patch(`/docentes/${editingInstructor.id}`, {
           nombre,
           especialidad,
@@ -97,10 +96,10 @@ export default function AdminInstructorsPage() {
         })
         toast({ title: "Perfil actualizado", description: "Los datos se guardaron correctamente." })
       } else {
-        // 1. Crear usuario en Supabase Auth (DNI es la contraseña)
-        const { data: authData, error: authError } = await supabase.auth.signUp({
+        // 1. Crear usuario en Supabase Auth usando el cliente administrativo (evita cambio de sesión)
+        const { data: authData, error: authError } = await supabaseAdminTask.auth.signUp({
           email,
-          password: dni,
+          password: dni, // El DNI será su clave inicial
           options: {
             data: {
               firstname: nombre.split(' ')[0],
@@ -112,9 +111,9 @@ export default function AdminInstructorsPage() {
         })
 
         if (authError) throw authError
-        if (!authData.user) throw new Error("No se pudo crear el usuario en Auth.")
+        if (!authData.user) throw new Error("No se pudo crear el usuario en Supabase Auth.")
 
-        // 2. Crear perfil en la tabla de Docentes mediante FastAPI
+        // 2. Crear perfil en la tabla 'docentes' de tu base de datos mediante FastAPI
         await api.post('/docentes/', {
           id: authData.user.id,
           nombre,
@@ -124,7 +123,7 @@ export default function AdminInstructorsPage() {
 
         toast({ 
           title: "Docente Registrado", 
-          description: "La cuenta y el perfil han sido vinculados con éxito." 
+          description: `Se ha creado la cuenta para ${nombre}. El DNI es su contraseña.` 
         })
       }
       fetchData()
@@ -133,8 +132,8 @@ export default function AdminInstructorsPage() {
     } catch (err: any) {
       toast({ 
         variant: "destructive", 
-        title: "Error al guardar", 
-        description: err.message || "Verifica que el servidor FastAPI esté encendido." 
+        title: "Error en Registro", 
+        description: err.message || "No se pudo procesar la solicitud." 
       })
     } finally {
       setIsSaving(false)
@@ -145,7 +144,7 @@ export default function AdminInstructorsPage() {
     if(!confirm("¿Desea eliminar este perfil docente?")) return
     try {
       await api.delete(`/docentes/${id}`)
-      toast({ title: "Perfil eliminado", description: "El registro ha sido retirado." })
+      toast({ title: "Perfil eliminado" })
       fetchData()
     } catch (err: any) {
       toast({ variant: "destructive", title: "Error", description: err.message })
@@ -181,8 +180,8 @@ export default function AdminInstructorsPage() {
                 <DialogTitle>{editingInstructor ? "Editar Perfil" : "Nuevo Registro de Docente"}</DialogTitle>
                 <DialogDescription>
                   {editingInstructor 
-                    ? "Modifica los detalles del docente." 
-                    : "Se creará una cuenta de acceso automática usando el DNI como contraseña."}
+                    ? "Modifica los detalles profesionales del docente." 
+                    : "Se creará una cuenta institucional. El DNI será la contraseña inicial."}
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-6">
@@ -198,12 +197,12 @@ export default function AdminInstructorsPage() {
                 )}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="dni">DNI (Servirá como Clave)</Label>
+                    <Label htmlFor="dni">DNI</Label>
                     <Input id="dni" name="dni" placeholder="8 dígitos" required maxLength={8} disabled={!!editingInstructor} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="especialidad">Especialidad</Label>
-                    <Input id="especialidad" name="especialidad" defaultValue={editingInstructor?.especialidad} placeholder="Ej. Sistemas" required />
+                    <Input id="especialidad" name="especialidad" defaultValue={editingInstructor?.especialidad} placeholder="Ej. Sistemas, Contabilidad" required />
                   </div>
                 </div>
                 <div className="flex items-center space-x-3 pt-4 border-t mt-2">
@@ -227,7 +226,7 @@ export default function AdminInstructorsPage() {
       <div className="relative mb-6">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
         <Input 
-          placeholder="Buscador inteligente: filtra por nombre o especialidad..." 
+          placeholder="Buscar docente por nombre o especialidad..." 
           className="pl-11 py-6 bg-white border-slate-100 shadow-sm"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
@@ -239,7 +238,7 @@ export default function AdminInstructorsPage() {
           {isLoading ? (
             <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-3">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-sm font-medium">Sincronizando perfiles con FastAPI...</p>
+              <p className="text-sm font-medium">Sincronizando con FastAPI...</p>
             </div>
           ) : (
             <Table>
@@ -255,7 +254,7 @@ export default function AdminInstructorsPage() {
                 {filteredInstructors.length > 0 ? (
                   filteredInstructors.map((docente) => (
                     <TableRow key={docente.id} className="group hover:bg-slate-50/50 transition-colors">
-                      <TableCell className="pl-6">
+                      <TableCell className="pl-6 py-4">
                         <div className="flex items-center gap-3">
                           <Avatar className="h-10 w-10 border-2 border-white shadow-sm">
                             <AvatarFallback className="bg-primary/5 text-primary font-bold">
@@ -264,14 +263,14 @@ export default function AdminInstructorsPage() {
                           </Avatar>
                           <div className="flex flex-col">
                             <span className="font-bold text-slate-900 text-sm">{docente.nombre}</span>
-                            <span className="text-[10px] text-slate-400 font-mono">ID: {docente.id.substring(0, 8)}...</span>
+                            <span className="text-[10px] text-slate-400 font-mono italic">ID: {docente.id.substring(0, 8)}...</span>
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="text-[10px] font-bold text-slate-500 uppercase tracking-widest bg-slate-50">
+                        <span className="text-xs font-semibold text-slate-600">
                           {docente.especialidad || 'No definida'}
-                        </Badge>
+                        </span>
                       </TableCell>
                       <TableCell className="text-center">
                         {docente.es_transversal ? (
