@@ -13,9 +13,7 @@ import {
   Loader2,
   Hash,
   RefreshCcw,
-  ShieldAlert,
-  Terminal,
-  Info
+  Layers
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -44,7 +42,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { toast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
 
@@ -55,7 +52,6 @@ export default function AdminProgramsPage() {
   const [isSaving, setIsSaving] = React.useState(false)
   const [editingProgram, setEditingProgram] = React.useState<any>(null)
   const [searchTerm, setSearchTerm] = React.useState("")
-  const [showDebug, setShowDebug] = React.useState(false)
 
   const fetchPrograms = React.useCallback(async () => {
     setIsLoading(true)
@@ -66,7 +62,7 @@ export default function AdminProgramsPage() {
       toast({ 
         variant: "destructive", 
         title: "Error al cargar", 
-        description: "No se pudieron obtener los programas." 
+        description: "No se pudieron obtener los programas del servidor." 
       })
     } finally {
       setIsLoading(false)
@@ -83,6 +79,7 @@ export default function AdminProgramsPage() {
     const formData = new FormData(e.currentTarget)
     const nombre = (formData.get("nombre") as string).trim()
     
+    // Generación automática de código compatible con el backend (MAYÚSCULAS y _)
     const cleanName = nombre.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]/g, '_').toUpperCase().substring(0, 5)
     const generatedCode = editingProgram?.codigo || `PRG_${cleanName}_${Math.floor(Math.random() * 9000 + 1000)}`
 
@@ -94,10 +91,10 @@ export default function AdminProgramsPage() {
     try {
       if (editingProgram) {
         await api.patch(`/programas/${editingProgram.id}`, payload)
-        toast({ title: "Programa actualizado" })
+        toast({ title: "Programa actualizado", description: "El nombre ha sido modificado correctamente." })
       } else {
         await api.post('/programas/', payload)
-        toast({ title: "Programa creado" })
+        toast({ title: "Programa creado", description: "La nueva carrera profesional ha sido registrada." })
       }
       fetchPrograms()
       setIsModalOpen(false)
@@ -117,7 +114,7 @@ export default function AdminProgramsPage() {
     if(!confirm("¿Desea eliminar este programa?")) return
     try {
       await api.delete(`/programas/${id}`)
-      toast({ title: "Programa eliminado" })
+      toast({ title: "Programa eliminado", description: "El registro ha sido retirado del sistema." })
       fetchPrograms()
     } catch (err: any) {
       toast({ 
@@ -144,17 +141,13 @@ export default function AdminProgramsPage() {
         <div className="space-y-1">
           <p className="text-primary font-bold uppercase tracking-[0.2em] text-xs">Padrón Institucional</p>
           <h2 className="text-3xl font-headline font-extrabold tracking-tight text-slate-900">Programas de Estudio</h2>
-          <div className="flex items-center gap-2">
-            <p className="text-slate-500 text-sm">Gestiona el catálogo de carreras profesionales.</p>
-            <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-slate-400" onClick={() => setShowDebug(!showDebug)}>
-              <Terminal className="h-3 w-3" />
-            </Button>
-          </div>
+          <p className="text-slate-500 text-sm">Gestiona el catálogo de carreras profesionales vigentes.</p>
         </div>
         
         <div className="flex gap-2">
-          <Button variant="outline" onClick={fetchPrograms} className="gap-2 h-11">
+          <Button variant="outline" onClick={fetchPrograms} className="gap-2 h-11" disabled={isLoading}>
             <RefreshCcw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            Actualizar
           </Button>
           <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if(!open) setEditingProgram(null); }}>
             <DialogTrigger asChild>
@@ -167,7 +160,7 @@ export default function AdminProgramsPage() {
                 <DialogHeader>
                   <DialogTitle>{editingProgram ? "Editar Programa" : "Registrar Carrera"}</DialogTitle>
                   <DialogDescription>
-                    Ingresa el nombre del programa académico. El código modular se generará automáticamente.
+                    Ingresa el nombre del programa académico. El código institucional se generará automáticamente.
                   </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-6">
@@ -194,27 +187,10 @@ export default function AdminProgramsPage() {
         </div>
       </div>
 
-      {showDebug && (
-        <Alert className="bg-slate-900 text-slate-100 border-slate-800 animate-in fade-in zoom-in-95 duration-200">
-          <Terminal className="h-4 w-4 text-emerald-400" />
-          <AlertTitle className="font-mono text-emerald-400">Panel de Emergencia SQL</AlertTitle>
-          <AlertDescription className="font-mono text-[10px] space-y-2 mt-2">
-            <p>Ejecuta esto en Supabase SQL Editor para quitar TODA restricción y ver los datos:</p>
-            <code className="text-[10px] bg-slate-100 p-2 rounded block mt-2 font-mono text-slate-700 whitespace-pre">
-              ALTER TABLE public.programas_estudio DISABLE ROW LEVEL SECURITY;<br/>
-              ALTER TABLE public.periodos_academicos DISABLE ROW LEVEL SECURITY;<br/>
-              ALTER TABLE public.unidades_didacticas DISABLE ROW LEVEL SECURITY;<br/>
-              ALTER TABLE public.docentes DISABLE ROW LEVEL SECURITY;<br/>
-              ALTER TABLE public.alumnos DISABLE ROW LEVEL SECURITY;
-            </code>
-          </AlertDescription>
-        </Alert>
-      )}
-
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
         <Input 
-          placeholder="Busca por nombre o código..." 
+          placeholder="Busca por nombre o código institucional..." 
           className="pl-10 h-11 bg-white border-slate-100 shadow-sm"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
@@ -223,10 +199,10 @@ export default function AdminProgramsPage() {
 
       <Card className="border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
         <CardContent className="p-0">
-          {isLoading ? (
+          {isLoading && programs.length === 0 ? (
             <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-3">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-sm font-medium">Sincronizando con el servidor...</p>
+              <p className="text-sm font-medium italic">Sincronizando programas...</p>
             </div>
           ) : filteredPrograms.length > 0 ? (
             <Table>
@@ -248,7 +224,7 @@ export default function AdminProgramsPage() {
                     </TableCell>
                     <TableCell className="font-bold text-slate-700">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-primary/5 flex items-center justify-center text-primary shrink-0">
+                        <div className="w-8 h-8 rounded-lg bg-primary/5 flex items-center justify-center text-primary shrink-0 transition-colors group-hover:bg-primary group-hover:text-white">
                           <GraduationCap className="h-4 w-4" />
                         </div>
                         {program.nombre}
@@ -277,8 +253,8 @@ export default function AdminProgramsPage() {
             </Table>
           ) : (
             <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-3">
-              <div className="p-4 bg-amber-50 rounded-full">
-                <ShieldAlert className="h-8 w-8 text-amber-500" />
+              <div className="p-4 bg-slate-50 rounded-full">
+                <Layers className="h-8 w-8 opacity-20" />
               </div>
               <p className="font-bold text-slate-900">La lista de programas está vacía</p>
               <Button variant="outline" size="sm" onClick={fetchPrograms}>Reintentar Sincronización</Button>

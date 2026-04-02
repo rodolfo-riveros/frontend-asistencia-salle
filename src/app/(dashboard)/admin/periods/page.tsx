@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -61,7 +62,7 @@ export default function AdminPeriodsPage() {
       toast({ 
         variant: "destructive", 
         title: "Error de Sincronización", 
-        description: err.message
+        description: "No se pudieron obtener los periodos académicos."
       })
     } finally {
       setIsLoading(false)
@@ -82,7 +83,7 @@ export default function AdminPeriodsPage() {
 
     try {
       await api.post('/periodos/', payload)
-      toast({ title: "Ciclo creado con éxito" })
+      toast({ title: "Ciclo creado", description: "El periodo académico ha sido registrado." })
       fetchPeriods()
       setIsModalOpen(false)
     } catch (err: any) {
@@ -92,29 +93,19 @@ export default function AdminPeriodsPage() {
 
   const handleDelete = async (id: string) => {
     if(!id) return
-    
-    const confirmDelete = window.confirm("¿Desea eliminar este periodo? Esto fallará si hay alumnos o cursos vinculados a él.")
+    const confirmDelete = window.confirm("¿Desea eliminar este periodo?")
     if(!confirmDelete) return
     
     setIsDeletingId(id)
-    console.log(`[DEBUG] Intentando eliminar periodo ID: ${id}`)
-    
     try {
       await api.delete(`/periodos/${id}`)
-      
-      toast({ 
-        title: "Eliminado", 
-        description: "El periodo ha sido retirado correctamente." 
-      })
-      
-      // Actualización optimista de la tabla
+      toast({ title: "Periodo eliminado" })
       setPeriods(prev => prev.filter(p => p.id !== id))
     } catch (err: any) {
-      console.error("[DELETE ERROR]", err)
       toast({ 
         variant: "destructive", 
-        title: "No se pudo eliminar", 
-        description: err.message || "Es probable que el periodo tenga datos vinculados (llave foránea)."
+        title: "Error al eliminar", 
+        description: err.message || "El periodo podría tener datos vinculados."
       })
     } finally {
       setIsDeletingId(null)
@@ -124,8 +115,7 @@ export default function AdminPeriodsPage() {
   const filteredPeriods = React.useMemo(() => {
     const term = searchTerm.toLowerCase()
     return (periods || []).filter(p => 
-      p.nombre?.toLowerCase().includes(term) ||
-      p.id?.toLowerCase().includes(term)
+      p.nombre?.toLowerCase().includes(term)
     )
   }, [periods, searchTerm])
 
@@ -135,7 +125,7 @@ export default function AdminPeriodsPage() {
         <div className="space-y-1">
           <p className="text-primary font-bold uppercase tracking-[0.2em] text-xs">Gestión Institucional</p>
           <h2 className="text-3xl font-headline font-extrabold tracking-tight text-slate-900">Periodos Académicos</h2>
-          <p className="text-slate-500 text-sm">Define el ciclo activo para el sistema.</p>
+          <p className="text-slate-500 text-sm">Define el ciclo activo para el sistema de asistencia.</p>
         </div>
         
         <div className="flex gap-2">
@@ -153,7 +143,7 @@ export default function AdminPeriodsPage() {
               <form onSubmit={handleSave}>
                 <DialogHeader>
                   <DialogTitle>Crear Nuevo Ciclo</DialogTitle>
-                  <DialogDescription>Asigna el nombre oficial (Ej: 2024-II).</DialogDescription>
+                  <DialogDescription>Asigna el nombre oficial del ciclo académico (Ej: 2024-II).</DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-6">
                   <div className="space-y-2">
@@ -163,7 +153,7 @@ export default function AdminPeriodsPage() {
                   <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border">
                     <div className="space-y-0.5">
                       <Label className="text-sm font-bold">Ciclo Activo</Label>
-                      <p className="text-xs text-slate-500">Solo puede haber un ciclo activo.</p>
+                      <p className="text-xs text-slate-500">Activa este ciclo para el pase de lista.</p>
                     </div>
                     <Switch name="es_activo" />
                   </div>
@@ -181,7 +171,7 @@ export default function AdminPeriodsPage() {
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
         <Input 
-          placeholder="Busca por nombre..." 
+          placeholder="Busca por nombre del periodo..." 
           className="pl-11 h-11 bg-white border-slate-100 shadow-sm"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
@@ -193,15 +183,15 @@ export default function AdminPeriodsPage() {
           {isLoading && periods.length === 0 ? (
             <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-3">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-sm font-medium italic">Sincronizando...</p>
+              <p className="text-sm font-medium italic">Sincronizando con FastAPI...</p>
             </div>
           ) : (
             <Table>
               <TableHeader className="bg-slate-50/50">
                 <TableRow className="hover:bg-transparent">
-                  <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest pl-6">Nombre</TableHead>
+                  <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest pl-6">Nombre del Periodo</TableHead>
                   <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest text-center">Estado</TableHead>
-                  <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest">ID Sistema</TableHead>
+                  <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest">Identificador</TableHead>
                   <TableHead className="w-[80px] pr-6 text-right"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -257,7 +247,7 @@ export default function AdminPeriodsPage() {
                     <TableCell colSpan={4} className="h-48 text-center text-slate-400">
                       <div className="flex flex-col items-center gap-3">
                         <AlertCircle className="h-10 w-10 opacity-10" />
-                        <p className="font-bold text-slate-900 uppercase text-xs tracking-widest">No hay periodos</p>
+                        <p className="font-bold text-slate-900 uppercase text-xs tracking-widest">No hay periodos registrados</p>
                       </div>
                     </TableCell>
                   </TableRow>
