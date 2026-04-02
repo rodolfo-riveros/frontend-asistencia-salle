@@ -64,6 +64,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       const metadata = user.user_metadata
       const role = metadata?.role || 'docente'
 
+      // Protección de rutas por rol
       if (role === 'docente' && pathname.startsWith('/admin')) {
         router.replace('/instructor')
         return
@@ -91,7 +92,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
-    localStorage.removeItem('supabase_access_token')
     router.replace('/')
   }
 

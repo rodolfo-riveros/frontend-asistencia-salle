@@ -1,7 +1,8 @@
 
 /**
- * @fileOverview Cliente de API optimizado para producción en Render.
+ * @fileOverview Cliente de API optimizado para producción en Render con sincronización dinámica de tokens.
  */
+import { supabase } from './supabase';
 
 const API_BASE_URL = 'https://backend-asistencia-salle.onrender.com';
 const API_VERSION = '/api/v1';
@@ -11,7 +12,9 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   const url = `${cleanBase}${API_VERSION}${cleanEndpoint}`;
   
-  const token = typeof window !== 'undefined' ? localStorage.getItem('supabase_access_token') : null;
+  // Obtenemos el token más reciente directamente de Supabase (Evitamos tokens expirados en localStorage)
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
 
   const headers = new Headers({
     'Content-Type': 'application/json',
@@ -36,6 +39,12 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
       } catch {
         detail = `Error ${response.status}: ${response.statusText}`;
       }
+      
+      // Si el backend dice que el token es inválido, puede ser un desajuste de secretos en Render
+      if (response.status === 401 || response.status === 403) {
+        throw new Error("Sesión no autorizada. Verifique el JWT Secret en el panel de Render.");
+      }
+      
       throw new Error(detail);
     }
 
@@ -43,9 +52,9 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
   } catch (err: any) {
     if (err.message === 'Failed to fetch' || err.name === 'TypeError') {
       throw new Error(
-        "No se pudo conectar con el backend. \n\n" +
-        "1. Verifica que el servidor en Render esté activo (despiértalo entrando a la URL de la API).\n" +
-        "2. Asegúrate de que el CORS permita la URL de este navegador."
+        "No se pudo conectar con el servidor. \n\n" +
+        "1. Despierte el servidor entrando a: https://backend-asistencia-salle.onrender.com/health\n" +
+        "2. Asegúrese de que el backend tenga ALLOWED_ORIGINS=*"
       );
     }
     throw err;

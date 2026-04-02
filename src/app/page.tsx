@@ -45,28 +45,24 @@ export default function LoginPage() {
       });
 
       if (error) {
-        setErrorMessage(error.message === "Invalid login credentials" ? "Credenciales inválidas. Verifica tu correo y contraseña." : error.message);
+        setErrorMessage(error.message);
         return;
       }
 
       if (data.session && data.user) {
-        localStorage.setItem('supabase_access_token', data.session.access_token);
+        // Dejamos que el cliente de Supabase gestione el token automáticamente
         const metadata = data.user.user_metadata;
         const role = metadata?.role || 'docente';
         
         toast({
           title: "Acceso Exitoso",
-          description: `Bienvenido, ${metadata?.firstname || 'Docente'}.`,
+          description: `Bienvenido, ${metadata?.firstname || 'Usuario'}.`,
         });
 
         router.replace(role === 'admin' ? '/admin' : '/instructor');
       }
     } catch (error: any) {
-      if (error.message.includes('fetch')) {
-        setErrorMessage("Error de red: No se pudo conectar con el servicio de autenticación. Verifica tu conexión a internet.");
-      } else {
-        setErrorMessage(error.message || "Ocurrió un error inesperado al intentar iniciar sesión.");
-      }
+      setErrorMessage("Error inesperado al intentar iniciar sesión.");
     } finally {
       setIsLoading(false);
     }
