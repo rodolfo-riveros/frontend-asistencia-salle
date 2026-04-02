@@ -61,14 +61,12 @@ export default function AdminProgramsPage() {
     setIsLoading(true)
     try {
       const data = await api.get<any[]>('/programas/')
-      console.log("[DEBUG] Respuesta del servidor /programas/:", data)
       setPrograms(Array.isArray(data) ? data : [])
     } catch (err: any) {
-      console.error("[FETCH ERROR] Falló la carga de programas:", err)
       toast({ 
         variant: "destructive", 
         title: "Error al cargar", 
-        description: "No se pudieron obtener los programas. Verifica la consola." 
+        description: "No se pudieron obtener los programas." 
       })
     } finally {
       setIsLoading(false)
@@ -85,7 +83,6 @@ export default function AdminProgramsPage() {
     const formData = new FormData(e.currentTarget)
     const nombre = (formData.get("nombre") as string).trim()
     
-    // Generar código modular automático compatible con backend (SOLO MAYÚSCULAS Y _)
     const cleanName = nombre.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]/g, '_').toUpperCase().substring(0, 5)
     const generatedCode = editingProgram?.codigo || `PRG_${cleanName}_${Math.floor(Math.random() * 9000 + 1000)}`
 
@@ -100,7 +97,7 @@ export default function AdminProgramsPage() {
         toast({ title: "Programa actualizado" })
       } else {
         await api.post('/programas/', payload)
-        toast({ title: "Programa creado", description: `Código autogenerado: ${generatedCode}` })
+        toast({ title: "Programa creado" })
       }
       fetchPrograms()
       setIsModalOpen(false)
@@ -200,11 +197,16 @@ export default function AdminProgramsPage() {
       {showDebug && (
         <Alert className="bg-slate-900 text-slate-100 border-slate-800 animate-in fade-in zoom-in-95 duration-200">
           <Terminal className="h-4 w-4 text-emerald-400" />
-          <AlertTitle className="font-mono text-emerald-400">Diagnóstico de Datos []</AlertTitle>
+          <AlertTitle className="font-mono text-emerald-400">Panel de Emergencia SQL</AlertTitle>
           <AlertDescription className="font-mono text-[10px] space-y-2 mt-2">
-            <p>{"-"} Si ves la lista vacía pero hay datos en Supabase, el RLS está bloqueando al usuario.</p>
-            <p>{"-"} Verifica que la política incluya: <span className="text-yellow-400">TO authenticated</span>.</p>
-            <p>{"-"} URL API: <span className="text-blue-400">{process.env.NEXT_PUBLIC_API_URL || 'https://backend-asistencia-salle.onrender.com'}/api/v1/programas/</span></p>
+            <p>Ejecuta esto en Supabase SQL Editor para quitar TODA restricción y ver los datos:</p>
+            <code className="text-[10px] bg-slate-100 p-2 rounded block mt-2 font-mono text-slate-700 whitespace-pre">
+              ALTER TABLE public.programas_estudio DISABLE ROW LEVEL SECURITY;<br/>
+              ALTER TABLE public.periodos_academicos DISABLE ROW LEVEL SECURITY;<br/>
+              ALTER TABLE public.unidades_didacticas DISABLE ROW LEVEL SECURITY;<br/>
+              ALTER TABLE public.docentes DISABLE ROW LEVEL SECURITY;<br/>
+              ALTER TABLE public.alumnos DISABLE ROW LEVEL SECURITY;
+            </code>
           </AlertDescription>
         </Alert>
       )}
@@ -278,33 +280,12 @@ export default function AdminProgramsPage() {
               <div className="p-4 bg-amber-50 rounded-full">
                 <ShieldAlert className="h-8 w-8 text-amber-500" />
               </div>
-              <div className="space-y-2 text-center">
-                <p className="font-bold text-slate-900">La lista de programas está vacía</p>
-                <div className="flex flex-col gap-1 items-center">
-                  <p className="text-xs text-slate-500 max-w-[350px]">
-                    Si hay datos en Supabase, el problema es el <strong>RLS</strong>. Ejecuta este SQL en Supabase para permitir la lectura:
-                  </p>
-                  <code className="text-[10px] bg-slate-100 p-2 rounded block mt-2 font-mono text-slate-700">
-                    ALTER TABLE programas_estudio ENABLE ROW LEVEL SECURITY;<br/>
-                    DROP POLICY IF EXISTS "Lectura Total" ON programas_estudio;<br/>
-                    CREATE POLICY "Lectura Total" ON programas_estudio FOR SELECT TO authenticated USING (true);
-                  </code>
-                </div>
-              </div>
-              <Button variant="outline" size="sm" onClick={fetchPrograms} className="mt-4 gap-2">
-                <RefreshCcw className="h-3 w-3" /> Reintentar Sincronización
-              </Button>
+              <p className="font-bold text-slate-900">La lista de programas está vacía</p>
+              <Button variant="outline" size="sm" onClick={fetchPrograms}>Reintentar Sincronización</Button>
             </div>
           )}
         </CardContent>
       </Card>
-
-      <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl flex gap-3">
-        <Info className="h-5 w-5 text-blue-600 shrink-0" />
-        <p className="text-xs text-blue-700 leading-relaxed">
-          <strong>Nota sobre Seguridad:</strong> Si el GET devuelve `[]` en Postman con el token de portador, significa que la política RLS está bloqueando las filas. El SQL anterior debería solucionarlo de inmediato.
-        </p>
-      </div>
     </div>
   )
 }
