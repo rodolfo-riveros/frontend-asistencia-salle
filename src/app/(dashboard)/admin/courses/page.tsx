@@ -97,8 +97,8 @@ export default function AdminCoursesPage() {
 
     try {
       if (editingCourse) {
-        // Se usa PUT y barra diagonal final
-        await api.put(`/unidades/${editingCourse.id}/`, courseData)
+        // Se usa PATCH y sin barra diagonal
+        await api.patch(`/unidades/${editingCourse.id}`, courseData)
         toast({ title: "Unidad Actualizada", description: "Los cambios se guardaron con éxito." })
       } else {
         await api.post('/unidades/', courseData)
@@ -115,7 +115,7 @@ export default function AdminCoursesPage() {
   const handleDelete = async (id: string) => {
     if (!confirm("¿Está seguro de eliminar esta unidad?")) return
     try {
-      await api.delete(`/unidades/${id}/`)
+      await api.delete(`/unidades/${id}`)
       toast({ title: "Unidad Eliminada", description: "El curso fue retirado del sistema." })
       fetchData()
     } catch (err: any) {

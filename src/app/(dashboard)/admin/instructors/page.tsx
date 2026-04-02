@@ -89,8 +89,8 @@ export default function AdminInstructorsPage() {
 
     try {
       if (editingInstructor) {
-        // Se usa PUT y barra diagonal final
-        await api.put(`/docentes/${editingInstructor.id}/`, {
+        // Se usa PATCH y sin barra diagonal
+        await api.patch(`/docentes/${editingInstructor.id}`, {
           nombre,
           especialidad,
           es_transversal
@@ -144,7 +144,7 @@ export default function AdminInstructorsPage() {
   const handleDelete = async (id: string) => {
     if(!confirm("¿Desea eliminar este perfil docente?")) return
     try {
-      await api.delete(`/docentes/${id}/`)
+      await api.delete(`/docentes/${id}`)
       toast({ title: "Perfil eliminado", description: "El registro ha sido retirado." })
       fetchData()
     } catch (err: any) {

@@ -84,8 +84,8 @@ export default function AdminPeriodsPage() {
 
     try {
       if (editingPeriod) {
-        // Se usa PUT y barra diagonal final para evitar 405 Method Not Allowed
-        await api.put(`/periodos/${editingPeriod.id}/`, payload)
+        // Se usa PATCH y sin barra diagonal final para evitar 405
+        await api.patch(`/periodos/${editingPeriod.id}`, payload)
         toast({ title: "Ciclo actualizado" })
       } else {
         await api.post('/periodos/', payload)
@@ -102,7 +102,7 @@ export default function AdminPeriodsPage() {
   const handleDelete = async (id: string) => {
     if(!confirm("¿Desea eliminar este periodo académico?")) return
     try {
-      await api.delete(`/periodos/${id}/`)
+      await api.delete(`/periodos/${id}`)
       toast({ title: "Ciclo eliminado" })
       fetchPeriods()
     } catch (err: any) {
