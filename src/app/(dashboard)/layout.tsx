@@ -64,6 +64,22 @@ export default function DashboardLayout({
   const pathname = usePathname()
   const router = useRouter()
   const isAdmin = pathname.startsWith('/admin')
+  const [currentYear, setCurrentYear] = React.useState<number | null>(null)
+
+  React.useEffect(() => {
+    setCurrentYear(new Date().getFullYear())
+  }, [])
+
+  const Footer = () => (
+    <footer className="bg-white w-full py-4 px-8 mt-auto flex flex-col md:flex-row justify-between items-center border-t border-slate-100 gap-4">
+      <div className="text-[10px] uppercase tracking-widest text-slate-500 text-center md:text-left">
+        © {currentYear || '2024'} IES La Salle Urubamba | Cusco - Perú
+      </div>
+      <div className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">
+        Desarrollado por Rodolfo Rodolfo Riveros
+      </div>
+    </footer>
+  )
 
   // Layout para el Administrador (Con Sidebar)
   if (isAdmin) {
@@ -107,7 +123,7 @@ export default function DashboardLayout({
             <NavUser user={user} />
           </SidebarFooter>
         </Sidebar>
-        <SidebarInset className="bg-[#f8f9fa]">
+        <SidebarInset className="bg-[#f8f9fa] flex flex-col min-h-svh">
           <header className="flex h-20 shrink-0 items-center gap-2 border-b bg-white/60 backdrop-blur-xl px-8 sticky top-0 z-40">
             <SidebarTrigger className="-ml-1" />
             <div className="flex-1 px-4 flex items-center justify-end">
@@ -119,9 +135,10 @@ export default function DashboardLayout({
                </div>
             </div>
           </header>
-          <div className="p-6 lg:p-12 max-w-[1600px] mx-auto w-full">
+          <div className="p-6 lg:p-12 max-w-[1600px] mx-auto w-full flex-grow">
             {children}
           </div>
+          <Footer />
         </SidebarInset>
       </SidebarProvider>
     )
@@ -158,9 +175,7 @@ export default function DashboardLayout({
       <main className="flex-grow p-6 lg:p-12 max-w-7xl mx-auto w-full">
         {children}
       </main>
-      <footer className="py-8 text-center text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] border-t bg-white">
-        © 2024 IES La Salle Urubamba | Portal de Gestión de Asistencia
-      </footer>
+      <Footer />
     </div>
   )
 }
