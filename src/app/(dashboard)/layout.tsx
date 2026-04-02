@@ -6,13 +6,12 @@ import {
   BookOpen,
   LayoutDashboard,
   Users,
-  FileUp,
   GraduationCap,
   Calendar,
   UserRound,
   Search,
-  UserCheck,
-  ClipboardList
+  ClipboardList,
+  UserCheck
 } from "lucide-react"
 
 import {
@@ -35,6 +34,7 @@ import { usePathname } from "next/navigation"
 
 const adminNav = [
   { name: "Dashboard Principal", href: "/admin", icon: LayoutDashboard },
+  { name: "Solicitudes de Acceso", href: "/admin/requests", icon: UserCheck },
   { name: "Programas de Estudio", href: "/admin/programs", icon: GraduationCap },
   { name: "Unidades Didácticas", icon: BookOpen, href: "/admin/courses" },
   { name: "Cuerpo Docente", href: "/admin/instructors", icon: UserRound },
