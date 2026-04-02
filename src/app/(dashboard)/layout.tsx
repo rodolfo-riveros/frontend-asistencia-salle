@@ -62,11 +62,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const currentYear = new Date().getFullYear()
 
   const InstitutionalFooter = () => (
-    <footer className="w-full py-6 px-8 mt-auto flex flex-col md:flex-row justify-between items-center border-t border-slate-100 bg-white gap-4 text-[10px] uppercase tracking-widest font-bold">
-      <div className="text-slate-500">
+    <footer className="w-full py-6 px-4 md:px-8 mt-auto flex flex-col md:flex-row justify-between items-center border-t border-slate-100 bg-white gap-4 text-[10px] uppercase tracking-widest font-bold">
+      <div className="text-slate-500 text-center md:text-left">
         © {currentYear} IES La Salle Urubamba | Cusco - Perú
       </div>
-      <div className="text-slate-400">
+      <div className="text-slate-400 text-center md:text-right">
         Desarrollado por Rodolfo Riveros
       </div>
     </footer>
@@ -78,10 +78,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <Sidebar collapsible="icon" className="border-r-0 shadow-2xl">
           <SidebarHeader className="h-20 flex items-center justify-center border-b border-white/10 px-6">
             <Link href="/admin" className="flex items-center gap-3">
-              <div className="bg-white p-1.5 rounded-lg shadow-md">
+              <div className="bg-white p-1.5 rounded-lg shadow-md shrink-0">
                 <GraduationCap className="h-6 w-6 text-primary" />
               </div>
-              <span className="font-extrabold text-xl text-white group-data-[collapsible=icon]:hidden uppercase font-headline tracking-tighter">
+              <span className="font-extrabold text-xl text-white group-data-[collapsible=icon]:hidden uppercase font-headline tracking-tighter truncate">
                 La Salle
               </span>
             </Link>
@@ -114,10 +114,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </SidebarFooter>
         </Sidebar>
         <SidebarInset className="bg-[#f8f9fa] flex flex-col min-h-screen">
-          <header className="flex h-20 shrink-0 items-center gap-2 border-b bg-white/60 backdrop-blur-xl px-8 sticky top-0 z-40">
+          <header className="flex h-20 shrink-0 items-center gap-2 border-b bg-white/60 backdrop-blur-xl px-4 md:px-8 sticky top-0 z-40">
             <SidebarTrigger className="-ml-1" />
             <div className="flex-1 px-4 flex justify-end">
-              <div className="relative w-72 hidden md:block">
+              <div className="relative w-full max-w-72 hidden sm:block">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <input 
                   placeholder="Buscar en el portal..." 
@@ -126,7 +126,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </div>
             </div>
           </header>
-          <div className="p-6 lg:p-12 max-w-[1600px] mx-auto w-full flex-grow">
+          <div className="p-4 md:p-6 lg:p-12 max-w-[1600px] mx-auto w-full flex-grow">
             {children}
           </div>
           <InstitutionalFooter />
@@ -137,32 +137,32 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-screen bg-[#f8f9fa] flex flex-col">
-      <header className="h-20 bg-primary sticky top-0 z-50 px-6 lg:px-20 flex items-center justify-between shadow-lg">
-        <Link href="/instructor" className="flex items-center gap-3 group">
-          <div className="bg-white p-1.5 rounded-lg shadow-lg group-hover:scale-110 transition-transform">
-            <GraduationCap className="h-6 w-6 text-primary" />
+      <header className="h-20 bg-primary sticky top-0 z-50 px-4 md:px-10 lg:px-20 flex items-center justify-between shadow-lg">
+        <Link href="/instructor" className="flex items-center gap-2 md:gap-3 group min-w-0">
+          <div className="bg-white p-1.5 rounded-lg shadow-lg group-hover:scale-110 transition-transform shrink-0">
+            <GraduationCap className="h-5 w-5 md:h-6 md:w-6 text-primary" />
           </div>
-          <span className="font-extrabold text-xl text-white uppercase font-headline tracking-tight">
+          <span className="font-extrabold text-sm md:text-xl text-white uppercase font-headline tracking-tight truncate">
             La Salle Urubamba
           </span>
         </Link>
-        <div className="flex items-center gap-6">
-          <div className="hidden md:flex flex-col text-right">
-            <span className="text-sm font-black text-white leading-tight">{INSTRUCTOR_USER.name}</span>
-            <span className="text-[10px] text-white/80 font-bold uppercase tracking-widest">Docente de Especialidad</span>
+        <div className="flex items-center gap-3 md:gap-6 shrink-0">
+          <div className="hidden sm:flex flex-col text-right">
+            <span className="text-xs md:text-sm font-black text-white leading-tight">{INSTRUCTOR_USER.name}</span>
+            <span className="text-[9px] md:text-[10px] text-white/80 font-bold uppercase tracking-widest">Docente de Especialidad</span>
           </div>
           <Button 
             variant="ghost" 
             size="icon" 
-            className="rounded-full h-11 w-11 text-white/70 hover:text-white hover:bg-white/10"
+            className="rounded-full h-10 w-10 md:h-11 md:w-11 text-white/70 hover:text-white hover:bg-white/10"
             onClick={() => router.push('/')}
             title="Cerrar Sesión"
           >
-            <LogOut className="h-5 w-5" />
+            <LogOut className="h-4 w-4 md:h-5 md:w-5" />
           </Button>
         </div>
       </header>
-      <main className="flex-grow p-6 lg:p-12 max-w-7xl mx-auto w-full">
+      <main className="flex-grow p-4 md:p-8 lg:p-12 max-w-7xl mx-auto w-full">
         {children}
       </main>
       <InstitutionalFooter />

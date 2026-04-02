@@ -48,6 +48,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Progress } from "@/components/ui/progress"
 import { toast } from "@/hooks/use-toast"
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 
 const initialStudents = [
   { id: "20241001", name: "Mateo Alvarez", program: "Desarrollo de Sistemas", semester: "III", status: "Regular" },
@@ -63,7 +64,6 @@ export default function AdminStudentsPage() {
   const [editingStudent, setEditingStudent] = React.useState<any>(null)
   const [searchTerm, setSearchTerm] = React.useState("")
 
-  // Estados para Importación
   const [isDragging, setIsDragging] = React.useState(false)
   const [file, setFile] = React.useState<File | null>(null)
   const [uploading, setUploading] = React.useState(false)
@@ -97,7 +97,6 @@ export default function AdminStudentsPage() {
     toast({ variant: "destructive", title: "Alumno retirado", description: "La matrícula fue cancelada." })
   }
 
-  // Lógica de Importación
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
@@ -139,24 +138,23 @@ export default function AdminStudentsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
-        <div className="space-y-1">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6">
+        <div className="space-y-1 w-full lg:w-auto">
           <p className="text-primary font-bold uppercase tracking-[0.2em] text-xs">Padrón de Estudiantes</p>
-          <h2 className="text-3xl font-headline font-extrabold tracking-tight text-slate-900">Registro de Alumnos</h2>
-          <p className="text-slate-500 text-sm">Control total de la matrícula y estado académico de los estudiantes.</p>
+          <h2 className="text-2xl md:text-3xl font-headline font-extrabold tracking-tight text-slate-900 leading-tight">Registro de Alumnos</h2>
+          <p className="text-slate-500 text-sm">Control total de la matrícula y estado académico.</p>
         </div>
-        <div className="flex gap-2">
-          {/* Modal de Importación */}
+        <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
           <Dialog open={isImportOpen} onOpenChange={(open) => { setIsImportOpen(open); if(!open) { setFile(null); setProgress(0); setUploading(false); } }}>
             <DialogTrigger asChild>
-              <Button variant="outline" className="gap-2 h-11 border-primary/20 hover:bg-primary/5 text-primary">
-                <FileUp className="h-4 w-4" /> Importar desde Excel
+              <Button variant="outline" className="w-full sm:w-auto gap-2 h-11 border-primary/20 hover:bg-primary/5 text-primary font-bold text-sm">
+                <FileUp className="h-4 w-4" /> Importar
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px]">
+            <DialogContent className="sm:max-w-[600px] w-[95vw]">
               <DialogHeader>
-                <DialogTitle>Importación Masiva de Alumnos</DialogTitle>
-                <DialogDescription>Sube tu archivo .xlsx o .xls siguiendo el formato institucional.</DialogDescription>
+                <DialogTitle>Importación Masiva</DialogTitle>
+                <DialogDescription>Sube tu archivo .xlsx o .xls con el formato oficial.</DialogDescription>
               </DialogHeader>
               <div className="space-y-6 py-4">
                 {!file ? (
@@ -166,131 +164,113 @@ export default function AdminStudentsPage() {
                     onDragLeave={handleDrag}
                     onDrop={handleDrop}
                     className={`
-                      border-2 border-dashed rounded-xl p-12 transition-all cursor-pointer
+                      border-2 border-dashed rounded-xl p-8 md:p-12 transition-all cursor-pointer
                       flex flex-col items-center justify-center text-center gap-4
                       ${isDragging ? 'border-primary bg-primary/5' : 'border-slate-200 hover:border-primary/50'}
                     `}
                     onClick={() => document.getElementById('fileInput')?.click()}
                   >
-                    <div className="p-4 bg-primary/10 rounded-full">
-                      <FileUp className="h-10 w-10 text-primary" />
+                    <div className="p-3 md:p-4 bg-primary/10 rounded-full">
+                      <FileUp className="h-8 w-8 md:h-10 md:w-10 text-primary" />
                     </div>
                     <div>
-                      <p className="text-lg font-bold text-slate-900">Arrastra tu Excel aquí</p>
-                      <p className="text-sm text-slate-500">o haz clic para seleccionar archivo</p>
+                      <p className="text-base md:text-lg font-bold text-slate-900">Sube tu Excel aquí</p>
+                      <p className="text-xs md:text-sm text-slate-500">Formato .xlsx o .xls permitido</p>
                     </div>
-                    <input
-                      id="fileInput"
-                      type="file"
-                      className="hidden"
-                      accept=".xlsx, .xls"
-                      onChange={(e) => setFile(e.target.files?.[0] || null)}
-                    />
+                    <input id="fileInput" type="file" className="hidden" accept=".xlsx, .xls" onChange={(e) => setFile(e.target.files?.[0] || null)} />
                   </div>
                 ) : (
-                  <div className="border rounded-xl p-6 bg-slate-50/50 space-y-4">
+                  <div className="border rounded-xl p-4 md:p-6 bg-slate-50/50 space-y-4">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="p-2 bg-green-100 rounded-lg text-green-600">
-                          <FileSpreadsheet className="h-8 w-8" />
+                      <div className="flex items-center gap-4 min-w-0">
+                        <div className="p-2 bg-green-100 rounded-lg text-green-600 shrink-0">
+                          <FileSpreadsheet className="h-6 w-6 md:h-8 md:w-8" />
                         </div>
-                        <div>
-                          <p className="font-bold text-slate-900">{file.name}</p>
-                          <p className="text-xs text-slate-500">{(file.size / 1024).toFixed(2)} KB</p>
+                        <div className="min-w-0">
+                          <p className="font-bold text-slate-900 truncate text-sm md:text-base">{file.name}</p>
+                          <p className="text-[10px] md:text-xs text-slate-500">{(file.size / 1024).toFixed(2)} KB</p>
                         </div>
                       </div>
                       {!uploading && progress < 100 && (
-                        <Button variant="ghost" size="icon" onClick={() => setFile(null)}>
+                        <Button variant="ghost" size="icon" onClick={() => setFile(null)} className="h-8 w-8">
                           <X className="h-4 w-4 text-slate-400" />
                         </Button>
                       )}
                     </div>
-
                     {uploading ? (
                       <div className="space-y-2">
-                        <div className="flex justify-between text-xs font-bold text-primary">
-                          <span>Procesando registros...</span>
+                        <div className="flex justify-between text-[10px] md:text-xs font-bold text-primary">
+                          <span>Procesando...</span>
                           <span>{progress}%</span>
                         </div>
-                        <Progress value={progress} className="h-2" />
+                        <Progress value={progress} className="h-1.5" />
                       </div>
                     ) : progress === 100 ? (
-                      <div className="flex items-center gap-2 text-green-600 bg-green-50 p-4 rounded-lg text-sm font-bold">
-                        <CheckCircle2 className="h-5 w-5" />
-                        <span>¡245 alumnos importados correctamente!</span>
+                      <div className="flex items-center gap-2 text-green-600 bg-green-50 p-3 md:p-4 rounded-lg text-xs md:text-sm font-bold">
+                        <CheckCircle2 className="h-4 w-4 md:h-5 md:w-5" />
+                        <span>¡Importación exitosa!</span>
                       </div>
                     ) : (
-                      <Button onClick={startUpload} className="w-full bg-primary h-12 text-base shadow-lg shadow-primary/20">
+                      <Button onClick={startUpload} className="w-full bg-primary h-11 md:h-12 text-sm md:text-base font-bold">
                         Iniciar Procesamiento
                       </Button>
                     )}
                   </div>
                 )}
-                
-                <div className="p-4 bg-amber-50 rounded-lg text-amber-700 border border-amber-100 flex gap-3">
-                  <AlertCircle className="h-5 w-5 shrink-0" />
-                  <div className="space-y-1">
-                    <p className="text-xs font-bold uppercase tracking-widest">Requisito de Formato</p>
-                    <p className="text-xs leading-relaxed">Asegúrate de que la columna DNI sea obligatoria y única. Puedes descargar la <span className="underline cursor-pointer">plantilla oficial aquí</span>.</p>
-                  </div>
-                </div>
               </div>
               <DialogFooter>
-                <Button variant="ghost" onClick={() => setIsImportOpen(false)}>Cerrar</Button>
+                <Button variant="ghost" onClick={() => setIsImportOpen(false)} className="text-sm">Cerrar</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
 
           <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if(!open) setEditingStudent(null); }}>
             <DialogTrigger asChild>
-              <Button className="bg-primary hover:bg-primary/90 gap-2 shadow-lg shadow-primary/20 h-11 px-6">
-                <Plus className="h-4 w-4" /> Matricular Alumno
+              <Button className="w-full sm:w-auto bg-primary hover:bg-primary/90 gap-2 h-11 px-6 font-bold shadow-lg shadow-primary/20 text-sm">
+                <Plus className="h-4 w-4" /> Matricular
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
+            <DialogContent className="sm:max-w-[500px] w-[95vw]">
               <form onSubmit={handleSave}>
                 <DialogHeader>
-                  <DialogTitle>{editingStudent ? "Editar Matrícula" : "Matricular Nuevo Estudiante"}</DialogTitle>
-                  <DialogDescription>Ingresa los datos del alumno y su programa.</DialogDescription>
+                  <DialogTitle>{editingStudent ? "Editar Matrícula" : "Matricular Estudiante"}</DialogTitle>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                   <div className="space-y-2">
-                    <Label htmlFor="name">Nombre Completo</Label>
-                    <Input id="name" name="name" defaultValue={editingStudent?.name} placeholder="Apellidos y Nombres" required />
+                    <Label htmlFor="name" className="text-xs">Nombre Completo</Label>
+                    <Input id="name" name="name" defaultValue={editingStudent?.name} placeholder="Apellidos y Nombres" required className="text-sm" />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="program">Programa Académico</Label>
+                    <Label className="text-xs">Programa Académico</Label>
                     <Select name="program" defaultValue={editingStudent?.program || "Desarrollo de Sistemas"}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar Programa" />
+                      <SelectTrigger className="text-sm">
+                        <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Desarrollo de Sistemas">Desarrollo de Sistemas</SelectItem>
+                        <SelectItem value="Desarrollo de Sistemas">Sistemas</SelectItem>
                         <SelectItem value="Contabilidad">Contabilidad</SelectItem>
-                        <SelectItem value="Enfermería Técnica">Enfermería Técnica</SelectItem>
+                        <SelectItem value="Enfermería Técnica">Enfermería</SelectItem>
                         <SelectItem value="Turismo">Turismo</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="semester">Semestre Actual</Label>
+                      <Label className="text-xs">Semestre</Label>
                       <Select name="semester" defaultValue={editingStudent?.semester || "I"}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar" />
+                        <SelectTrigger className="text-sm">
+                          <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {["I", "II", "III", "IV", "V", "VI"].map(s => (
-                            <SelectItem key={s} value={s}>Semestre {s}</SelectItem>
-                          ))}
+                          {["I", "II", "III", "IV", "V", "VI"].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="status">Condición</Label>
+                      <Label className="text-xs">Condición</Label>
                       <Select name="status" defaultValue={editingStudent?.status || "Regular"}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar" />
+                        <SelectTrigger className="text-sm">
+                          <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="Regular">Regular</SelectItem>
@@ -301,9 +281,9 @@ export default function AdminStudentsPage() {
                     </div>
                   </div>
                 </div>
-                <DialogFooter>
-                  <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
-                  <Button type="submit" className="bg-primary">Confirmar Matrícula</Button>
+                <DialogFooter className="gap-2 sm:gap-0">
+                  <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)} className="text-sm">Cancelar</Button>
+                  <Button type="submit" className="bg-primary text-sm">Guardar</Button>
                 </DialogFooter>
               </form>
             </DialogContent>
@@ -311,92 +291,95 @@ export default function AdminStudentsPage() {
         </div>
       </div>
 
-      <div className="flex items-center gap-4 bg-white p-4 rounded-xl border-slate-100 border shadow-sm">
-        <div className="relative flex-1">
+      <div className="flex flex-col sm:flex-row items-center gap-3 bg-white p-3 md:p-4 rounded-xl border-slate-100 border shadow-sm w-full">
+        <div className="relative flex-1 w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <Input 
-            placeholder="Buscar por DNI, Nombre o Código..." 
-            className="pl-10 h-11 bg-slate-50 border-none" 
+            placeholder="Buscar por DNI o Nombre..." 
+            className="pl-10 h-10 bg-slate-50 border-none text-sm w-full" 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <Button variant="ghost" className="gap-2 text-slate-500 font-bold">
-          <Filter className="h-4 w-4" /> Filtros Avanzados
+        <Button variant="ghost" className="w-full sm:w-auto gap-2 text-slate-500 font-bold text-xs">
+          <Filter className="h-4 w-4" /> Filtros
         </Button>
       </div>
 
       <Card className="border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
         <CardContent className="p-0">
-          <Table>
-            <TableHeader className="bg-slate-50/50">
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="w-[80px] pl-6"></TableHead>
-                <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest">Código / Estudiante</TableHead>
-                <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest">Programa</TableHead>
-                <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest text-center">Ciclo</TableHead>
-                <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest">Condición</TableHead>
-                <TableHead className="w-[80px] pr-6 text-right"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredStudents.length > 0 ? (
-                filteredStudents.map((student) => (
-                  <TableRow key={student.id} className="group hover:bg-slate-50/50 transition-colors">
-                    <TableCell className="pl-6">
-                      <Avatar className="h-10 w-10 border-2 border-white shadow-sm">
-                        <AvatarImage src={`https://picsum.photos/seed/${student.id}/200/200`} />
-                        <AvatarFallback>{student.name[0]}</AvatarFallback>
-                      </Avatar>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <span className="font-bold text-slate-900">{student.name}</span>
-                        <span className="text-xs text-slate-400 font-mono">ID: {student.id}</span>
+          <ScrollArea className="w-full">
+            <Table>
+              <TableHeader className="bg-slate-50/50">
+                <TableRow className="hover:bg-transparent border-none">
+                  <TableHead className="w-[60px] md:w-[80px] pl-4 md:pl-6"></TableHead>
+                  <TableHead className="font-bold text-slate-400 uppercase text-[9px] md:text-[10px] tracking-widest min-w-[150px]">Estudiante</TableHead>
+                  <TableHead className="font-bold text-slate-400 uppercase text-[9px] md:text-[10px] tracking-widest min-w-[120px]">Programa</TableHead>
+                  <TableHead className="font-bold text-slate-400 uppercase text-[9px] md:text-[10px] tracking-widest text-center">Ciclo</TableHead>
+                  <TableHead className="font-bold text-slate-400 uppercase text-[9px] md:text-[10px] tracking-widest">Condición</TableHead>
+                  <TableHead className="w-[60px] md:w-[80px] pr-4 md:pr-6 text-right"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredStudents.length > 0 ? (
+                  filteredStudents.map((student) => (
+                    <TableRow key={student.id} className="group hover:bg-slate-50/50 transition-colors">
+                      <TableCell className="pl-4 md:pl-6 py-3">
+                        <Avatar className="h-8 w-8 md:h-10 md:w-10 border-2 border-white shadow-sm shrink-0">
+                          <AvatarImage src={`https://picsum.photos/seed/${student.id}/200/200`} />
+                          <AvatarFallback>{student.name[0]}</AvatarFallback>
+                        </Avatar>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col min-w-0">
+                          <span className="font-bold text-slate-900 text-xs md:text-sm truncate">{student.name}</span>
+                          <span className="text-[10px] text-slate-400 font-mono">ID: {student.id}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1.5 text-slate-500 text-[10px] md:text-xs">
+                          <GraduationCap className="h-3 w-3 shrink-0" /> <span className="truncate">{student.program}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge className="bg-slate-100 text-slate-600 border-none font-bold text-[9px] md:text-xs">Sem {student.semester}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge status={student.status} />
+                      </TableCell>
+                      <TableCell className="pr-4 md:pr-6 text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="rounded-full h-8 w-8">
+                              <MoreVertical className="h-4 w-4 text-slate-400" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-32">
+                            <DropdownMenuItem className="gap-2 text-xs" onClick={() => { setEditingStudent(student); setIsModalOpen(true); }}>
+                              <Edit2 className="h-3 w-3" /> Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="gap-2 text-destructive text-xs" onClick={() => handleDelete(student.id)}>
+                              <Trash2 className="h-3 w-3" /> Retirar
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={6} className="h-32 text-center text-slate-400">
+                      <div className="flex flex-col items-center gap-2">
+                        <AlertCircle className="h-6 w-6 opacity-20" />
+                        <span className="text-sm">Sin resultados.</span>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2 text-slate-500 text-sm">
-                        <GraduationCap className="h-3.5 w-3.5" /> {student.program}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge className="bg-slate-100 text-slate-600 border-none font-bold">Semestre {student.semester}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge status={student.status} />
-                    </TableCell>
-                    <TableCell className="pr-6 text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="rounded-full">
-                            <MoreVertical className="h-4 w-4 text-slate-400" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-40">
-                          <DropdownMenuItem className="gap-2" onClick={() => { setEditingStudent(student); setIsModalOpen(true); }}>
-                            <Edit2 className="h-3.5 w-3.5" /> Perfil
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(student.id)}>
-                            <Trash2 className="h-3.5 w-3.5" /> Retirar
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={6} className="h-32 text-center text-slate-400">
-                    <div className="flex flex-col items-center gap-2">
-                      <AlertCircle className="h-8 w-8 opacity-20" />
-                      No se encontraron estudiantes registrados.
-                    </div>
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                )}
+              </TableBody>
+            </Table>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
         </CardContent>
       </Card>
     </div>
@@ -410,7 +393,7 @@ function StatusBadge({ status }: { status: string }) {
     "Egresado": "bg-blue-100 text-blue-700 hover:bg-blue-200",
   }
   return (
-    <Badge className={`${configs[status] || 'bg-slate-100 text-slate-600'} border-none px-3`}>
+    <Badge className={`${configs[status] || 'bg-slate-100 text-slate-600'} border-none px-2 py-0 text-[9px] md:text-[10px]`}>
       {status}
     </Badge>
   )
