@@ -12,7 +12,8 @@ import {
   AlertCircle,
   Loader2,
   Hash,
-  RefreshCcw
+  RefreshCcw,
+  ShieldAlert
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -56,7 +57,12 @@ export default function AdminProgramsPage() {
     setIsLoading(true)
     try {
       const data = await api.get<any[]>('/programas/')
-      console.log("[DEBUG] Programas recibidos:", data)
+      console.log("[DEBUG] Datos crudos de programas:", data)
+      
+      if (Array.isArray(data) && data.length === 0) {
+        console.warn("[ALERTA RLS] El servidor devolvió [] pero hay datos en DB. Revisa las Políticas RLS en Supabase.")
+      }
+      
       setPrograms(Array.isArray(data) ? data : [])
     } catch (err: any) {
       console.error("[FETCH ERROR]", err)
@@ -81,10 +87,8 @@ export default function AdminProgramsPage() {
     
     const nombre = (formData.get("nombre") as string).trim()
     
-    // Generación automática del código si es nuevo
-    // IMPORTANTE: Tu backend usa la regex ^[A-Z0-9_]+$
-    // No permite guiones medios (-), solo guiones bajos (_)
-    const cleanName = nombre.replace(/[^a-zA-Z0-9]/g, '').substring(0, 3).toUpperCase()
+    // Generación automática compatible con Regex ^[A-Z0-9_]+$
+    const cleanName = nombre.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]/g, '_').toUpperCase().substring(0, 5)
     const generatedCode = editingProgram?.codigo || `PRG_${cleanName}_${Date.now().toString().slice(-4)}`
 
     const payload = {
@@ -98,7 +102,7 @@ export default function AdminProgramsPage() {
         toast({ title: "Programa actualizado" })
       } else {
         await api.post('/programas/', payload)
-        toast({ title: "Programa creado", description: `Código asignado: ${generatedCode}` })
+        toast({ title: "Programa creado", description: `Código: ${generatedCode}` })
       }
       fetchPrograms()
       setIsModalOpen(false)
@@ -115,7 +119,7 @@ export default function AdminProgramsPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if(!confirm("¿Desea eliminar este programa? Esta acción fallará si hay cursos vinculados.")) return
+    if(!confirm("¿Desea eliminar este programa?")) return
     try {
       await api.delete(`/programas/${id}`)
       toast({ title: "Programa eliminado" })
@@ -124,7 +128,7 @@ export default function AdminProgramsPage() {
       toast({ 
         variant: "destructive", 
         title: "No se pudo eliminar", 
-        description: "Es posible que el programa tenga dependencias (cursos o alumnos)." 
+        description: "El programa podría tener cursos o alumnos vinculados." 
       })
     }
   }
@@ -163,7 +167,7 @@ export default function AdminProgramsPage() {
                 <DialogHeader>
                   <DialogTitle>{editingProgram ? "Editar Programa" : "Registrar Carrera"}</DialogTitle>
                   <DialogDescription>
-                    Ingresa el nombre del programa académico. El código se generará siguiendo las reglas del sistema (mayúsculas y guiones bajos).
+                    Ingresa el nombre del programa académico. El código se generará automáticamente.
                   </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-6">
@@ -177,12 +181,6 @@ export default function AdminProgramsPage() {
                       required 
                     />
                   </div>
-                  {editingProgram && (
-                    <div className="p-3 bg-slate-50 rounded-lg border border-slate-100 flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-400 uppercase">Código Actual:</span>
-                      <span className="font-mono text-sm font-bold text-primary">{editingProgram.codigo}</span>
-                    </div>
-                  )}
                 </div>
                 <DialogFooter>
                   <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
@@ -213,7 +211,7 @@ export default function AdminProgramsPage() {
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
               <p className="text-sm font-medium">Sincronizando con el servidor...</p>
             </div>
-          ) : (
+          ) : filteredPrograms.length > 0 ? (
             <Table>
               <TableHeader className="bg-slate-50/50">
                 <TableRow className="hover:bg-transparent">
@@ -223,57 +221,54 @@ export default function AdminProgramsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredPrograms.length > 0 ? (
-                  filteredPrograms.map((program) => (
-                    <TableRow key={program.id} className="group hover:bg-slate-50/50 transition-colors">
-                      <TableCell className="font-mono text-[11px] text-slate-500 pl-6">
-                        <div className="flex items-center gap-1.5">
-                          <Hash className="h-3 w-3 text-primary/40" /> 
-                          <span className="font-bold text-slate-700">{program.codigo}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="font-bold text-slate-700">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-primary/5 flex items-center justify-center text-primary shrink-0">
-                            <GraduationCap className="h-4 w-4" />
-                          </div>
-                          {program.nombre}
-                        </div>
-                      </TableCell>
-                      <TableCell className="pr-6 text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
-                              <MoreVertical className="h-4 w-4 text-slate-400" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-40">
-                            <DropdownMenuItem className="gap-2" onClick={() => { setEditingProgram(program); setIsModalOpen(true); }}>
-                              <Edit2 className="h-3.5 w-3.5" /> Editar Nombre
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive focus:bg-red-50" onClick={() => handleDelete(program.id)}>
-                              <Trash2 className="h-3.5 w-3.5" /> Eliminar Carrera
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={3} className="h-48 text-center text-slate-400">
-                      <div className="flex flex-col items-center gap-3">
-                        <AlertCircle className="h-10 w-10 opacity-10" />
-                        <div className="space-y-1">
-                          <p className="font-bold text-slate-900">No hay programas registrados</p>
-                          <p className="text-xs">Usa el botón "Nuevo Programa" para comenzar.</p>
-                        </div>
+                {filteredPrograms.map((program) => (
+                  <TableRow key={program.id} className="group hover:bg-slate-50/50 transition-colors">
+                    <TableCell className="font-mono text-[11px] text-slate-500 pl-6">
+                      <div className="flex items-center gap-1.5">
+                        <Hash className="h-3 w-3 text-primary/40" /> 
+                        <span className="font-bold text-slate-700">{program.codigo}</span>
                       </div>
                     </TableCell>
+                    <TableCell className="font-bold text-slate-700">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-primary/5 flex items-center justify-center text-primary shrink-0">
+                          <GraduationCap className="h-4 w-4" />
+                        </div>
+                        {program.nombre}
+                      </div>
+                    </TableCell>
+                    <TableCell className="pr-6 text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
+                            <MoreVertical className="h-4 w-4 text-slate-400" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-40">
+                          <DropdownMenuItem className="gap-2" onClick={() => { setEditingProgram(program); setIsModalOpen(true); }}>
+                            <Edit2 className="h-3.5 w-3.5" /> Editar Nombre
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive" onClick={() => handleDelete(program.id)}>
+                            <Trash2 className="h-3.5 w-3.5" /> Eliminar Carrera
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
                   </TableRow>
-                )}
+                ))}
               </TableBody>
             </Table>
+          ) : (
+            <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-3">
+              <div className="p-4 bg-amber-50 rounded-full">
+                <ShieldAlert className="h-8 w-8 text-amber-500" />
+              </div>
+              <div className="space-y-1 text-center">
+                <p className="font-bold text-slate-900">No hay programas para mostrar</p>
+                <p className="text-xs max-w-[300px]">Si hay datos en Supabase, asegúrate de haber creado las Políticas RLS para permitir la lectura.</p>
+              </div>
+              <Button variant="outline" size="sm" onClick={fetchPrograms} className="mt-2">Reintentar</Button>
+            </div>
           )}
         </CardContent>
       </Card>
