@@ -1,18 +1,22 @@
+
 "use client"
 
 import * as React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { GraduationCap, Mail, User, CreditCard, BookOpen, ArrowLeft, ShieldCheck } from 'lucide-react';
+import { GraduationCap, Mail, User, CreditCard, BookOpen, ArrowLeft, ShieldCheck, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/lib/supabase';
 
 export default function RegisterPage() {
   const router = useRouter();
   const [currentYear, setCurrentYear] = React.useState<number | null>(null);
+  const [isLoading, setIsLoading] = React.useState(false);
 
   const sjbImage = PlaceHolderImages.find(img => img.id === 'sjb-avatar')?.imageUrl || "https://picsum.photos/seed/sjb/200/200";
 
@@ -20,10 +24,51 @@ export default function RegisterPage() {
     setCurrentYear(new Date().getFullYear());
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    alert("Solicitud enviada correctamente. El administrador revisará sus datos.");
-    router.push('/');
+    setIsLoading(true);
+
+    const formData = new FormData(e.currentTarget as HTMLFormElement);
+    const email = formData.get('email') as string;
+    const firstname = formData.get('firstname') as string;
+    const lastname = formData.get('lastname') as string;
+    const dni = formData.get('dni') as string;
+    const program = formData.get('program') as string;
+
+    try {
+      // Nota: En una implementación real, la contraseña se solicitaría aquí.
+      // Para el registro de docente, usaremos el DNI como contraseña temporal 
+      // o redirigiremos a una validación.
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password: dni, // El DNI será su contraseña inicial
+        options: {
+          data: {
+            firstname,
+            lastname,
+            dni,
+            program,
+            role: 'docente' // Por defecto se registran como docentes
+          }
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Solicitud enviada",
+        description: "Revisa tu correo para confirmar tu cuenta. Tu contraseña inicial es tu DNI.",
+      });
+      router.push('/');
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error al registrar",
+        description: error.message || "No se pudo procesar la solicitud.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -31,7 +76,6 @@ export default function RegisterPage() {
       <main className="flex-grow flex items-center justify-center p-6 md:p-12">
         <div className="max-w-6xl w-full grid grid-cols-1 md:grid-cols-2 bg-white rounded-xl overflow-hidden shadow-[0_12px_32px_-4px_rgba(25,28,29,0.06)]">
           
-          {/* Columna Izquierda: Branding La Salle */}
           <div className="hidden md:flex flex-col justify-between p-12 bg-primary relative overflow-hidden text-white">
             <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '32px 32px' }}></div>
             
@@ -75,11 +119,9 @@ export default function RegisterPage() {
                 </div>
               </div>
             </div>
-            
             <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-blue-700 rounded-full blur-3xl opacity-50"></div>
           </div>
 
-          {/* Columna Derecha: Formulario de Registro */}
           <div className="p-8 md:p-12 flex flex-col justify-center bg-white">
             <div className="md:hidden flex items-center gap-2 mb-8">
               <GraduationCap className="text-primary w-6 h-6" />
@@ -97,12 +139,12 @@ export default function RegisterPage() {
                   <Label className="text-[10px] font-bold uppercase tracking-widest text-slate-400" htmlFor="firstname">Nombres</Label>
                   <div className="relative group">
                     <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-primary" />
-                    <Input className="bg-slate-50 border-none pl-11 py-5" id="firstname" placeholder="Ej. Juan" required />
+                    <Input className="bg-slate-50 border-none pl-11 py-5" id="firstname" name="firstname" placeholder="Ej. Juan" required />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <Label className="text-[10px] font-bold uppercase tracking-widest text-slate-400" htmlFor="lastname">Apellidos</Label>
-                  <Input className="bg-slate-50 border-none py-5" id="lastname" placeholder="Ej. Pérez García" required />
+                  <Input className="bg-slate-50 border-none py-5" id="lastname" name="lastname" placeholder="Ej. Pérez García" required />
                 </div>
               </div>
 
@@ -110,7 +152,7 @@ export default function RegisterPage() {
                 <Label className="text-[10px] font-bold uppercase tracking-widest text-slate-400" htmlFor="email">Correo Institucional</Label>
                 <div className="relative group">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-primary" />
-                  <Input className="bg-slate-50 border-none pl-11 py-5" id="email" type="email" placeholder="usuario@lasalleurubamba.edu.pe" required />
+                  <Input className="bg-slate-50 border-none pl-11 py-5" id="email" name="email" type="email" placeholder="usuario@lasalleurubamba.edu.pe" required />
                 </div>
               </div>
 
@@ -118,7 +160,7 @@ export default function RegisterPage() {
                 <Label className="text-[10px] font-bold uppercase tracking-widest text-slate-400" htmlFor="dni">DNI</Label>
                 <div className="relative group">
                   <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-primary" />
-                  <Input className="bg-slate-50 border-none pl-11 py-5" id="dni" placeholder="8 dígitos" required />
+                  <Input className="bg-slate-50 border-none pl-11 py-5" id="dni" name="dni" placeholder="8 dígitos" required maxLength={8} />
                 </div>
               </div>
 
@@ -126,21 +168,22 @@ export default function RegisterPage() {
                 <Label className="text-[10px] font-bold uppercase tracking-widest text-slate-400" htmlFor="program">Programa de Estudio</Label>
                 <div className="relative group">
                   <BookOpen className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-primary" />
-                  <Input className="bg-slate-50 border-none pl-11 py-5" id="program" placeholder="Ej. Desarrollo de Sistemas de Información" required />
+                  <Input className="bg-slate-50 border-none pl-11 py-5" id="program" name="program" placeholder="Ej. Desarrollo de Sistemas" required />
                 </div>
               </div>
 
               <Button 
                 type="submit" 
+                disabled={isLoading}
                 className="w-full py-6 bg-primary hover:bg-primary/90 text-white font-bold rounded-lg shadow-lg shadow-primary/20 transition-all"
               >
-                Enviar Solicitud de Acceso
+                {isLoading ? <Loader2 className="animate-spin h-5 w-5" /> : "Enviar Solicitud de Acceso"}
               </Button>
 
               <div className="text-center pt-4">
                 <Button variant="link" className="text-slate-500 hover:text-primary text-sm font-medium" asChild>
                   <Link href="/" className="flex items-center gap-2">
-                    <ArrowLeft className="w-4 h-4" /> Ya tengo una cuenta, volver al login
+                    <ArrowLeft className="w-4 h-4" /> Volver al login
                   </Link>
                 </Button>
               </div>
@@ -156,11 +199,11 @@ export default function RegisterPage() {
         </div>
       </main>
 
-      <footer className="bg-white w-full py-4 px-8 mt-auto flex flex-col md:flex-row justify-between items-center border-t border-slate-100 gap-4">
-        <div className="text-[10px] uppercase tracking-widest text-slate-500 text-center md:text-left">
+      <footer className="bg-white w-full py-4 px-8 mt-auto flex flex-col md:flex-row justify-between items-center border-t border-slate-100 gap-4 text-[10px] uppercase tracking-widest font-bold">
+        <div className="text-slate-500 text-center md:text-left">
           © {currentYear || '2024'} IES La Salle Urubamba | Cusco - Perú
         </div>
-        <div className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">
+        <div className="text-slate-400 text-center md:text-right">
           Desarrollado por Rodolfo Rodolfo Riveros
         </div>
       </footer>

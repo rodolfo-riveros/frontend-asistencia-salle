@@ -5,18 +5,20 @@ import * as React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { GraduationCap, Mail, Lock, Eye, LogIn, ShieldCheck } from 'lucide-react';
+import { GraduationCap, Mail, Lock, Eye, LogIn, ShieldCheck, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/lib/supabase';
 
 export default function LoginPage() {
   const router = useRouter();
   const [showPassword, setShowPassword] = React.useState(false);
   const [currentYear, setCurrentYear] = React.useState<number | null>(null);
+  const [isLoading, setIsLoading] = React.useState(false);
 
   const sjbImage = PlaceHolderImages.find(img => img.id === 'sjb-avatar')?.imageUrl || "https://picsum.photos/seed/sjb/200/200";
 
@@ -24,26 +26,48 @@ export default function LoginPage() {
     setCurrentYear(new Date().getFullYear());
   }, []);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
+
     const formData = new FormData(e.currentTarget as HTMLFormElement);
     const email = formData.get('email') as string;
-    
-    // Simulación de almacenamiento de token tras login exitoso con Supabase
-    // Una vez que integres Supabase Auth, aquí guardarías el 'access_token' real.
-    localStorage.setItem('supabase_access_token', 'mock_token_for_fastapi_integration');
+    const password = formData.get('password') as string;
 
-    // Navegación basada en el correo (simulado)
-    if (email.toLowerCase().includes('admin')) {
-      router.push('/admin');
-    } else {
-      router.push('/instructor');
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+
+      if (data.session) {
+        // Guardamos el token para que api.ts lo use en las peticiones a FastAPI
+        localStorage.setItem('supabase_access_token', data.session.access_token);
+        
+        const role = data.user?.user_metadata?.role;
+        
+        toast({
+          title: "Sesión Iniciada",
+          description: `Bienvenido de nuevo, ${data.user?.user_metadata?.firstname || 'Usuario'}.`,
+        });
+
+        if (role === 'admin') {
+          router.push('/admin');
+        } else {
+          router.push('/instructor');
+        }
+      }
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error de Autenticación",
+        description: error.message || "Credenciales inválidas.",
+      });
+    } finally {
+      setIsLoading(false);
     }
-    
-    toast({
-      title: "Sesión Iniciada",
-      description: "Bienvenido al portal institucional.",
-    });
   };
 
   return (
@@ -138,6 +162,7 @@ export default function LoginPage() {
                   <Input 
                     className="w-full bg-slate-100 border-none rounded-lg py-6 pl-12 pr-12 focus-visible:ring-1 focus-visible:ring-primary text-slate-900 placeholder:text-slate-400" 
                     id="password" 
+                    name="password"
                     placeholder="••••••••" 
                     type={showPassword ? "text" : "password"} 
                     required 
@@ -157,9 +182,19 @@ export default function LoginPage() {
                   Mantener sesión activa
                 </Label>
               </div>
-              <Button type="submit" className="w-full py-6 bg-primary hover:bg-primary/90 text-white font-bold rounded-lg shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2">
-                <span>Acceder al Portal</span>
-                <LogIn className="w-5 h-5" />
+              <Button 
+                type="submit" 
+                disabled={isLoading}
+                className="w-full py-6 bg-primary hover:bg-primary/90 text-white font-bold rounded-lg shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2"
+              >
+                {isLoading ? (
+                  <Loader2 className="animate-spin h-5 w-5" />
+                ) : (
+                  <>
+                    <span>Acceder al Portal</span>
+                    <LogIn className="w-5 h-5" />
+                  </>
+                )}
               </Button>
 
               <div className="text-center pt-4">
@@ -184,7 +219,7 @@ export default function LoginPage() {
           © {currentYear || '2024'} IES La Salle Urubamba | Cusco - Perú
         </div>
         <div className="text-slate-400 text-center md:text-right">
-          Desarrollado por Rodolfo Riveros
+          Desarrollado por Rodolfo Rodolfo Riveros
         </div>
       </footer>
     </div>
