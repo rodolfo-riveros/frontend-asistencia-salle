@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -98,12 +97,13 @@ export default function AdminProgramsPage() {
   }
 
   const handleDelete = async (id: string) => {
+    if(!confirm("¿Desea eliminar este programa?")) return
     try {
       await api.delete(`/programas/${id}`)
-      toast({ variant: "destructive", title: "Programa eliminado", description: "El registro fue borrado." })
+      toast({ title: "Programa eliminado", description: "El registro fue borrado con éxito." })
       fetchPrograms()
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Error", description: err.message })
+      toast({ variant: "destructive", title: "Error al eliminar", description: err.message })
     }
   }
 

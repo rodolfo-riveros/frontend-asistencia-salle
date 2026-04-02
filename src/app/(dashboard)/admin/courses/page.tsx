@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -98,7 +97,7 @@ export default function AdminCoursesPage() {
     try {
       if (editingCourse) {
         await api.patch(`/unidades/${editingCourse.id}`, courseData)
-        toast({ title: "Unidad Actualizada", description: "Los cambios se guardaron en la base de datos." })
+        toast({ title: "Unidad Actualizada", description: "Los cambios se guardaron con éxito." })
       } else {
         await api.post('/unidades/', courseData)
         toast({ title: "Unidad Creada", description: "El curso ha sido registrado exitosamente." })
@@ -112,13 +111,13 @@ export default function AdminCoursesPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm("¿Está seguro de eliminar esta unidad didáctica?")) return
+    if (!confirm("¿Está seguro de eliminar esta unidad?")) return
     try {
       await api.delete(`/unidades/${id}`)
-      toast({ variant: "destructive", title: "Unidad Eliminada" })
+      toast({ title: "Unidad Eliminada", description: "El curso fue retirado del sistema." })
       fetchData()
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Error", description: err.message })
+      toast({ variant: "destructive", title: "Error al eliminar", description: err.message })
     }
   }
 
