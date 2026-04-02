@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -67,8 +66,8 @@ export default function AdminStudentsPage() {
     } catch (err: any) {
       toast({ 
         variant: "destructive", 
-        title: "Error", 
-        description: "No se pudieron cargar los alumnos del servidor." 
+        title: "Error de Sincronización", 
+        description: "No se pudieron obtener los datos de los alumnos desde FastAPI." 
       })
     } finally {
       setIsLoading(false)
@@ -112,7 +111,7 @@ export default function AdminStudentsPage() {
     if(!confirm("¿Desea retirar a este estudiante de la matrícula?")) return
     try {
       await api.delete(`/alumnos/${id}`)
-      toast({ title: "Alumno retirado", description: "El registro fue eliminado correctamente." })
+      toast({ title: "Alumno retirado", description: "El registro fue eliminado correctamente del servidor." })
       fetchData()
     } catch (err: any) {
       toast({ variant: "destructive", title: "Error al eliminar", description: err.message })
@@ -134,19 +133,19 @@ export default function AdminStudentsPage() {
         <div className="space-y-1">
           <p className="text-primary font-bold uppercase tracking-[0.2em] text-xs">Padrón Estudiantil</p>
           <h2 className="text-3xl font-headline font-extrabold tracking-tight text-slate-900">Registro de Alumnos</h2>
-          <p className="text-slate-500 text-sm">Control centralizado de matrícula y datos personales.</p>
+          <p className="text-slate-500 text-sm">Control centralizado de matrícula y datos personales vía FastAPI.</p>
         </div>
         <Button onClick={() => { setEditingStudent(null); setIsModalOpen(true); }} className="bg-primary hover:bg-primary/90 gap-2 h-11 px-6 font-bold shadow-lg shadow-primary/20">
           <Plus className="h-4 w-4" /> Matricular Estudiante
         </Button>
       </div>
 
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+      <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if(!open) setEditingStudent(null); }}>
         <DialogContent className="sm:max-w-[500px]">
           <form onSubmit={handleSave}>
             <DialogHeader>
               <DialogTitle>{editingStudent ? "Editar Matrícula" : "Nueva Matrícula"}</DialogTitle>
-              <DialogDescription>Asegúrate de que el DNI sea único en el sistema.</DialogDescription>
+              <DialogDescription>Asegúrate de que el DNI sea único en el sistema institucional.</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="space-y-2">
@@ -158,7 +157,7 @@ export default function AdminStudentsPage() {
                 <Input id="dni" name="dni" defaultValue={editingStudent?.dni} placeholder="8 dígitos" required maxLength={8} />
               </div>
               <div className="space-y-2">
-                <Label>Programa Académico</Label>
+                <Label htmlFor="programa_id">Programa Académico</Label>
                 <Select name="programa_id" defaultValue={editingStudent?.programa_id}>
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccione una carrera" />
@@ -171,13 +170,15 @@ export default function AdminStudentsPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Semestre Académico</Label>
+                <Label htmlFor="semestre">Semestre Académico</Label>
                 <Select name="semestre" defaultValue={editingStudent?.semestre || "I"}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {["I", "II", "III", "IV", "V", "VI"].map(s => <SelectItem key={s} value={s}>Semestre {s}</SelectItem>)}
+                    {["I", "II", "III", "IV", "V", "VI"].map(s => (
+                      <SelectItem key={s} value={s}>Semestre {s}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -207,7 +208,7 @@ export default function AdminStudentsPage() {
           {isLoading ? (
             <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-3">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-sm font-medium">Sincronizando alumnos...</p>
+              <p className="text-sm font-medium">Sincronizando alumnos con el servidor...</p>
             </div>
           ) : (
             <Table>
