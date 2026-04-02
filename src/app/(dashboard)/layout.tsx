@@ -137,24 +137,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-screen bg-[#f8f9fa] flex flex-col">
-      <header className="h-20 bg-white border-b sticky top-0 z-50 px-6 lg:px-20 flex items-center justify-between shadow-sm">
+      <header className="h-20 bg-primary sticky top-0 z-50 px-6 lg:px-20 flex items-center justify-between shadow-lg">
         <Link href="/instructor" className="flex items-center gap-3 group">
-          <div className="bg-primary p-1.5 rounded-lg shadow-lg group-hover:scale-110 transition-transform">
-            <GraduationCap className="h-6 w-6 text-white" />
+          <div className="bg-white p-1.5 rounded-lg shadow-lg group-hover:scale-110 transition-transform">
+            <GraduationCap className="h-6 w-6 text-primary" />
           </div>
-          <span className="font-extrabold text-xl text-primary uppercase font-headline tracking-tight">
+          <span className="font-extrabold text-xl text-white uppercase font-headline tracking-tight">
             La Salle Urubamba
           </span>
         </Link>
         <div className="flex items-center gap-6">
           <div className="hidden md:flex flex-col text-right">
-            <span className="text-sm font-black text-slate-900 leading-tight">{INSTRUCTOR_USER.name}</span>
-            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Docente de Especialidad</span>
+            <span className="text-sm font-black text-white leading-tight">{INSTRUCTOR_USER.name}</span>
+            <span className="text-[10px] text-white/80 font-bold uppercase tracking-widest">Docente de Especialidad</span>
           </div>
           <Button 
             variant="ghost" 
             size="icon" 
-            className="rounded-full h-11 w-11 text-slate-400 hover:text-red-600 hover:bg-red-50"
+            className="rounded-full h-11 w-11 text-white/70 hover:text-white hover:bg-white/10"
             onClick={() => router.push('/')}
             title="Cerrar Sesión"
           >
