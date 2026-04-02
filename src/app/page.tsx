@@ -5,11 +5,10 @@ import * as React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { GraduationCap, Mail, Lock, Eye, LogIn, ShieldCheck, Loader2, AlertCircle } from 'lucide-react';
+import { GraduationCap, Mail, Lock, Eye, LogIn, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
@@ -45,38 +44,29 @@ export default function LoginPage() {
         password,
       });
 
-      if (error) throw error;
+      if (error) {
+        setErrorMessage(error.message === "Invalid login credentials" ? "Credenciales inválidas. Verifica tu correo y contraseña." : error.message);
+        return;
+      }
 
       if (data.session && data.user) {
         localStorage.setItem('supabase_access_token', data.session.access_token);
         const metadata = data.user.user_metadata;
-        const role = metadata?.role;
+        const role = metadata?.role || 'docente';
         
         toast({
           title: "Acceso Exitoso",
-          description: `Bienvenido, ${metadata?.firstname || 'Usuario'}.`,
+          description: `Bienvenido, ${metadata?.firstname || 'Docente'}.`,
         });
 
-        if (role === 'admin') {
-          router.replace('/admin');
-        } else {
-          router.replace('/instructor');
-        }
+        router.replace(role === 'admin' ? '/admin' : '/instructor');
       }
     } catch (error: any) {
-      console.error("Login Error:", error);
-      let msg = "Error al iniciar sesión. Inténtelo de nuevo.";
-      
-      if (error.message?.includes("Failed to fetch")) {
-        msg = "Error de conexión: No se pudo contactar con Supabase. Verifique su internet.";
-      } else if (error.message?.includes("Invalid login credentials")) {
-        msg = "Usuario o contraseña incorrectos.";
+      if (error.message.includes('fetch')) {
+        setErrorMessage("Error de red: No se pudo conectar con el servicio de autenticación. Verifica tu conexión a internet.");
       } else {
-        msg = error.message;
+        setErrorMessage(error.message || "Ocurrió un error inesperado al intentar iniciar sesión.");
       }
-      
-      setErrorMessage(msg);
-      toast({ variant: "destructive", title: "Acceso Denegado", description: msg });
     } finally {
       setIsLoading(false);
     }
@@ -115,7 +105,7 @@ export default function LoginPage() {
                 <div className="mt-4 flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-blue-800 overflow-hidden border border-white/20 relative">
                     <Image 
-                      alt="San Juan Bautista de La Salle" 
+                      alt="San Juan" 
                       className="object-cover" 
                       src={sjbImage}
                       fill

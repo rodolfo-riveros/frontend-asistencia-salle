@@ -1,10 +1,11 @@
 
 /**
- * @fileOverview Utilidad centralizada para realizar peticiones al backend de FastAPI en Render.
+ * @fileOverview Utilidad de red optimizada para el backend en Render.
+ * Maneja Cold Starts y errores de CORS con mensajes informativos.
  */
 
-// URL oficial de tu backend desplegado en Render
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'https://backend-asistencia-salle.onrender.com').replace(/\/$/, '');
+const RAW_URL = 'https://backend-asistencia-salle.onrender.com';
+const API_BASE_URL = RAW_URL.replace(/\/+$/, ''); 
 const API_VERSION = '/api/v1';
 
 export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -42,13 +43,13 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
     if (response.status === 204) return {} as T;
     return response.json();
   } catch (err: any) {
-    // Si el error es de red (fetch falló)
+    // Captura fallos de red (CORS, Servidor Apagado, Sin Internet)
     if (err instanceof TypeError && (err.message === 'Failed to fetch' || err.message.includes('fetch'))) {
+      console.error("Error de Red Crítico:", url);
       throw new Error(
-        "El servidor en Render está despertando o bloqueando la conexión (CORS). \n\n" +
-        "Por favor: \n" +
-        "1. Abre https://backend-asistencia-salle.onrender.com/docs en otra pestaña para despertarlo. \n" +
-        "2. Verifica que el ALLOWED_ORIGINS de Render incluya la URL de este navegador."
+        "Error de Conexión: No se pudo contactar con Render. \n\n" +
+        "1. Asegúrate de que el servidor esté encendido (visita /docs). \n" +
+        "2. Verifica que el ALLOWED_ORIGINS de Render incluya esta URL."
       );
     }
     throw err;
