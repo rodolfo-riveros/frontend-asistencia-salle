@@ -12,7 +12,7 @@ import {
   Calendar,
   AlertCircle,
   Loader2,
-  Clock
+  UserRound
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -44,40 +44,44 @@ import {
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "@/hooks/use-toast"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { api } from "@/lib/api"
 
 export default function AcademicAssignmentsPage() {
   const [assignments, setAssignments] = React.useState<any[]>([])
   const [instructors, setInstructors] = React.useState<any[]>([])
   const [courses, setCourses] = React.useState<any[]>([])
+  const [periods, setPeriods] = React.useState<any[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
   const [isModalOpen, setIsModalOpen] = React.useState(false)
   const [editingAssignment, setEditingAssignment] = React.useState<any>(null)
   const [searchTerm, setSearchTerm] = React.useState("")
-  const [activePeriod, setActivePeriod] = React.useState("2024-I")
+  const [selectedPeriodId, setSelectedPeriodId] = React.useState<string>("all")
 
   const fetchData = React.useCallback(async () => {
     setIsLoading(true)
     try {
-      const [asgData, instData, courseData] = await Promise.all([
-        api.get<any[]>(`/asignaciones/?periodo=${activePeriod}`),
+      const periodUrl = selectedPeriodId === "all" ? "/asignaciones/" : `/asignaciones/?periodo_id=${selectedPeriodId}`
+      const [asgData, instData, courseData, periodData] = await Promise.all([
+        api.get<any[]>(periodUrl),
         api.get<any[]>('/docentes/'),
-        api.get<any[]>('/unidades/')
+        api.get<any[]>('/unidades/'),
+        api.get<any[]>('/periodos/')
       ])
       setAssignments(asgData)
       setInstructors(instData)
       setCourses(courseData)
+      setPeriods(periodData)
     } catch (err: any) {
       toast({ 
         variant: "destructive", 
         title: "Error de Sincronización", 
-        description: "No se pudo conectar con FastAPI." 
+        description: err.message 
       })
     } finally {
       setIsLoading(false)
     }
-  }, [activePeriod])
+  }, [selectedPeriodId])
 
   React.useEffect(() => {
     fetchData()
@@ -90,7 +94,7 @@ export default function AcademicAssignmentsPage() {
     const payload = {
       docente_id: formData.get("docente_id") as string,
       unidad_id: formData.get("unidad_id") as string,
-      periodo_academico: formData.get("periodo_academico") as string,
+      periodo_id: formData.get("periodo_id") as string,
     }
 
     try {
@@ -110,7 +114,7 @@ export default function AcademicAssignmentsPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if(!confirm("¿Desea eliminar esta asignación?")) return
+    if(!confirm("¿Desea eliminar esta carga académica?")) return
     try {
       await api.delete(`/asignaciones/${id}`)
       toast({ title: "Asignación eliminada" })
@@ -121,9 +125,11 @@ export default function AcademicAssignmentsPage() {
   }
 
   const filteredAssignments = React.useMemo(() => {
+    const term = searchTerm.toLowerCase()
     return (assignments || []).filter(asg => 
-      asg.docente_nombre?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      asg.unidad_nombre?.toLowerCase().includes(searchTerm.toLowerCase())
+      asg.docente_nombre?.toLowerCase().includes(term) || 
+      asg.unidad_nombre?.toLowerCase().includes(term) ||
+      asg.periodo_nombre?.toLowerCase().includes(term)
     )
   }, [assignments, searchTerm])
 
@@ -134,15 +140,16 @@ export default function AcademicAssignmentsPage() {
           <p className="text-primary font-bold uppercase tracking-[0.2em] text-xs">Carga Académica</p>
           <h2 className="text-3xl font-headline font-extrabold tracking-tight text-slate-900">Vínculo Docente - Curso</h2>
           <div className="flex items-center gap-3 mt-2">
-            <span className="text-xs font-bold text-slate-400 uppercase">Filtrar por Periodo:</span>
-            <Select value={activePeriod} onValueChange={setActivePeriod}>
-              <SelectTrigger className="h-8 w-[120px] bg-white border-none shadow-sm font-bold">
-                <SelectValue />
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Filtrar por Periodo:</span>
+            <Select value={selectedPeriodId} onValueChange={setSelectedPeriodId}>
+              <SelectTrigger className="h-8 w-[160px] bg-white border-none shadow-sm font-bold text-xs">
+                <SelectValue placeholder="Todos" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="2023-II">2023-II</SelectItem>
-                <SelectItem value="2024-I">2024-I</SelectItem>
-                <SelectItem value="2024-II">2024-II</SelectItem>
+                <SelectItem value="all">Todos los Periodos</SelectItem>
+                {periods.map(p => (
+                  <SelectItem key={p.id} value={p.id}>{p.nombre} {p.es_activo && "(Activo)"}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -151,30 +158,31 @@ export default function AcademicAssignmentsPage() {
         <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if(!open) setEditingAssignment(null); }}>
           <DialogTrigger asChild>
             <Button className="bg-primary hover:bg-primary/90 gap-2 shadow-lg shadow-primary/20 h-11 px-6 font-bold">
-              <Link2 className="h-4 w-4" /> Nueva Asignación
+              <Link2 className="h-4 w-4" /> Vincular Docente
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[500px]">
             <form onSubmit={handleSave}>
               <DialogHeader>
-                <DialogTitle>{editingAssignment ? "Editar Asignación" : "Vincular Docente"}</DialogTitle>
+                <DialogTitle>{editingAssignment ? "Editar Asignación" : "Nueva Asignación"}</DialogTitle>
                 <DialogDescription>Define el responsable de la unidad en un periodo específico.</DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-6">
                 <div className="space-y-2">
-                  <Label>Periodo Académico</Label>
-                  <Select name="periodo_academico" defaultValue={editingAssignment?.periodo_academico || activePeriod}>
+                  <Label>Periodo Lectivo</Label>
+                  <Select name="periodo_id" defaultValue={editingAssignment?.periodo_id || periods.find(p => p.es_activo)?.id}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Seleccione periodo" />
+                      <SelectValue placeholder="Seleccione periodo académico" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="2024-I">2024-I</SelectItem>
-                      <SelectItem value="2024-II">2024-II</SelectItem>
+                      {periods.map(p => (
+                        <SelectItem key={p.id} value={p.id}>{p.nombre} {p.es_activo && "(Actual)"}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Docente</Label>
+                  <Label>Docente Responsable</Label>
                   <Select name="docente_id" defaultValue={editingAssignment?.docente_id}>
                     <SelectTrigger>
                       <SelectValue placeholder="Busca un docente..." />
@@ -212,7 +220,7 @@ export default function AcademicAssignmentsPage() {
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
         <Input 
-          placeholder="Buscador inteligente: filtra por docente o curso..." 
+          placeholder="Buscador inteligente: filtra por docente, curso o periodo..." 
           className="pl-11 py-6 bg-white border-slate-100 shadow-sm"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
@@ -224,7 +232,7 @@ export default function AcademicAssignmentsPage() {
           {isLoading ? (
             <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-3">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-sm font-medium">Sincronizando carga académica...</p>
+              <p className="text-sm font-medium">Sincronizando carga académica con FastAPI...</p>
             </div>
           ) : (
             <Table>
@@ -232,7 +240,7 @@ export default function AcademicAssignmentsPage() {
                 <TableRow className="hover:bg-transparent">
                   <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest pl-6">Docente Responsable</TableHead>
                   <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest">Unidad Didáctica</TableHead>
-                  <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest text-center">Periodo</TableHead>
+                  <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest text-center">Periodo Académico</TableHead>
                   <TableHead className="w-[80px] pr-6 text-right"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -243,7 +251,7 @@ export default function AcademicAssignmentsPage() {
                       <TableCell className="pl-6 py-4">
                         <div className="flex items-center gap-3">
                           <Avatar className="h-9 w-9 border shadow-sm">
-                            <AvatarFallback className="bg-primary/5 text-primary font-bold text-xs">
+                            <AvatarFallback className="bg-primary/5 text-primary font-bold text-xs uppercase">
                               {asg.docente_nombre?.[0]}
                             </AvatarFallback>
                           </Avatar>
@@ -265,8 +273,8 @@ export default function AcademicAssignmentsPage() {
                         </div>
                       </TableCell>
                       <TableCell className="text-center">
-                        <Badge variant="outline" className="border-primary/20 text-primary font-bold bg-primary/5">
-                          {asg.periodo_academico}
+                        <Badge variant="outline" className="border-primary/20 text-primary font-black text-[10px] bg-primary/5 uppercase tracking-tighter">
+                          {asg.periodo_nombre}
                         </Badge>
                       </TableCell>
                       <TableCell className="pr-6 text-right">
@@ -293,7 +301,7 @@ export default function AcademicAssignmentsPage() {
                     <TableCell colSpan={4} className="h-48 text-center text-slate-400">
                       <div className="flex flex-col items-center gap-3">
                         <AlertCircle className="h-10 w-10 opacity-10" />
-                        <p className="font-bold text-slate-900">No hay asignaciones para {activePeriod}</p>
+                        <p className="font-bold text-slate-900 uppercase text-xs tracking-widest">Sin asignaciones para este criterio</p>
                       </div>
                     </TableCell>
                   </TableRow>

@@ -13,7 +13,8 @@ import {
   ClipboardList,
   Search,
   LogOut,
-  Loader2
+  Loader2,
+  CalendarDays
 } from "lucide-react"
 
 import {
@@ -37,6 +38,7 @@ import { supabase } from "@/lib/supabase"
 
 const ADMIN_NAV = [
   { name: "Panel", href: "/admin", icon: LayoutDashboard },
+  { name: "Periodos", href: "/admin/periods", icon: CalendarDays },
   { name: "Programas", href: "/admin/programs", icon: GraduationCap },
   { name: "Cursos", href: "/admin/courses", icon: BookOpen },
   { name: "Docentes", href: "/admin/instructors", icon: UserRound },
@@ -62,7 +64,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       const metadata = user.user_metadata
       const role = metadata?.role || 'docente'
 
-      // PROTECCIÓN DE RUTAS: Redirigir según el rol real
       if (role === 'docente' && pathname.startsWith('/admin')) {
         router.replace('/instructor')
         return
@@ -114,7 +115,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     )
   }
 
-  // Decidimos qué layout mostrar basado en la URL, pero ahora la protección anterior asegura que el rol sea correcto
   const isAdminView = pathname.startsWith('/admin')
 
   if (isAdminView) {
@@ -180,7 +180,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     )
   }
 
-  // Layout para Docente
   return (
     <div className="min-h-screen bg-[#f8f9fa] flex flex-col">
       <header className="h-20 bg-primary sticky top-0 z-50 px-4 md:px-10 lg:px-20 flex items-center justify-between shadow-lg">
