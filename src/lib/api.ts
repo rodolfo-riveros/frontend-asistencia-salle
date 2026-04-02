@@ -1,3 +1,4 @@
+
 /**
  * @fileOverview Utilidad centralizada para realizar peticiones al backend de FastAPI v1.
  * Soporta autenticación mediante Bearer Token compatible con Supabase JWT.
@@ -19,7 +20,6 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
   });
 
   // Si existe el token, lo enviamos en la cabecera como Bearer Token
-  // Esto es lo que tu backend FastAPI verifica en 'get_current_user'
   if (token) {
     headers.set('Authorization', `Bearer ${token}`);
   }
@@ -33,7 +33,6 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
     let detail = 'Error desconocido en el servidor';
     try {
       const errorData = await response.json();
-      // FastAPI suele devolver el error en el campo 'detail'
       detail = errorData.detail || detail;
       if (Array.isArray(detail)) {
         detail = detail.map((d: any) => `${d.loc.join('.')}: ${d.msg}`).join(', ');
