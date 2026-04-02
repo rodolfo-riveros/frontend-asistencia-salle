@@ -8,14 +8,11 @@ import {
   MoreVertical, 
   Edit2, 
   Trash2, 
-  Mail,
-  Fingerprint,
   AlertCircle,
   Loader2,
   CheckCircle2,
   XCircle,
-  UserPlus,
-  Stethoscope
+  UserPlus
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -67,8 +64,8 @@ export default function AdminInstructorsPage() {
     } catch (err: any) {
       toast({ 
         variant: "destructive", 
-        title: "Error de Sincronización", 
-        description: "No se pudo cargar la lista de docentes." 
+        title: "Error de Conexión", 
+        description: "No se pudo conectar con el servidor de FastAPI." 
       })
     } finally {
       setIsLoading(false)
@@ -97,9 +94,9 @@ export default function AdminInstructorsPage() {
           especialidad,
           es_transversal
         })
-        toast({ title: "Perfil actualizado", description: "Los datos profesionales se guardaron correctamente." })
+        toast({ title: "Perfil actualizado", description: "Los datos se guardaron correctamente." })
       } else {
-        // FLUJO DE CREACIÓN DOBLE (Auth + DB)
+        // 1. Crear usuario en Supabase Auth (DNI es la contraseña)
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email,
           password: dni,
@@ -114,8 +111,9 @@ export default function AdminInstructorsPage() {
         })
 
         if (authError) throw authError
-        if (!authData.user) throw new Error("Error al crear usuario en Supabase.")
+        if (!authData.user) throw new Error("No se pudo crear el usuario en Auth.")
 
+        // 2. Crear perfil en la tabla de Docentes mediante FastAPI
         await api.post('/docentes/', {
           id: authData.user.id,
           nombre,
@@ -125,7 +123,7 @@ export default function AdminInstructorsPage() {
 
         toast({ 
           title: "Docente Registrado", 
-          description: "Cuenta de acceso y perfil vinculados exitosamente." 
+          description: "La cuenta y el perfil han sido vinculados con éxito." 
         })
       }
       fetchData()
@@ -135,7 +133,7 @@ export default function AdminInstructorsPage() {
       toast({ 
         variant: "destructive", 
         title: "Error al guardar", 
-        description: err.message || "Hubo un problema con la base de datos." 
+        description: err.message || "Verifica que el servidor FastAPI esté encendido." 
       })
     } finally {
       setIsSaving(false)
@@ -143,10 +141,10 @@ export default function AdminInstructorsPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if(!confirm("¿Desea eliminar este perfil docente? Esto no borrará su cuenta de acceso.")) return
+    if(!confirm("¿Desea eliminar este perfil docente?")) return
     try {
       await api.delete(`/docentes/${id}`)
-      toast({ title: "Perfil eliminado", description: "El registro ha sido retirado de la base de datos." })
+      toast({ title: "Perfil eliminado", description: "El registro ha sido retirado." })
       fetchData()
     } catch (err: any) {
       toast({ variant: "destructive", title: "Error", description: err.message })
@@ -157,8 +155,7 @@ export default function AdminInstructorsPage() {
     const term = searchTerm.toLowerCase()
     return (instructors || []).filter(i => 
       i.nombre.toLowerCase().includes(term) || 
-      i.especialidad?.toLowerCase().includes(term) ||
-      i.id.toLowerCase().includes(term)
+      i.especialidad?.toLowerCase().includes(term)
     )
   }, [instructors, searchTerm])
 
@@ -168,7 +165,7 @@ export default function AdminInstructorsPage() {
         <div className="space-y-1">
           <p className="text-primary font-bold uppercase tracking-[0.2em] text-xs">Administración Académica</p>
           <h2 className="text-3xl font-headline font-extrabold tracking-tight text-slate-900">Gestión de Docentes</h2>
-          <p className="text-slate-500 text-sm">Registra y vincula perfiles profesionales con cuentas de acceso.</p>
+          <p className="text-slate-500 text-sm">Registra y vincula perfiles profesionales.</p>
         </div>
 
         <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if(!open) setEditingInstructor(null); }}>
@@ -183,8 +180,8 @@ export default function AdminInstructorsPage() {
                 <DialogTitle>{editingInstructor ? "Editar Perfil" : "Nuevo Registro de Docente"}</DialogTitle>
                 <DialogDescription>
                   {editingInstructor 
-                    ? "Modifica la especialidad o condición del docente." 
-                    : "Completa los datos para crear la cuenta de acceso (DNI como clave)."}
+                    ? "Modifica los detalles del docente." 
+                    : "Se creará una cuenta de acceso automática usando el DNI como contraseña."}
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-6">
@@ -200,12 +197,12 @@ export default function AdminInstructorsPage() {
                 )}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="dni">DNI (Será su contraseña)</Label>
+                    <Label htmlFor="dni">DNI (Servirá como Clave)</Label>
                     <Input id="dni" name="dni" placeholder="8 dígitos" required maxLength={8} disabled={!!editingInstructor} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="especialidad">Especialidad</Label>
-                    <Input id="especialidad" name="especialidad" defaultValue={editingInstructor?.especialidad} placeholder="Ej. Sistemas, Contabilidad" required />
+                    <Input id="especialidad" name="especialidad" defaultValue={editingInstructor?.especialidad} placeholder="Ej. Sistemas" required />
                   </div>
                 </div>
                 <div className="flex items-center space-x-3 pt-4 border-t mt-2">
@@ -229,7 +226,7 @@ export default function AdminInstructorsPage() {
       <div className="relative mb-6">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
         <Input 
-          placeholder="Buscador inteligente: filtra por nombre, especialidad o ID..." 
+          placeholder="Buscador inteligente: filtra por nombre o especialidad..." 
           className="pl-11 py-6 bg-white border-slate-100 shadow-sm"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
@@ -241,7 +238,7 @@ export default function AdminInstructorsPage() {
           {isLoading ? (
             <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-3">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-sm font-medium">Sincronizando perfiles...</p>
+              <p className="text-sm font-medium">Sincronizando perfiles con FastAPI...</p>
             </div>
           ) : (
             <Table>
@@ -266,7 +263,7 @@ export default function AdminInstructorsPage() {
                           </Avatar>
                           <div className="flex flex-col">
                             <span className="font-bold text-slate-900 text-sm">{docente.nombre}</span>
-                            <span className="text-[10px] text-slate-400 font-mono">UUID: {docente.id.substring(0, 8)}...</span>
+                            <span className="text-[10px] text-slate-400 font-mono">ID: {docente.id.substring(0, 8)}...</span>
                           </div>
                         </div>
                       </TableCell>
@@ -313,7 +310,6 @@ export default function AdminInstructorsPage() {
                       <div className="flex flex-col items-center gap-3">
                         <AlertCircle className="h-10 w-10 opacity-10" />
                         <p className="font-bold text-slate-900">No se encontraron docentes</p>
-                        <p className="text-sm">Asegúrate de registrar los perfiles vinculados a las cuentas de usuario.</p>
                       </div>
                     </TableCell>
                   </TableRow>

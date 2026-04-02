@@ -59,8 +59,8 @@ export default function AdminProgramsPage() {
     } catch (err: any) {
       toast({ 
         variant: "destructive", 
-        title: "Error de Backend", 
-        description: "No se pudieron cargar los programas." 
+        title: "Error al cargar", 
+        description: "Asegúrate de que el servidor FastAPI esté encendido." 
       })
     } finally {
       setIsLoading(false)
@@ -83,10 +83,10 @@ export default function AdminProgramsPage() {
     try {
       if (editingProgram) {
         await api.patch(`/programas/${editingProgram.id}`, payload)
-        toast({ title: "Programa actualizado", description: "Los cambios se guardaron con éxito." })
+        toast({ title: "Programa actualizado" })
       } else {
         await api.post('/programas/', payload)
-        toast({ title: "Programa creado", description: "La nueva carrera ha sido registrada." })
+        toast({ title: "Programa creado con éxito" })
       }
       fetchPrograms()
       setIsModalOpen(false)
@@ -102,10 +102,10 @@ export default function AdminProgramsPage() {
     if(!confirm("¿Desea eliminar este programa?")) return
     try {
       await api.delete(`/programas/${id}`)
-      toast({ title: "Programa eliminado", description: "El registro fue borrado correctamente." })
+      toast({ title: "Programa eliminado" })
       fetchPrograms()
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Error al eliminar", description: err.message })
+      toast({ variant: "destructive", title: "Error", description: err.message })
     }
   }
 
@@ -113,8 +113,7 @@ export default function AdminProgramsPage() {
     const term = searchTerm.toLowerCase()
     return (programs || []).filter(p => 
       p.nombre.toLowerCase().includes(term) ||
-      p.codigo?.toLowerCase().includes(term) ||
-      p.id.toLowerCase().includes(term)
+      p.codigo?.toLowerCase().includes(term)
     )
   }, [programs, searchTerm])
 
@@ -124,7 +123,7 @@ export default function AdminProgramsPage() {
         <div className="space-y-1">
           <p className="text-primary font-bold uppercase tracking-[0.2em] text-xs">Padrón Institucional</p>
           <h2 className="text-3xl font-headline font-extrabold tracking-tight text-slate-900">Programas de Estudio</h2>
-          <p className="text-slate-500 text-sm">Gestiona el catálogo oficial de carreras profesionales.</p>
+          <p className="text-slate-500 text-sm">Gestiona el catálogo de carreras.</p>
         </div>
         
         <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if(!open) setEditingProgram(null); }}>
@@ -137,22 +136,22 @@ export default function AdminProgramsPage() {
             <form onSubmit={handleSave}>
               <DialogHeader>
                 <DialogTitle>{editingProgram ? "Editar Programa" : "Registrar Carrera"}</DialogTitle>
-                <DialogDescription>Ingresa los datos oficiales del programa académico.</DialogDescription>
+                <DialogDescription>Ingresa los datos del programa académico.</DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-6">
                 <div className="space-y-2">
                   <Label htmlFor="nombre">Nombre del Programa</Label>
-                  <Input id="nombre" name="nombre" defaultValue={editingProgram?.nombre} placeholder="Ej. Desarrollo de Sistemas" required />
+                  <Input id="nombre" name="nombre" defaultValue={editingProgram?.nombre} placeholder="Ej. Sistemas" required />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="codigo">Código Modular / ID</Label>
+                  <Label htmlFor="codigo">Código Modular</Label>
                   <Input id="codigo" name="codigo" defaultValue={editingProgram?.codigo} placeholder="Ej. DS-2024" required />
                 </div>
               </div>
               <DialogFooter>
                 <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
                 <Button type="submit" className="bg-primary font-bold" disabled={isSaving}>
-                  {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Guardar Programa"}
+                  {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Guardar"}
                 </Button>
               </DialogFooter>
             </form>
@@ -163,7 +162,7 @@ export default function AdminProgramsPage() {
       <div className="relative mb-6">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
         <Input 
-          placeholder="Buscador inteligente: busca por nombre, código o ID..." 
+          placeholder="Buscador inteligente: busca por nombre o código..." 
           className="pl-10 h-11 bg-white border-slate-100 shadow-sm"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
@@ -175,7 +174,7 @@ export default function AdminProgramsPage() {
           {isLoading ? (
             <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-3">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-sm font-medium">Cargando programas...</p>
+              <p className="text-sm font-medium">Cargando datos de FastAPI...</p>
             </div>
           ) : (
             <Table>
@@ -227,7 +226,7 @@ export default function AdminProgramsPage() {
                     <TableCell colSpan={3} className="h-32 text-center text-slate-400">
                       <div className="flex flex-col items-center gap-2">
                         <AlertCircle className="h-8 w-8 opacity-20" />
-                        No hay programas registrados que coincidan con la búsqueda.
+                        No hay programas registrados.
                       </div>
                     </TableCell>
                   </TableRow>
