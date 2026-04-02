@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -70,8 +71,8 @@ export default function AdminCoursesPage() {
     } catch (err: any) {
       toast({ 
         variant: "destructive", 
-        title: "Error de Backend", 
-        description: err.message || "No se pudo conectar con FastAPI." 
+        title: "Error", 
+        description: "No se pudo conectar con el servidor." 
       })
     } finally {
       setIsLoading(false)
@@ -95,33 +96,36 @@ export default function AdminCoursesPage() {
     try {
       if (editingCourse) {
         await api.patch(`/unidades/${editingCourse.id}`, courseData)
-        toast({ title: "Curso actualizado", description: "Los cambios se guardaron exitosamente." })
+        toast({ title: "Curso actualizado", description: "Cambios guardados." })
       } else {
         await api.post('/unidades/', courseData)
-        toast({ title: "Curso creado", description: "La unidad didáctica ha sido registrada." })
+        toast({ title: "Curso creado", description: "Unidad registrada." })
       }
       fetchData()
       setIsModalOpen(false)
       setEditingCourse(null)
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Error al guardar", description: err.message })
+      toast({ variant: "destructive", title: "Error", description: err.message })
     }
   }
 
   const handleDelete = async (id: string) => {
     try {
       await api.delete(`/unidades/${id}`)
-      toast({ variant: "destructive", title: "Curso eliminado", description: "La unidad fue borrada correctamente." })
+      toast({ variant: "destructive", title: "Curso eliminado" })
       fetchData()
     } catch (err: any) {
       toast({ variant: "destructive", title: "Error", description: err.message })
     }
   }
 
-  const filteredCourses = (courses || []).filter(c => 
-    c.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    c.programa_nombre?.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const filteredCourses = React.useMemo(() => {
+    return (courses || []).filter(c => 
+      c.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      c.programa_nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.id.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+  }, [courses, searchTerm])
 
   return (
     <div className="space-y-6">
@@ -129,20 +133,20 @@ export default function AdminCoursesPage() {
         <div className="space-y-1">
           <p className="text-primary font-bold uppercase tracking-[0.2em] text-xs">Unidades Didácticas</p>
           <h2 className="text-3xl font-headline font-extrabold tracking-tight text-slate-900">Gestión de Cursos</h2>
-          <p className="text-slate-500 text-sm">Administra el catálogo de asignaturas desde FastAPI.</p>
+          <p className="text-slate-500 text-sm">Administra el catálogo de asignaturas.</p>
         </div>
 
         <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if(!open) setEditingCourse(null); }}>
           <DialogTrigger asChild>
-            <Button className="bg-primary hover:bg-primary/90 gap-2 shadow-lg shadow-primary/20 h-11 px-6">
+            <Button className="bg-primary hover:bg-primary/90 gap-2 shadow-lg shadow-primary/20 h-11 px-6 font-bold">
               <Plus className="h-4 w-4" /> Nueva Unidad
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[500px]">
             <form onSubmit={handleSave}>
               <DialogHeader>
-                <DialogTitle>{editingCourse ? "Editar Unidad Didáctica" : "Nueva Unidad Didáctica"}</DialogTitle>
-                <DialogDescription>Configura los detalles técnicos de la asignatura.</DialogDescription>
+                <DialogTitle>{editingCourse ? "Editar Unidad" : "Nueva Unidad"}</DialogTitle>
+                <DialogDescription>Configura los detalles del curso.</DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div className="space-y-2">
@@ -184,7 +188,7 @@ export default function AdminCoursesPage() {
               </div>
               <DialogFooter>
                 <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
-                <Button type="submit" className="bg-primary">Guardar Cambios</Button>
+                <Button type="submit" className="bg-primary font-bold">Guardar</Button>
               </DialogFooter>
             </form>
           </DialogContent>
@@ -194,7 +198,7 @@ export default function AdminCoursesPage() {
       <div className="relative mb-6">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
         <Input 
-          placeholder="Buscar por curso o programa..." 
+          placeholder="Buscador inteligente: busca por nombre de curso o programa académico..." 
           className="pl-10 h-11 bg-white border-slate-100" 
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
@@ -206,14 +210,13 @@ export default function AdminCoursesPage() {
           {isLoading ? (
             <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-3">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-sm font-medium">Sincronizando con FastAPI...</p>
+              <p className="text-sm font-medium">Cargando unidades...</p>
             </div>
           ) : (
             <Table>
               <TableHeader className="bg-slate-50/50">
                 <TableRow className="hover:bg-transparent">
-                  <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest pl-6">ID</TableHead>
-                  <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest">Nombre del Curso</TableHead>
+                  <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest pl-6">Nombre del Curso</TableHead>
                   <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest">Programa</TableHead>
                   <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest text-center">Ciclo</TableHead>
                   <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest text-center">Créditos</TableHead>
@@ -224,10 +227,9 @@ export default function AdminCoursesPage() {
                 {filteredCourses.length > 0 ? (
                   filteredCourses.map((course) => (
                     <TableRow key={course.id} className="group hover:bg-slate-50/50 transition-colors">
-                      <TableCell className="font-bold text-slate-900 pl-6 text-[10px] font-mono">{course.id.substring(0,8)}</TableCell>
-                      <TableCell className="font-semibold text-slate-700">
+                      <TableCell className="font-semibold text-slate-700 pl-6">
                         <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded bg-primary/5 flex items-center justify-center text-primary">
+                          <div className="w-8 h-8 rounded bg-primary/5 flex items-center justify-center text-primary shrink-0">
                             <BookOpen className="h-4 w-4" />
                           </div>
                           {course.nombre}
@@ -239,7 +241,7 @@ export default function AdminCoursesPage() {
                         </div>
                       </TableCell>
                       <TableCell className="text-center">
-                        <Badge variant="outline" className="border-slate-100 text-slate-500 font-bold px-3">Ciclo {course.semestre}</Badge>
+                        <Badge variant="outline" className="border-slate-100 text-slate-500 font-bold px-3">Sem {course.semestre}</Badge>
                       </TableCell>
                       <TableCell className="text-center font-bold text-primary">{course.creditos}</TableCell>
                       <TableCell className="pr-6 text-right">
@@ -263,10 +265,10 @@ export default function AdminCoursesPage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-32 text-center text-slate-400">
+                    <TableCell colSpan={5} className="h-32 text-center text-slate-400">
                       <div className="flex flex-col items-center gap-2">
                         <AlertCircle className="h-8 w-8 opacity-20" />
-                        No se encontraron cursos en la base de datos.
+                        No se encontraron resultados.
                       </div>
                     </TableCell>
                   </TableRow>

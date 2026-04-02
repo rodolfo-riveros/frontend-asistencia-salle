@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -13,7 +14,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import {
   Table,
   TableBody,
@@ -28,7 +29,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Badge } from "@/components/ui/badge"
 import {
   Dialog,
   DialogContent,
@@ -87,7 +87,7 @@ export default function AdminProgramsPage() {
         toast({ title: "Programa actualizado", description: "Los cambios se guardaron correctamente." })
       } else {
         await api.post('/programas/', payload)
-        toast({ title: "Programa creado", description: "El nuevo programa ha sido registrado en FastAPI." })
+        toast({ title: "Programa creado", description: "El nuevo programa ha sido registrado." })
       }
       fetchPrograms()
       setIsModalOpen(false)
@@ -100,16 +100,19 @@ export default function AdminProgramsPage() {
   const handleDelete = async (id: string) => {
     try {
       await api.delete(`/programas/${id}`)
-      toast({ variant: "destructive", title: "Programa eliminado", description: "El registro fue borrado del sistema." })
+      toast({ variant: "destructive", title: "Programa eliminado", description: "El registro fue borrado." })
       fetchPrograms()
     } catch (err: any) {
       toast({ variant: "destructive", title: "Error", description: err.message })
     }
   }
 
-  const filteredPrograms = (programs || []).filter(p => 
-    p.nombre.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const filteredPrograms = React.useMemo(() => {
+    return (programs || []).filter(p => 
+      p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.id.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+  }, [programs, searchTerm])
 
   return (
     <div className="space-y-6">
@@ -117,7 +120,7 @@ export default function AdminProgramsPage() {
         <div className="space-y-1">
           <p className="text-primary font-bold uppercase tracking-[0.2em] text-xs">Gestión Académica</p>
           <h2 className="text-3xl font-headline font-extrabold tracking-tight text-slate-900">Programas de Estudio</h2>
-          <p className="text-slate-500 text-sm">Administra las carreras profesionales registradas en el servidor.</p>
+          <p className="text-slate-500 text-sm">Catálogo oficial de carreras profesionales.</p>
         </div>
         
         <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if(!open) setEditingProgram(null); }}>
@@ -156,7 +159,7 @@ export default function AdminProgramsPage() {
       <div className="relative mb-6">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
         <Input 
-          placeholder="Buscar programa por nombre..." 
+          placeholder="Buscador inteligente: busca por nombre o ID del programa..." 
           className="pl-10 h-11 bg-white border-slate-100 shadow-sm"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
@@ -168,14 +171,14 @@ export default function AdminProgramsPage() {
           {isLoading ? (
             <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-3">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-sm font-medium">Sincronizando con FastAPI...</p>
+              <p className="text-sm font-medium">Consultando FastAPI...</p>
             </div>
           ) : (
             <Table>
               <TableHeader className="bg-slate-50/50">
                 <TableRow className="hover:bg-transparent">
-                  <TableHead className="w-[150px] font-bold text-slate-400 uppercase text-[10px] tracking-widest pl-6">Código ID</TableHead>
-                  <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest">Nombre del Programa de Estudio</TableHead>
+                  <TableHead className="w-[150px] font-bold text-slate-400 uppercase text-[10px] tracking-widest pl-6">ID</TableHead>
+                  <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest">Nombre del Programa</TableHead>
                   <TableHead className="w-[100px] pr-6 text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
@@ -218,7 +221,7 @@ export default function AdminProgramsPage() {
                     <TableCell colSpan={3} className="h-32 text-center text-slate-400">
                       <div className="flex flex-col items-center gap-2">
                         <AlertCircle className="h-8 w-8 opacity-20" />
-                        No se encontraron programas de estudio en el servidor.
+                        No se encontraron programas que coincidan con la búsqueda.
                       </div>
                     </TableCell>
                   </TableRow>
