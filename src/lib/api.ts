@@ -1,5 +1,5 @@
 /**
- * @fileOverview Cliente de API con herramientas de diagnóstico avanzadas.
+ * @fileOverview Cliente de API con herramientas de diagnóstico avanzadas para errores 401.
  */
 import { supabase } from './supabase';
 
@@ -11,13 +11,15 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   const url = `${cleanBase}${API_VERSION}${cleanEndpoint}`;
   
-  // Obtenemos la sesión actual
+  // 1. Obtenemos la sesión fresca directamente del SDK
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token;
 
+  // 2. LOG DE DIAGNÓSTICO (Presiona F12 para verlo)
   if (token) {
-    // Log de depuración para el desarrollador (Postman)
-    console.log(`[DEBUG] TOKEN PARA POSTMAN (Copia esto): ${token}`);
+    console.log(`[DEBUG] TOKEN PARA POSTMAN: Bearer ${token}`);
+  } else {
+    console.warn("[API WARNING] No se encontró sesión activa de Supabase.");
   }
 
   const headers = new Headers({
@@ -33,25 +35,26 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
     const response = await fetch(url, {
       ...options,
       headers,
-      // Importante: Si usas origins=["*"] en FastAPI, credentials debe ser "omit" o "same-origin"
-      // Si el backend tiene allow_credentials=False, esto ayuda a evitar errores de CORS.
       credentials: 'omit', 
     });
 
+    // 3. MANEJO DE ERROR 401 (EL PROBLEMA ACTUAL)
     if (response.status === 401) {
-      console.error("[API ERROR] 401: El backend rechazó el token. Verifica el JWT Secret en Render.");
-      throw new Error("Sesión no autorizada. Verifica que el JWT Secret en Render sea idéntico al de Supabase.");
+      console.error("[API ERROR] El servidor de Render rechazó el token. Esto significa que el SUPABASE_JWT_SECRET en Render no coincide con el de tu proyecto de Supabase.");
+      throw new Error("SESIÓN NO AUTORIZADA: Tu servidor en Render no pudo validar el acceso. Revisa el JWT Secret.");
     }
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail || `Error ${response.status}`);
+      throw new Error(errorData.detail || `Error del servidor (${response.status})`);
     }
 
     if (response.status === 204) return {} as T;
     return response.json();
   } catch (err: any) {
-    console.error(`[NETWORK ERROR] No se pudo conectar a ${url}:`, err.message);
+    if (err.message.includes('Failed to fetch')) {
+      console.error("[NETWORK ERROR] Fallo de conexión. Revisa si el servidor de Render está encendido o si hay un error de CORS.");
+    }
     throw err;
   }
 }
