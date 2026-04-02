@@ -1,0 +1,28 @@
+{
+  "placeholderImages": [
+    {
+      "id": "student-1",
+      "description": "Estudiante joven",
+      "imageUrl": "https://picsum.photos/seed/101/200/200",
+      "imageHint": "student portrait"
+    },
+    {
+      "id": "student-2",
+      "description": "Estudiante joven mujer",
+      "imageUrl": "https://picsum.photos/seed/102/200/200",
+      "imageHint": "student woman portrait"
+    },
+    {
+      "id": "student-3",
+      "description": "Estudiante universitario",
+      "imageUrl": "https://picsum.photos/seed/103/200/200",
+      "imageHint": "student man portrait"
+    },
+    {
+      "id": "teacher-1",
+      "description": "Docente profesional",
+      "imageUrl": "https://picsum.photos/seed/201/200/200",
+      "imageHint": "professor portrait"
+    }
+  ]
+}
