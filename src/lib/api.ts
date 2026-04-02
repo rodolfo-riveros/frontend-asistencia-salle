@@ -11,7 +11,6 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   const url = `${API_BASE_URL}${API_VERSION}${cleanEndpoint}`;
   
-  // Obtenemos el token almacenado por Supabase Auth en el cliente
   const token = typeof window !== 'undefined' ? localStorage.getItem('supabase_access_token') : null;
 
   const headers = new Headers({
@@ -19,7 +18,6 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
     ...options.headers,
   });
 
-  // Si existe el token, lo enviamos en la cabecera como Bearer Token
   if (token) {
     headers.set('Authorization', `Bearer ${token}`);
   }
@@ -50,8 +48,15 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
 
     return response.json();
   } catch (err: any) {
+    // Error específico de conexión (CORS o Servidor Apagado)
     if (err instanceof TypeError && (err.message === 'Failed to fetch' || err.message.includes('fetch'))) {
-      throw new Error(`Error de conexión con el servidor de producción: ${API_BASE_URL}. Verifique que el servicio en Render esté activo.`);
+      throw new Error(
+        `No se pudo conectar con el servidor en: ${API_BASE_URL}. \n\n` +
+        `Acciones recomendadas:\n` +
+        `1. Espere 1 minuto (Render suele tardar en despertar).\n` +
+        `2. Verifique que la URL de este navegador esté en ALLOWED_ORIGINS de su backend.\n` +
+        `3. Revise los logs de Render para ver si el servidor está activo.`
+      );
     }
     throw err;
   }
@@ -62,7 +67,7 @@ export const api = {
   post: <T>(endpoint: string, data: any, options?: RequestInit) => 
     apiFetch<T>(endpoint, { ...options, method: 'POST', body: JSON.stringify(data) }),
   put: <T>(endpoint: string, data: any, options?: RequestInit) => 
-    apiFetch<T>(endpoint, { ...options, method: 'PATCH', body: JSON.stringify(data) }),
+    apiFetch<T>(endpoint, { ...options, method: 'PUT', body: JSON.stringify(data) }),
   patch: <T>(endpoint: string, data: any, options?: RequestInit) => 
     apiFetch<T>(endpoint, { ...options, method: 'PATCH', body: JSON.stringify(data) }),
   delete: <T>(endpoint: string, options?: RequestInit) => 
