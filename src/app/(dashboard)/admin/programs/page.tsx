@@ -286,7 +286,8 @@ export default function AdminProgramsPage() {
                   </p>
                   <code className="text-[10px] bg-slate-100 p-2 rounded block mt-2 font-mono text-slate-700">
                     ALTER TABLE programas_estudio ENABLE ROW LEVEL SECURITY;<br/>
-                    CREATE POLICY "Permitir lectura" ON programas_estudio FOR SELECT TO authenticated USING (true);
+                    DROP POLICY IF EXISTS "Lectura Total" ON programas_estudio;<br/>
+                    CREATE POLICY "Lectura Total" ON programas_estudio FOR SELECT TO authenticated USING (true);
                   </code>
                 </div>
               </div>
@@ -301,7 +302,7 @@ export default function AdminProgramsPage() {
       <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl flex gap-3">
         <Info className="h-5 w-5 text-blue-600 shrink-0" />
         <p className="text-xs text-blue-700 leading-relaxed">
-          <strong>Nota sobre Seguridad:</strong> Si sigues viendo la lista vacía después de aplicar las políticas, asegúrate de que el token JWT que envías pertenece al mismo proyecto de Supabase. El servidor FastAPI debe tener configurado el mismo <strong>SUPABASE_JWT_SECRET</strong> que tu dashboard.
+          <strong>Nota sobre Seguridad:</strong> Si el GET devuelve `[]` en Postman con el token de portador, significa que la política RLS está bloqueando las filas. El SQL anterior debería solucionarlo de inmediato.
         </p>
       </div>
     </div>
