@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -59,19 +60,18 @@ export default function AttendancePage() {
   const analyzeAttendance = async () => {
     setIsAnalyzing(true)
     try {
-      // Dummy records for simulation based on current state
       const records = students.map(s => ({
         studentId: s.id,
         studentName: s.name,
         courseUnitId: params.id as string,
-        courseUnitName: "Curso Demo",
+        courseUnitName: "Unidad Didáctica Seleccionada",
         date: new Date().toISOString().split('T')[0],
         status: s.status as any
       }))
 
       const result = await aiAttendanceInsights({
         attendanceRecords: records,
-        analysisContext: `Unidad Didáctica: ${params.id}`
+        analysisContext: `Análisis de la sesión para el curso ${params.id}`
       })
       setAiResult(result)
     } catch (error) {
@@ -89,23 +89,23 @@ export default function AttendancePage() {
     <div className="space-y-6 pb-20">
       <div className="flex flex-col gap-4">
         <Button variant="ghost" onClick={() => router.back()} className="w-fit">
-          <ArrowLeft className="mr-2 h-4 w-4" /> Volver
+          <ArrowLeft className="mr-2 h-4 w-4" /> Volver a mis cursos
         </Button>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1">
             <h2 className="text-3xl font-bold tracking-tight text-primary">Pase de Lista</h2>
             <div className="flex items-center gap-2 text-muted-foreground">
-              <Badge variant="outline">{params.id}</Badge>
+              <Badge variant="outline" className="font-bold border-primary/20 text-primary">{params.id}</Badge>
               <span>•</span>
               <span className="flex items-center gap-1 font-medium"><CalendarIcon className="h-4 w-4" /> {new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" className="gap-2 text-accent border-accent/30 hover:bg-accent/5" onClick={analyzeAttendance} disabled={isAnalyzing}>
-              <Sparkles className="h-4 w-4" />
+            <Button variant="outline" className="gap-2 text-accent border-accent/30 hover:bg-accent/5 h-11" onClick={analyzeAttendance} disabled={isAnalyzing}>
+              <Sparkles className={`h-4 w-4 ${isAnalyzing ? 'animate-spin' : ''}`} />
               {isAnalyzing ? "Analizando..." : "Insights con IA"}
             </Button>
-            <Button className="gap-2" onClick={handleSave}>
+            <Button className="gap-2 h-11 px-6 shadow-lg shadow-primary/20" onClick={handleSave}>
               <Save className="h-4 w-4" /> Guardar Sesión
             </Button>
           </div>
@@ -113,32 +113,44 @@ export default function AttendancePage() {
       </div>
 
       {aiResult && (
-        <Card className="border-accent/20 bg-accent/5 shadow-md overflow-hidden animate-in fade-in slide-in-from-top-4 duration-500">
-          <CardHeader className="bg-accent text-white p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-5 w-5" />
-                <CardTitle className="text-lg">Análisis Predictivo de la Sesión</CardTitle>
-              </div>
-              <Button variant="ghost" size="sm" onClick={() => setAiResult(null)} className="text-white hover:bg-white/10">Cerrar</Button>
+        <Card className="border-none shadow-xl bg-gradient-to-br from-slate-900 to-blue-900 text-white overflow-hidden animate-in fade-in slide-in-from-top-4 duration-500">
+          <CardHeader className="bg-white/10 p-4 flex flex-row items-center justify-between border-b border-white/10">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-yellow-400" />
+              <CardTitle className="text-lg font-bold">Análisis Predictivo de la Sesión</CardTitle>
             </div>
+            <Button variant="ghost" size="sm" onClick={() => setAiResult(null)} className="text-white hover:bg-white/10">Ocultar</Button>
           </CardHeader>
-          <CardContent className="p-6 space-y-4">
-            <div>
-              <h4 className="font-bold text-accent mb-1 uppercase text-xs tracking-wider">Resumen</h4>
-              <p className="text-sm leading-relaxed">{aiResult.summary}</p>
+          <CardContent className="p-6 space-y-6">
+            <div className="space-y-1">
+              <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-300">Resumen de IA</h4>
+              <p className="text-sm leading-relaxed text-blue-50/90 font-medium">{aiResult.summary}</p>
             </div>
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="bg-white p-3 rounded-lg border">
-                <h4 className="font-bold text-accent mb-2 text-xs uppercase tracking-wider">Tendencias</h4>
-                <ul className="text-xs space-y-1.5 list-disc pl-4">
-                  {aiResult.trends.map((t, i) => <li key={i}>{t}</li>)}
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="bg-white/5 p-4 rounded-xl border border-white/10">
+                <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-300 mb-3 flex items-center gap-2">
+                   <ClockIcon className="h-3 w-3" /> Tendencias
+                </h4>
+                <ul className="text-xs space-y-2">
+                  {aiResult.trends.map((t, i) => (
+                    <li key={i} className="flex gap-2">
+                      <div className="h-1 w-1 rounded-full bg-blue-400 mt-1.5 shrink-0" />
+                      {t}
+                    </li>
+                  ))}
                 </ul>
               </div>
-              <div className="bg-white p-3 rounded-lg border">
-                <h4 className="font-bold text-accent mb-2 text-xs uppercase tracking-wider">Acciones Sugeridas</h4>
-                <ul className="text-xs space-y-1.5 list-disc pl-4">
-                  {aiResult.recommendations.map((r, i) => <li key={i}>{r}</li>)}
+              <div className="bg-white/5 p-4 rounded-xl border border-white/10">
+                <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-400 mb-3 flex items-center gap-2">
+                   <MessageSquareQuote className="h-3 w-3" /> Sugerencias
+                </h4>
+                <ul className="text-xs space-y-2">
+                  {aiResult.recommendations.map((r, i) => (
+                    <li key={i} className="flex gap-2 text-emerald-50/80">
+                      <div className="h-1 w-1 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
+                      {r}
+                    </li>
+                  ))}
                 </ul>
               </div>
             </div>
@@ -146,49 +158,49 @@ export default function AttendancePage() {
         </Card>
       )}
 
-      <Card className="border-none shadow-sm overflow-hidden">
-        <div className="p-4 border-b bg-muted/5 flex items-center gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      <Card className="border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+        <div className="p-6 border-b bg-slate-50/50 flex flex-col md:flex-row items-center gap-4">
+          <div className="relative flex-1 w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <Input 
               placeholder="Buscar por nombre de alumno..." 
-              className="pl-9 h-11 bg-white"
+              className="pl-9 h-11 bg-white border-slate-100"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <div className="hidden sm:flex items-center gap-2">
-             <Badge variant="secondary" className="px-3 py-1 bg-green-100 text-green-700">Presentes: {students.filter(s => s.status === 'Presente').length}</Badge>
-             <Badge variant="secondary" className="px-3 py-1 bg-red-100 text-red-700">Faltas: {students.filter(s => s.status === 'Falta').length}</Badge>
+          <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
+             <Badge variant="secondary" className="px-4 py-2 bg-green-50 text-green-700 border-green-100 whitespace-nowrap">Presentes: {students.filter(s => s.status === 'Presente').length}</Badge>
+             <Badge variant="secondary" className="px-4 py-2 bg-red-50 text-red-700 border-red-100 whitespace-nowrap">Faltas: {students.filter(s => s.status === 'Falta').length}</Badge>
           </div>
         </div>
         <CardContent className="p-0">
           <Table>
-            <TableHeader className="bg-muted/10">
-              <TableRow>
-                <TableHead className="w-[80px]"></TableHead>
-                <TableHead>Nombre del Alumno</TableHead>
-                <TableHead className="text-center">Estado</TableHead>
-                <TableHead className="text-right">Acciones de Marcado</TableHead>
+            <TableHeader className="bg-slate-50/30">
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="w-[80px] pl-6"></TableHead>
+                <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest">Estudiante</TableHead>
+                <TableHead className="text-center font-bold text-slate-400 uppercase text-[10px] tracking-widest">Estado</TableHead>
+                <TableHead className="text-right font-bold text-slate-400 uppercase text-[10px] tracking-widest pr-6">Marcar Asistencia</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredStudents.map((student) => (
-                <TableRow key={student.id} className="hover:bg-accent/5">
-                  <TableCell>
-                    <Avatar className="h-10 w-10 border shadow-sm">
+                <TableRow key={student.id} className="group hover:bg-slate-50/50 transition-colors">
+                  <TableCell className="pl-6">
+                    <Avatar className="h-10 w-10 border-2 border-white shadow-sm">
                       <AvatarImage src={student.avatar} />
                       <AvatarFallback>{student.name[0]}</AvatarFallback>
                     </Avatar>
                   </TableCell>
                   <TableCell>
-                    <div className="font-medium">{student.name}</div>
-                    <div className="text-xs text-muted-foreground uppercase">{student.id}</div>
+                    <div className="font-bold text-slate-900">{student.name}</div>
+                    <div className="text-[10px] text-slate-400 font-mono tracking-tighter">CÓDIGO: {student.id}</div>
                   </TableCell>
                   <TableCell className="text-center">
                     <StatusBadge status={student.status} />
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right pr-6">
                     <div className="flex items-center justify-end gap-1.5">
                       <AttendanceAction 
                         onClick={() => handleStatusChange(student.id, 'Presente')} 
@@ -230,7 +242,7 @@ function StatusBadge({ status }: { status: string }) {
     "Justificado": "bg-blue-100 text-blue-700 border-blue-200",
   }
   return (
-    <Badge variant="outline" className={`${styles[status] || ""} px-3 font-semibold`}>
+    <Badge variant="outline" className={`${styles[status] || ""} px-3 font-bold text-[10px] uppercase tracking-wider`}>
       {status}
     </Badge>
   )
@@ -259,7 +271,7 @@ function AttendanceAction({
       size="icon" 
       variant="outline" 
       onClick={onClick}
-      className={`h-9 w-9 rounded-full transition-all border-2 ${active ? config.activeColor : `bg-white ${config.color}`} `}
+      className={`h-9 w-9 rounded-full transition-all border-2 ${active ? `${config.activeColor} border-transparent` : `bg-white ${config.color} border-slate-100`} shadow-sm`}
     >
       <Icon className="h-4 w-4" />
       <span className="sr-only">{config.label}</span>
