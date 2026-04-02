@@ -14,7 +14,8 @@ import {
   Loader2,
   CheckCircle2,
   XCircle,
-  UserPlus
+  UserPlus,
+  Stethoscope
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -54,7 +55,7 @@ export default function AdminInstructorsPage() {
   const [instructors, setInstructors] = React.useState<any[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
   const [isModalOpen, setIsModalOpen] = React.useState(false)
-  const [isCreating, setIsCreating] = React.useState(false)
+  const [isSaving, setIsSaving] = React.useState(false)
   const [editingInstructor, setEditingInstructor] = React.useState<any>(null)
   const [searchTerm, setSearchTerm] = React.useState("")
 
@@ -67,7 +68,7 @@ export default function AdminInstructorsPage() {
       toast({ 
         variant: "destructive", 
         title: "Error de Sincronización", 
-        description: "No se pudo cargar la lista de docentes desde el servidor." 
+        description: "No se pudo cargar la lista de docentes." 
       })
     } finally {
       setIsLoading(false)
@@ -80,7 +81,7 @@ export default function AdminInstructorsPage() {
 
   const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    setIsCreating(true)
+    setIsSaving(true)
     const formData = new FormData(e.currentTarget)
     
     const nombre = formData.get("nombre") as string
@@ -91,21 +92,17 @@ export default function AdminInstructorsPage() {
 
     try {
       if (editingInstructor) {
-        // ACTUALIZACIÓN
         await api.patch(`/docentes/${editingInstructor.id}`, {
           nombre,
-          email,
-          dni,
           especialidad,
           es_transversal
         })
-        toast({ title: "Perfil actualizado correctamente" })
+        toast({ title: "Perfil actualizado", description: "Los datos profesionales se guardaron correctamente." })
       } else {
-        // CREACIÓN (Similar al Registro)
-        // 1. Crear el usuario en Supabase Auth
+        // FLUJO DE CREACIÓN DOBLE (Auth + DB)
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email,
-          password: dni, // El DNI es la contraseña por defecto
+          password: dni,
           options: {
             data: {
               firstname: nombre.split(' ')[0],
@@ -117,21 +114,18 @@ export default function AdminInstructorsPage() {
         })
 
         if (authError) throw authError
-        if (!authData.user) throw new Error("No se pudo obtener el ID del usuario creado.")
+        if (!authData.user) throw new Error("Error al crear usuario en Supabase.")
 
-        // 2. Crear el perfil en la tabla 'docentes' vía FastAPI
         await api.post('/docentes/', {
           id: authData.user.id,
           nombre,
-          email,
-          dni,
           especialidad,
           es_transversal
         })
 
         toast({ 
           title: "Docente Registrado", 
-          description: "Se ha creado la cuenta de acceso y el perfil profesional." 
+          description: "Cuenta de acceso y perfil vinculados exitosamente." 
         })
       }
       fetchData()
@@ -140,19 +134,19 @@ export default function AdminInstructorsPage() {
     } catch (err: any) {
       toast({ 
         variant: "destructive", 
-        title: "Error al procesar", 
-        description: err.message || "Hubo un problema al guardar los datos." 
+        title: "Error al guardar", 
+        description: err.message || "Hubo un problema con la base de datos." 
       })
     } finally {
-      setIsCreating(false)
+      setIsSaving(false)
     }
   }
 
   const handleDelete = async (id: string) => {
-    if(!confirm("¿Desea eliminar este perfil docente del sistema?")) return
+    if(!confirm("¿Desea eliminar este perfil docente? Esto no borrará su cuenta de acceso.")) return
     try {
       await api.delete(`/docentes/${id}`)
-      toast({ variant: "destructive", title: "Docente eliminado" })
+      toast({ title: "Perfil eliminado", description: "El registro ha sido retirado de la base de datos." })
       fetchData()
     } catch (err: any) {
       toast({ variant: "destructive", title: "Error", description: err.message })
@@ -163,9 +157,8 @@ export default function AdminInstructorsPage() {
     const term = searchTerm.toLowerCase()
     return (instructors || []).filter(i => 
       i.nombre.toLowerCase().includes(term) || 
-      i.dni.includes(term) ||
-      i.email.toLowerCase().includes(term) ||
-      i.especialidad.toLowerCase().includes(term)
+      i.especialidad?.toLowerCase().includes(term) ||
+      i.id.toLowerCase().includes(term)
     )
   }, [instructors, searchTerm])
 
@@ -173,25 +166,25 @@ export default function AdminInstructorsPage() {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div className="space-y-1">
-          <p className="text-primary font-bold uppercase tracking-[0.2em] text-xs">Gestión de Talento Humano</p>
-          <h2 className="text-3xl font-headline font-extrabold tracking-tight text-slate-900">Cuerpo Docente</h2>
-          <p className="text-slate-500 text-sm">Administra los perfiles de los profesionales del instituto.</p>
+          <p className="text-primary font-bold uppercase tracking-[0.2em] text-xs">Administración Académica</p>
+          <h2 className="text-3xl font-headline font-extrabold tracking-tight text-slate-900">Gestión de Docentes</h2>
+          <p className="text-slate-500 text-sm">Registra y vincula perfiles profesionales con cuentas de acceso.</p>
         </div>
 
         <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if(!open) setEditingInstructor(null); }}>
           <DialogTrigger asChild>
             <Button className="bg-primary hover:bg-primary/90 gap-2 shadow-lg shadow-primary/20 h-11 px-6 font-bold">
-              <UserPlus className="h-4 w-4" /> Registrar Docente
+              <UserPlus className="h-4 w-4" /> Registrar Nuevo Docente
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[550px]">
             <form onSubmit={handleSave}>
               <DialogHeader>
-                <DialogTitle>{editingInstructor ? "Editar Datos del Docente" : "Nuevo Registro Docente"}</DialogTitle>
+                <DialogTitle>{editingInstructor ? "Editar Perfil" : "Nuevo Registro de Docente"}</DialogTitle>
                 <DialogDescription>
                   {editingInstructor 
-                    ? "Actualiza la información profesional del docente." 
-                    : "Se creará una cuenta de acceso institucional. La contraseña inicial será su DNI."}
+                    ? "Modifica la especialidad o condición del docente." 
+                    : "Completa los datos para crear la cuenta de acceso (DNI como clave)."}
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-6">
@@ -199,31 +192,33 @@ export default function AdminInstructorsPage() {
                   <Label htmlFor="nombre">Nombre Completo</Label>
                   <Input id="nombre" name="nombre" defaultValue={editingInstructor?.nombre} placeholder="Apellidos y Nombres" required />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Correo Institucional</Label>
-                  <Input id="email" name="email" type="email" defaultValue={editingInstructor?.email} placeholder="ejemplo@lasalle.edu.pe" required disabled={!!editingInstructor} />
-                </div>
+                {!editingInstructor && (
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Correo Institucional</Label>
+                    <Input id="email" name="email" type="email" placeholder="usuario@lasalle.edu.pe" required />
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="dni">DNI</Label>
-                    <Input id="dni" name="dni" defaultValue={editingInstructor?.dni} placeholder="8 dígitos" required maxLength={8} />
+                    <Label htmlFor="dni">DNI (Será su contraseña)</Label>
+                    <Input id="dni" name="dni" placeholder="8 dígitos" required maxLength={8} disabled={!!editingInstructor} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="especialidad">Especialidad</Label>
-                    <Input id="especialidad" name="especialidad" defaultValue={editingInstructor?.especialidad} placeholder="Ej. Computación" required />
+                    <Input id="especialidad" name="especialidad" defaultValue={editingInstructor?.especialidad} placeholder="Ej. Sistemas, Contabilidad" required />
                   </div>
                 </div>
                 <div className="flex items-center space-x-3 pt-4 border-t mt-2">
                   <Checkbox id="es_transversal" name="es_transversal" defaultChecked={editingInstructor?.es_transversal} />
                   <Label htmlFor="es_transversal" className="text-sm font-semibold text-slate-700 cursor-pointer">
-                    ¿Este docente dicta cursos transversales?
+                    ¿Es Docente de Cursos Transversales?
                   </Label>
                 </div>
               </div>
               <DialogFooter>
                 <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
-                <Button type="submit" className="bg-primary font-bold min-w-[120px]" disabled={isCreating}>
-                  {isCreating ? <Loader2 className="h-4 w-4 animate-spin" /> : editingInstructor ? "Actualizar" : "Registrar"}
+                <Button type="submit" className="bg-primary font-bold min-w-[120px]" disabled={isSaving}>
+                  {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : editingInstructor ? "Actualizar" : "Registrar"}
                 </Button>
               </DialogFooter>
             </form>
@@ -234,7 +229,7 @@ export default function AdminInstructorsPage() {
       <div className="relative mb-6">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
         <Input 
-          placeholder="Buscador Inteligente: busca por Nombre, DNI, Email o Especialidad..." 
+          placeholder="Buscador inteligente: filtra por nombre, especialidad o ID..." 
           className="pl-11 py-6 bg-white border-slate-100 shadow-sm"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
@@ -246,15 +241,14 @@ export default function AdminInstructorsPage() {
           {isLoading ? (
             <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-3">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-sm font-medium">Sincronizando con FastAPI...</p>
+              <p className="text-sm font-medium">Sincronizando perfiles...</p>
             </div>
           ) : (
             <Table>
               <TableHeader className="bg-slate-50/50">
                 <TableRow className="hover:bg-transparent">
-                  <TableHead className="w-[80px] pl-6"></TableHead>
-                  <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest">Docente</TableHead>
-                  <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest">Perfil Profesional</TableHead>
+                  <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest pl-6">Docente</TableHead>
+                  <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest">Especialidad</TableHead>
                   <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest text-center">Tipo</TableHead>
                   <TableHead className="w-[80px] pr-6 text-right"></TableHead>
                 </TableRow>
@@ -264,26 +258,21 @@ export default function AdminInstructorsPage() {
                   filteredInstructors.map((docente) => (
                     <TableRow key={docente.id} className="group hover:bg-slate-50/50 transition-colors">
                       <TableCell className="pl-6">
-                        <Avatar className="h-10 w-10 border-2 border-white shadow-sm">
-                          <AvatarFallback className="bg-primary/5 text-primary font-bold">
-                            {docente.nombre.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col">
-                          <span className="font-bold text-slate-900 text-sm">{docente.nombre}</span>
-                          <span className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
-                            <Mail className="h-3 w-3" /> {docente.email}
-                          </span>
-                          <span className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5 font-mono">
-                            DNI: {docente.dni}
-                          </span>
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-10 w-10 border-2 border-white shadow-sm">
+                            <AvatarFallback className="bg-primary/5 text-primary font-bold">
+                              {docente.nombre[0]}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex flex-col">
+                            <span className="font-bold text-slate-900 text-sm">{docente.nombre}</span>
+                            <span className="text-[10px] text-slate-400 font-mono">UUID: {docente.id.substring(0, 8)}...</span>
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="text-[10px] font-bold text-slate-500 uppercase tracking-widest bg-slate-50 border-slate-200">
-                          {docente.especialidad}
+                        <Badge variant="outline" className="text-[10px] font-bold text-slate-500 uppercase tracking-widest bg-slate-50">
+                          {docente.especialidad || 'No definida'}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-center">
@@ -295,7 +284,7 @@ export default function AdminInstructorsPage() {
                         ) : (
                           <div className="flex flex-col items-center gap-1">
                             <XCircle className="h-4 w-4 text-slate-200" />
-                            <span className="text-[9px] font-bold text-slate-400 uppercase">Especialidad</span>
+                            <span className="text-[9px] font-bold text-slate-400 uppercase">Carrera</span>
                           </div>
                         )}
                       </TableCell>
@@ -308,10 +297,10 @@ export default function AdminInstructorsPage() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-48">
                             <DropdownMenuItem className="gap-2" onClick={() => { setEditingInstructor(docente); setIsModalOpen(true); }}>
-                              <Edit2 className="h-3.5 w-3.5" /> Editar Datos
+                              <Edit2 className="h-3.5 w-3.5" /> Editar Perfil
                             </DropdownMenuItem>
                             <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(docente.id)}>
-                              <Trash2 className="h-3.5 w-3.5" /> Eliminar Perfil
+                              <Trash2 className="h-3.5 w-3.5" /> Eliminar Registro
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -320,13 +309,11 @@ export default function AdminInstructorsPage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-48 text-center text-slate-400">
+                    <TableCell colSpan={4} className="h-48 text-center text-slate-400">
                       <div className="flex flex-col items-center gap-3">
                         <AlertCircle className="h-10 w-10 opacity-10" />
-                        <div className="space-y-1">
-                          <p className="font-bold text-slate-900">No hay resultados</p>
-                          <p className="text-sm">No se encontraron docentes con los criterios de búsqueda.</p>
-                        </div>
+                        <p className="font-bold text-slate-900">No se encontraron docentes</p>
+                        <p className="text-sm">Asegúrate de registrar los perfiles vinculados a las cuentas de usuario.</p>
                       </div>
                     </TableCell>
                   </TableRow>
