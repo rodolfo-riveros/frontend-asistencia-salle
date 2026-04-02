@@ -12,7 +12,8 @@ import {
   GraduationCap,
   AlertCircle,
   Loader2,
-  Layers
+  Layers,
+  RefreshCcw
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -57,12 +58,14 @@ export default function AdminCoursesPage() {
   const [programs, setPrograms] = React.useState<any[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
   const [isModalOpen, setIsModalOpen] = React.useState(false)
+  const [isSaving, setIsSaving] = React.useState(false)
   const [editingCourse, setEditingCourse] = React.useState<any>(null)
   const [searchTerm, setSearchTerm] = React.useState("")
 
   const fetchData = React.useCallback(async () => {
     setIsLoading(true)
     try {
+      // Sincronizado con list_unidades (GET /api/v1/unidades/)
       const [coursesData, programsData] = await Promise.all([
         api.get<any[]>('/unidades/'),
         api.get<any[]>('/programas/')
@@ -86,21 +89,23 @@ export default function AdminCoursesPage() {
 
   const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+    setIsSaving(true)
     const formData = new FormData(e.currentTarget)
     
+    // Payload alineado con UnidadCreate de tu backend
     const courseData = {
       nombre: formData.get("nombre") as string,
       programa_id: formData.get("programa_id") as string,
       semestre: formData.get("semestre") as string,
-      creditos: parseInt(formData.get("creditos") as string)
     }
 
     try {
       if (editingCourse) {
-        // Se usa PATCH y sin barra diagonal
+        // PATCH /api/v1/unidades/{id}
         await api.patch(`/unidades/${editingCourse.id}`, courseData)
         toast({ title: "Unidad Actualizada", description: "Los cambios se guardaron con éxito." })
       } else {
+        // POST /api/v1/unidades/
         await api.post('/unidades/', courseData)
         toast({ title: "Unidad Creada", description: "El curso ha sido registrado exitosamente." })
       }
@@ -109,12 +114,15 @@ export default function AdminCoursesPage() {
       setEditingCourse(null)
     } catch (err: any) {
       toast({ variant: "destructive", title: "Error al guardar", description: err.message })
+    } finally {
+      setIsSaving(false)
     }
   }
 
   const handleDelete = async (id: string) => {
     if (!confirm("¿Está seguro de eliminar esta unidad?")) return
     try {
+      // DELETE /api/v1/unidades/{id}
       await api.delete(`/unidades/${id}`)
       toast({ title: "Unidad Eliminada", description: "El curso fue retirado del sistema." })
       fetchData()
@@ -127,7 +135,7 @@ export default function AdminCoursesPage() {
     return (courses || []).filter(c => 
       c.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || 
       c.programa_nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.semestre.toLowerCase().includes(searchTerm.toLowerCase())
+      c.semestre?.toLowerCase().includes(searchTerm.toLowerCase())
     )
   }, [courses, searchTerm])
 
@@ -137,40 +145,43 @@ export default function AdminCoursesPage() {
         <div className="space-y-1">
           <p className="text-primary font-bold uppercase tracking-[0.2em] text-xs">Unidades Didácticas</p>
           <h2 className="text-3xl font-headline font-extrabold tracking-tight text-slate-900">Gestión de Cursos</h2>
-          <p className="text-slate-500 text-sm">Administra el catálogo de asignaturas por programa.</p>
+          <p className="text-slate-500 text-sm">Administra el catálogo de asignaturas por programa académico.</p>
         </div>
 
-        <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if(!open) setEditingCourse(null); }}>
-          <DialogTrigger asChild>
-            <Button className="bg-primary hover:bg-primary/90 gap-2 shadow-lg shadow-primary/20 h-11 px-6 font-bold">
-              <Plus className="h-4 w-4" /> Nueva Unidad
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
-            <form onSubmit={handleSave}>
-              <DialogHeader>
-                <DialogTitle>{editingCourse ? "Editar Unidad" : "Registrar Nueva Unidad"}</DialogTitle>
-                <DialogDescription>Configura los detalles técnicos de la asignatura.</DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-6">
-                <div className="space-y-2">
-                  <Label htmlFor="nombre">Nombre de la Unidad</Label>
-                  <Input id="nombre" name="nombre" defaultValue={editingCourse?.nombre} placeholder="Ej. Arquitectura de Sistemas" required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="programa_id">Programa de Estudio</Label>
-                  <Select name="programa_id" defaultValue={editingCourse?.programa_id}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccione la carrera" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {programs.map(p => (
-                        <SelectItem key={p.id} value={p.id}>{p.nombre}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={fetchData} className="gap-2 h-11">
+            <RefreshCcw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+          </Button>
+          <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if(!open) setEditingCourse(null); }}>
+            <DialogTrigger asChild>
+              <Button className="bg-primary hover:bg-primary/90 gap-2 shadow-lg shadow-primary/20 h-11 px-6 font-bold">
+                <Plus className="h-4 w-4" /> Nueva Unidad
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[500px]">
+              <form onSubmit={handleSave}>
+                <DialogHeader>
+                  <DialogTitle>{editingCourse ? "Editar Unidad" : "Registrar Nueva Unidad"}</DialogTitle>
+                  <DialogDescription>Configura los detalles técnicos de la asignatura.</DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="nombre">Nombre de la Unidad</Label>
+                    <Input id="nombre" name="nombre" defaultValue={editingCourse?.nombre} placeholder="Ej. Arquitectura de Sistemas" required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="programa_id">Programa de Estudio</Label>
+                    <Select name="programa_id" defaultValue={editingCourse?.programa_id}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccione la carrera" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {programs.map(p => (
+                          <SelectItem key={p.id} value={p.id}>{p.nombre}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div className="space-y-2">
                     <Label htmlFor="semestre">Semestre / Ciclo</Label>
                     <Select name="semestre" defaultValue={editingCourse?.semestre || "I"}>
@@ -184,25 +195,23 @@ export default function AdminCoursesPage() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="creditos">Créditos Académicos</Label>
-                    <Input id="creditos" name="creditos" type="number" min="1" max="15" defaultValue={editingCourse?.creditos || 4} required />
-                  </div>
                 </div>
-              </div>
-              <DialogFooter>
-                <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
-                <Button type="submit" className="bg-primary font-bold">Guardar Unidad</Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+                <DialogFooter>
+                  <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
+                  <Button type="submit" className="bg-primary font-bold" disabled={isSaving}>
+                    {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Guardar Unidad"}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       <div className="relative mb-6">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
         <Input 
-          placeholder="Buscador inteligente: filtra por curso, programa académico o semestre..." 
+          placeholder="Busca por curso, programa académico o semestre..." 
           className="pl-11 py-6 bg-white border-slate-100 shadow-sm" 
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
@@ -223,7 +232,6 @@ export default function AdminCoursesPage() {
                   <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest pl-6">Unidad Didáctica</TableHead>
                   <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest">Programa Profesional</TableHead>
                   <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest text-center">Ciclo</TableHead>
-                  <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest text-center">Créditos</TableHead>
                   <TableHead className="w-[100px] pr-6 text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
@@ -253,9 +261,6 @@ export default function AdminCoursesPage() {
                           Sem {course.semestre}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-center font-black text-primary">
-                        {course.creditos}
-                      </TableCell>
                       <TableCell className="pr-6 text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -277,7 +282,7 @@ export default function AdminCoursesPage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-48 text-center text-slate-400">
+                    <TableCell colSpan={4} className="h-48 text-center text-slate-400">
                       <div className="flex flex-col items-center gap-3">
                         <div className="p-4 bg-slate-50 rounded-full">
                           <Layers className="h-8 w-8 opacity-20" />
