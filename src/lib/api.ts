@@ -1,3 +1,4 @@
+
 /**
  * @fileOverview Cliente de API optimizado para FastAPI con diagnóstico mejorado y manejo de 204 No Content.
  */
@@ -60,6 +61,7 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
     try {
       return JSON.parse(text);
     } catch (e) {
+      // Si no es JSON pero hay texto, lo devolvemos tal cual
       return text as unknown as T;
     }
   } catch (err: any) {
