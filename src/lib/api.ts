@@ -1,6 +1,6 @@
 /**
  * @fileOverview Cliente de API optimizado para FastAPI en Render.
- * Maneja la inyección de tokens JWT y diagnósticos de errores 401/CORS.
+ * Maneja la inyección de tokens JWT en tiempo real y diagnósticos de errores.
  */
 import { supabase } from './supabase';
 
@@ -12,8 +12,13 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   const url = `${cleanBase}${API_VERSION}${cleanEndpoint}`;
   
-  // Obtener sesión fresca de Supabase
-  const { data: { session } } = await supabase.auth.getSession();
+  // OBTENCIÓN CRÍTICA: Forzamos la obtención de la sesión más reciente
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  
+  if (sessionError) {
+    console.error("[API AUTH ERROR] Error al obtener la sesión:", sessionError.message);
+  }
+
   const token = session?.access_token;
 
   const headers = new Headers({
@@ -23,6 +28,8 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
 
   if (token) {
     headers.set('Authorization', `Bearer ${token}`);
+  } else {
+    console.warn("[API AUTH WARNING] No se encontró token de sesión. La petición podría fallar.");
   }
 
   try {
@@ -31,10 +38,20 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
       headers,
     });
 
-    // Manejo específico de 401 (Token inválido o secreto JWT incorrecto en Render)
+    // Diagnóstico específico para el error 401
     if (response.status === 401) {
-      console.error("[API ERROR] 401: Sesión no válida en el servidor.");
-      throw new Error("Tu sesión ha expirado o el servidor no reconoce tu acceso. Por favor, intenta cerrar sesión y volver a entrar.");
+      const errorDetail = await response.json().catch(() => ({}));
+      console.error("[API ERROR] 401 No Autorizado. El servidor de Render rechazó el token.");
+      console.log("Sugerencia: Verifica que SUPABASE_JWT_SECRET en Render sea idéntico al de Supabase Dashboard.");
+      
+      // Si el error persiste, cerramos sesión para limpiar el estado
+      if (typeof window !== 'undefined') {
+        // No cerramos sesión automáticamente para evitar loops, pero informamos al usuario
+        throw new Error(
+          "Error 401: Tu sesión no es reconocida por el servidor. \n\n" +
+          "Solución: Haz clic en el botón de cerrar sesión y vuelve a ingresar."
+        );
+      }
     }
 
     if (!response.ok) {
