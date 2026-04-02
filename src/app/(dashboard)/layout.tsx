@@ -11,6 +11,8 @@ import {
   Calendar,
   UserRound,
   Search,
+  UserCheck,
+  ClipboardList
 } from "lucide-react"
 
 import {
@@ -30,13 +32,13 @@ import {
 import { NavUser } from "@/components/layout/nav-user"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Input } from "@/components/ui/input"
 
 const adminNav = [
   { name: "Dashboard Principal", href: "/admin", icon: LayoutDashboard },
   { name: "Programas de Estudio", href: "/admin/programs", icon: GraduationCap },
-  { name: "Unidades Didácticas", href: "/admin/courses", icon: BookOpen },
+  { name: "Unidades Didácticas", icon: BookOpen, href: "/admin/courses" },
   { name: "Cuerpo Docente", href: "/admin/instructors", icon: UserRound },
+  { name: "Asignación Académica", href: "/admin/assignments", icon: ClipboardList },
   { name: "Padrón de Alumnos", href: "/admin/students", icon: Users },
   { name: "Importación de Datos", href: "/admin/import", icon: FileUp },
 ]
