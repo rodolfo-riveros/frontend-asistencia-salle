@@ -55,7 +55,6 @@ export default function AdminProgramsPage() {
   const fetchPrograms = React.useCallback(async () => {
     setIsLoading(true)
     try {
-      // Sincronización con el endpoint exacto del backend
       const data = await api.get<any[]>('/programas/')
       console.log("[DEBUG] Programas recibidos:", data)
       setPrograms(Array.isArray(data) ? data : [])
@@ -80,11 +79,13 @@ export default function AdminProgramsPage() {
     setIsSaving(true)
     const formData = new FormData(e.currentTarget)
     
-    const nombre = formData.get("nombre") as string
+    const nombre = (formData.get("nombre") as string).trim()
     
     // Generación automática del código si es nuevo
-    // Usamos las primeras 3 letras del nombre + un timestamp corto
-    const generatedCode = editingProgram?.codigo || `PRG-${nombre.substring(0, 3).toUpperCase()}-${Date.now().toString().slice(-4)}`
+    // IMPORTANTE: Tu backend usa la regex ^[A-Z0-9_]+$
+    // No permite guiones medios (-), solo guiones bajos (_)
+    const cleanName = nombre.replace(/[^a-zA-Z0-9]/g, '').substring(0, 3).toUpperCase()
+    const generatedCode = editingProgram?.codigo || `PRG_${cleanName}_${Date.now().toString().slice(-4)}`
 
     const payload = {
       nombre,
@@ -103,7 +104,11 @@ export default function AdminProgramsPage() {
       setIsModalOpen(false)
       setEditingProgram(null)
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Error al guardar", description: err.message })
+      toast({ 
+        variant: "destructive", 
+        title: "Error al guardar", 
+        description: err.message 
+      })
     } finally {
       setIsSaving(false)
     }
@@ -127,6 +132,7 @@ export default function AdminProgramsPage() {
   const filteredPrograms = React.useMemo(() => {
     const term = searchTerm.toLowerCase()
     return (programs || []).filter(p => {
+      if (!p) return false
       const name = (p.nombre || "").toLowerCase()
       const code = (p.codigo || "").toLowerCase()
       return name.includes(term) || code.includes(term)
@@ -157,7 +163,7 @@ export default function AdminProgramsPage() {
                 <DialogHeader>
                   <DialogTitle>{editingProgram ? "Editar Programa" : "Registrar Carrera"}</DialogTitle>
                   <DialogDescription>
-                    Ingresa el nombre del programa académico. El código se generará automáticamente.
+                    Ingresa el nombre del programa académico. El código se generará siguiendo las reglas del sistema (mayúsculas y guiones bajos).
                   </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-6">
