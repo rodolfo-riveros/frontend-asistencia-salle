@@ -33,7 +33,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 
 const adminNav = [
-  { name: "Dashboard Principal", href: "/admin", icon: LayoutDashboard },
+  { name: "Panel", href: "/admin", icon: LayoutDashboard },
   { name: "Solicitudes de Acceso", href: "/admin/requests", icon: UserCheck },
   { name: "Programas de Estudio", href: "/admin/programs", icon: GraduationCap },
   { name: "Unidades Didácticas", icon: BookOpen, href: "/admin/courses" },
