@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -9,9 +10,7 @@ import {
   GraduationCap,
   Calendar,
   UserRound,
-  Bell,
   Search,
-  Settings
 } from "lucide-react"
 
 import {
@@ -20,7 +19,6 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarInset,
   SidebarMenu,
@@ -33,7 +31,6 @@ import { NavUser } from "@/components/layout/nav-user"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
 
 const adminNav = [
   { name: "Dashboard Principal", href: "/admin", icon: LayoutDashboard },
@@ -79,7 +76,6 @@ export default function DashboardLayout({
         </SidebarHeader>
         <SidebarContent className="py-6">
           <SidebarGroup>
-            <SidebarGroupLabel className="px-6 text-[10px] font-bold uppercase tracking-[0.3em] text-white/50 mb-4">Navegación Institucional</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu className="gap-2 px-3">
                 {navItems.map((item) => (
@@ -108,19 +104,12 @@ export default function DashboardLayout({
       <SidebarInset className="bg-[#f8f9fa]">
         <header className="flex h-20 shrink-0 items-center gap-2 border-b bg-white/60 backdrop-blur-xl px-8 sticky top-0 z-40">
           <SidebarTrigger className="-ml-1" />
-          <div className="flex-1 px-4 flex items-center justify-between">
-             <h1 className="text-xs font-bold text-slate-400 uppercase tracking-[0.3em] hidden lg:block">
-               Portal de Gestión de Asistencia | IES La Salle Urubamba
-             </h1>
+          <div className="flex-1 px-4 flex items-center justify-end">
              <div className="flex items-center gap-6">
                 <div className="relative w-72 hidden md:block">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                  <Input placeholder="Buscar en el portal..." className="pl-10 h-10 bg-slate-100 border-none rounded-full" />
+                  <input placeholder="Buscar en el portal..." className="flex h-10 w-full rounded-full border-none bg-slate-100 px-10 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary" />
                 </div>
-                <Button variant="ghost" size="icon" className="relative rounded-full hover:bg-slate-100">
-                  <Bell className="h-5 w-5 text-slate-500" />
-                  <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
-                </Button>
              </div>
           </div>
         </header>
