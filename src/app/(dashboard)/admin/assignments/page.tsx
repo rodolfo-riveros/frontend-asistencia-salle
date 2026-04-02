@@ -99,10 +99,10 @@ export default function AcademicAssignmentsPage() {
     try {
       if (editingAssignment) {
         await api.patch(`/asignaciones/${editingAssignment.id}`, payload)
-        toast({ title: "Asignación actualizada", description: "Los cambios han sido guardados." })
+        toast({ title: "Asignación actualizada", description: "Los cambios han sido guardados con éxito." })
       } else {
         await api.post('/asignaciones/', payload)
-        toast({ title: "Vínculo creado", description: "Docente asignado correctamente al curso." })
+        toast({ title: "Carga asignada", description: "Docente vinculado correctamente a la unidad." })
       }
       fetchData()
       setIsModalOpen(false)
@@ -116,7 +116,7 @@ export default function AcademicAssignmentsPage() {
     if(!confirm("¿Desea eliminar esta carga académica?")) return
     try {
       await api.delete(`/asignaciones/${id}`)
-      toast({ title: "Asignación eliminada", description: "El registro fue retirado exitosamente." })
+      toast({ title: "Asignación retirada", description: "El registro fue eliminado del ciclo actual." })
       fetchData()
     } catch (err: any) {
       toast({ variant: "destructive", title: "Error", description: err.message })
@@ -128,7 +128,8 @@ export default function AcademicAssignmentsPage() {
     return (assignments || []).filter(asg => 
       asg.docente_nombre?.toLowerCase().includes(term) || 
       asg.unidad_nombre?.toLowerCase().includes(term) ||
-      asg.periodo_nombre?.toLowerCase().includes(term)
+      asg.periodo_nombre?.toLowerCase().includes(term) ||
+      asg.docente_id?.toLowerCase().includes(term)
     )
   }, [assignments, searchTerm])
 
@@ -137,7 +138,7 @@ export default function AcademicAssignmentsPage() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div className="space-y-1">
           <p className="text-primary font-bold uppercase tracking-[0.2em] text-xs">Carga Académica</p>
-          <h2 className="text-3xl font-headline font-extrabold tracking-tight text-slate-900">Vínculo Docente - Unidad</h2>
+          <h2 className="text-3xl font-headline font-extrabold tracking-tight text-slate-900">Asignación por Ciclo</h2>
           <div className="flex items-center gap-3 mt-3">
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Filtrar Ciclo:</span>
             <Select value={selectedPeriodId} onValueChange={setSelectedPeriodId}>
@@ -164,24 +165,24 @@ export default function AcademicAssignmentsPage() {
             <form onSubmit={handleSave}>
               <DialogHeader>
                 <DialogTitle>{editingAssignment ? "Editar Asignación" : "Nueva Asignación"}</DialogTitle>
-                <DialogDescription>Define el responsable de una unidad para un ciclo académico específico.</DialogDescription>
+                <DialogDescription>Define el responsable de una unidad para un ciclo lectivo real.</DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-6">
                 <div className="space-y-2">
                   <Label>Periodo Lectivo</Label>
                   <Select name="periodo_id" defaultValue={editingAssignment?.periodo_id || periods.find(p => p.es_activo)?.id}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Seleccione ciclo" />
+                      <SelectValue placeholder="Seleccione periodo" />
                     </SelectTrigger>
                     <SelectContent>
                       {periods.map(p => (
-                        <SelectItem key={p.id} value={p.id}>{p.nombre} {p.es_activo && "(Actual)"}</SelectItem>
+                        <SelectItem key={p.id} value={p.id}>{p.nombre}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Docente</Label>
+                  <Label>Docente Responsable</Label>
                   <Select name="docente_id" defaultValue={editingAssignment?.docente_id}>
                     <SelectTrigger>
                       <SelectValue placeholder="Busca docente..." />
@@ -197,7 +198,7 @@ export default function AcademicAssignmentsPage() {
                   <Label>Unidad Didáctica</Label>
                   <Select name="unidad_id" defaultValue={editingAssignment?.unidad_id}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Busca curso..." />
+                      <SelectValue placeholder="Busca unidad..." />
                     </SelectTrigger>
                     <SelectContent>
                       {courses.map(course => (
@@ -209,7 +210,7 @@ export default function AcademicAssignmentsPage() {
               </div>
               <DialogFooter>
                 <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
-                <Button type="submit" className="bg-primary font-bold">Asignar Carga</Button>
+                <Button type="submit" className="bg-primary font-bold">Guardar Asignación</Button>
               </DialogFooter>
             </form>
           </DialogContent>
@@ -219,7 +220,7 @@ export default function AcademicAssignmentsPage() {
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
         <Input 
-          placeholder="Buscador inteligente: filtra por docente, unidad o periodo..." 
+          placeholder="Buscador inteligente: filtra por docente, unidad, periodo o ID..." 
           className="pl-11 py-6 bg-white border-slate-100 shadow-sm"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
@@ -231,13 +232,13 @@ export default function AcademicAssignmentsPage() {
           {isLoading ? (
             <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-3">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-sm font-medium">Sincronizando carga académica...</p>
+              <p className="text-sm font-medium">Sincronizando con FastAPI...</p>
             </div>
           ) : (
             <Table>
               <TableHeader className="bg-slate-50/50">
                 <TableRow className="hover:bg-transparent">
-                  <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest pl-6">Docente Responsable</TableHead>
+                  <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest pl-6">Responsable</TableHead>
                   <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest">Unidad Didáctica</TableHead>
                   <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest text-center">Ciclo</TableHead>
                   <TableHead className="w-[80px] pr-6 text-right"></TableHead>
@@ -250,13 +251,13 @@ export default function AcademicAssignmentsPage() {
                       <TableCell className="pl-6 py-4">
                         <div className="flex items-center gap-3">
                           <Avatar className="h-9 w-9 border shadow-sm">
-                            <AvatarFallback className="bg-primary/5 text-primary font-bold text-xs uppercase">
+                            <AvatarFallback className="bg-primary/5 text-primary font-bold text-xs">
                               {asg.docente_nombre?.[0]}
                             </AvatarFallback>
                           </Avatar>
                           <div className="flex flex-col">
                             <span className="font-bold text-slate-900 text-sm">{asg.docente_nombre}</span>
-                            <span className="text-[10px] text-slate-400 font-mono">DNI: {asg.docente_dni}</span>
+                            <span className="text-[10px] text-slate-400 font-mono">UUID: {asg.docente_id?.substring(0,8)}...</span>
                           </div>
                         </div>
                       </TableCell>
@@ -267,12 +268,12 @@ export default function AcademicAssignmentsPage() {
                           </div>
                           <div className="flex flex-col">
                             <span className="font-semibold text-slate-700 text-sm">{asg.unidad_nombre}</span>
-                            <span className="text-[10px] text-slate-400 uppercase">{asg.programa_nombre} (Sem {asg.semestre})</span>
+                            <span className="text-[10px] text-slate-400 uppercase">{asg.programa_nombre}</span>
                           </div>
                         </div>
                       </TableCell>
                       <TableCell className="text-center">
-                        <Badge variant="outline" className="border-primary/20 text-primary font-black text-[10px] bg-primary/5 uppercase tracking-tighter">
+                        <Badge variant="outline" className="border-primary/20 text-primary font-black text-[10px] bg-primary/5">
                           {asg.periodo_nombre}
                         </Badge>
                       </TableCell>
@@ -300,7 +301,7 @@ export default function AcademicAssignmentsPage() {
                     <TableCell colSpan={4} className="h-48 text-center text-slate-400">
                       <div className="flex flex-col items-center gap-3">
                         <AlertCircle className="h-10 w-10 opacity-10" />
-                        <p className="font-bold text-slate-900 uppercase text-xs tracking-widest">Sin asignaciones para este criterio</p>
+                        <p className="font-bold text-slate-900 uppercase text-xs tracking-widest">Sin resultados</p>
                       </div>
                     </TableCell>
                   </TableRow>

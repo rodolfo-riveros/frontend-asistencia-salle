@@ -84,10 +84,10 @@ export default function AdminPeriodsPage() {
     try {
       if (editingPeriod) {
         await api.patch(`/periodos/${editingPeriod.id}`, payload)
-        toast({ title: "Periodo actualizado", description: `El ciclo ${payload.nombre} fue modificado con éxito.` })
+        toast({ title: "Ciclo actualizado", description: `El periodo ${payload.nombre} fue modificado con éxito.` })
       } else {
         await api.post('/periodos/', payload)
-        toast({ title: "Periodo creado", description: `El ciclo ${payload.nombre} se registró correctamente.` })
+        toast({ title: "Ciclo creado", description: `El periodo ${payload.nombre} se registró correctamente.` })
       }
       fetchPeriods()
       setIsModalOpen(false)
@@ -101,7 +101,7 @@ export default function AdminPeriodsPage() {
     if(!confirm("¿Desea eliminar este periodo académico?")) return
     try {
       await api.delete(`/periodos/${id}`)
-      toast({ title: "Periodo eliminado", description: "El registro ha sido retirado del sistema." })
+      toast({ title: "Ciclo eliminado", description: "El registro ha sido retirado del sistema." })
       fetchPeriods()
     } catch (err: any) {
       toast({ variant: "destructive", title: "Error", description: err.message })
@@ -111,7 +111,8 @@ export default function AdminPeriodsPage() {
   const filteredPeriods = React.useMemo(() => {
     const term = searchTerm.toLowerCase()
     return (periods || []).filter(p => 
-      p.nombre.toLowerCase().includes(term)
+      p.nombre.toLowerCase().includes(term) ||
+      p.id.toLowerCase().includes(term)
     )
   }, [periods, searchTerm])
 
@@ -121,20 +122,20 @@ export default function AdminPeriodsPage() {
         <div className="space-y-1">
           <p className="text-primary font-bold uppercase tracking-[0.2em] text-xs">Gestión Institucional</p>
           <h2 className="text-3xl font-headline font-extrabold tracking-tight text-slate-900">Periodos Académicos</h2>
-          <p className="text-slate-500 text-sm">Administra los ciclos lectivos activos para la matrícula y asistencia.</p>
+          <p className="text-slate-500 text-sm">Define el ciclo activo para matrículas y asistencias.</p>
         </div>
         
         <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if(!open) setEditingPeriod(null); }}>
           <DialogTrigger asChild>
             <Button className="bg-primary hover:bg-primary/90 gap-2 shadow-lg shadow-primary/20 h-11 px-6 font-bold">
-              <Plus className="h-4 w-4" /> Nuevo Periodo
+              <Plus className="h-4 w-4" /> Nuevo Ciclo
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[425px]">
             <form onSubmit={handleSave}>
               <DialogHeader>
-                <DialogTitle>{editingPeriod ? "Editar Periodo" : "Crear Nuevo Periodo"}</DialogTitle>
-                <DialogDescription>Define el nombre oficial (Ej: 2024-I) y su estado de actividad.</DialogDescription>
+                <DialogTitle>{editingPeriod ? "Editar Ciclo" : "Crear Nuevo Ciclo"}</DialogTitle>
+                <DialogDescription>Asigna el nombre oficial (Ej: 2024-I) y define su vigencia.</DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-6">
                 <div className="space-y-2">
@@ -143,15 +144,15 @@ export default function AdminPeriodsPage() {
                 </div>
                 <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border">
                   <div className="space-y-0.5">
-                    <Label className="text-sm font-bold">Periodo Activo</Label>
-                    <p className="text-xs text-slate-500">Activa este ciclo para las gestiones actuales.</p>
+                    <Label className="text-sm font-bold">Ciclo Activo</Label>
+                    <p className="text-xs text-slate-500">Marcar como periodo vigente del sistema.</p>
                   </div>
                   <Switch name="es_activo" defaultChecked={editingPeriod?.es_activo} />
                 </div>
               </div>
               <DialogFooter>
                 <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
-                <Button type="submit" className="bg-primary font-bold">Guardar Periodo</Button>
+                <Button type="submit" className="bg-primary font-bold">Confirmar</Button>
               </DialogFooter>
             </form>
           </DialogContent>
@@ -161,7 +162,7 @@ export default function AdminPeriodsPage() {
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
         <Input 
-          placeholder="Buscador inteligente: busca por nombre de ciclo..." 
+          placeholder="Buscador inteligente: busca por nombre o ID de periodo..." 
           className="pl-11 h-11 bg-white border-slate-100 shadow-sm"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
@@ -173,15 +174,15 @@ export default function AdminPeriodsPage() {
           {isLoading ? (
             <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-3">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-sm font-medium italic">Sincronizando periodos...</p>
+              <p className="text-sm font-medium italic">Sincronizando con FastAPI...</p>
             </div>
           ) : (
             <Table>
               <TableHeader className="bg-slate-50/50">
                 <TableRow className="hover:bg-transparent">
-                  <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest pl-6">ID</TableHead>
-                  <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest">Nombre Oficial</TableHead>
+                  <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest pl-6">Nombre del Ciclo</TableHead>
                   <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest text-center">Estado</TableHead>
+                  <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest">ID Sistema</TableHead>
                   <TableHead className="w-[100px] pr-6 text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
@@ -189,10 +190,7 @@ export default function AdminPeriodsPage() {
                 {filteredPeriods.length > 0 ? (
                   filteredPeriods.map((p) => (
                     <TableRow key={p.id} className="group hover:bg-slate-50/50 transition-colors">
-                      <TableCell className="font-mono text-[10px] text-slate-400 pl-6">
-                        {p.id.substring(0, 8)}...
-                      </TableCell>
-                      <TableCell className="font-bold text-slate-700">
+                      <TableCell className="font-bold text-slate-700 pl-6">
                         <div className="flex items-center gap-2">
                           <Calendar className="h-4 w-4 text-primary" />
                           {p.nombre}
@@ -208,6 +206,9 @@ export default function AdminPeriodsPage() {
                             <XCircle className="h-3 w-3" /> Inactivo
                           </Badge>
                         )}
+                      </TableCell>
+                      <TableCell className="font-mono text-[10px] text-slate-400">
+                        {p.id}
                       </TableCell>
                       <TableCell className="pr-6 text-right">
                         <DropdownMenu>
@@ -233,7 +234,7 @@ export default function AdminPeriodsPage() {
                     <TableCell colSpan={4} className="h-48 text-center text-slate-400">
                       <div className="flex flex-col items-center gap-3">
                         <AlertCircle className="h-10 w-10 opacity-10" />
-                        <p className="font-bold text-slate-900 uppercase text-xs tracking-widest">No se encontraron periodos</p>
+                        <p className="font-bold text-slate-900 uppercase text-xs tracking-widest">No hay periodos registrados</p>
                       </div>
                     </TableCell>
                   </TableRow>
