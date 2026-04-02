@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from 'react';
@@ -24,6 +25,7 @@ export default function LoginPage() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
+    // Simulación de login exitoso redirigiendo al dashboard del docente por defecto
     router.push('/instructor');
   };
 
