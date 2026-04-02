@@ -392,7 +392,8 @@ export default function AdminStudentsPage() {
                       <AlertCircle className="h-8 w-8 opacity-20" />
                       No se encontraron estudiantes registrados.
                     </div>
-                  </TableRow>
+                  </TableCell>
+                </TableRow>
               )}
             </TableBody>
           </Table>
