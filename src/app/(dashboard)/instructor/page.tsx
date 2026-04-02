@@ -1,11 +1,11 @@
-
 "use client"
 
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { BookOpen, Users, Clock, ArrowRight, Sparkles } from "lucide-react"
+import { BookOpen, Users, Clock, ArrowRight, Sparkles, FileSpreadsheet } from "lucide-react"
+import { toast } from "@/hooks/use-toast"
 
 const courses = [
   {
@@ -43,6 +43,13 @@ const courses = [
 ]
 
 export default function InstructorDashboard() {
+  const handleExportExcel = (courseName: string) => {
+    toast({
+      title: "Generando Excel",
+      description: `Exportando el registro de asistencia de ${courseName}...`,
+    });
+  }
+
   return (
     <div className="space-y-10">
       <div className="flex flex-col gap-2 border-b pb-8">
@@ -98,12 +105,20 @@ export default function InstructorDashboard() {
                 </div>
               </div>
             </CardContent>
-            <CardFooter className="pt-6 pb-6 bg-slate-50/30">
-              <Button asChild className="w-full h-14 text-base font-bold shadow-lg shadow-primary/20 group/btn" variant="default">
+            <CardFooter className="pt-6 pb-6 bg-slate-50/30 flex gap-3">
+              <Button asChild className="flex-1 h-14 text-base font-bold shadow-lg shadow-primary/20 group/btn" variant="default">
                 <Link href={`/instructor/attendance/${course.id}`}>
-                  Gestionar Asistencia
+                  Asistencia
                   <ArrowRight className="ml-2 h-5 w-5 group-hover/btn:translate-x-1 transition-transform" />
                 </Link>
+              </Button>
+              <Button 
+                variant="outline" 
+                className="h-14 px-5 border-slate-200 hover:bg-white hover:text-green-600 transition-all hover:scale-105" 
+                title="Exportar a Excel"
+                onClick={() => handleExportExcel(course.name)}
+              >
+                <FileSpreadsheet className="h-6 w-6" />
               </Button>
             </CardFooter>
           </Card>
