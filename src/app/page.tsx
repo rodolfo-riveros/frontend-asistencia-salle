@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from 'react';
@@ -39,19 +40,26 @@ export default function LoginPage() {
         password,
       });
 
-      if (error) throw error;
+      if (error) {
+        // Manejo específico de error si el email no ha sido confirmado en Supabase
+        if (error.message.toLowerCase().includes("email not confirmed")) {
+          throw new Error("Su correo institucional aún no ha sido confirmado. Por favor, revise su bandeja o pida al administrador que desactive la confirmación de correo en Supabase.");
+        }
+        throw error;
+      }
 
       if (data.session && data.user) {
         // Almacenar el token para peticiones a FastAPI
         localStorage.setItem('supabase_access_token', data.session.access_token);
         
         // Obtener el rol de los metadatos de Supabase (User Metadata)
-        const role = data.user.user_metadata?.role;
-        const firstName = data.user.user_metadata?.firstname || 'Usuario';
+        const metadata = data.user.user_metadata;
+        const role = metadata?.role;
+        const firstName = metadata?.firstname || 'Usuario';
         
         toast({
-          title: "Sesión Iniciada",
-          description: `Bienvenido, ${firstName}.`,
+          title: "Acceso Exitoso",
+          description: `Bienvenido, ${firstName}. Redirigiendo...`,
         });
 
         // Redirección lógica basada en el rol de los metadatos
@@ -60,12 +68,14 @@ export default function LoginPage() {
         } else {
           router.push('/instructor');
         }
+      } else {
+        throw new Error("No se pudo establecer una sesión activa.");
       }
     } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Error de Autenticación",
-        description: error.message || "Credenciales inválidas.",
+        description: error.message || "Credenciales inválidas. Recuerda que tu contraseña inicial es tu DNI.",
       });
     } finally {
       setIsLoading(false);
@@ -130,7 +140,7 @@ export default function LoginPage() {
             </div>
             <div className="mb-10 text-left">
               <h3 className="font-headline text-2xl font-bold text-slate-900 mb-2">Portal de Asistencia</h3>
-              <p className="text-slate-500 text-sm">Ingresa con tu correo institucional asignado.</p>
+              <p className="text-slate-500 text-sm">Ingresa con tu correo y usa tu DNI como contraseña.</p>
             </div>
 
             <form className="space-y-6" onSubmit={handleLogin}>
@@ -153,7 +163,7 @@ export default function LoginPage() {
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
                   <Label className="text-xs font-semibold uppercase tracking-widest text-slate-500" htmlFor="password">
-                    Contraseña
+                    Contraseña (DNI)
                   </Label>
                   <Link href="#" className="text-[10px] font-bold text-primary hover:underline uppercase tracking-wider">
                     ¿Olvidaste tu contraseña?
@@ -165,7 +175,7 @@ export default function LoginPage() {
                     className="w-full bg-slate-100 border-none rounded-lg py-6 pl-12 pr-12 focus-visible:ring-1 focus-visible:ring-primary text-slate-900 placeholder:text-slate-400" 
                     id="password" 
                     name="password"
-                    placeholder="••••••••" 
+                    placeholder="Tu DNI" 
                     type={showPassword ? "text" : "password"} 
                     required 
                   />
