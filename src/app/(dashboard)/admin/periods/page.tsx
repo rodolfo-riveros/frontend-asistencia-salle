@@ -91,20 +91,21 @@ export default function AdminPeriodsPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if(!confirm("¿Desea eliminar este periodo académico? Se borrarán las asistencias vinculadas.")) return
+    if(!id) return
+    if(!confirm("¿Desea eliminar este periodo académico? Se borrarán los datos vinculados.")) return
     
     setIsDeleting(id)
     try {
-      // Sincronización con el endpoint DELETE /api/v1/periodos/{id}
       await api.delete(`/periodos/${id}`)
       toast({ title: "Ciclo eliminado", description: "El registro ha sido retirado correctamente." })
-      await fetchPeriods() // Recargar la lista
+      // Actualización optimista
+      setPeriods(prev => prev.filter(p => p.id !== id))
     } catch (err: any) {
       console.error("[DELETE ERROR]", err)
       toast({ 
         variant: "destructive", 
         title: "No se pudo eliminar", 
-        description: err.message || "Es posible que existan dependencias activas."
+        description: err.message || "Es posible que existan dependencias (alumnos o asignaciones) activas."
       })
     } finally {
       setIsDeleting(null)
@@ -243,7 +244,7 @@ export default function AdminPeriodsPage() {
                     <TableCell colSpan={4} className="h-48 text-center text-slate-400">
                       <div className="flex flex-col items-center gap-3">
                         <AlertCircle className="h-10 w-10 opacity-10" />
-                        <p className="font-bold text-slate-900 uppercase text-xs tracking-widest">No hay periodos registrados o el servidor está inactivo</p>
+                        <p className="font-bold text-slate-900 uppercase text-xs tracking-widest">No hay periodos registrados</p>
                       </div>
                     </TableCell>
                   </TableRow>
