@@ -20,17 +20,20 @@ export default function InstructorDashboard() {
   const fetchData = React.useCallback(async () => {
     setIsLoading(true)
     try {
-      // 1. Obtener periodos disponibles
+      // 1. Obtener periodos disponibles desde FastAPI
       const periodData = await api.get<any[]>('/periodos/')
       setPeriods(periodData)
       
-      // 2. Definir periodo inicial (activo por defecto)
+      // 2. Definir periodo inicial (el activo por defecto o el ya seleccionado)
       const active = periodData.find((p: any) => p.es_activo)
       const currentId = selectedPeriodId || (active ? active.id : "")
-      if (!selectedPeriodId && active) setSelectedPeriodId(active.id)
+      
+      if (!selectedPeriodId && active) {
+        setSelectedPeriodId(active.id)
+      }
 
       if (currentId) {
-        // 3. Obtener carga académica del docente para ese periodo real
+        // 3. Obtener carga académica del docente para ese periodo específico
         const data = await api.get<any[]>(`/me/asignaciones/?periodo_id=${currentId}`)
         setAsignaciones(data)
       } else {
@@ -39,8 +42,8 @@ export default function InstructorDashboard() {
     } catch (err: any) {
       toast({ 
         variant: "destructive", 
-        title: "Error de Conexión", 
-        description: err.message || "No se pudo sincronizar la carga académica." 
+        title: "Error de Sincronización", 
+        description: err.message || "No se pudo conectar con el servidor para obtener tu carga académica." 
       })
     } finally {
       setIsLoading(false)
@@ -76,14 +79,20 @@ export default function InstructorDashboard() {
             <div className="flex flex-col">
               <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Periodo Lectivo</span>
               <Select value={selectedPeriodId} onValueChange={setSelectedPeriodId}>
-                <SelectTrigger className="h-9 w-[180px] border-none bg-slate-50 font-bold text-slate-900">
+                <SelectTrigger className="h-9 w-[200px] border-none bg-slate-50 font-bold text-slate-900 focus:ring-0">
                   <Calendar className="h-4 w-4 mr-2 text-primary" />
-                  <SelectValue placeholder="Ciclo Académico" />
+                  <SelectValue placeholder="Seleccione Ciclo" />
                 </SelectTrigger>
                 <SelectContent>
-                  {periods.map(p => (
-                    <SelectItem key={p.id} value={p.id}>{p.nombre} {p.es_activo && "(Activo)"}</SelectItem>
-                  ))}
+                  {periods.length > 0 ? (
+                    periods.map(p => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.nombre} {p.es_activo && "(Activo)"}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="none" disabled>No hay periodos creados</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -94,7 +103,7 @@ export default function InstructorDashboard() {
       {isLoading ? (
         <div className="h-96 flex flex-col items-center justify-center text-slate-400 gap-4">
           <Loader2 className="h-12 w-12 animate-spin text-primary" />
-          <p className="font-bold text-lg">Sincronizando con el servidor...</p>
+          <p className="font-bold text-lg">Sincronizando con FastAPI...</p>
         </div>
       ) : asignaciones.length > 0 ? (
         <div className="grid gap-6 md:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
@@ -124,15 +133,15 @@ export default function InstructorDashboard() {
                   <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
                     <Users className="h-4 w-4 text-primary" />
                     <div className="flex flex-col">
-                      <span className="text-[8px] font-black text-slate-400 uppercase">Ciclo</span>
-                      <span className="text-xs font-bold text-slate-700">Semestre {asg.semestre}</span>
+                      <span className="text-[8px] font-black text-slate-400 uppercase">Semestre</span>
+                      <span className="text-xs font-bold text-slate-700">{asg.semestre}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
                     <Clock className="h-4 w-4 text-indigo-500" />
                     <div className="flex flex-col">
                       <span className="text-[8px] font-black text-slate-400 uppercase">Estado</span>
-                      <span className="text-[10px] font-bold text-slate-700">Al Día</span>
+                      <span className="text-[10px] font-bold text-slate-700">Vigente</span>
                     </div>
                   </div>
                 </div>
@@ -155,11 +164,11 @@ export default function InstructorDashboard() {
           ))}
         </div>
       ) : (
-        <Card className="p-20 text-center border-dashed border-2 flex flex-col items-center gap-4 text-slate-400">
+        <Card className="p-20 text-center border-dashed border-2 flex flex-col items-center gap-4 text-slate-400 bg-white">
           <AlertCircle className="h-12 w-12 opacity-10" />
           <div className="space-y-1">
             <p className="font-bold text-lg text-slate-900">Sin carga académica</p>
-            <p className="text-sm">No tienes unidades asignadas para el periodo {periods.find(p => p.id === selectedPeriodId)?.nombre || selectedPeriodId}.</p>
+            <p className="text-sm">No se encontraron unidades asignadas para el periodo {periods.find(p => p.id === selectedPeriodId)?.nombre || "seleccionado"}.</p>
           </div>
           <Button variant="outline" className="mt-4 font-bold h-11 px-8" onClick={fetchData}>
             Reintentar Sincronización
