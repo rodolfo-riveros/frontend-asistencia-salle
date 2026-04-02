@@ -14,7 +14,8 @@ import {
   AlertCircle,
   FileSpreadsheet,
   CheckCircle2,
-  X
+  X,
+  Loader2
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -49,16 +50,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Progress } from "@/components/ui/progress"
 import { toast } from "@/hooks/use-toast"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
-
-const initialStudents = [
-  { id: "20241001", name: "Mateo Alvarez", program: "Desarrollo de Sistemas", semester: "III", status: "Regular" },
-  { id: "20241002", name: "Sofía Benitez", program: "Contabilidad", semester: "I", status: "Regular" },
-  { id: "20241003", name: "Jorge Castillo", program: "Desarrollo de Sistemas", semester: "V", status: "Egresado" },
-  { id: "20241004", name: "Valentina Díaz", program: "Turismo", semester: "II", status: "Observado" },
-]
+import { api } from "@/lib/api"
 
 export default function AdminStudentsPage() {
-  const [students, setStudents] = React.useState(initialStudents)
+  const [students, setStudents] = React.useState<any[]>([])
+  const [isLoading, setIsLoading] = React.useState(true)
   const [isModalOpen, setIsModalOpen] = React.useState(false)
   const [isImportOpen, setIsImportOpen] = React.useState(false)
   const [editingStudent, setEditingStudent] = React.useState<any>(null)
@@ -69,32 +65,60 @@ export default function AdminStudentsPage() {
   const [uploading, setUploading] = React.useState(false)
   const [progress, setProgress] = React.useState(0)
 
-  const handleSave = (e: React.FormEvent<HTMLFormElement>) => {
+  const fetchStudents = React.useCallback(async () => {
+    setIsLoading(true)
+    try {
+      const data = await api.get<any[]>('/students')
+      setStudents(data)
+    } catch (err: any) {
+      toast({ 
+        variant: "destructive", 
+        title: "Error de conexión", 
+        description: "No se pudieron cargar los alumnos del servidor." 
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  React.useEffect(() => {
+    fetchStudents()
+  }, [fetchStudents])
+
+  const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
     const studentData = {
-      id: editingStudent?.id || `2024${1000 + students.length + 1}`,
       name: formData.get("name") as string,
       program: formData.get("program") as string,
       semester: formData.get("semester") as string,
       status: formData.get("status") as string
     }
 
-    if (editingStudent) {
-      setStudents(prev => prev.map(s => s.id === editingStudent.id ? studentData : s))
-      toast({ title: "Matrícula actualizada", description: "El registro del alumno fue modificado." })
-    } else {
-      setStudents(prev => [...prev, studentData])
-      toast({ title: "Alumno matriculado", description: "Se ha registrado al nuevo estudiante con éxito." })
+    try {
+      if (editingStudent) {
+        await api.put(`/students/${editingStudent.id}`, studentData)
+        toast({ title: "Matrícula actualizada", description: "El registro del alumno fue modificado." })
+      } else {
+        await api.post('/students', studentData)
+        toast({ title: "Alumno matriculado", description: "Se ha registrado al nuevo estudiante con éxito." })
+      }
+      fetchStudents()
+      setIsModalOpen(false)
+      setEditingStudent(null)
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Error al guardar", description: err.message })
     }
-    
-    setIsModalOpen(false)
-    setEditingStudent(null)
   }
 
-  const handleDelete = (id: string) => {
-    setStudents(prev => prev.filter(s => s.id !== id))
-    toast({ variant: "destructive", title: "Alumno retirado", description: "La matrícula fue cancelada." })
+  const handleDelete = async (id: string) => {
+    try {
+      await api.delete(`/students/${id}`)
+      setStudents(prev => prev.filter(s => s.id !== id))
+      toast({ variant: "destructive", title: "Alumno retirado", description: "La matrícula fue cancelada." })
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Error", description: "No se pudo eliminar el registro." })
+    }
   }
 
   const handleDrag = (e: React.DragEvent) => {
@@ -126,14 +150,15 @@ export default function AdminStudentsPage() {
       if (p >= 100) {
         clearInterval(interval)
         setUploading(false)
-        toast({ title: "Importación completa", description: "Se han añadido 245 nuevos alumnos al padrón." })
+        toast({ title: "Importación completa", description: "Se han procesado los registros del archivo." })
+        fetchStudents()
       }
     }, 200)
   }
 
-  const filteredStudents = students.filter(s => 
+  const filteredStudents = (students || []).filter(s => 
     s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    s.id.includes(searchTerm)
+    s.id?.toString().includes(searchTerm)
   )
 
   return (
@@ -153,8 +178,8 @@ export default function AdminStudentsPage() {
             </DialogTrigger>
             <DialogContent className="sm:max-w-[600px] w-[95vw]">
               <DialogHeader>
-                <DialogTitle>Importación Masiva</DialogTitle>
-                <DialogDescription>Sube tu archivo .xlsx o .xls con el formato oficial.</DialogDescription>
+                <DialogTitle>Importación Masiva desde FastAPI</DialogTitle>
+                <DialogDescription>Sube tu archivo .xlsx o .xls para procesar los registros.</DialogDescription>
               </DialogHeader>
               <div className="space-y-6 py-4">
                 {!file ? (
@@ -200,7 +225,7 @@ export default function AdminStudentsPage() {
                     {uploading ? (
                       <div className="space-y-2">
                         <div className="flex justify-between text-[10px] md:text-xs font-bold text-primary">
-                          <span>Procesando...</span>
+                          <span>Enviando al servidor...</span>
                           <span>{progress}%</span>
                         </div>
                         <Progress value={progress} className="h-1.5" />
@@ -309,75 +334,82 @@ export default function AdminStudentsPage() {
       <Card className="border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
         <CardContent className="p-0">
           <ScrollArea className="w-full">
-            <Table>
-              <TableHeader className="bg-slate-50/50">
-                <TableRow className="hover:bg-transparent border-none">
-                  <TableHead className="w-[60px] md:w-[80px] pl-4 md:pl-6"></TableHead>
-                  <TableHead className="font-bold text-slate-400 uppercase text-[9px] md:text-[10px] tracking-widest min-w-[150px]">Estudiante</TableHead>
-                  <TableHead className="font-bold text-slate-400 uppercase text-[9px] md:text-[10px] tracking-widest min-w-[120px]">Programa</TableHead>
-                  <TableHead className="font-bold text-slate-400 uppercase text-[9px] md:text-[10px] tracking-widest text-center">Ciclo</TableHead>
-                  <TableHead className="font-bold text-slate-400 uppercase text-[9px] md:text-[10px] tracking-widest">Condición</TableHead>
-                  <TableHead className="w-[60px] md:w-[80px] pr-4 md:pr-6 text-right"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredStudents.length > 0 ? (
-                  filteredStudents.map((student) => (
-                    <TableRow key={student.id} className="group hover:bg-slate-50/50 transition-colors">
-                      <TableCell className="pl-4 md:pl-6 py-3">
-                        <Avatar className="h-8 w-8 md:h-10 md:w-10 border-2 border-white shadow-sm shrink-0">
-                          <AvatarImage src={`https://picsum.photos/seed/${student.id}/200/200`} />
-                          <AvatarFallback>{student.name[0]}</AvatarFallback>
-                        </Avatar>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col min-w-0">
-                          <span className="font-bold text-slate-900 text-xs md:text-sm truncate">{student.name}</span>
-                          <span className="text-[10px] text-slate-400 font-mono">ID: {student.id}</span>
+            {isLoading ? (
+              <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-3">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="text-sm font-medium">Conectando con FastAPI...</p>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader className="bg-slate-50/50">
+                  <TableRow className="hover:bg-transparent border-none">
+                    <TableHead className="w-[60px] md:w-[80px] pl-4 md:pl-6"></TableHead>
+                    <TableHead className="font-bold text-slate-400 uppercase text-[9px] md:text-[10px] tracking-widest min-w-[150px]">Estudiante</TableHead>
+                    <TableHead className="font-bold text-slate-400 uppercase text-[9px] md:text-[10px] tracking-widest min-w-[120px]">Programa</TableHead>
+                    <TableHead className="font-bold text-slate-400 uppercase text-[9px] md:text-[10px] tracking-widest text-center">Ciclo</TableHead>
+                    <TableHead className="font-bold text-slate-400 uppercase text-[9px] md:text-[10px] tracking-widest">Condición</TableHead>
+                    <TableHead className="w-[60px] md:w-[80px] pr-4 md:pr-6 text-right"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredStudents.length > 0 ? (
+                    filteredStudents.map((student) => (
+                      <TableRow key={student.id} className="group hover:bg-slate-50/50 transition-colors">
+                        <TableCell className="pl-4 md:pl-6 py-3">
+                          <Avatar className="h-8 w-8 md:h-10 md:w-10 border-2 border-white shadow-sm shrink-0">
+                            <AvatarImage src={`https://picsum.photos/seed/${student.id}/200/200`} />
+                            <AvatarFallback>{student.name[0]}</AvatarFallback>
+                          </Avatar>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col min-w-0">
+                            <span className="font-bold text-slate-900 text-xs md:text-sm truncate">{student.name}</span>
+                            <span className="text-[10px] text-slate-400 font-mono">ID: {student.id}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1.5 text-slate-500 text-[10px] md:text-xs">
+                            <GraduationCap className="h-3 w-3 shrink-0" /> <span className="truncate">{student.program}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Badge className="bg-slate-100 text-slate-600 border-none font-bold text-[9px] md:text-xs">Sem {student.semester}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <StatusBadge status={student.status} />
+                        </TableCell>
+                        <TableCell className="pr-4 md:pr-6 text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="rounded-full h-8 w-8">
+                                <MoreVertical className="h-4 w-4 text-slate-400" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-32">
+                              <DropdownMenuItem className="gap-2 text-xs" onClick={() => { setEditingStudent(student); setIsModalOpen(true); }}>
+                                <Edit2 className="h-3 w-3" /> Editar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem className="gap-2 text-destructive text-xs" onClick={() => handleDelete(student.id)}>
+                                <Trash2 className="h-3 w-3" /> Retirar
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={6} className="h-32 text-center text-slate-400">
+                        <div className="flex flex-col items-center gap-2">
+                          <AlertCircle className="h-6 w-6 opacity-20" />
+                          <span className="text-sm">Sin resultados en el servidor.</span>
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1.5 text-slate-500 text-[10px] md:text-xs">
-                          <GraduationCap className="h-3 w-3 shrink-0" /> <span className="truncate">{student.program}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Badge className="bg-slate-100 text-slate-600 border-none font-bold text-[9px] md:text-xs">Sem {student.semester}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <StatusBadge status={student.status} />
-                      </TableCell>
-                      <TableCell className="pr-4 md:pr-6 text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="rounded-full h-8 w-8">
-                              <MoreVertical className="h-4 w-4 text-slate-400" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-32">
-                            <DropdownMenuItem className="gap-2 text-xs" onClick={() => { setEditingStudent(student); setIsModalOpen(true); }}>
-                              <Edit2 className="h-3 w-3" /> Editar
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="gap-2 text-destructive text-xs" onClick={() => handleDelete(student.id)}>
-                              <Trash2 className="h-3 w-3" /> Retirar
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={6} className="h-32 text-center text-slate-400">
-                      <div className="flex flex-col items-center gap-2">
-                        <AlertCircle className="h-6 w-6 opacity-20" />
-                        <span className="text-sm">Sin resultados.</span>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+                  )}
+                </TableBody>
+              </Table>
+            )}
             <ScrollBar orientation="horizontal" />
           </ScrollArea>
         </CardContent>
