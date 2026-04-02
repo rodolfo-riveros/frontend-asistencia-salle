@@ -94,7 +94,8 @@ export default function AdminStudentsPage() {
 
     try {
       if (editingStudent) {
-        await api.patch(`/alumnos/${editingStudent.id}`, studentData)
+        // Se usa PUT y barra diagonal final
+        await api.put(`/alumnos/${editingStudent.id}/`, studentData)
         toast({ title: "Datos actualizados", description: "Matrícula modificada con éxito." })
       } else {
         await api.post('/alumnos/', studentData)
@@ -113,7 +114,7 @@ export default function AdminStudentsPage() {
   const handleDelete = async (id: string) => {
     if(!confirm("¿Desea retirar a este estudiante de la matrícula?")) return
     try {
-      await api.delete(`/alumnos/${id}`)
+      await api.delete(`/alumnos/${id}/`)
       toast({ title: "Alumno retirado" })
       fetchData()
     } catch (err: any) {

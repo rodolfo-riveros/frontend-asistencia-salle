@@ -82,7 +82,8 @@ export default function AdminProgramsPage() {
 
     try {
       if (editingProgram) {
-        await api.patch(`/programas/${editingProgram.id}`, payload)
+        // Se usa PUT y barra diagonal final
+        await api.put(`/programas/${editingProgram.id}/`, payload)
         toast({ title: "Programa actualizado" })
       } else {
         await api.post('/programas/', payload)
@@ -101,7 +102,7 @@ export default function AdminProgramsPage() {
   const handleDelete = async (id: string) => {
     if(!confirm("¿Desea eliminar este programa?")) return
     try {
-      await api.delete(`/programas/${id}`)
+      await api.delete(`/programas/${id}/`)
       toast({ title: "Programa eliminado" })
       fetchPrograms()
     } catch (err: any) {
