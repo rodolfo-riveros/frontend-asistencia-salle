@@ -40,7 +40,6 @@ const adminNav = [
   { name: "Cuerpo Docente", href: "/admin/instructors", icon: UserRound },
   { name: "Asignación Académica", href: "/admin/assignments", icon: ClipboardList },
   { name: "Padrón de Alumnos", href: "/admin/students", icon: Users },
-  { name: "Importación de Datos", href: "/admin/import", icon: FileUp },
 ]
 
 const instructorNav = [

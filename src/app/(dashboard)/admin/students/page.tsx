@@ -9,9 +9,12 @@ import {
   Edit2, 
   Trash2, 
   GraduationCap,
-  Download,
+  FileUp,
   Filter,
-  AlertCircle
+  AlertCircle,
+  FileSpreadsheet,
+  CheckCircle2,
+  X
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -43,6 +46,7 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Progress } from "@/components/ui/progress"
 import { toast } from "@/hooks/use-toast"
 
 const initialStudents = [
@@ -55,8 +59,15 @@ const initialStudents = [
 export default function AdminStudentsPage() {
   const [students, setStudents] = React.useState(initialStudents)
   const [isModalOpen, setIsModalOpen] = React.useState(false)
+  const [isImportOpen, setIsImportOpen] = React.useState(false)
   const [editingStudent, setEditingStudent] = React.useState<any>(null)
   const [searchTerm, setSearchTerm] = React.useState("")
+
+  // Estados para Importación
+  const [isDragging, setIsDragging] = React.useState(false)
+  const [file, setFile] = React.useState<File | null>(null)
+  const [uploading, setUploading] = React.useState(false)
+  const [progress, setProgress] = React.useState(0)
 
   const handleSave = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -86,6 +97,41 @@ export default function AdminStudentsPage() {
     toast({ variant: "destructive", title: "Alumno retirado", description: "La matrícula fue cancelada." })
   }
 
+  // Lógica de Importación
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setIsDragging(true)
+    } else if (e.type === "dragleave") {
+      setIsDragging(false)
+    }
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+    const droppedFile = e.dataTransfer.files[0]
+    if (droppedFile && (droppedFile.name.endsWith('.xlsx') || droppedFile.name.endsWith('.xls'))) {
+      setFile(droppedFile)
+    }
+  }
+
+  const startUpload = () => {
+    setUploading(true)
+    let p = 0
+    const interval = setInterval(() => {
+      p += 10
+      setProgress(p)
+      if (p >= 100) {
+        clearInterval(interval)
+        setUploading(false)
+        toast({ title: "Importación completa", description: "Se han añadido 245 nuevos alumnos al padrón." })
+      }
+    }, 200)
+  }
+
   const filteredStudents = students.filter(s => 
     s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
     s.id.includes(searchTerm)
@@ -100,9 +146,101 @@ export default function AdminStudentsPage() {
           <p className="text-slate-500 text-sm">Control total de la matrícula y estado académico de los estudiantes.</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2 h-11">
-            <Download className="h-4 w-4" /> Exportar
-          </Button>
+          {/* Modal de Importación */}
+          <Dialog open={isImportOpen} onOpenChange={(open) => { setIsImportOpen(open); if(!open) { setFile(null); setProgress(0); setUploading(false); } }}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="gap-2 h-11 border-primary/20 hover:bg-primary/5 text-primary">
+                <FileUp className="h-4 w-4" /> Importar desde Excel
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[600px]">
+              <DialogHeader>
+                <DialogTitle>Importación Masiva de Alumnos</DialogTitle>
+                <DialogDescription>Sube tu archivo .xlsx o .xls siguiendo el formato institucional.</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-6 py-4">
+                {!file ? (
+                  <div
+                    onDragEnter={handleDrag}
+                    onDragOver={handleDrag}
+                    onDragLeave={handleDrag}
+                    onDrop={handleDrop}
+                    className={`
+                      border-2 border-dashed rounded-xl p-12 transition-all cursor-pointer
+                      flex flex-col items-center justify-center text-center gap-4
+                      ${isDragging ? 'border-primary bg-primary/5' : 'border-slate-200 hover:border-primary/50'}
+                    `}
+                    onClick={() => document.getElementById('fileInput')?.click()}
+                  >
+                    <div className="p-4 bg-primary/10 rounded-full">
+                      <FileUp className="h-10 w-10 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-lg font-bold text-slate-900">Arrastra tu Excel aquí</p>
+                      <p className="text-sm text-slate-500">o haz clic para seleccionar archivo</p>
+                    </div>
+                    <input
+                      id="fileInput"
+                      type="file"
+                      className="hidden"
+                      accept=".xlsx, .xls"
+                      onChange={(e) => setFile(e.target.files?.[0] || null)}
+                    />
+                  </div>
+                ) : (
+                  <div className="border rounded-xl p-6 bg-slate-50/50 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="p-2 bg-green-100 rounded-lg text-green-600">
+                          <FileSpreadsheet className="h-8 w-8" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-900">{file.name}</p>
+                          <p className="text-xs text-slate-500">{(file.size / 1024).toFixed(2)} KB</p>
+                        </div>
+                      </div>
+                      {!uploading && progress < 100 && (
+                        <Button variant="ghost" size="icon" onClick={() => setFile(null)}>
+                          <X className="h-4 w-4 text-slate-400" />
+                        </Button>
+                      )}
+                    </div>
+
+                    {uploading ? (
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-xs font-bold text-primary">
+                          <span>Procesando registros...</span>
+                          <span>{progress}%</span>
+                        </div>
+                        <Progress value={progress} className="h-2" />
+                      </div>
+                    ) : progress === 100 ? (
+                      <div className="flex items-center gap-2 text-green-600 bg-green-50 p-4 rounded-lg text-sm font-bold">
+                        <CheckCircle2 className="h-5 w-5" />
+                        <span>¡245 alumnos importados correctamente!</span>
+                      </div>
+                    ) : (
+                      <Button onClick={startUpload} className="w-full bg-primary h-12 text-base shadow-lg shadow-primary/20">
+                        Iniciar Procesamiento
+                      </Button>
+                    )}
+                  </div>
+                )}
+                
+                <div className="p-4 bg-amber-50 rounded-lg text-amber-700 border border-amber-100 flex gap-3">
+                  <AlertCircle className="h-5 w-5 shrink-0" />
+                  <div className="space-y-1">
+                    <p className="text-xs font-bold uppercase tracking-widest">Requisito de Formato</p>
+                    <p className="text-xs leading-relaxed">Asegúrate de que la columna DNI sea obligatoria y única. Puedes descargar la <span className="underline cursor-pointer">plantilla oficial aquí</span>.</p>
+                  </div>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="ghost" onClick={() => setIsImportOpen(false)}>Cerrar</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if(!open) setEditingStudent(null); }}>
             <DialogTrigger asChild>
               <Button className="bg-primary hover:bg-primary/90 gap-2 shadow-lg shadow-primary/20 h-11 px-6">
@@ -254,8 +392,7 @@ export default function AdminStudentsPage() {
                       <AlertCircle className="h-8 w-8 opacity-20" />
                       No se encontraron estudiantes registrados.
                     </div>
-                  </TableCell>
-                </TableRow>
+                  </TableRow>
               )}
             </TableBody>
           </Table>
