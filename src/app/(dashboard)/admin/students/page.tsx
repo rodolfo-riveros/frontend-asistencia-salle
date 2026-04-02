@@ -35,6 +35,7 @@ import { Badge } from "@/components/ui/badge"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -67,7 +68,7 @@ export default function AdminStudentsPage() {
       toast({ 
         variant: "destructive", 
         title: "Error", 
-        description: "No se pudieron cargar los alumnos." 
+        description: "No se pudieron cargar los alumnos del servidor." 
       })
     } finally {
       setIsLoading(false)
@@ -92,7 +93,7 @@ export default function AdminStudentsPage() {
     try {
       if (editingStudent) {
         await api.patch(`/alumnos/${editingStudent.id}`, studentData)
-        toast({ title: "Datos actualizados", description: "La matrícula del alumno fue modificada." })
+        toast({ title: "Datos actualizados", description: "La matrícula del alumno fue modificada con éxito." })
       } else {
         await api.post('/alumnos/', studentData)
         toast({ title: "Matrícula Exitosa", description: "El alumno ha sido registrado en el sistema." })
@@ -101,7 +102,7 @@ export default function AdminStudentsPage() {
       setIsModalOpen(false)
       setEditingStudent(null)
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Error", description: err.message })
+      toast({ variant: "destructive", title: "Error al guardar", description: err.message })
     } finally {
       setIsSaving(false)
     }
@@ -111,10 +112,10 @@ export default function AdminStudentsPage() {
     if(!confirm("¿Desea retirar a este estudiante de la matrícula?")) return
     try {
       await api.delete(`/alumnos/${id}`)
-      toast({ title: "Alumno retirado", description: "El registro fue eliminado con éxito." })
+      toast({ title: "Alumno retirado", description: "El registro fue eliminado correctamente." })
       fetchData()
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Error", description: err.message })
+      toast({ variant: "destructive", title: "Error al eliminar", description: err.message })
     }
   }
 
@@ -194,7 +195,7 @@ export default function AdminStudentsPage() {
       <div className="relative mb-6">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
         <Input 
-          placeholder="Buscador inteligente: busca por DNI, Nombre o Carrera..." 
+          placeholder="Buscador inteligente: filtra por DNI, Nombre o Carrera..." 
           className="pl-11 h-11 bg-white border-slate-100 shadow-sm"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
