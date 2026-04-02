@@ -5,7 +5,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { GraduationCap, Mail, Lock, Eye, LogIn, ShieldCheck, Loader2 } from 'lucide-react';
+import { GraduationCap, Mail, Lock, Eye, LogIn, ShieldCheck, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,26 +13,27 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function LoginPage() {
   const router = useRouter();
   const [showPassword, setShowPassword] = React.useState(false);
   const [currentYear, setCurrentYear] = React.useState<number | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
+  const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
 
   const sjbImage = PlaceHolderImages.find(img => img.id === 'sjb-avatar')?.imageUrl || "https://picsum.photos/seed/sjb/200/200";
 
   React.useEffect(() => {
     setCurrentYear(new Date().getFullYear());
-    router.prefetch('/admin');
-    router.prefetch('/instructor');
-  }, [router]);
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isLoading) return;
     
     setIsLoading(true);
+    setErrorMessage(null);
 
     const formData = new FormData(e.currentTarget as HTMLFormElement);
     const email = formData.get('email') as string;
@@ -48,14 +49,12 @@ export default function LoginPage() {
 
       if (data.session && data.user) {
         localStorage.setItem('supabase_access_token', data.session.access_token);
-        
         const metadata = data.user.user_metadata;
         const role = metadata?.role;
-        const firstName = metadata?.firstname || 'Usuario';
         
         toast({
           title: "Acceso Exitoso",
-          description: `Bienvenido al sistema, ${firstName}.`,
+          description: `Bienvenido, ${metadata?.firstname || 'Usuario'}.`,
         });
 
         if (role === 'admin') {
@@ -66,22 +65,18 @@ export default function LoginPage() {
       }
     } catch (error: any) {
       console.error("Login Error:", error);
+      let msg = "Error al iniciar sesión. Inténtelo de nuevo.";
       
-      let errorMessage = "Credenciales inválidas. Por favor, intente de nuevo.";
-      
-      if (error.message?.includes("API key")) {
-        errorMessage = "Error de configuración: La clave API de Supabase no es válida. Contacte al administrador.";
-      } else if (error.message === "Failed to fetch") {
-        errorMessage = "Error de conexión: No se pudo contactar con el servidor de autenticación.";
-      } else if (error.message) {
-        errorMessage = error.message;
+      if (error.message?.includes("Failed to fetch")) {
+        msg = "Error de conexión: No se pudo contactar con Supabase. Verifique su internet.";
+      } else if (error.message?.includes("Invalid login credentials")) {
+        msg = "Usuario o contraseña incorrectos.";
+      } else {
+        msg = error.message;
       }
-
-      toast({
-        variant: "destructive",
-        title: "Error de Acceso",
-        description: errorMessage,
-      });
+      
+      setErrorMessage(msg);
+      toast({ variant: "destructive", title: "Acceso Denegado", description: msg });
     } finally {
       setIsLoading(false);
     }
@@ -149,6 +144,14 @@ export default function LoginPage() {
               <p className="text-slate-500 text-sm">Ingresa tus credenciales institucionales para acceder.</p>
             </div>
 
+            {errorMessage && (
+              <Alert variant="destructive" className="mb-6">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Error de Acceso</AlertTitle>
+                <AlertDescription>{errorMessage}</AlertDescription>
+              </Alert>
+            )}
+
             <form className="space-y-6" onSubmit={handleLogin}>
               <div className="space-y-2">
                 <Label className="text-xs font-semibold uppercase tracking-widest text-slate-500" htmlFor="email">
@@ -194,43 +197,21 @@ export default function LoginPage() {
                   </button>
                 </div>
               </div>
-              <div className="flex items-center space-x-3">
-                <Checkbox id="remember" className="w-5 h-5" />
-                <Label className="text-sm text-slate-500 font-normal cursor-pointer" htmlFor="remember">
-                  Mantener sesión activa
-                </Label>
-              </div>
               <Button 
                 type="submit" 
                 disabled={isLoading}
                 className="w-full py-6 bg-primary hover:bg-primary/90 text-white font-bold rounded-lg shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2"
               >
-                {isLoading ? (
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="animate-spin h-5 w-5" />
-                    <span>Iniciando sesión...</span>
-                  </div>
-                ) : (
-                  <>
-                    <span>Acceder al Portal</span>
-                    <LogIn className="w-5 h-5" />
-                  </>
-                )}
+                {isLoading ? <Loader2 className="animate-spin h-5 w-5" /> : <LogIn className="w-5 h-5" />}
+                {isLoading ? "Iniciando sesión..." : "Acceder al Portal"}
               </Button>
 
               <div className="text-center pt-4">
-                <p className="text-slate-500 text-sm mb-4">¿Aún no tienes acceso?</p>
                 <Button variant="outline" className="w-full py-6 border-2 border-primary/10 text-primary font-bold rounded-lg hover:bg-slate-50" asChild>
                   <Link href="/register">Registrarse ahora</Link>
                 </Button>
               </div>
             </form>
-            <div className="mt-12 pt-8 border-t border-slate-100 text-center flex items-center justify-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-slate-400" />
-              <p className="text-[10px] text-slate-400 uppercase tracking-widest font-medium">
-                Acceso Protegido - IES LA SALLE URUBAMBA
-              </p>
-            </div>
           </div>
         </div>
       </main>

@@ -1,9 +1,9 @@
 
 /**
- * @fileOverview Utilidad centralizada para realizar peticiones al backend de FastAPI v1.
- * Optimizado para producción (Render / Railway).
+ * @fileOverview Utilidad centralizada para realizar peticiones al backend de FastAPI en Render.
  */
 
+// URL oficial de tu backend desplegado en Render
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://backend-asistencia-salle.onrender.com';
 const API_VERSION = '/api/v1';
 
@@ -29,33 +29,28 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
     });
 
     if (!response.ok) {
-      let detail = 'Error desconocido en el servidor';
+      let detail = 'Error en el servidor académico';
       try {
         const errorData = await response.json();
         detail = errorData.detail || detail;
-        if (Array.isArray(detail)) {
-          detail = detail.map((d: any) => `${d.loc?.join('.') || 'error'}: ${d.msg}`).join(', ');
-        }
       } catch (e) {
         detail = `Error ${response.status}: ${response.statusText}`;
       }
       throw new Error(detail);
     }
 
-    if (response.status === 204) {
-      return {} as T;
-    }
-
+    if (response.status === 204) return {} as T;
     return response.json();
   } catch (err: any) {
-    // Error específico de conexión (CORS o Servidor Apagado)
+    // Diagnóstico detallado para errores de conexión
     if (err instanceof TypeError && (err.message === 'Failed to fetch' || err.message.includes('fetch'))) {
+      console.error("Error de Red Crítico:", url);
       throw new Error(
-        `No se pudo conectar con el servidor en: ${API_BASE_URL}. \n\n` +
-        `Acciones recomendadas:\n` +
-        `1. Espere 1 minuto (Render suele tardar en despertar).\n` +
-        `2. Verifique que la URL de este navegador esté en ALLOWED_ORIGINS de su backend.\n` +
-        `3. Revise los logs de Render para ver si el servidor está activo.`
+        "No se pudo conectar con el servidor en: " + API_BASE_URL + ". \n\n" +
+        "Acciones recomendadas: \n" +
+        "1. Espere 1 minuto (Render suele tardar en despertar). \n" +
+        "2. Verifique que la URL de este navegador esté en ALLOWED_ORIGINS de su backend. \n" +
+        "3. Revise los logs de Render para ver si el servidor está activo."
       );
     }
     throw err;

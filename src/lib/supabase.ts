@@ -1,45 +1,40 @@
 
 /**
- * @fileOverview Inicialización ultra-robusta del cliente de Supabase.
- * Prioriza las claves de producción reales para evitar errores de "Invalid API key".
+ * @fileOverview Inicialización ultra-robusta del cliente de Supabase con validación de entorno.
  */
 import { createClient } from '@supabase/supabase-js';
 
-const envUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const envKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-// TUS CLAVES REALES (Funcionan como base sólida)
-const PRODUCTION_URL = 'https://zpavojcvnmofltntmkhx.supabase.co';
-const PRODUCTION_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpwYXZvamN2bm1vZmx0bnRta2h4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxMDA0NDcsImV4cCI6MjA5MDY3NjQ0N30.1vSWf5WoG4f-icVXLqPEne7gU4KzDKsN6Ye_RVXnm9M';
+// Valores reales de producción como respaldo (Fallback)
+const FALLBACK_URL = 'https://zpavojcvnmofltntmkhx.supabase.co';
+const FALLBACK_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpwYXZvamN2bm1vZmx0bnRta2h4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxMDA0NDcsImV4cCI6MjA5MDY3NjQ0N30.1vSWf5WoG4f-icVXLqPEne7gU4KzDKsN6Ye_RVXnm9M';
 
 /**
- * Valida si un valor es una clave real y no un placeholder de configuración.
+ * Obtiene una URL válida de Supabase, priorizando variables de entorno
+ * pero asegurando un formato correcto de URL para evitar errores de inicialización.
  */
-const isRealValue = (val: string | undefined): val is string => {
-  if (!val || val === 'undefined' || val === 'null' || val === '') return false;
-  if (val.length < 30) return false; // Las claves de Supabase son significativamente largas
-  if (val.includes('placeholder') || val.includes('YOUR_')) return false;
-  return true;
-};
-
-/**
- * Valida si la URL tiene un formato correcto.
- */
-const isRealUrl = (url: string | undefined): url is string => {
-  if (!isRealValue(url)) return false;
-  try {
-    const parsed = new URL(url);
-    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
-  } catch {
-    return false;
+const getValidSupabaseUrl = (): string => {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!url || url === 'undefined' || url === 'null' || !url.startsWith('http')) {
+    return FALLBACK_URL;
   }
+  return url;
 };
 
-// Selección final: Si el entorno no tiene una clave real válida, usamos la de producción.
-const finalUrl = isRealUrl(envUrl) ? envUrl : PRODUCTION_URL;
-const finalKey = isRealValue(envKey) ? envKey : PRODUCTION_KEY;
+/**
+ * Obtiene una clave válida de Supabase.
+ */
+const getValidSupabaseKey = (): string => {
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!key || key === 'undefined' || key === 'null' || key.length < 50) {
+    return FALLBACK_KEY;
+  }
+  return key;
+};
 
-export const supabase = createClient(finalUrl, finalKey, {
+const supabaseUrl = getValidSupabaseUrl();
+const supabaseKey = getValidSupabaseKey();
+
+export const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
