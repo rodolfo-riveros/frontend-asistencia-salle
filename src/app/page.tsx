@@ -1,81 +1,184 @@
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { GraduationCap, ShieldCheck, Users } from 'lucide-react';
+"use client"
 
-export default function Home() {
+import * as React from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { GraduationCap, Mail, Lock, Eye, LogIn, ChevronRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+
+export default function LoginPage() {
+  const router = useRouter();
+  const [showPassword, setShowPassword] = React.useState(false);
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Simulación de login: redirigir a instructor por defecto para propósitos del prototipo
+    router.push('/instructor');
+  };
+
   return (
-    <div className="flex flex-col min-h-screen bg-background">
-      <header className="px-4 lg:px-6 h-16 flex items-center border-b bg-white">
-        <Link className="flex items-center justify-center" href="/">
-          <GraduationCap className="h-6 w-6 text-primary" />
-          <span className="ml-2 text-xl font-bold text-primary">PresenciaTech</span>
-        </Link>
-        <nav className="ml-auto flex gap-4 sm:gap-6">
-          <Link className="text-sm font-medium hover:underline underline-offset-4" href="/login">
-            Iniciar Sesión
-          </Link>
-          <Link className="text-sm font-medium hover:underline underline-offset-4" href="/register">
-            Registrarse
-          </Link>
-        </nav>
-      </header>
-      <main className="flex-1">
-        <section className="w-full py-12 md:py-24 lg:py-32 xl:py-48 flex justify-center">
-          <div className="container px-4 md:px-6">
-            <div className="flex flex-col items-center space-y-4 text-center">
-              <div className="space-y-2">
-                <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl lg:text-6xl/none text-primary">
-                  Gestión Inteligente de Asistencia
-                </h1>
-                <p className="mx-auto max-w-[700px] text-muted-foreground md:text-xl">
-                  Optimiza el seguimiento de tus estudiantes con PresenciaTech. Diseñado específicamente para educación técnica superior.
+    <div className="bg-background text-foreground min-h-screen flex flex-col">
+      <main className="flex-grow flex items-center justify-center p-6 md:p-12">
+        <div className="max-w-6xl w-full grid grid-cols-1 md:grid-cols-2 bg-white rounded-xl overflow-hidden shadow-[0_12px_32px_-4px_rgba(25,28,29,0.06)]">
+          
+          {/* Columna Izquierda: Branding */}
+          <div className="hidden md:flex flex-col justify-between p-12 bg-primary relative overflow-hidden text-white">
+            {/* Overlay decorativo */}
+            <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '32px 32px' }}></div>
+            
+            <div className="z-10">
+              <div className="flex items-center gap-3 mb-12">
+                <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center shadow-lg">
+                  <GraduationCap className="text-primary w-8 h-8" />
+                </div>
+                <h1 className="font-bold text-2xl tracking-tight">Precisión Académica</h1>
+              </div>
+              <div className="space-y-6">
+                <h2 className="text-4xl font-bold leading-tight max-w-sm">
+                  Gestión Redefinida para la Educación Superior.
+                </h2>
+                <p className="text-blue-100 text-lg font-medium opacity-90 max-w-xs">
+                  Rastrea, gestiona y cura datos institucionales de forma segura con herramientas diseñadas para la excelencia técnica.
                 </p>
               </div>
-              <div className="space-x-4">
-                <Button asChild size="lg">
-                  <Link href="/login">Comenzar Ahora</Link>
-                </Button>
-                <Button variant="outline" size="lg" asChild>
-                  <Link href="/register">Saber Más</Link>
-                </Button>
+            </div>
+
+            <div className="z-10 mt-auto">
+              <div className="p-6 bg-white/10 backdrop-blur-md rounded-xl border border-white/10">
+                <p className="text-sm italic font-medium leading-relaxed">
+                  "El Portal de Precisión ha transformado cómo nuestra facultad maneja la asistencia, ahorrando cientos de horas administrativas por semestre."
+                </p>
+                <div className="mt-4 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-blue-800 overflow-hidden border border-white/20">
+                    <img 
+                      alt="avatar" 
+                      className="w-full h-full object-cover" 
+                      src="https://picsum.photos/seed/vance/200/200" 
+                    />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold">Dra. Helena Vance</p>
+                    <p className="text-blue-200 text-[10px] uppercase tracking-widest">Decana de Ingeniería</p>
+                  </div>
+                </div>
               </div>
             </div>
+            
+            {/* Gráfico decorativo */}
+            <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-blue-700 rounded-full blur-3xl opacity-50"></div>
           </div>
-        </section>
-        <section className="w-full py-12 md:py-24 lg:py-32 bg-white flex justify-center">
-          <div className="container px-4 md:px-6">
-            <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-3">
-              <div className="flex flex-col items-center space-y-4 text-center">
-                <div className="bg-background p-3 rounded-full">
-                  <ShieldCheck className="h-10 w-10 text-primary" />
+
+          {/* Columna Derecha: Formulario */}
+          <div className="p-8 md:p-16 flex flex-col justify-center bg-white">
+            <div className="md:hidden flex items-center gap-2 mb-10">
+              <GraduationCap className="text-primary w-6 h-6" />
+              <span className="font-bold text-xl text-primary">Precisión Académica</span>
+            </div>
+            
+            <div className="mb-10 text-left">
+              <h3 className="text-2xl font-bold text-slate-900 mb-2">Acceso al Portal</h3>
+              <p className="text-slate-500 text-sm">Por favor, identifícate con tus credenciales institucionales.</p>
+            </div>
+
+            <form className="space-y-6" onSubmit={handleLogin}>
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold uppercase tracking-widest text-slate-500" htmlFor="email">
+                  Correo Institucional
+                </Label>
+                <div className="relative group">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 transition-colors group-focus-within:text-primary" />
+                  <Input 
+                    className="w-full bg-slate-100 border-none rounded-lg py-6 pl-12 pr-4 focus-visible:ring-1 focus-visible:ring-primary text-slate-900 placeholder:text-slate-400" 
+                    id="email" 
+                    placeholder="nombre@universidad.edu.pe" 
+                    type="email" 
+                    required 
+                  />
                 </div>
-                <h3 className="text-xl font-bold">Seguro y Confiable</h3>
-                <p className="text-muted-foreground">Autenticación robusta y roles de usuario definidos para proteger la información académica.</p>
               </div>
-              <div className="flex flex-col items-center space-y-4 text-center">
-                <div className="bg-background p-3 rounded-full">
-                  <Users className="h-10 w-10 text-accent" />
+
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <Label className="text-xs font-semibold uppercase tracking-widest text-slate-500" htmlFor="password">
+                    Contraseña Segura
+                  </Label>
+                  <Link href="#" className="text-[10px] font-bold text-primary hover:underline uppercase tracking-wider">
+                    ¿Olvidaste tu contraseña?
+                  </Link>
                 </div>
-                <h3 className="text-xl font-bold">Optimizado para el Aula</h3>
-                <p className="text-muted-foreground">Interfaz diseñada para tablets y móviles. Pasa lista en segundos con botones de acción rápida.</p>
-              </div>
-              <div className="flex flex-col items-center space-y-4 text-center">
-                <div className="bg-background p-3 rounded-full">
-                  <GraduationCap className="h-10 w-10 text-primary" />
+                <div className="relative group">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 transition-colors group-focus-within:text-primary" />
+                  <Input 
+                    className="w-full bg-slate-100 border-none rounded-lg py-6 pl-12 pr-12 focus-visible:ring-1 focus-visible:ring-primary text-slate-900 placeholder:text-slate-400" 
+                    id="password" 
+                    placeholder="••••••••" 
+                    type={showPassword ? "text" : "password"} 
+                    required 
+                  />
+                  <button 
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600" 
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    <Eye className="w-5 h-5" />
+                  </button>
                 </div>
-                <h3 className="text-xl font-bold">Análisis con IA</h3>
-                <p className="text-muted-foreground">Genera informes inteligentes y detecta patrones de deserción o falta de compromiso automáticamente.</p>
               </div>
+
+              <div className="flex items-center space-x-3">
+                <Checkbox id="remember" className="w-5 h-5" />
+                <Label className="text-sm text-slate-500 font-normal cursor-pointer" htmlFor="remember">
+                  Mantener sesión activa por 30 días
+                </Label>
+              </div>
+
+              <Button 
+                type="submit" 
+                className="w-full py-6 bg-primary hover:bg-primary/90 text-white font-bold rounded-lg shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2"
+              >
+                <span>Autorizar Acceso</span>
+                <LogIn className="w-5 h-5" />
+              </Button>
+
+              <div className="flex items-center gap-4 py-2">
+                <div className="flex-grow h-px bg-slate-100"></div>
+                <span className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-bold whitespace-nowrap">Nuevos Registros</span>
+                <div className="flex-grow h-px bg-slate-100"></div>
+              </div>
+
+              <div className="text-center">
+                <p className="text-slate-500 text-sm mb-4">¿Eres un nuevo docente o administrador?</p>
+                <Button 
+                  variant="outline" 
+                  className="w-full py-6 border-2 border-primary/10 text-primary font-bold rounded-lg hover:bg-slate-50 transition-colors" 
+                  asChild
+                >
+                  <Link href="/register">Solicitar Cuenta Institucional</Link>
+                </Button>
+              </div>
+            </form>
+
+            <div className="mt-12 pt-8 border-t border-slate-100 text-center">
+              <p className="text-[10px] text-slate-400 uppercase tracking-widest font-medium">
+                Sistema protegido por protocolos de Educación Técnica Superior
+              </p>
             </div>
           </div>
-        </section>
+        </div>
       </main>
-      <footer className="flex flex-col gap-2 sm:flex-row py-6 w-full shrink-0 items-center px-4 md:px-6 border-t bg-white">
-        <p className="text-xs text-muted-foreground">© 2024 PresenciaTech. Todos los derechos reservados.</p>
-        <nav className="sm:ml-auto flex gap-4 sm:gap-6">
-          <Link className="text-xs hover:underline underline-offset-4" href="#">Términos de Servicio</Link>
-          <Link className="text-xs hover:underline underline-offset-4" href="#">Privacidad</Link>
-        </nav>
+
+      <footer className="bg-white w-full py-4 px-8 mt-auto flex flex-col md:flex-row justify-between items-center border-t border-slate-100 gap-4">
+        <div className="text-[10px] uppercase tracking-widest text-slate-500 text-center md:text-left">
+          © 2024 Educación Técnica Superior | Versión 2.4.0-PRC
+        </div>
+        <div className="flex gap-6">
+          <Link className="text-[10px] uppercase tracking-widest text-slate-400 hover:text-primary transition-colors" href="#">Soporte</Link>
+          <Link className="text-[10px] uppercase tracking-widest text-slate-400 hover:text-primary transition-colors" href="#">Privacidad</Link>
+          <Link className="text-[10px] uppercase tracking-widest text-slate-400 hover:text-primary transition-colors" href="#">Documentación</Link>
+        </div>
       </footer>
     </div>
   );
