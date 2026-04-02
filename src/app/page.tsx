@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from 'react';
@@ -47,17 +48,17 @@ export default function LoginPage() {
         
         // Obtener el rol de los metadatos de Supabase
         const role = data.user.user_metadata?.role;
+        const firstName = data.user.user_metadata?.firstname || 'Usuario';
         
         toast({
           title: "Sesión Iniciada",
-          description: `Bienvenido, ${data.user.user_metadata?.firstname || 'Usuario'}.`,
+          description: `Bienvenido, ${firstName}.`,
         });
 
-        // Redirección lógica basada en rol
+        // Redirección lógica basada en el rol de los metadatos
         if (role === 'admin') {
           router.push('/admin');
         } else {
-          // Por defecto a instructor para seguridad
           router.push('/instructor');
         }
       }
