@@ -24,30 +24,38 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
     headers.set('Authorization', `Bearer ${token}`);
   }
 
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  });
+  try {
+    const response = await fetch(url, {
+      ...options,
+      headers,
+    });
 
-  if (!response.ok) {
-    let detail = 'Error desconocido en el servidor';
-    try {
-      const errorData = await response.json();
-      detail = errorData.detail || detail;
-      if (Array.isArray(detail)) {
-        detail = detail.map((d: any) => `${d.loc.join('.')}: ${d.msg}`).join(', ');
+    if (!response.ok) {
+      let detail = 'Error desconocido en el servidor';
+      try {
+        const errorData = await response.json();
+        detail = errorData.detail || detail;
+        if (Array.isArray(detail)) {
+          detail = detail.map((d: any) => `${d.loc.join('.')}: ${d.msg}`).join(', ');
+        }
+      } catch (e) {
+        detail = `Error ${response.status}: ${response.statusText}`;
       }
-    } catch (e) {
-      detail = `Error ${response.status}: ${response.statusText}`;
+      throw new Error(detail);
     }
-    throw new Error(detail);
-  }
 
-  if (response.status === 204) {
-    return {} as T;
-  }
+    if (response.status === 204) {
+      return {} as T;
+    }
 
-  return response.json();
+    return response.json();
+  } catch (err: any) {
+    // Capturamos el error de red (servidor apagado o inalcanzable)
+    if (err instanceof TypeError && err.message === 'Failed to fetch') {
+      throw new Error('No se pudo conectar con el servidor (FastAPI). Por favor, verifica que esté encendido en http://localhost:8000.');
+    }
+    throw err;
+  }
 }
 
 export const api = {
