@@ -1,16 +1,18 @@
 
 /**
  * @fileOverview Utilidad de red optimizada para el backend en Render.
- * Maneja Cold Starts y errores de CORS con mensajes informativos.
+ * Maneja Cold Starts y construcción de URL segura de producción.
  */
 
-const RAW_URL = 'https://backend-asistencia-salle.onrender.com';
-const API_BASE_URL = RAW_URL.replace(/\/+$/, ''); 
+// URL oficial del backend en Render
+const API_BASE_URL = 'https://backend-asistencia-salle.onrender.com';
 const API_VERSION = '/api/v1';
 
 export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  // Limpieza de ruta para evitar dobles slashes o URLs malformadas
+  const cleanBase = API_BASE_URL.replace(/\/+$/, '');
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-  const url = `${API_BASE_URL}${API_VERSION}${cleanEndpoint}`;
+  const url = `${cleanBase}${API_VERSION}${cleanEndpoint}`;
   
   const token = typeof window !== 'undefined' ? localStorage.getItem('supabase_access_token') : null;
 
@@ -43,13 +45,12 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
     if (response.status === 204) return {} as T;
     return response.json();
   } catch (err: any) {
-    // Captura fallos de red (CORS, Servidor Apagado, Sin Internet)
+    // Diagnóstico detallado para errores de conexión
     if (err instanceof TypeError && (err.message === 'Failed to fetch' || err.message.includes('fetch'))) {
-      console.error("Error de Red Crítico:", url);
+      console.error("Fallo de conexión con Render:", url);
       throw new Error(
-        "Error de Conexión: No se pudo contactar con Render. \n\n" +
-        "1. Asegúrate de que el servidor esté encendido (visita /docs). \n" +
-        "2. Verifica que el ALLOWED_ORIGINS de Render incluya esta URL."
+        "El servidor en Render está despertando (Cold Start). \n\n" +
+        "Por favor, espera 30 segundos y recarga la página. Si el problema persiste, verifica que el CORS esté configurado en Render."
       );
     }
     throw err;
