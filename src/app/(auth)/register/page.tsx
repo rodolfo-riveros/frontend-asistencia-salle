@@ -22,13 +22,12 @@ export default function RegisterPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Simulación de envío de solicitud
     alert("Solicitud enviada correctamente. El administrador revisará sus datos.");
     router.push('/');
   };
 
   return (
-    <div className="bg-background text-foreground min-h-screen flex flex-col font-body">
+    <div className="bg-background text-on-surface min-h-screen flex flex-col">
       <main className="flex-grow flex items-center justify-center p-6 md:p-12">
         <div className="max-w-6xl w-full grid grid-cols-1 md:grid-cols-2 bg-white rounded-xl overflow-hidden shadow-[0_12px_32px_-4px_rgba(25,28,29,0.06)]">
           
@@ -38,13 +37,13 @@ export default function RegisterPage() {
             
             <div className="z-10">
               <div className="flex items-center gap-3 mb-12">
-                <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center shadow-lg">
-                  <GraduationCap className="text-primary w-8 h-8" />
+                <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center shadow-lg text-primary">
+                  <GraduationCap className="w-8 h-8" />
                 </div>
-                <h1 className="font-bold text-2xl tracking-tight uppercase">IES La Salle Urubamba</h1>
+                <h1 className="font-headline font-extrabold text-2xl tracking-tight uppercase">IES La Salle Urubamba</h1>
               </div>
               <div className="space-y-6">
-                <h2 className="text-4xl font-bold leading-tight max-w-sm">
+                <h2 className="font-headline text-4xl font-bold leading-tight max-w-sm">
                   Únete a nuestra Comunidad Educativa.
                 </h2>
                 <p className="text-blue-100 text-lg font-medium opacity-90 max-w-xs">
@@ -59,12 +58,12 @@ export default function RegisterPage() {
                   "Tengan un amor bien tierno para con los jóvenes, a imitación de Jesucristo."
                 </p>
                 <div className="mt-4 flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-blue-800 overflow-hidden border border-white/20">
+                  <div className="w-10 h-10 rounded-full bg-blue-800 overflow-hidden border border-white/20 relative">
                     <img 
                       alt="San Juan Bautista de La Salle" 
                       className="w-full h-full object-cover" 
                       src={sjbImage}
-                      data-ai-hint="San Juan Bautista"
+                      data-ai-hint="San Juan"
                     />
                   </div>
                   <div>
@@ -82,11 +81,11 @@ export default function RegisterPage() {
           <div className="p-8 md:p-12 flex flex-col justify-center bg-white">
             <div className="md:hidden flex items-center gap-2 mb-8">
               <GraduationCap className="text-primary w-6 h-6" />
-              <span className="font-bold text-xl text-primary">La Salle Urubamba</span>
+              <span className="font-headline font-bold text-xl text-primary">La Salle Urubamba</span>
             </div>
             
             <div className="mb-8">
-              <h3 className="text-2xl font-bold text-slate-900 mb-2">Solicitud de Registro</h3>
+              <h3 className="font-headline text-2xl font-bold text-slate-900 mb-2">Solicitud de Registro</h3>
               <p className="text-slate-500 text-sm">Complete sus datos para que el administrador valide su cuenta.</p>
             </div>
 

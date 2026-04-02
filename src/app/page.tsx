@@ -3,6 +3,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { GraduationCap, Mail, Lock, Eye, LogIn, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -24,12 +25,11 @@ export default function LoginPage() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    // Redirección simulada al portal del docente
     router.push('/instructor');
   };
 
   return (
-    <div className="bg-background text-foreground min-h-screen flex flex-col">
+    <div className="bg-background text-on-surface min-h-screen flex flex-col">
       <main className="flex-grow flex items-center justify-center p-6 md:p-12">
         <div className="max-w-6xl w-full grid grid-cols-1 md:grid-cols-2 bg-white rounded-xl overflow-hidden shadow-[0_12px_32px_-4px_rgba(25,28,29,0.06)]">
           
@@ -39,13 +39,13 @@ export default function LoginPage() {
             
             <div className="z-10">
               <div className="flex items-center gap-3 mb-12">
-                <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center shadow-lg">
-                  <GraduationCap className="text-primary w-8 h-8" />
+                <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center shadow-lg text-primary">
+                  <GraduationCap className="w-8 h-8" />
                 </div>
-                <h1 className="font-bold text-2xl tracking-tight uppercase">IES La Salle Urubamba</h1>
+                <h1 className="font-headline font-extrabold text-2xl tracking-tight uppercase">IES La Salle Urubamba</h1>
               </div>
               <div className="space-y-6">
-                <h2 className="text-4xl font-bold leading-tight max-w-sm">
+                <h2 className="font-headline text-4xl font-bold leading-tight max-w-sm">
                   Excelencia y Valores en la Educación Técnica.
                 </h2>
                 <p className="text-blue-100 text-lg font-medium opacity-90 max-w-xs">
@@ -60,12 +60,12 @@ export default function LoginPage() {
                   "Tengan un amor bien tierno para con los jóvenes, a imitación de Jesucristo."
                 </p>
                 <div className="mt-4 flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-blue-800 overflow-hidden border border-white/20">
+                  <div className="w-10 h-10 rounded-full bg-blue-800 overflow-hidden border border-white/20 relative">
                     <img 
                       alt="San Juan Bautista de La Salle" 
                       className="w-full h-full object-cover" 
                       src={sjbImage}
-                      data-ai-hint="San Juan Bautista"
+                      data-ai-hint="San Juan"
                     />
                   </div>
                   <div>
@@ -79,15 +79,15 @@ export default function LoginPage() {
             <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-blue-700 rounded-full blur-3xl opacity-50"></div>
           </div>
 
-          {/* Columna Derecha: Formulario */}
+          {/* Columna Derecha: Formulario de Login */}
           <div className="p-8 md:p-16 flex flex-col justify-center bg-white">
             <div className="md:hidden flex items-center gap-2 mb-10">
               <GraduationCap className="text-primary w-6 h-6" />
-              <span className="font-bold text-xl text-primary">La Salle Urubamba</span>
+              <span className="font-headline font-bold text-xl text-primary">La Salle Urubamba</span>
             </div>
             
             <div className="mb-10 text-left">
-              <h3 className="text-2xl font-bold text-slate-900 mb-2">Portal de Asistencia</h3>
+              <h3 className="font-headline text-2xl font-bold text-slate-900 mb-2">Portal de Asistencia</h3>
               <p className="text-slate-500 text-sm">Ingresa con tu correo institucional asignado.</p>
             </div>
 
