@@ -5,7 +5,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { GraduationCap, Mail, Lock, Eye, LogIn, ShieldCheck, Loader2 } from 'lucide-react';
+import { GraduationCap, Mail, Lock, Eye, LogIn, ShieldCheck, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,18 +13,30 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function LoginPage() {
   const router = useRouter();
   const [showPassword, setShowPassword] = React.useState(false);
   const [currentYear, setCurrentYear] = React.useState<number | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
+  const [configError, setConfigError] = React.useState<string | null>(null);
 
   const sjbImage = PlaceHolderImages.find(img => img.id === 'sjb-avatar')?.imageUrl || "https://picsum.photos/seed/sjb/200/200";
 
   React.useEffect(() => {
     setCurrentYear(new Date().getFullYear());
-    // Prefetch de las rutas principales para acelerar la redirección
+    
+    // Verificar configuración de Supabase al cargar
+    const isMissingConfig = !process.env.NEXT_PUBLIC_SUPABASE_URL || 
+                             process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder') ||
+                             !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+                             process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY.includes('placeholder');
+    
+    if (isMissingConfig) {
+      setConfigError("Las claves de Supabase no están configuradas. Por favor, añada NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY a las variables de entorno.");
+    }
+    
     router.prefetch('/admin');
     router.prefetch('/instructor');
   }, [router]);
@@ -33,6 +45,15 @@ export default function LoginPage() {
     e.preventDefault();
     if (isLoading) return;
     
+    if (configError) {
+      toast({
+        variant: "destructive",
+        title: "Error de Configuración",
+        description: configError,
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     const formData = new FormData(e.currentTarget as HTMLFormElement);
@@ -45,12 +66,7 @@ export default function LoginPage() {
         password,
       });
 
-      if (error) {
-        if (error.message.toLowerCase().includes("email not confirmed")) {
-          throw new Error("Su correo aún no ha sido confirmado en el panel de Supabase.");
-        }
-        throw error;
-      }
+      if (error) throw error;
 
       if (data.session && data.user) {
         localStorage.setItem('supabase_access_token', data.session.access_token);
@@ -64,7 +80,6 @@ export default function LoginPage() {
           description: `Bienvenido, ${firstName}.`,
         });
 
-        // Redirección inmediata
         if (role === 'admin') {
           router.replace('/admin');
         } else {
@@ -72,10 +87,21 @@ export default function LoginPage() {
         }
       }
     } catch (error: any) {
+      console.error("Login Error:", error);
+      let errorMessage = "Credenciales inválidas o error de servidor.";
+      
+      if (error.message === "Failed to fetch") {
+        errorMessage = "No se pudo conectar con el servicio de autenticación. Verifique la URL de Supabase y su conexión a internet.";
+      } else if (error.message.toLowerCase().includes("email not confirmed")) {
+        errorMessage = "Su correo aún no ha sido confirmado.";
+      } else {
+        errorMessage = error.message;
+      }
+
       toast({
         variant: "destructive",
         title: "Error de Autenticación",
-        description: error.message || "Credenciales inválidas.",
+        description: errorMessage,
       });
       setIsLoading(false);
     }
@@ -137,6 +163,17 @@ export default function LoginPage() {
               <GraduationCap className="text-primary w-6 h-6" />
               <span className="font-headline font-bold text-xl text-primary">La Salle Urubamba</span>
             </div>
+
+            {configError && (
+              <Alert variant="destructive" className="mb-6">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Configuración Requerida</AlertTitle>
+                <AlertDescription className="text-xs">
+                  {configError}
+                </AlertDescription>
+              </Alert>
+            )}
+
             <div className="mb-10 text-left">
               <h3 className="font-headline text-2xl font-bold text-slate-900 mb-2">Portal de Asistencia</h3>
               <p className="text-slate-500 text-sm">Ingresa tus credenciales institucionales para acceder.</p>
@@ -195,7 +232,7 @@ export default function LoginPage() {
               </div>
               <Button 
                 type="submit" 
-                disabled={isLoading}
+                disabled={isLoading || !!configError}
                 className="w-full py-6 bg-primary hover:bg-primary/90 text-white font-bold rounded-lg shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2"
               >
                 {isLoading ? (
