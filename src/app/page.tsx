@@ -29,16 +29,10 @@ export default function LoginPage() {
     
     // Verificar configuración de Supabase al cargar
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-    const isMissingConfig = !supabaseUrl || 
-                             supabaseUrl.includes('placeholder') ||
-                             !supabaseKey ||
-                             supabaseKey.includes('placeholder') ||
-                             supabaseUrl === 'undefined';
+    const isMissingConfig = !supabaseUrl || supabaseUrl.includes('placeholder') || supabaseUrl === 'undefined';
     
-    if (isMissingConfig) {
-      setConfigError("Las claves de Supabase no están configuradas. Por favor, añada NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY a las variables de entorno de su proyecto.");
+    if (isMissingConfig && process.env.NODE_ENV === 'production') {
+      setConfigError("Configuración de Supabase pendiente. Por favor, añada las variables de entorno en su panel de despliegue.");
     }
     
     router.prefetch('/admin');
@@ -49,15 +43,6 @@ export default function LoginPage() {
     e.preventDefault();
     if (isLoading) return;
     
-    if (configError) {
-      toast({
-        variant: "destructive",
-        title: "Error de Configuración",
-        description: "No se puede iniciar sesión porque faltan las claves de Supabase.",
-      });
-      return;
-    }
-
     setIsLoading(true);
 
     const formData = new FormData(e.currentTarget as HTMLFormElement);
@@ -81,7 +66,7 @@ export default function LoginPage() {
         
         toast({
           title: "Acceso Exitoso",
-          description: `Bienvenido, ${firstName}.`,
+          description: `Bienvenido al sistema, ${firstName}.`,
         });
 
         if (role === 'admin') {
@@ -92,20 +77,17 @@ export default function LoginPage() {
       }
     } catch (error: any) {
       console.error("Login Error:", error);
-      let errorMessage = "Credenciales inválidas o error de servidor.";
+      let errorMessage = "Credenciales inválidas. Por favor, intente de nuevo.";
       
-      // Capturar error de red (común cuando la URL de Supabase es inválida/placeholder)
       if (error.message === "Failed to fetch" || error.message?.includes("fetch")) {
-        errorMessage = "Error de conexión con el servicio de autenticación. Esto suele ocurrir si las variables de entorno NEXT_PUBLIC_SUPABASE_URL son incorrectas o el servicio está caído.";
-      } else if (error.message?.toLowerCase().includes("email not confirmed")) {
-        errorMessage = "Su correo aún no ha sido confirmado.";
+        errorMessage = "No se pudo conectar con el servicio de autenticación. Verifique su conexión a internet o la configuración del servidor.";
       } else if (error.message) {
         errorMessage = error.message;
       }
 
       toast({
         variant: "destructive",
-        title: "Error de Autenticación",
+        title: "Error de Acceso",
         description: errorMessage,
       });
       setIsLoading(false);
@@ -125,7 +107,7 @@ export default function LoginPage() {
                 <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center shadow-lg text-primary">
                   <GraduationCap className="w-8 h-8" />
                 </div>
-                <h1 className="font-headline font-extrabold text-2xl tracking-tight uppercase">IES La Salle Urubamba</h1>
+                <h1 className="font-headline font-extrabold text-2xl tracking-tight uppercase text-white">IES La Salle Urubamba</h1>
               </div>
               <div className="space-y-6">
                 <h2 className="font-headline text-4xl font-bold leading-tight max-w-sm">
@@ -237,7 +219,7 @@ export default function LoginPage() {
               </div>
               <Button 
                 type="submit" 
-                disabled={isLoading || !!configError}
+                disabled={isLoading}
                 className="w-full py-6 bg-primary hover:bg-primary/90 text-white font-bold rounded-lg shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2"
               >
                 {isLoading ? (

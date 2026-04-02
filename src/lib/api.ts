@@ -50,8 +50,8 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
 
     return response.json();
   } catch (err: any) {
-    if (err instanceof TypeError && err.message === 'Failed to fetch') {
-      throw new Error(`No se pudo conectar con el servidor de producción en ${API_BASE_URL}. Verifica que el servicio en Render esté activo.`);
+    if (err instanceof TypeError && (err.message === 'Failed to fetch' || err.message.includes('fetch'))) {
+      throw new Error(`Error de conexión con el servidor de producción: ${API_BASE_URL}. Verifique que el servicio en Render esté activo.`);
     }
     throw err;
   }
