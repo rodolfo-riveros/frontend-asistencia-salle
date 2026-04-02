@@ -10,8 +10,7 @@ import {
   Trash2, 
   GraduationCap,
   AlertCircle,
-  Loader2,
-  Filter
+  Loader2
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -30,7 +29,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import {
   Dialog,
@@ -67,7 +66,7 @@ export default function AdminStudentsPage() {
       toast({ 
         variant: "destructive", 
         title: "Error", 
-        description: "No se pudieron cargar los alumnos." 
+        description: "No se pudieron cargar los alumnos desde el servidor." 
       })
     } finally {
       setIsLoading(false)
@@ -95,7 +94,7 @@ export default function AdminStudentsPage() {
         toast({ title: "Matrícula actualizada" })
       } else {
         await api.post('/alumnos/', studentData)
-        toast({ title: "Alumno matriculado" })
+        toast({ title: "Alumno matriculado con éxito" })
       }
       fetchData()
       setIsModalOpen(false)
@@ -106,6 +105,7 @@ export default function AdminStudentsPage() {
   }
 
   const handleDelete = async (id: string) => {
+    if(!confirm("¿Desea retirar a este estudiante de la matrícula?")) return
     try {
       await api.delete(`/alumnos/${id}`)
       toast({ variant: "destructive", title: "Alumno retirado" })
@@ -129,31 +129,31 @@ export default function AdminStudentsPage() {
         <div className="space-y-1 w-full lg:w-auto">
           <p className="text-primary font-bold uppercase tracking-[0.2em] text-xs">Padrón de Estudiantes</p>
           <h2 className="text-2xl md:text-3xl font-headline font-extrabold tracking-tight text-slate-900 leading-tight">Registro de Alumnos</h2>
-          <p className="text-slate-500 text-sm">Control de matrícula institucional.</p>
+          <p className="text-slate-500 text-sm">Control centralizado de matrícula institucional.</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
           <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if(!open) setEditingStudent(null); }}>
             <DialogTrigger asChild>
-              <Button className="w-full sm:w-auto bg-primary hover:bg-primary/90 gap-2 h-11 px-6 font-bold shadow-lg shadow-primary/20 text-sm">
+              <Button className="w-full sm:w-auto bg-primary hover:bg-primary/90 gap-2 h-11 px-6 font-bold shadow-lg shadow-primary/20">
                 <Plus className="h-4 w-4" /> Matricular Alumno
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px] w-[95vw]">
+            <DialogContent className="sm:max-w-[500px]">
               <form onSubmit={handleSave}>
                 <DialogHeader>
-                  <DialogTitle>{editingStudent ? "Editar Matrícula" : "Matricular Estudiante"}</DialogTitle>
+                  <DialogTitle>{editingStudent ? "Editar Matrícula" : "Nueva Matrícula"}</DialogTitle>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                   <div className="space-y-2">
-                    <Label htmlFor="nombre" className="text-xs">Nombre Completo</Label>
+                    <Label htmlFor="nombre">Nombre Completo</Label>
                     <Input id="nombre" name="nombre" defaultValue={editingStudent?.nombre} placeholder="Apellidos y Nombres" required />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="dni" className="text-xs">DNI</Label>
+                    <Label htmlFor="dni">DNI</Label>
                     <Input id="dni" name="dni" defaultValue={editingStudent?.dni} placeholder="8 dígitos" required maxLength={8} />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-xs">Programa Académico</Label>
+                    <Label>Programa Académico</Label>
                     <Select name="programa_id" defaultValue={editingStudent?.programa_id}>
                       <SelectTrigger>
                         <SelectValue placeholder="Seleccione un programa" />
@@ -167,7 +167,7 @@ export default function AdminStudentsPage() {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label className="text-xs">Semestre</Label>
+                      <Label>Semestre</Label>
                       <Select name="semestre" defaultValue={editingStudent?.semestre || "I"}>
                         <SelectTrigger>
                           <SelectValue />
@@ -178,7 +178,7 @@ export default function AdminStudentsPage() {
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-xs">Condición</Label>
+                      <Label>Condición</Label>
                       <Select name="estado" defaultValue={editingStudent?.estado || "Regular"}>
                         <SelectTrigger>
                           <SelectValue />
@@ -194,7 +194,7 @@ export default function AdminStudentsPage() {
                 </div>
                 <DialogFooter>
                   <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
-                  <Button type="submit" className="bg-primary font-bold">Guardar Cambios</Button>
+                  <Button type="submit" className="bg-primary font-bold">Confirmar Matrícula</Button>
                 </DialogFooter>
               </form>
             </DialogContent>
@@ -218,13 +218,13 @@ export default function AdminStudentsPage() {
             {isLoading ? (
               <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-3">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="text-sm font-medium">Sincronizando alumnos...</p>
+                <p className="text-sm font-medium">Cargando alumnos...</p>
               </div>
             ) : (
               <Table>
                 <TableHeader className="bg-slate-50/50">
-                  <TableRow className="hover:bg-transparent border-none">
-                    <TableHead className="w-[60px] md:w-[80px] pl-6"></TableHead>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="w-[80px] pl-6"></TableHead>
                     <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest">Estudiante</TableHead>
                     <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest">Programa</TableHead>
                     <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest text-center">Ciclo</TableHead>
@@ -237,9 +237,10 @@ export default function AdminStudentsPage() {
                     filteredStudents.map((student) => (
                       <TableRow key={student.id} className="group hover:bg-slate-50/50 transition-colors">
                         <TableCell className="pl-6 py-3">
-                          <Avatar className="h-9 w-9 border-2 border-white shadow-sm shrink-0">
-                            <AvatarImage src={`https://picsum.photos/seed/${student.id}/200/200`} />
-                            <AvatarFallback>{student.nombre[0]}</AvatarFallback>
+                          <Avatar className="h-9 w-9 border-2 border-white shadow-sm">
+                            <AvatarFallback className="bg-slate-100 text-slate-500 font-bold">
+                              {student.nombre[0]}
+                            </AvatarFallback>
                           </Avatar>
                         </TableCell>
                         <TableCell>
@@ -250,14 +251,20 @@ export default function AdminStudentsPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1.5 text-slate-500 text-xs">
-                            <GraduationCap className="h-3 w-3 shrink-0" /> {student.programa_nombre || 'N/A'}
+                            <GraduationCap className="h-3.5 w-3.5" /> {student.programa_nombre || 'N/A'}
                           </div>
                         </TableCell>
                         <TableCell className="text-center">
                           <Badge className="bg-slate-100 text-slate-600 border-none font-bold text-xs">Sem {student.semestre}</Badge>
                         </TableCell>
                         <TableCell>
-                          <StatusBadge status={student.estado} />
+                          <Badge className={`border-none px-2 py-0 text-[10px] ${
+                            student.estado === 'Regular' ? 'bg-green-100 text-green-700' :
+                            student.estado === 'Observado' ? 'bg-red-100 text-red-700' :
+                            'bg-blue-100 text-blue-700'
+                          }`}>
+                            {student.estado}
+                          </Badge>
                         </TableCell>
                         <TableCell className="pr-6 text-right">
                           <DropdownMenu>
@@ -283,7 +290,7 @@ export default function AdminStudentsPage() {
                       <TableCell colSpan={6} className="h-32 text-center text-slate-400">
                         <div className="flex flex-col items-center gap-2">
                           <AlertCircle className="h-6 w-6 opacity-20" />
-                          <span className="text-sm">No se encontraron estudiantes.</span>
+                          <span className="text-sm">No se encontraron estudiantes registrados.</span>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -296,18 +303,5 @@ export default function AdminStudentsPage() {
         </CardContent>
       </Card>
     </div>
-  )
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const configs: Record<string, string> = {
-    "Regular": "bg-green-100 text-green-700 hover:bg-green-200",
-    "Observado": "bg-red-100 text-red-700 hover:bg-red-200",
-    "Egresado": "bg-blue-100 text-blue-700 hover:bg-blue-200",
-  }
-  return (
-    <Badge className={`${configs[status] || 'bg-slate-100 text-slate-600'} border-none px-2 py-0 text-[10px]`}>
-      {status}
-    </Badge>
   )
 }

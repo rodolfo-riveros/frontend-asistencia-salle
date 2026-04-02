@@ -12,7 +12,9 @@ import {
   Fingerprint,
   ShieldCheck,
   AlertCircle,
-  Loader2
+  Loader2,
+  CheckCircle2,
+  XCircle
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -31,7 +33,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import {
   Dialog,
@@ -43,6 +45,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
 import { toast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
 
@@ -62,7 +65,7 @@ export default function AdminInstructorsPage() {
       toast({ 
         variant: "destructive", 
         title: "Error", 
-        description: "No se pudo cargar el cuerpo docente." 
+        description: "No se pudo cargar el cuerpo docente desde FastAPI." 
       })
     } finally {
       setIsLoading(false)
@@ -76,20 +79,28 @@ export default function AdminInstructorsPage() {
   const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
+    
     const instructorData = {
-      nombre: formData.get("name") as string,
+      nombre: formData.get("nombre") as string,
       email: formData.get("email") as string,
       dni: formData.get("dni") as string,
-      especialidad: formData.get("specialization") as string,
+      especialidad: formData.get("especialidad") as string,
+      es_transversal: formData.get("es_transversal") === "on"
     }
 
     try {
       if (editingInstructor) {
         await api.patch(`/docentes/${editingInstructor.id}`, instructorData)
-        toast({ title: "Docente actualizado" })
+        toast({ title: "Perfil actualizado correctamente" })
       } else {
-        await api.post('/docentes/', instructorData)
-        toast({ title: "Docente registrado" })
+        // Nota: Para crear un docente nuevo, el backend espera un ID que coincida con Supabase Auth.
+        // En un entorno de producción, esto se manejaría creando primero el usuario en Auth.
+        toast({ 
+          variant: "destructive", 
+          title: "Acción Restringida", 
+          description: "La creación manual requiere sincronización con Auth. Use el registro público por ahora." 
+        })
+        return
       }
       fetchData()
       setIsModalOpen(false)
@@ -100,6 +111,7 @@ export default function AdminInstructorsPage() {
   }
 
   const handleDelete = async (id: string) => {
+    if(!confirm("¿Desea eliminar este perfil docente?")) return
     try {
       await api.delete(`/docentes/${id}`)
       toast({ variant: "destructive", title: "Docente eliminado" })
@@ -113,7 +125,8 @@ export default function AdminInstructorsPage() {
     return (instructors || []).filter(i => 
       i.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || 
       i.dni.includes(searchTerm) ||
-      i.email.toLowerCase().includes(searchTerm.toLowerCase())
+      i.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      i.especialidad.toLowerCase().includes(searchTerm.toLowerCase())
     )
   }, [instructors, searchTerm])
 
@@ -123,53 +136,14 @@ export default function AdminInstructorsPage() {
         <div className="space-y-1">
           <p className="text-primary font-bold uppercase tracking-[0.2em] text-xs">Cuerpo Docente</p>
           <h2 className="text-3xl font-headline font-extrabold tracking-tight text-slate-900">Gestión de Docentes</h2>
-          <p className="text-slate-500 text-sm">Registro de profesionales de la institución.</p>
+          <p className="text-slate-500 text-sm">Administra los perfiles de los profesionales del IES La Salle.</p>
         </div>
-        <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if(!open) setEditingInstructor(null); }}>
-          <DialogTrigger asChild>
-            <Button className="bg-primary hover:bg-primary/90 gap-2 shadow-lg shadow-primary/20 h-11 px-6 font-bold">
-              <Plus className="h-4 w-4" /> Nuevo Docente
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
-            <form onSubmit={handleSave}>
-              <DialogHeader>
-                <DialogTitle>{editingInstructor ? "Editar Docente" : "Registrar Nuevo Docente"}</DialogTitle>
-                <DialogDescription>Completa el perfil del docente.</DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Nombre Completo</Label>
-                  <Input id="name" name="name" defaultValue={editingInstructor?.nombre} placeholder="Ej. Rodolfo Riveros" required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Correo Institucional</Label>
-                  <Input id="email" name="email" type="email" defaultValue={editingInstructor?.email} placeholder="ejemplo@lasalleurubamba.edu.pe" required />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="dni">DNI</Label>
-                    <Input id="dni" name="dni" defaultValue={editingInstructor?.dni} placeholder="8 dígitos" required maxLength={8} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="specialization">Especialidad</Label>
-                    <Input id="specialization" name="specialization" defaultValue={editingInstructor?.especialidad} placeholder="Ej. Contabilidad" required />
-                  </div>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
-                <Button type="submit" className="bg-primary font-bold">Guardar Perfil</Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
       </div>
 
       <div className="relative mb-6">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
         <Input 
-          placeholder="Buscador inteligente: busca por nombre, DNI o correo institucional..." 
+          placeholder="Buscador inteligente: busca por nombre, DNI, correo o especialidad..." 
           className="pl-11 py-6 bg-white border-slate-100 shadow-sm"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
@@ -181,7 +155,7 @@ export default function AdminInstructorsPage() {
           {isLoading ? (
             <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-3">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-sm font-medium">Cargando docentes...</p>
+              <p className="text-sm font-medium">Sincronizando docentes...</p>
             </div>
           ) : (
             <Table>
@@ -190,7 +164,7 @@ export default function AdminInstructorsPage() {
                   <TableHead className="w-[80px] pl-6"></TableHead>
                   <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest">Datos del Docente</TableHead>
                   <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest">Especialidad</TableHead>
-                  <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest">Estado</TableHead>
+                  <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest text-center">Transversal</TableHead>
                   <TableHead className="w-[80px] pr-6 text-right"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -200,8 +174,9 @@ export default function AdminInstructorsPage() {
                     <TableRow key={docente.id} className="group hover:bg-slate-50/50 transition-colors">
                       <TableCell className="pl-6">
                         <Avatar className="h-10 w-10 border-2 border-white shadow-sm">
-                          <AvatarImage src={`https://picsum.photos/seed/${docente.id}/200/200`} />
-                          <AvatarFallback>{docente.nombre[0]}</AvatarFallback>
+                          <AvatarFallback className="bg-primary/10 text-primary font-bold">
+                            {docente.nombre.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()}
+                          </AvatarFallback>
                         </Avatar>
                       </TableCell>
                       <TableCell>
@@ -220,11 +195,12 @@ export default function AdminInstructorsPage() {
                           {docente.especialidad}
                         </Badge>
                       </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <div className="h-2 w-2 rounded-full bg-green-500" />
-                          <span className="text-sm font-medium text-slate-600">Activo</span>
-                        </div>
+                      <TableCell className="text-center">
+                        {docente.es_transversal ? (
+                          <div className="flex justify-center"><CheckCircle2 className="h-5 w-5 text-emerald-500" /></div>
+                        ) : (
+                          <div className="flex justify-center"><XCircle className="h-5 w-5 text-slate-200" /></div>
+                        )}
                       </TableCell>
                       <TableCell className="pr-6 text-right">
                         <DropdownMenu>
@@ -234,11 +210,53 @@ export default function AdminInstructorsPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-48">
-                            <DropdownMenuItem className="gap-2" onClick={() => { setEditingInstructor(docente); setIsModalOpen(true); }}>
-                              <Edit2 className="h-3.5 w-3.5" /> Editar Datos
-                            </DropdownMenuItem>
+                            <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if(!open) setEditingInstructor(null); }}>
+                              <DialogTrigger asChild>
+                                <DropdownMenuItem className="gap-2" onSelect={(e) => { e.preventDefault(); setEditingInstructor(docente); setIsModalOpen(true); }}>
+                                  <Edit2 className="h-3.5 w-3.5" /> Editar Perfil
+                                </DropdownMenuItem>
+                              </DialogTrigger>
+                              <DialogContent className="sm:max-w-[500px]">
+                                <form onSubmit={handleSave}>
+                                  <DialogHeader>
+                                    <DialogTitle>Editar Perfil Docente</DialogTitle>
+                                    <DialogDescription>Actualiza los datos del profesional.</DialogDescription>
+                                  </DialogHeader>
+                                  <div className="grid gap-4 py-4">
+                                    <div className="space-y-2">
+                                      <Label htmlFor="nombre">Nombre Completo</Label>
+                                      <Input id="nombre" name="nombre" defaultValue={editingInstructor?.nombre} required />
+                                    </div>
+                                    <div className="space-y-2">
+                                      <Label htmlFor="email">Correo Institucional</Label>
+                                      <Input id="email" name="email" type="email" defaultValue={editingInstructor?.email} required />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                      <div className="space-y-2">
+                                        <Label htmlFor="dni">DNI</Label>
+                                        <Input id="dni" name="dni" defaultValue={editingInstructor?.dni} required maxLength={8} />
+                                      </div>
+                                      <div className="space-y-2">
+                                        <Label htmlFor="especialidad">Especialidad</Label>
+                                        <Input id="especialidad" name="especialidad" defaultValue={editingInstructor?.especialidad} required />
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center space-x-2 pt-2">
+                                      <Checkbox id="es_transversal" name="es_transversal" defaultChecked={editingInstructor?.es_transversal} />
+                                      <Label htmlFor="es_transversal" className="text-sm font-medium leading-none cursor-pointer">
+                                        ¿Es docente de cursos transversales?
+                                      </Label>
+                                    </div>
+                                  </div>
+                                  <DialogFooter>
+                                    <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
+                                    <Button type="submit" className="bg-primary font-bold">Guardar Cambios</Button>
+                                  </DialogFooter>
+                                </form>
+                              </DialogContent>
+                            </Dialog>
                             <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(docente.id)}>
-                              <Trash2 className="h-3.5 w-3.5" /> Eliminar
+                              <Trash2 className="h-3.5 w-3.5" /> Eliminar Perfil
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -250,7 +268,7 @@ export default function AdminInstructorsPage() {
                     <TableCell colSpan={5} className="h-32 text-center text-slate-400">
                       <div className="flex flex-col items-center gap-2">
                         <AlertCircle className="h-8 w-8 opacity-20" />
-                        No se encontraron docentes.
+                        No se encontraron docentes registrados.
                       </div>
                     </TableCell>
                   </TableRow>
