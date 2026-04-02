@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { toast } from '@/hooks/use-toast';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -28,12 +29,20 @@ export default function LoginPage() {
     const formData = new FormData(e.currentTarget as HTMLFormElement);
     const email = formData.get('email') as string;
     
-    // Lógica simple para distinguir entre admin y docente en el prototipo
+    // Simulación de almacenamiento de token tras login exitoso
+    // En producción, esto vendría de Supabase Auth
+    localStorage.setItem('supabase_access_token', 'mock_token_for_fastapi_integration');
+
     if (email.toLowerCase().includes('admin')) {
       router.push('/admin');
     } else {
       router.push('/instructor');
     }
+    
+    toast({
+      title: "Sesión Iniciada",
+      description: "Bienvenido al portal institucional.",
+    });
   };
 
   return (
@@ -41,7 +50,6 @@ export default function LoginPage() {
       <main className="flex-grow flex items-center justify-center p-6 md:p-12">
         <div className="max-w-6xl w-full grid grid-cols-1 md:grid-cols-2 bg-white rounded-xl overflow-hidden shadow-[0_12px_32px_-4px_rgba(25,28,29,0.06)]">
           
-          {/* Columna Izquierda: Branding La Salle */}
           <div className="hidden md:flex flex-col justify-between p-12 bg-primary relative overflow-hidden text-white">
             <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '32px 32px' }}></div>
             
@@ -85,17 +93,14 @@ export default function LoginPage() {
                 </div>
               </div>
             </div>
-            
             <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-blue-700 rounded-full blur-3xl opacity-50"></div>
           </div>
 
-          {/* Columna Derecha: Formulario de Login */}
           <div className="p-8 md:p-16 flex flex-col justify-center bg-white">
             <div className="md:hidden flex items-center gap-2 mb-10">
               <GraduationCap className="text-primary w-6 h-6" />
               <span className="font-headline font-bold text-xl text-primary">La Salle Urubamba</span>
             </div>
-            
             <div className="mb-10 text-left">
               <h3 className="font-headline text-2xl font-bold text-slate-900 mb-2">Portal de Asistencia</h3>
               <p className="text-slate-500 text-sm">Ingresa con tu correo institucional asignado.</p>
@@ -118,7 +123,6 @@ export default function LoginPage() {
                   />
                 </div>
               </div>
-
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
                   <Label className="text-xs font-semibold uppercase tracking-widest text-slate-500" htmlFor="password">
@@ -146,40 +150,24 @@ export default function LoginPage() {
                   </button>
                 </div>
               </div>
-
               <div className="flex items-center space-x-3">
                 <Checkbox id="remember" className="w-5 h-5" />
                 <Label className="text-sm text-slate-500 font-normal cursor-pointer" htmlFor="remember">
                   Mantener sesión activa
                 </Label>
               </div>
-
-              <Button 
-                type="submit" 
-                className="w-full py-6 bg-primary hover:bg-primary/90 text-white font-bold rounded-lg shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2"
-              >
+              <Button type="submit" className="w-full py-6 bg-primary hover:bg-primary/90 text-white font-bold rounded-lg shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2">
                 <span>Acceder al Portal</span>
                 <LogIn className="w-5 h-5" />
               </Button>
 
-              <div className="flex items-center gap-4 py-2">
-                <div className="flex-grow h-px bg-slate-100"></div>
-                <span className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-bold whitespace-nowrap">Nuevos Docentes</span>
-                <div className="flex-grow h-px bg-slate-100"></div>
-              </div>
-
-              <div className="text-center">
+              <div className="text-center pt-4">
                 <p className="text-slate-500 text-sm mb-4">¿Aún no tienes acceso?</p>
-                <Button 
-                  variant="outline" 
-                  className="w-full py-6 border-2 border-primary/10 text-primary font-bold rounded-lg hover:bg-slate-50 transition-colors" 
-                  asChild
-                >
+                <Button variant="outline" className="w-full py-6 border-2 border-primary/10 text-primary font-bold rounded-lg hover:bg-slate-50" asChild>
                   <Link href="/register">Solicitar Registro</Link>
                 </Button>
               </div>
             </form>
-
             <div className="mt-12 pt-8 border-t border-slate-100 text-center flex items-center justify-center gap-2">
               <ShieldCheck className="w-4 h-4 text-slate-400" />
               <p className="text-[10px] text-slate-400 uppercase tracking-widest font-medium">
