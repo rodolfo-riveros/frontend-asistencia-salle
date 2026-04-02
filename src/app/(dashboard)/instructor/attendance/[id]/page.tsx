@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -9,12 +10,12 @@ import {
   Sparkles,
   UserCheck,
   UserX,
-  Clock as ClockIcon,
+  Clock,
   MessageSquareQuote,
   Users,
-  CheckCircle2,
   AlertTriangle,
-  UserMinus
+  UserMinus,
+  CheckCircle2
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -22,84 +23,54 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Label } from "@/components/ui/label"
 import { toast } from "@/hooks/use-toast"
 import { aiAttendanceInsights, type AttendanceInsightsOutput } from "@/ai/flows/ai-attendance-insights"
-import { Label } from "@/components/ui/label"
 
-const initialStudentsData = [
-  { id: "S101", name: "Alvarez, Mateo", avatar: "https://picsum.photos/seed/s1/200/200", status: null },
-  { id: "S102", name: "Benitez, Sofía", avatar: "https://picsum.photos/seed/s2/200/200", status: null },
-  { id: "S103", name: "Castillo, Jorge", avatar: "https://picsum.photos/seed/s3/200/200", status: null },
-  { id: "S104", name: "Díaz, Valentina", avatar: "https://picsum.photos/seed/s4/200/200", status: null },
-  { id: "S105", name: "Espinoza, Rodrigo", avatar: "https://picsum.photos/seed/s5/200/200", status: null },
-  { id: "S106", name: "Flores, Camila", avatar: "https://picsum.photos/seed/s6/200/200", status: null },
-  { id: "S107", name: "García, Leonardo", avatar: "https://picsum.photos/seed/s7/200/200", status: null },
-  { id: "S108", name: "Huamán, Elena", avatar: "https://picsum.photos/seed/s8/200/200", status: null },
+const MOCK_STUDENTS = [
+  { id: "S101", name: "Alvarez, Mateo", avatar: "https://picsum.photos/seed/s1/200/200" },
+  { id: "S102", name: "Benitez, Sofía", avatar: "https://picsum.photos/seed/s2/200/200" },
+  { id: "S103", name: "Castillo, Jorge", avatar: "https://picsum.photos/seed/s3/200/200" },
+  { id: "S104", name: "Díaz, Valentina", avatar: "https://picsum.photos/seed/s4/200/200" },
+  { id: "S105", name: "Espinoza, Rodrigo", avatar: "https://picsum.photos/seed/s5/200/200" },
+  { id: "S106", name: "Flores, Camila", avatar: "https://picsum.photos/seed/s6/200/200" },
 ]
 
 export default function AttendancePage() {
   const params = useParams()
   const router = useRouter()
-  const [students, setStudents] = React.useState(initialStudentsData)
+  const [attendance, setAttendance] = React.useState<Record<string, string | null>>(
+    Object.fromEntries(MOCK_STUDENTS.map(s => [s.id, null]))
+  )
   const [searchTerm, setSearchTerm] = React.useState("")
-  const [selectedDate, setSelectedDate] = React.useState(new Date().toISOString().split('T')[0])
+  const [date, setDate] = React.useState(new Date().toISOString().split('T')[0])
   const [isAnalyzing, setIsAnalyzing] = React.useState(false)
   const [aiResult, setAiResult] = React.useState<AttendanceInsightsOutput | null>(null)
 
-  const handleStatusChange = (studentId: string, newStatus: string) => {
-    setStudents(prev => prev.map(s => s.id === studentId ? { ...s, status: newStatus } : s))
+  const handleStatus = (id: string, status: string) => setAttendance(p => ({ ...p, [id]: status }))
+  
+  const handleMassive = (status: string) => {
+    setAttendance(Object.fromEntries(MOCK_STUDENTS.map(s => [s.id, status])))
+    toast({ title: "Marcado Masivo", description: `Todos marcados como: ${status}` })
   }
-
-  const handleMassiveAttendance = (status: string) => {
-    setStudents(prev => prev.map(s => ({ ...s, status })))
-    toast({
-      title: `Marcado Masivo: ${status}`,
-      description: `Se ha marcado a todos los alumnos como ${status}.`,
-    })
-  }
-
-  const filteredStudents = students.filter(s => 
-    s.name.toLowerCase().includes(searchTerm.toLowerCase())
-  )
 
   const handleSave = () => {
-    const unmarkedCount = students.filter(s => s.status === null).length
-    if (unmarkedCount > 0) {
-      toast({
-        variant: "destructive",
-        title: "Asistencia Incompleta",
-        description: `Faltan ${unmarkedCount} alumnos por marcar.`,
-      })
-      return
-    }
-    toast({
-      title: "Asistencia guardada",
-      description: `La sesión del ${selectedDate} ha sido registrada correctamente.`,
-    })
+    const incomplete = Object.values(attendance).some(v => v === null)
+    if (incomplete) return toast({ variant: "destructive", title: "Error", description: "Faltan alumnos por marcar." })
+    toast({ title: "Éxito", description: "Asistencia guardada correctamente." })
   }
 
-  const analyzeAttendance = async () => {
+  const runAnalysis = async () => {
     setIsAnalyzing(true)
     try {
-      // Simulamos un historial más largo para que la IA tenga datos para calcular el 30%
-      const simulatedHistory = students.flatMap(s => [
+      const history = MOCK_STUDENTS.flatMap(s => [
         { studentId: s.id, studentName: s.name, courseUnitId: "UD-01", courseUnitName: "Curso", date: "2024-03-01", status: Math.random() > 0.3 ? "Presente" : "Falta" },
-        { studentId: s.id, studentName: s.name, courseUnitId: "UD-01", courseUnitName: "Curso", date: "2024-03-05", status: Math.random() > 0.3 ? "Presente" : "Falta" },
-        { studentId: s.id, studentName: s.name, courseUnitId: "UD-01", courseUnitName: "Curso", date: "2024-03-10", status: Math.random() > 0.3 ? "Presente" : "Falta" },
-        { studentId: s.id, studentName: s.name, courseUnitId: "UD-01", courseUnitName: "Curso", date: selectedDate, status: s.status || "Presente" }
+        { studentId: s.id, studentName: s.name, courseUnitId: "UD-01", courseUnitName: "Curso", date: date, status: attendance[s.id] || "Presente" }
       ])
-
-      const result = await aiAttendanceInsights({
-        attendanceRecords: simulatedHistory as any,
-        analysisContext: `Unidad: ${params.id}. Fecha actual: ${selectedDate}. Analizar riesgo de deserción basado en el límite del 30% de faltas.`
-      })
+      const result = await aiAttendanceInsights({ attendanceRecords: history as any, analysisContext: `Análisis de riesgo del 30% para ${params.id}` })
       setAiResult(result)
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error al analizar",
-        description: error.message || "No se pudo conectar con el motor de IA.",
-      })
+    } catch (e) {
+      toast({ variant: "destructive", title: "IA Error", description: "No se pudo conectar con el motor de IA." })
     } finally {
       setIsAnalyzing(false)
     }
@@ -107,124 +78,67 @@ export default function AttendancePage() {
 
   return (
     <div className="space-y-8 pb-20">
-      {/* Header Docente */}
-      <div className="flex flex-col gap-6">
-        <Button variant="ghost" onClick={() => router.back()} className="w-fit hover:bg-slate-100 transition-colors">
-          <ArrowLeft className="mr-2 h-4 w-4" /> Volver a mis unidades didácticas
+      <div className="space-y-6">
+        <Button variant="ghost" onClick={() => router.back()} className="h-10 hover:bg-slate-100">
+          <ArrowLeft className="mr-2 h-4 w-4" /> Volver
         </Button>
         
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <div className="bg-primary/10 p-2 rounded-xl">
-                <Users className="h-6 w-6 text-primary" />
-              </div>
-              <h2 className="text-4xl font-headline font-black tracking-tight text-slate-900 leading-none">Pase de Lista</h2>
-            </div>
-            <div className="flex flex-wrap items-center gap-3 text-slate-500 font-medium">
-              <Badge variant="outline" className="font-bold border-primary/20 text-primary bg-primary/5 px-3">{params.id}</Badge>
-              <span className="text-slate-300">|</span>
+        <div className="flex flex-col lg:flex-row justify-between gap-6">
+          <div className="space-y-3">
+            <h2 className="text-4xl font-headline font-black tracking-tighter text-slate-900">Pase de Lista</h2>
+            <div className="flex flex-wrap items-center gap-4">
+              <Badge variant="outline" className="font-black bg-primary/5 text-primary border-primary/20 px-4 py-1 uppercase">{params.id}</Badge>
               <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-xl border border-slate-100 shadow-sm">
-                <Label htmlFor="date-picker" className="text-[10px] font-black uppercase tracking-widest text-slate-400">Fecha de Sesión:</Label>
-                <input 
-                  id="date-picker"
-                  type="date" 
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  className="bg-transparent border-none font-bold text-slate-700 focus:ring-0 cursor-pointer"
-                />
+                <Label className="text-[9px] font-black uppercase text-slate-400">Fecha:</Label>
+                <input type="date" value={date} onChange={e => setDate(e.target.value)} className="bg-transparent border-none font-bold text-slate-700 outline-none" />
               </div>
             </div>
           </div>
           
           <div className="flex items-center gap-3">
-            <Button 
-              variant="outline" 
-              className="gap-2 text-accent border-accent/30 hover:bg-accent/5 h-12 px-6 font-bold shadow-sm" 
-              onClick={analyzeAttendance} 
-              disabled={isAnalyzing}
-            >
+            <Button variant="outline" className="h-12 px-6 gap-2 text-accent border-accent/20 font-bold" onClick={runAnalysis} disabled={isAnalyzing}>
               <Sparkles className={`h-5 w-5 ${isAnalyzing ? 'animate-spin' : ''}`} />
-              {isAnalyzing ? "Calculando Riesgos..." : "Detectar Deserción (IA)"}
+              {isAnalyzing ? "Analizando..." : "Predecir Deserción (IA)"}
             </Button>
-            <Button className="gap-2 h-12 px-8 font-black shadow-lg shadow-primary/20" onClick={handleSave}>
-              <Save className="h-5 w-5" /> Guardar Sesión
+            <Button className="h-12 px-8 gap-2 font-black shadow-lg shadow-primary/20" onClick={handleSave}>
+              <Save className="h-5 w-5" /> Guardar
             </Button>
           </div>
         </div>
       </div>
 
-      {/* IA Result Section - Predicción de Deserción */}
       {aiResult && (
-        <Card className="border-none shadow-2xl bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white overflow-hidden animate-in fade-in slide-in-from-top-4 duration-500">
-          <CardHeader className="bg-white/5 p-6 flex flex-row items-center justify-between border-b border-white/5 backdrop-blur-sm">
+        <Card className="border-none shadow-2xl bg-slate-900 text-white overflow-hidden animate-in fade-in slide-in-from-top-4 duration-500">
+          <CardHeader className="bg-white/5 p-6 border-b border-white/10 flex flex-row items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="bg-red-500/20 p-2 rounded-xl border border-red-500/30">
-                <AlertTriangle className="h-6 w-6 text-red-400" />
-              </div>
-              <div>
-                <CardTitle className="text-xl font-black tracking-tight">Análisis de Deserción Escolar</CardTitle>
-                <p className="text-blue-200/60 text-[10px] font-bold uppercase tracking-widest">Límite permitido: 30% de inasistencias</p>
-              </div>
+              <AlertTriangle className="h-6 w-6 text-red-400" />
+              <CardTitle className="text-xl font-bold">Análisis de Deserción Escolar</CardTitle>
             </div>
-            <Button variant="ghost" size="sm" onClick={() => setAiResult(null)} className="text-white hover:bg-white/10">Ocultar</Button>
+            <Button variant="ghost" size="sm" onClick={() => setAiResult(null)} className="text-white">Ocultar</Button>
           </CardHeader>
-          <CardContent className="p-8 space-y-10">
-            {/* Resumen */}
-            <div className="space-y-2">
-              <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-300">Resumen del Motor IA</h4>
-              <p className="text-lg leading-relaxed text-blue-50/90 font-medium italic">"{aiResult.summary}"</p>
-            </div>
-
-            {/* Alumnos en Riesgo Crítico */}
-            <div className="space-y-4">
-              <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-red-400 flex items-center gap-2">
-                 <UserMinus className="h-4 w-4" /> Alumnos con 30% o más de Inasistencia
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {aiResult.atRiskStudents.length > 0 ? (
-                  aiResult.atRiskStudents.map((student, i) => (
-                    <div key={i} className="bg-white/5 p-4 rounded-xl border border-white/10 flex flex-col gap-2 group hover:bg-white/10 transition-colors">
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-blue-100">{student.name}</span>
-                        <Badge className="bg-red-500/80 text-white border-none">{student.absencePercentage}%</Badge>
-                      </div>
-                      <p className="text-xs text-blue-200/70">{student.reason}</p>
-                    </div>
-                  ))
-                ) : (
-                  <div className="col-span-full py-4 text-center text-emerald-400 font-bold bg-emerald-400/10 rounded-xl border border-emerald-400/20">
-                    No se detectaron alumnos por encima del límite de inasistencias.
+          <CardContent className="p-8 space-y-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {aiResult.atRiskStudents.map((s, i) => (
+                <div key={i} className="bg-white/5 p-4 rounded-xl border border-white/10 space-y-2">
+                  <div className="flex justify-between font-bold">
+                    <span>{s.name}</span>
+                    <Badge className="bg-red-500/80">{s.absencePercentage}%</Badge>
                   </div>
-                )}
-              </div>
+                  <p className="text-xs text-blue-200/60 leading-relaxed">{s.reason}</p>
+                </div>
+              ))}
             </div>
-
-            <div className="grid md:grid-cols-2 gap-8 pt-4 border-t border-white/5">
+            <div className="grid md:grid-cols-2 gap-8 pt-6 border-t border-white/5">
               <div className="space-y-4">
-                <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-300 flex items-center gap-2">
-                   <ClockIcon className="h-4 w-4" /> Tendencias de Grupo
-                </h4>
-                <ul className="space-y-3">
-                  {aiResult.trends.map((t, i) => (
-                    <li key={i} className="flex gap-3 text-sm text-blue-50/80">
-                      <div className="h-1.5 w-1.5 rounded-full bg-blue-400 mt-2 shrink-0" />
-                      {t}
-                    </li>
-                  ))}
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-blue-400">Tendencias</h4>
+                <ul className="space-y-2 text-sm text-blue-50/70">
+                  {aiResult.trends.map((t, i) => <li key={i} className="flex gap-2"><span>•</span>{t}</li>)}
                 </ul>
               </div>
               <div className="space-y-4">
-                <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-400 flex items-center gap-2">
-                   <CheckCircle2 className="h-4 w-4" /> Acciones Preventivas
-                </h4>
-                <ul className="space-y-3">
-                  {aiResult.recommendations.map((r, i) => (
-                    <li key={i} className="flex gap-3 text-sm text-emerald-50/80">
-                      <div className="h-1.5 w-1.5 rounded-full bg-emerald-400 mt-2 shrink-0" />
-                      {r}
-                    </li>
-                  ))}
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Recomendaciones</h4>
+                <ul className="space-y-2 text-sm text-emerald-50/70">
+                  {aiResult.recommendations.map((r, i) => <li key={i} className="flex gap-2"><span>•</span>{r}</li>)}
                 </ul>
               </div>
             </div>
@@ -232,124 +146,71 @@ export default function AttendancePage() {
         </Card>
       )}
 
-      {/* Controles de Marcado Masivo */}
-      <Card className="border-none shadow-xl shadow-slate-200/50 bg-white overflow-hidden">
+      <Card className="border-none shadow-xl bg-white overflow-hidden">
         <div className="p-6 bg-slate-50/50 border-b flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="space-y-1">
-            <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">Marcado Masivo</h3>
-            <p className="text-xs text-slate-500 font-medium">Asigna el mismo estado a todos los estudiantes con un clic.</p>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" className="h-10 border-green-200 text-green-700 hover:bg-green-50 font-bold" onClick={() => handleMassive('Presente')}>P a Todos</Button>
+            <Button variant="outline" className="h-10 border-amber-200 text-amber-700 hover:bg-amber-50 font-bold" onClick={() => handleMassive('Tarde')}>T a Todos</Button>
+            <Button variant="outline" className="h-10 border-red-200 text-red-700 hover:bg-red-50 font-bold" onClick={() => handleMassive('Falta')}>F a Todos</Button>
+            <Button variant="outline" className="h-10 border-blue-200 text-blue-700 hover:bg-blue-50 font-bold" onClick={() => handleMassive('Justificado')}>J a Todos</Button>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <Button 
-              variant="outline" 
-              className="h-11 px-6 rounded-xl border-green-200 text-green-700 hover:bg-green-50 gap-2 font-bold transition-all hover:scale-105"
-              onClick={() => handleMassiveAttendance('Presente')}
-            >
-              <UserCheck className="h-4 w-4" /> Presentes a Todos
-            </Button>
-            <Button 
-              variant="outline" 
-              className="h-11 px-6 rounded-xl border-amber-200 text-amber-700 hover:bg-amber-50 gap-2 font-bold transition-all hover:scale-105"
-              onClick={() => handleMassiveAttendance('Tarde')}
-            >
-              <ClockIcon className="h-4 w-4" /> Tardes a Todos
-            </Button>
-            <Button 
-              variant="outline" 
-              className="h-11 px-6 rounded-xl border-red-200 text-red-700 hover:bg-red-50 gap-2 font-bold transition-all hover:scale-105"
-              onClick={() => handleMassiveAttendance('Falta')}
-            >
-              <UserX className="h-4 w-4" /> Faltas a Todos
-            </Button>
-            <Button 
-              variant="outline" 
-              className="h-11 px-6 rounded-xl border-blue-200 text-blue-700 hover:bg-blue-50 gap-2 font-bold transition-all hover:scale-105"
-              onClick={() => handleMassiveAttendance('Justificado')}
-            >
-              <MessageSquareQuote className="h-4 w-4" /> Justificar a Todos
-            </Button>
-          </div>
-        </div>
-
-        <div className="p-6 border-b flex flex-col md:flex-row items-center gap-6">
-          <div className="relative flex-1 w-full">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+          <div className="relative w-full md:w-96">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <Input 
-              placeholder="Buscar por nombre de alumno..." 
-              className="pl-12 h-12 bg-slate-50 border-none rounded-xl text-base shadow-inner"
+              placeholder="Buscar estudiante..." 
+              className="pl-10 h-10 bg-slate-50 border-none rounded-lg"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={e => setSearchTerm(e.target.value)}
             />
           </div>
-          <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
-             <Badge variant="secondary" className="px-5 py-2.5 bg-green-50 text-green-700 border-green-100 font-bold rounded-lg shadow-sm whitespace-nowrap">
-              {students.filter(s => s.status === 'Presente').length} Presentes
-             </Badge>
-             <Badge variant="secondary" className="px-5 py-2.5 bg-red-50 text-red-700 border-red-100 font-bold rounded-lg shadow-sm whitespace-nowrap">
-              {students.filter(s => s.status === 'Falta').length} Faltas
-             </Badge>
-          </div>
         </div>
-
         <CardContent className="p-0">
           <Table>
-            <TableHeader className="bg-slate-50/80">
-              <TableRow className="hover:bg-transparent border-none">
-                <TableHead className="w-[100px] pl-8"></TableHead>
-                <TableHead className="font-black text-slate-400 uppercase text-[10px] tracking-[0.2em] py-6">Estudiante</TableHead>
-                <TableHead className="text-center font-black text-slate-400 uppercase text-[10px] tracking-[0.2em]">Estado Actual</TableHead>
-                <TableHead className="text-right font-black text-slate-400 uppercase text-[10px] tracking-[0.2em] pr-8">Marcar Asistencia</TableHead>
+            <TableHeader className="bg-slate-50/50">
+              <TableRow className="border-none">
+                <TableHead className="w-[80px] pl-8"></TableHead>
+                <TableHead className="font-black text-[10px] uppercase tracking-widest text-slate-400">Estudiante</TableHead>
+                <TableHead className="text-center font-black text-[10px] uppercase tracking-widest text-slate-400">Estado</TableHead>
+                <TableHead className="text-right pr-8 font-black text-[10px] uppercase tracking-widest text-slate-400">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredStudents.map((student) => (
-                <TableRow key={student.id} className="group hover:bg-slate-50/50 transition-all border-b border-slate-50 last:border-none">
-                  <TableCell className="pl-8 py-5">
+              {MOCK_STUDENTS.filter(s => s.name.toLowerCase().includes(searchTerm.toLowerCase())).map((s) => (
+                <TableRow key={s.id} className="hover:bg-slate-50/30 transition-colors border-slate-50">
+                  <TableCell className="pl-8 py-4">
                     <div className="relative">
-                      <Avatar className="h-12 w-12 border-2 border-white shadow-md ring-1 ring-slate-100">
-                        <AvatarImage src={student.avatar} />
-                        <AvatarFallback>{student.name[0]}</AvatarFallback>
+                      <Avatar className="h-10 w-10 border shadow-sm">
+                        <AvatarImage src={s.avatar} />
+                        <AvatarFallback>{s.name[0]}</AvatarFallback>
                       </Avatar>
-                      {student.status && (
-                        <div className={`absolute -bottom-1 -right-1 h-5 w-5 rounded-full border-2 border-white flex items-center justify-center text-white shadow-sm ${
-                          student.status === 'Presente' ? 'bg-green-500' : 
-                          student.status === 'Tarde' ? 'bg-amber-500' :
-                          student.status === 'Falta' ? 'bg-red-500' : 'bg-blue-500'
-                        }`}>
-                          <CheckCircle2 className="h-3 w-3" />
-                        </div>
+                      {attendance[s.id] && (
+                        <div className={`absolute -bottom-1 -right-1 h-4 w-4 rounded-full flex items-center justify-center text-[8px] text-white shadow-sm ${
+                          attendance[s.id] === 'Presente' ? 'bg-green-500' : attendance[s.id] === 'Falta' ? 'bg-red-500' : 'bg-amber-500'
+                        }`}><CheckCircle2 className="h-2 w-2" /></div>
                       )}
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="font-bold text-slate-900 text-base">{student.name}</div>
-                    <div className="text-[10px] text-slate-400 font-black tracking-widest uppercase mt-0.5">CÓDIGO: {student.id}</div>
+                    <div className="font-bold text-slate-900">{s.name}</div>
+                    <div className="text-[10px] text-slate-400 font-mono">ID: {s.id}</div>
                   </TableCell>
                   <TableCell className="text-center">
-                    <StatusBadge status={student.status} />
+                    {!attendance[s.id] ? (
+                      <Badge variant="outline" className="border-dashed text-slate-300">Pendiente</Badge>
+                    ) : (
+                      <Badge className={`uppercase text-[9px] font-black tracking-widest ${
+                        attendance[s.id] === 'Presente' ? 'bg-green-100 text-green-700' : attendance[s.id] === 'Falta' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
+                      }`}>
+                        {attendance[s.id]}
+                      </Badge>
+                    )}
                   </TableCell>
                   <TableCell className="text-right pr-8">
-                    <div className="flex items-center justify-end gap-2">
-                      <AttendanceAction 
-                        onClick={() => handleStatusChange(student.id, 'Presente')} 
-                        active={student.status === 'Presente'}
-                        type="present"
-                      />
-                      <AttendanceAction 
-                        onClick={() => handleStatusChange(student.id, 'Tarde')} 
-                        active={student.status === 'Tarde'}
-                        type="late"
-                      />
-                      <AttendanceAction 
-                        onClick={() => handleStatusChange(student.id, 'Falta')} 
-                        active={student.status === 'Falta'}
-                        type="absent"
-                      />
-                      <AttendanceAction 
-                        onClick={() => handleStatusChange(student.id, 'Justificado')} 
-                        active={student.status === 'Justificado'}
-                        type="justified"
-                      />
+                    <div className="flex justify-end gap-2">
+                      <ActionBtn icon={UserCheck} active={attendance[s.id] === 'Presente'} color="green" onClick={() => handleStatus(s.id, 'Presente')} />
+                      <ActionBtn icon={Clock} active={attendance[s.id] === 'Tarde'} color="amber" onClick={() => handleStatus(s.id, 'Tarde')} />
+                      <ActionBtn icon={UserX} active={attendance[s.id] === 'Falta'} color="red" onClick={() => handleStatus(s.id, 'Falta')} />
+                      <ActionBtn icon={MessageSquareQuote} active={attendance[s.id] === 'Justificado'} color="blue" onClick={() => handleStatus(s.id, 'Justificado')} />
                     </div>
                   </TableCell>
                 </TableRow>
@@ -362,54 +223,16 @@ export default function AttendancePage() {
   )
 }
 
-function StatusBadge({ status }: { status: string | null }) {
-  if (!status) {
-    return (
-      <Badge variant="outline" className="px-4 py-1.5 border-dashed border-slate-300 text-slate-300 font-bold text-[10px] uppercase tracking-widest">
-        Sin Marcar
-      </Badge>
-    )
-  }
-  const styles: Record<string, string> = {
-    "Presente": "bg-green-100 text-green-700 border-green-200",
-    "Tarde": "bg-amber-100 text-amber-700 border-amber-200",
-    "Falta": "bg-red-100 text-red-700 border-red-200",
-    "Justificado": "bg-blue-100 text-blue-700 border-blue-200",
+function ActionBtn({ icon: Icon, active, color, onClick }: any) {
+  const themes: any = {
+    green: active ? "bg-green-600 text-white" : "hover:bg-green-50 text-slate-400 hover:text-green-600",
+    amber: active ? "bg-amber-500 text-white" : "hover:bg-amber-50 text-slate-400 hover:text-amber-600",
+    red: active ? "bg-red-600 text-white" : "hover:bg-red-50 text-slate-400 hover:text-red-600",
+    blue: active ? "bg-blue-600 text-white" : "hover:bg-blue-50 text-slate-400 hover:text-blue-600",
   }
   return (
-    <Badge variant="outline" className={`${styles[status] || ""} px-4 py-1.5 font-black text-[10px] uppercase tracking-[0.2em] shadow-sm`}>
-      {status}
-    </Badge>
-  )
-}
-
-function AttendanceAction({ 
-  onClick, 
-  active, 
-  type 
-}: { 
-  onClick: () => void, 
-  active: boolean, 
-  type: 'present' | 'late' | 'absent' | 'justified' 
-}) {
-  const configs = {
-    present: { icon: UserCheck, color: "hover:bg-green-100 hover:text-green-700", activeColor: "bg-green-600 text-white shadow-green-200", label: "P" },
-    late: { icon: ClockIcon, color: "hover:bg-amber-100 hover:text-amber-700", activeColor: "bg-amber-500 text-white shadow-amber-200", label: "T" },
-    absent: { icon: UserX, color: "hover:bg-red-100 hover:text-red-700", activeColor: "bg-red-600 text-white shadow-red-200", label: "F" },
-    justified: { icon: MessageSquareQuote, color: "hover:bg-blue-100 hover:text-blue-700", activeColor: "bg-blue-600 text-white shadow-blue-200", label: "J" },
-  }
-  const config = configs[type]
-  const Icon = config.icon
-
-  return (
-    <Button 
-      size="icon" 
-      variant="outline" 
-      onClick={onClick}
-      className={`h-11 w-11 rounded-full transition-all border-2 ${active ? `${config.activeColor} border-transparent shadow-lg scale-110` : `bg-white ${config.color} border-slate-100`} hover:shadow-md`}
-    >
-      <Icon className="h-5 w-5" />
-      <span className="sr-only">{config.label}</span>
+    <Button size="icon" variant="outline" onClick={onClick} className={`h-10 w-10 rounded-full transition-all border-slate-100 ${themes[color]}`}>
+      <Icon className="h-4 w-4" />
     </Button>
   )
 }
