@@ -12,6 +12,11 @@ import { Checkbox } from '@/components/ui/checkbox';
 export default function LoginPage() {
   const router = useRouter();
   const [showPassword, setShowPassword] = React.useState(false);
+  const [currentYear, setCurrentYear] = React.useState<number | null>(null);
+
+  React.useEffect(() => {
+    setCurrentYear(new Date().getFullYear());
+  }, []);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -171,12 +176,10 @@ export default function LoginPage() {
 
       <footer className="bg-white w-full py-4 px-8 mt-auto flex flex-col md:flex-row justify-between items-center border-t border-slate-100 gap-4">
         <div className="text-[10px] uppercase tracking-widest text-slate-500 text-center md:text-left">
-          © 2024 IES La Salle Urubamba | Cusco - Perú
+          © {currentYear || '2024'} IES La Salle Urubamba | Cusco - Perú
         </div>
-        <div className="flex gap-6">
-          <Link className="text-[10px] uppercase tracking-widest text-slate-400 hover:text-primary transition-colors" href="#">Soporte TICs</Link>
-          <Link className="text-[10px] uppercase tracking-widest text-slate-400 hover:text-primary transition-colors" href="#">Privacidad</Link>
-          <Link className="text-[10px] uppercase tracking-widest text-slate-400 hover:text-primary transition-colors" href="#">Reglamento</Link>
+        <div className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">
+          Desarrollado por Rodolfo Riveros
         </div>
       </footer>
     </div>
