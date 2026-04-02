@@ -1,15 +1,12 @@
 
 /**
- * @fileOverview Utilidad de red optimizada para el backend en Render.
- * Maneja Cold Starts y construcción de URL segura de producción.
+ * @fileOverview Cliente de API optimizado para producción en Render.
  */
 
-// URL oficial del backend en Render
 const API_BASE_URL = 'https://backend-asistencia-salle.onrender.com';
 const API_VERSION = '/api/v1';
 
 export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  // Limpieza de ruta para evitar dobles slashes o URLs malformadas
   const cleanBase = API_BASE_URL.replace(/\/+$/, '');
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   const url = `${cleanBase}${API_VERSION}${cleanEndpoint}`;
@@ -32,25 +29,23 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
     });
 
     if (!response.ok) {
-      let detail = 'Error en el servidor académico';
+      let detail = 'Error en el servidor';
       try {
         const errorData = await response.json();
         detail = errorData.detail || detail;
-      } catch (e) {
+      } catch {
         detail = `Error ${response.status}: ${response.statusText}`;
       }
       throw new Error(detail);
     }
 
-    if (response.status === 204) return {} as T;
-    return response.json();
+    return response.status === 204 ? ({} as T) : response.json();
   } catch (err: any) {
-    // Diagnóstico detallado para errores de conexión
-    if (err instanceof TypeError && (err.message === 'Failed to fetch' || err.message.includes('fetch'))) {
-      console.error("Fallo de conexión con Render:", url);
+    if (err.message === 'Failed to fetch' || err.name === 'TypeError') {
       throw new Error(
-        "El servidor en Render está despertando (Cold Start). \n\n" +
-        "Por favor, espera 30 segundos y recarga la página. Si el problema persiste, verifica que el CORS esté configurado en Render."
+        "No se pudo conectar con el backend. \n\n" +
+        "1. Verifica que el servidor en Render esté activo (despiértalo entrando a la URL de la API).\n" +
+        "2. Asegúrate de que el CORS permita la URL de este navegador."
       );
     }
     throw err;
@@ -58,13 +53,8 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
 }
 
 export const api = {
-  get: <T>(endpoint: string, options?: RequestInit) => apiFetch<T>(endpoint, { ...options, method: 'GET' }),
-  post: <T>(endpoint: string, data: any, options?: RequestInit) => 
-    apiFetch<T>(endpoint, { ...options, method: 'POST', body: JSON.stringify(data) }),
-  put: <T>(endpoint: string, data: any, options?: RequestInit) => 
-    apiFetch<T>(endpoint, { ...options, method: 'PUT', body: JSON.stringify(data) }),
-  patch: <T>(endpoint: string, data: any, options?: RequestInit) => 
-    apiFetch<T>(endpoint, { ...options, method: 'PATCH', body: JSON.stringify(data) }),
-  delete: <T>(endpoint: string, options?: RequestInit) => 
-    apiFetch<T>(endpoint, { ...options, method: 'DELETE' }),
+  get: <T>(e: string, o?: RequestInit) => apiFetch<T>(e, { ...o, method: 'GET' }),
+  post: <T>(e: string, d: any, o?: RequestInit) => apiFetch<T>(e, { ...o, method: 'POST', body: JSON.stringify(d) }),
+  patch: <T>(e: string, d: any, o?: RequestInit) => apiFetch<T>(e, { ...o, method: 'PATCH', body: JSON.stringify(d) }),
+  delete: <T>(e: string, o?: RequestInit) => apiFetch<T>(e, { ...o, method: 'DELETE' }),
 };
