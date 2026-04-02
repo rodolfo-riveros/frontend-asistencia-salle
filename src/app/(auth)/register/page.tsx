@@ -1,8 +1,8 @@
-
 "use client"
 
 import * as React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { GraduationCap, Mail, User, CreditCard, BookOpen, ArrowLeft, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -59,10 +59,12 @@ export default function RegisterPage() {
                 </p>
                 <div className="mt-4 flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-blue-800 overflow-hidden border border-white/20 relative">
-                    <img 
+                    <Image 
                       alt="San Juan Bautista de La Salle" 
-                      className="w-full h-full object-cover" 
+                      className="object-cover" 
                       src={sjbImage}
+                      fill
+                      sizes="40px"
                       data-ai-hint="San Juan"
                     />
                   </div>
