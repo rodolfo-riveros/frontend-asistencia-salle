@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from 'react';
@@ -43,28 +42,22 @@ export default function LoginPage() {
       if (error) throw error;
 
       if (data.session && data.user) {
-        // Guardamos el token para que api.ts lo use en las peticiones a FastAPI
+        // Almacenar el token para peticiones a FastAPI
         localStorage.setItem('supabase_access_token', data.session.access_token);
         
-        // Extraemos el rol de los metadatos del usuario
-        // Nota: En Supabase el metadata puede venir en user_metadata o app_metadata
-        const role = data.user.user_metadata?.role || data.user.app_metadata?.role;
+        // Obtener el rol de los metadatos de Supabase
+        const role = data.user.user_metadata?.role;
         
-        console.log("Usuario logueado:", data.user.email);
-        console.log("Rol detectado:", role);
-
         toast({
           title: "Sesión Iniciada",
           description: `Bienvenido, ${data.user.user_metadata?.firstname || 'Usuario'}.`,
         });
 
-        // Redirección basada en el rol
+        // Redirección lógica basada en rol
         if (role === 'admin') {
           router.push('/admin');
-        } else if (role === 'docente') {
-          router.push('/instructor');
         } else {
-          // Si no tiene rol, por defecto va al panel de docente o muestra aviso
+          // Por defecto a instructor para seguridad
           router.push('/instructor');
         }
       }
