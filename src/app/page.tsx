@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from 'react';
@@ -46,7 +45,7 @@ export default function LoginPage() {
         // Almacenar el token para peticiones a FastAPI
         localStorage.setItem('supabase_access_token', data.session.access_token);
         
-        // Obtener el rol de los metadatos de Supabase
+        // Obtener el rol de los metadatos de Supabase (User Metadata)
         const role = data.user.user_metadata?.role;
         const firstName = data.user.user_metadata?.firstname || 'Usuario';
         
