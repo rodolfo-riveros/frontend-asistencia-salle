@@ -12,7 +12,7 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   const url = `${cleanBase}${API_VERSION}${cleanEndpoint}`;
   
-  // Obtenemos la sesión más reciente directamente de Supabase para asegurar validez
+  // Obtenemos la sesión en tiempo real para asegurar que el token sea el correcto
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token;
 
@@ -40,11 +40,11 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
         detail = `Error ${response.status}: ${response.statusText}`;
       }
       
-      // Error 401/403: Indica que el SUPABASE_JWT_SECRET en Render no coincide
+      // Error 401/403: Mismatch de JWT Secret
       if (response.status === 401 || response.status === 403) {
         throw new Error(
           "SESIÓN NO AUTORIZADA (JWT Mismatch).\n\n" +
-          "PASO A SEGUIR: En Render (Environment), asegúrate de que SUPABASE_JWT_SECRET sea exactamente el 'JWT Secret' de tu panel de Supabase."
+          "PASO A SEGUIR: En Render, ve a Environment y asegúrate de que SUPABASE_JWT_SECRET no tenga comillas ni espacios extras."
         );
       }
       
@@ -55,9 +55,9 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
   } catch (err: any) {
     if (err.name === 'TypeError' && (err.message === 'Failed to fetch' || err.message.includes('fetch'))) {
       throw new Error(
-        "SERVIDOR EN REPOSO O BLOQUEO DE RED.\n\n" +
-        "1. Abre https://backend-asistencia-salle.onrender.com/health en otra pestaña para 'despertar' a Render.\n" +
-        "2. Verifica que ALLOWED_ORIGINS sea '*' en Render."
+        "ERROR DE CONEXIÓN (CORS o Cold Start).\n\n" +
+        "1. Cambia ALLOWED_ORIGINS a '*' en el panel de Render.\n" +
+        "2. Abre https://backend-asistencia-salle.onrender.com/health para despertar el servidor."
       );
     }
     throw err;
