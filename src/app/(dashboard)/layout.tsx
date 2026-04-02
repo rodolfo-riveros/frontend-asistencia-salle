@@ -47,21 +47,31 @@ const ADMIN_NAV = [
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
-  const isAdmin = pathname.startsWith('/admin')
-  const currentYear = new Date().getFullYear()
-  
   const [userData, setUserData] = React.useState<any>(null)
   const [isLoading, setIsLoading] = React.useState(true)
 
   React.useEffect(() => {
     const fetchUser = async () => {
       const { data: { user }, error } = await supabase.auth.getUser()
+      
       if (error || !user) {
         router.replace('/')
         return
       }
 
       const metadata = user.user_metadata
+      const role = metadata?.role || 'docente'
+
+      // PROTECCIÓN DE RUTAS: Redirigir según el rol real
+      if (role === 'docente' && pathname.startsWith('/admin')) {
+        router.replace('/instructor')
+        return
+      }
+      if (role === 'admin' && pathname.startsWith('/instructor')) {
+        router.replace('/admin')
+        return
+      }
+
       const firstName = metadata?.firstname || ""
       const lastName = metadata?.lastname || ""
       const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || "US"
@@ -70,13 +80,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         name: firstName ? `${firstName} ${lastName}`.trim() : "Usuario La Salle",
         email: user.email,
         initials: initials,
-        role: metadata?.role || 'docente'
+        role: role
       })
       setIsLoading(false)
     }
 
     fetchUser()
-  }, [router])
+  }, [router, pathname])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -87,7 +97,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const InstitutionalFooter = () => (
     <footer className="w-full py-6 px-4 md:px-8 mt-auto flex flex-col md:flex-row justify-between items-center border-t border-slate-100 bg-white gap-4 text-[10px] uppercase tracking-widest font-bold">
       <div className="text-slate-500 text-center md:text-left">
-        © {currentYear} IES La Salle Urubamba | Cusco - Perú
+        © {new Date().getFullYear()} IES La Salle Urubamba | Cusco - Perú
       </div>
       <div className="text-slate-400 text-center md:text-right">
         Desarrollado por Rodolfo Riveros
@@ -99,12 +109,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
-        <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Verificando Credenciales...</p>
+        <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Verificando Autorización...</p>
       </div>
     )
   }
 
-  if (isAdmin) {
+  // Decidimos qué layout mostrar basado en la URL, pero ahora la protección anterior asegura que el rol sea correcto
+  const isAdminView = pathname.startsWith('/admin')
+
+  if (isAdminView) {
     return (
       <SidebarProvider>
         <Sidebar collapsible="icon" className="border-r-0 shadow-2xl">
@@ -167,6 +180,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     )
   }
 
+  // Layout para Docente
   return (
     <div className="min-h-screen bg-[#f8f9fa] flex flex-col">
       <header className="h-20 bg-primary sticky top-0 z-50 px-4 md:px-10 lg:px-20 flex items-center justify-between shadow-lg">
@@ -182,7 +196,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div className="hidden sm:flex items-center gap-3">
             <div className="flex flex-col text-right">
               <span className="text-xs md:text-sm font-black text-white leading-tight truncate max-w-[200px]">{userData?.name}</span>
-              <span className="text-[9px] md:text-[10px] text-white/80 font-bold uppercase tracking-widest">{userData?.role === 'admin' ? 'Administrador Central' : 'Docente de Especialidad'}</span>
+              <span className="text-[9px] md:text-[10px] text-white/80 font-bold uppercase tracking-widest">Docente de Especialidad</span>
             </div>
             <Avatar className="h-10 w-10 border-2 border-white/20">
               <AvatarFallback className="bg-white/10 text-white font-bold text-sm">
