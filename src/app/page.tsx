@@ -25,9 +25,17 @@ export default function LoginPage() {
 
   React.useEffect(() => {
     setCurrentYear(new Date().getFullYear());
-    // Limpiamos errores al montar
-    setErrorMessage(null);
-  }, []);
+    
+    // Verificamos si ya hay una sesión activa al cargar
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const role = session.user.user_metadata?.role || 'docente';
+        router.replace(role === 'admin' ? '/admin' : '/instructor');
+      }
+    };
+    checkSession();
+  }, [router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,14 +49,13 @@ export default function LoginPage() {
     const password = formData.get('password') as string;
 
     try {
-      // Intentamos login con Supabase Auth
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
-        setErrorMessage(error.message === 'Invalid login credentials' ? 'Credenciales incorrectas.' : error.message);
+        setErrorMessage(error.message === 'Invalid login credentials' ? 'Credenciales de acceso incorrectas.' : error.message);
         return;
       }
 
@@ -57,15 +64,14 @@ export default function LoginPage() {
         const role = metadata?.role || 'docente';
         
         toast({
-          title: "Acceso Exitoso",
-          description: `Bienvenido, ${metadata?.firstname || 'Usuario'}.`,
+          title: "¡Bienvenido de nuevo!",
+          description: `Acceso concedido como ${role.toUpperCase()}.`,
         });
 
-        // Forzamos redirección según rol
         router.replace(role === 'admin' ? '/admin' : '/instructor');
       }
     } catch (error: any) {
-      setErrorMessage("Error de conexión con el servicio de autenticación.");
+      setErrorMessage("Error de conexión. Revisa tu internet o el estado de Supabase.");
     } finally {
       setIsLoading(false);
     }
@@ -84,14 +90,14 @@ export default function LoginPage() {
                 <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center shadow-lg text-primary">
                   <GraduationCap className="w-8 h-8" />
                 </div>
-                <h1 className="font-headline font-extrabold text-2xl tracking-tight uppercase text-white">IES La Salle Urubamba</h1>
+                <h1 className="font-headline font-extrabold text-2xl tracking-tight uppercase">La Salle Urubamba</h1>
               </div>
               <div className="space-y-6">
                 <h2 className="font-headline text-4xl font-bold leading-tight max-w-sm">
-                  Excelencia y Valores en la Educación Técnica.
+                  Excelencia y Valores en Educación Técnica.
                 </h2>
                 <p className="text-blue-100 text-lg font-medium opacity-90 max-w-xs">
-                  Gestiona el rendimiento académico y la asistencia con la precisión que nuestra comunidad educativa merece.
+                  Gestiona el rendimiento académico y la asistencia con la precisión tecnológica que nuestra comunidad merece.
                 </p>
               </div>
             </div>
@@ -129,7 +135,7 @@ export default function LoginPage() {
             </div>
 
             <div className="mb-10 text-left">
-              <h3 className="font-headline text-2xl font-bold text-slate-900 mb-2">Portal de Asistencia</h3>
+              <h3 className="font-headline text-2xl font-bold text-slate-900 mb-2">Portal Académico</h3>
               <p className="text-slate-500 text-sm">Ingresa tus credenciales institucionales para acceder.</p>
             </div>
 
@@ -192,12 +198,12 @@ export default function LoginPage() {
                 className="w-full py-6 bg-primary hover:bg-primary/90 text-white font-bold rounded-lg shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2"
               >
                 {isLoading ? <Loader2 className="animate-spin h-5 w-5" /> : <LogIn className="w-5 h-5" />}
-                {isLoading ? "Iniciando sesión..." : "Acceder al Portal"}
+                {isLoading ? "Validando..." : "Acceder al Portal"}
               </Button>
 
               <div className="text-center pt-4">
                 <Button variant="outline" className="w-full py-6 border-2 border-primary/10 text-primary font-bold rounded-lg hover:bg-slate-50" asChild>
-                  <Link href="/register">Registrarse ahora</Link>
+                  <Link href="/register">Solicitar Registro</Link>
                 </Button>
               </div>
             </form>

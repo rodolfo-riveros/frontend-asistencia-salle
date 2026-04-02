@@ -1,6 +1,7 @@
 
 /**
- * @fileOverview Cliente de API optimizado para producción con diagnóstico avanzado de errores JWT y CORS.
+ * @fileOverview Cliente de API optimizado para producción con diagnóstico avanzado.
+ * Este archivo es el responsable de enviar las peticiones a tu servidor FastAPI en Render.
  */
 import { supabase } from './supabase';
 
@@ -12,12 +13,14 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   const url = `${cleanBase}${API_VERSION}${cleanEndpoint}`;
   
-  // Obtenemos la sesión actual de Supabase
+  // 1. Obtenemos el token de la sesión activa de Supabase
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token;
 
+  // Logging de diagnóstico para el desarrollador (ver en consola del navegador)
+  console.log(`[API CALL] ${options.method || 'GET'} -> ${url}`);
   if (!token && !endpoint.includes('health')) {
-    console.warn("API Warning: No hay un token de sesión activo.");
+    console.warn("API Warning: No hay token detectado. La petición podría fallar con 401.");
   }
 
   const headers = new Headers({
@@ -33,48 +36,42 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
     const response = await fetch(url, {
       ...options,
       headers,
+      // IMPORTANTE: Si en FastAPI usas allow_origins=["*"], mode debe ser 'cors'
+      mode: 'cors', 
     });
 
-    // Si la respuesta no es exitosa (4xx o 5xx)
+    // 2. Si el servidor responde con error (4xx o 5xx)
     if (!response.ok) {
-      let detail = 'Error desconocido en el servidor';
-      let serverErrorBody = null;
-
+      let detail = '';
       try {
-        serverErrorBody = await response.json();
-        detail = serverErrorBody.detail || JSON.stringify(serverErrorBody);
+        const errorData = await response.json();
+        detail = errorData.detail || JSON.stringify(errorData);
       } catch {
-        detail = `Error ${response.status}: ${response.statusText}`;
+        detail = `Estado ${response.status}: ${response.statusText}`;
       }
       
-      // Diagnóstico específico para 401/403
+      // Error 401/403: Problema con JWT o Permisos
       if (response.status === 401 || response.status === 403) {
-        console.error("Error de Autenticación:", {
-          status: response.status,
-          detail,
-          tokenSent: !!token
-        });
-        
-        throw new Error(
-          `ACCESO DENEGADO (${response.status}): ${detail}\n\n` +
-          "Sugerencia: Revisa que SUPABASE_JWT_SECRET en Render coincida con Supabase."
-        );
+        throw new Error(`ACCESO DENEGADO (${response.status}): ${detail}. Revisa el SUPABASE_JWT_SECRET en Render.`);
       }
       
-      throw new Error(detail);
+      throw new Error(`ERROR DEL SERVIDOR: ${detail}`);
     }
 
-    // Manejo de respuestas vacías (204 No Content)
+    // Manejo de respuestas exitosas pero vacías
     if (response.status === 204) return {} as T;
     
     return response.json();
   } catch (err: any) {
-    // Error de red (CORS, DNS, Servidor apagado)
+    // 3. Errores de Red (CORS, Servidor apagado, Cold Start)
     if (err instanceof TypeError && (err.message === 'Failed to fetch' || err.message.includes('fetch'))) {
+      console.error("Error de Red Crítico:", url);
       throw new Error(
-        "ERROR DE CONEXIÓN: El servidor de Render no responde.\n\n" +
-        "1. Asegúrate de que ALLOWED_ORIGINS en Render sea '*' o incluya esta URL.\n" +
-        "2. El servidor podría estar despertando (Cold Start). Espera 30 segundos y reintenta."
+        "NO SE PUDO CONECTAR CON EL SERVIDOR.\n\n" +
+        "Causas probables:\n" +
+        "1. CORS: En Render, ALLOWED_ORIGINS debe ser '*' y allow_credentials=False en FastAPI.\n" +
+        "2. COLD START: Entra a " + API_BASE_URL + "/health para despertar el servidor.\n" +
+        "3. SSL: Asegúrate de que la URL use HTTPS."
       );
     }
     throw err;
