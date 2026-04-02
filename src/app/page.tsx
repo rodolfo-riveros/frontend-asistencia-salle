@@ -47,17 +47,24 @@ export default function LoginPage() {
         localStorage.setItem('supabase_access_token', data.session.access_token);
         
         // Extraemos el rol de los metadatos del usuario
-        const role = data.user.user_metadata?.role;
+        // Nota: En Supabase el metadata puede venir en user_metadata o app_metadata
+        const role = data.user.user_metadata?.role || data.user.app_metadata?.role;
         
+        console.log("Usuario logueado:", data.user.email);
+        console.log("Rol detectado:", role);
+
         toast({
           title: "Sesión Iniciada",
           description: `Bienvenido, ${data.user.user_metadata?.firstname || 'Usuario'}.`,
         });
 
-        // Redirección basada en el rol guardado en Supabase
+        // Redirección basada en el rol
         if (role === 'admin') {
           router.push('/admin');
+        } else if (role === 'docente') {
+          router.push('/instructor');
         } else {
+          // Si no tiene rol, por defecto va al panel de docente o muestra aviso
           router.push('/instructor');
         }
       }
@@ -202,7 +209,7 @@ export default function LoginPage() {
               <div className="text-center pt-4">
                 <p className="text-slate-500 text-sm mb-4">¿Aún no tienes acceso?</p>
                 <Button variant="outline" className="w-full py-6 border-2 border-primary/10 text-primary font-bold rounded-lg hover:bg-slate-50" asChild>
-                  <Link href="/register">Solicitar Registro</Link>
+                  <Link href="/register">Registrarse ahora</Link>
                 </Button>
               </div>
             </form>

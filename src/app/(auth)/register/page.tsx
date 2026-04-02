@@ -5,13 +5,20 @@ import * as React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { GraduationCap, Mail, User, CreditCard, BookOpen, ArrowLeft, ShieldCheck, Loader2 } from 'lucide-react';
+import { GraduationCap, Mail, User, CreditCard, BookOpen, ArrowLeft, ShieldCheck, Loader2, UserCog } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -34,11 +41,9 @@ export default function RegisterPage() {
     const lastname = formData.get('lastname') as string;
     const dni = formData.get('dni') as string;
     const program = formData.get('program') as string;
+    const role = formData.get('role') as string;
 
     try {
-      // Nota: En una implementación real, la contraseña se solicitaría aquí.
-      // Para el registro de docente, usaremos el DNI como contraseña temporal 
-      // o redirigiremos a una validación.
       const { data, error } = await supabase.auth.signUp({
         email,
         password: dni, // El DNI será su contraseña inicial
@@ -48,7 +53,7 @@ export default function RegisterPage() {
             lastname,
             dni,
             program,
-            role: 'docente' // Por defecto se registran como docentes
+            role: role // 'admin' o 'docente'
           }
         }
       });
@@ -57,7 +62,7 @@ export default function RegisterPage() {
 
       toast({
         title: "Solicitud enviada",
-        description: "Revisa tu correo para confirmar tu cuenta. Tu contraseña inicial es tu DNI.",
+        description: `Cuenta creada como ${role}. Tu contraseña inicial es tu DNI.`,
       });
       router.push('/');
     } catch (error: any) {
@@ -133,7 +138,7 @@ export default function RegisterPage() {
               <p className="text-slate-500 text-sm">Complete sus datos para que el administrador valide su cuenta.</p>
             </div>
 
-            <form className="space-y-5" onSubmit={handleSubmit}>
+            <form className="space-y-4" onSubmit={handleSubmit}>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label className="text-[10px] font-bold uppercase tracking-widest text-slate-400" htmlFor="firstname">Nombres</Label>
@@ -156,11 +161,28 @@ export default function RegisterPage() {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label className="text-[10px] font-bold uppercase tracking-widest text-slate-400" htmlFor="dni">DNI</Label>
-                <div className="relative group">
-                  <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-primary" />
-                  <Input className="bg-slate-50 border-none pl-11 py-5" id="dni" name="dni" placeholder="8 dígitos" required maxLength={8} />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-bold uppercase tracking-widest text-slate-400" htmlFor="dni">DNI</Label>
+                  <div className="relative group">
+                    <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-primary" />
+                    <Input className="bg-slate-50 border-none pl-11 py-5" id="dni" name="dni" placeholder="8 dígitos" required maxLength={8} />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-bold uppercase tracking-widest text-slate-400" htmlFor="role">Rol de Acceso</Label>
+                  <div className="relative group">
+                    <UserCog className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 z-10" />
+                    <Select name="role" defaultValue="docente">
+                      <SelectTrigger className="bg-slate-50 border-none pl-11 py-5">
+                        <SelectValue placeholder="Rol" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="docente">Docente</SelectItem>
+                        <SelectItem value="admin">Administrador</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
 
@@ -177,10 +199,10 @@ export default function RegisterPage() {
                 disabled={isLoading}
                 className="w-full py-6 bg-primary hover:bg-primary/90 text-white font-bold rounded-lg shadow-lg shadow-primary/20 transition-all"
               >
-                {isLoading ? <Loader2 className="animate-spin h-5 w-5" /> : "Enviar Solicitud de Acceso"}
+                {isLoading ? <Loader2 className="animate-spin h-5 w-5" /> : "Registrar Cuenta"}
               </Button>
 
-              <div className="text-center pt-4">
+              <div className="text-center pt-2">
                 <Button variant="link" className="text-slate-500 hover:text-primary text-sm font-medium" asChild>
                   <Link href="/" className="flex items-center gap-2">
                     <ArrowLeft className="w-4 h-4" /> Volver al login
@@ -189,7 +211,7 @@ export default function RegisterPage() {
               </div>
             </form>
 
-            <div className="mt-8 pt-6 border-t border-slate-100 text-center flex items-center justify-center gap-2">
+            <div className="mt-6 pt-4 border-t border-slate-100 text-center flex items-center justify-center gap-2">
               <ShieldCheck className="w-4 h-4 text-slate-400" />
               <p className="text-[10px] text-slate-400 uppercase tracking-widest font-medium">
                 Acceso Protegido - IES LA SALLE URUBAMBA
@@ -204,7 +226,7 @@ export default function RegisterPage() {
           © {currentYear || '2024'} IES La Salle Urubamba | Cusco - Perú
         </div>
         <div className="text-slate-400 text-center md:text-right">
-          Desarrollado por Rodolfo Rodolfo Riveros
+          Desarrollado por Rodolfo Riveros
         </div>
       </footer>
     </div>
