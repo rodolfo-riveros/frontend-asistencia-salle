@@ -11,7 +11,8 @@ import {
   Link2,
   AlertCircle,
   Loader2,
-  Calendar
+  Calendar,
+  RefreshCcw
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -71,6 +72,11 @@ export default function AcademicAssignmentsPage() {
       setInstructors(instData)
       setCourses(courseData)
       setPeriods(periodData)
+      
+      if (selectedPeriodId === "all" && periodData.length > 0) {
+        const active = periodData.find((p: any) => p.es_activo)
+        if (active) setSelectedPeriodId(active.id)
+      }
     } catch (err: any) {
       toast({ 
         variant: "destructive", 
@@ -116,7 +122,7 @@ export default function AcademicAssignmentsPage() {
     if(!confirm("¿Desea eliminar esta carga académica?")) return
     try {
       await api.delete(`/asignaciones/${id}`)
-      toast({ title: "Asignación retirada", description: "El registro fue eliminado del ciclo actual." })
+      toast({ title: "Asignación retirada", description: "El registro fue eliminado del ciclo académico." })
       fetchData()
     } catch (err: any) {
       toast({ variant: "destructive", title: "Error", description: err.message })
@@ -128,8 +134,7 @@ export default function AcademicAssignmentsPage() {
     return (assignments || []).filter(asg => 
       asg.docente_nombre?.toLowerCase().includes(term) || 
       asg.unidad_nombre?.toLowerCase().includes(term) ||
-      asg.periodo_nombre?.toLowerCase().includes(term) ||
-      asg.docente_id?.toLowerCase().includes(term)
+      asg.periodo_nombre?.toLowerCase().includes(term)
     )
   }, [assignments, searchTerm])
 
@@ -142,8 +147,8 @@ export default function AcademicAssignmentsPage() {
           <div className="flex items-center gap-3 mt-3">
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Filtrar Ciclo:</span>
             <Select value={selectedPeriodId} onValueChange={setSelectedPeriodId}>
-              <SelectTrigger className="h-8 w-[160px] bg-white border-none shadow-sm font-bold text-xs">
-                <SelectValue placeholder="Todos" />
+              <SelectTrigger className="h-8 w-[180px] bg-white border-none shadow-sm font-bold text-xs">
+                <SelectValue placeholder="Seleccione Ciclo" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos los Periodos</SelectItem>
@@ -155,72 +160,77 @@ export default function AcademicAssignmentsPage() {
           </div>
         </div>
 
-        <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if(!open) setEditingAssignment(null); }}>
-          <DialogTrigger asChild>
-            <Button className="bg-primary hover:bg-primary/90 gap-2 shadow-lg shadow-primary/20 h-11 px-6 font-bold">
-              <Link2 className="h-4 w-4" /> Vincular Docente
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
-            <form onSubmit={handleSave}>
-              <DialogHeader>
-                <DialogTitle>{editingAssignment ? "Editar Asignación" : "Nueva Asignación"}</DialogTitle>
-                <DialogDescription>Define el responsable de una unidad para un ciclo lectivo real.</DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-6">
-                <div className="space-y-2">
-                  <Label>Periodo Lectivo</Label>
-                  <Select name="periodo_id" defaultValue={editingAssignment?.periodo_id || periods.find(p => p.es_activo)?.id}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccione periodo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {periods.map(p => (
-                        <SelectItem key={p.id} value={p.id}>{p.nombre}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={fetchData} className="gap-2 h-11">
+            <RefreshCcw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+          </Button>
+          <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if(!open) setEditingAssignment(null); }}>
+            <DialogTrigger asChild>
+              <Button className="bg-primary hover:bg-primary/90 gap-2 shadow-lg shadow-primary/20 h-11 px-6 font-bold">
+                <Link2 className="h-4 w-4" /> Vincular Docente
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[500px]">
+              <form onSubmit={handleSave}>
+                <DialogHeader>
+                  <DialogTitle>{editingAssignment ? "Editar Asignación" : "Nueva Asignación"}</DialogTitle>
+                  <DialogDescription>Define el responsable de una unidad para un periodo académico real.</DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-6">
+                  <div className="space-y-2">
+                    <Label>Periodo Académico</Label>
+                    <Select name="periodo_id" defaultValue={editingAssignment?.periodo_id || periods.find(p => p.es_activo)?.id}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccione periodo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {periods.map(p => (
+                          <SelectItem key={p.id} value={p.id}>{p.nombre}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Docente Responsable</Label>
+                    <Select name="docente_id" defaultValue={editingAssignment?.docente_id}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccione docente..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {instructors.map(inst => (
+                          <SelectItem key={inst.id} value={inst.id}>{inst.nombre}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Unidad Didáctica</Label>
+                    <Select name="unidad_id" defaultValue={editingAssignment?.unidad_id}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccione unidad..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {courses.map(course => (
+                          <SelectItem key={course.id} value={course.id}>{course.nombre} ({course.programa_nombre})</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label>Docente Responsable</Label>
-                  <Select name="docente_id" defaultValue={editingAssignment?.docente_id}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Busca docente..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {instructors.map(inst => (
-                        <SelectItem key={inst.id} value={inst.id}>{inst.nombre}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Unidad Didáctica</Label>
-                  <Select name="unidad_id" defaultValue={editingAssignment?.unidad_id}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Busca unidad..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {courses.map(course => (
-                        <SelectItem key={course.id} value={course.id}>{course.nombre} ({course.programa_nombre})</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
-                <Button type="submit" className="bg-primary font-bold">Guardar Asignación</Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+                <DialogFooter>
+                  <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
+                  <Button type="submit" className="bg-primary font-bold">Guardar Asignación</Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
         <Input 
-          placeholder="Buscador inteligente: filtra por docente, unidad, periodo o ID..." 
+          placeholder="Buscador inteligente: filtra por docente, unidad o periodo..." 
           className="pl-11 py-6 bg-white border-slate-100 shadow-sm"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
@@ -232,7 +242,7 @@ export default function AcademicAssignmentsPage() {
           {isLoading ? (
             <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-3">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-sm font-medium">Sincronizando con FastAPI...</p>
+              <p className="text-sm font-medium">Cargando asignaciones...</p>
             </div>
           ) : (
             <Table>
@@ -240,7 +250,7 @@ export default function AcademicAssignmentsPage() {
                 <TableRow className="hover:bg-transparent">
                   <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest pl-6">Responsable</TableHead>
                   <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest">Unidad Didáctica</TableHead>
-                  <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest text-center">Ciclo</TableHead>
+                  <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest text-center">Periodo</TableHead>
                   <TableHead className="w-[80px] pr-6 text-right"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -255,10 +265,7 @@ export default function AcademicAssignmentsPage() {
                               {asg.docente_nombre?.[0]}
                             </AvatarFallback>
                           </Avatar>
-                          <div className="flex flex-col">
-                            <span className="font-bold text-slate-900 text-sm">{asg.docente_nombre}</span>
-                            <span className="text-[10px] text-slate-400 font-mono">UUID: {asg.docente_id?.substring(0,8)}...</span>
-                          </div>
+                          <span className="font-bold text-slate-900 text-sm">{asg.docente_nombre}</span>
                         </div>
                       </TableCell>
                       <TableCell>

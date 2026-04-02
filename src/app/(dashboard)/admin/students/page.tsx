@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -10,7 +11,9 @@ import {
   GraduationCap,
   AlertCircle,
   Loader2,
-  Fingerprint
+  Fingerprint,
+  RefreshCcw,
+  ArrowRightLeft
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -67,7 +70,7 @@ export default function AdminStudentsPage() {
       toast({ 
         variant: "destructive", 
         title: "Error de Sincronización", 
-        description: "No se pudieron obtener los datos de los alumnos desde FastAPI." 
+        description: err.message || "No se pudieron obtener los datos de los alumnos." 
       })
     } finally {
       setIsLoading(false)
@@ -111,7 +114,7 @@ export default function AdminStudentsPage() {
     if(!confirm("¿Desea retirar a este estudiante de la matrícula?")) return
     try {
       await api.delete(`/alumnos/${id}`)
-      toast({ title: "Alumno retirado", description: "El registro fue eliminado correctamente del servidor." })
+      toast({ title: "Alumno retirado", description: "El registro fue eliminado correctamente." })
       fetchData()
     } catch (err: any) {
       toast({ variant: "destructive", title: "Error al eliminar", description: err.message })
@@ -133,11 +136,16 @@ export default function AdminStudentsPage() {
         <div className="space-y-1">
           <p className="text-primary font-bold uppercase tracking-[0.2em] text-xs">Padrón Estudiantil</p>
           <h2 className="text-3xl font-headline font-extrabold tracking-tight text-slate-900">Registro de Alumnos</h2>
-          <p className="text-slate-500 text-sm">Control centralizado de matrícula y datos personales vía FastAPI.</p>
+          <p className="text-slate-500 text-sm">Control centralizado de matrícula por periodo académico.</p>
         </div>
-        <Button onClick={() => { setEditingStudent(null); setIsModalOpen(true); }} className="bg-primary hover:bg-primary/90 gap-2 h-11 px-6 font-bold shadow-lg shadow-primary/20">
-          <Plus className="h-4 w-4" /> Matricular Estudiante
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" className="gap-2 h-11" onClick={fetchData}>
+            <RefreshCcw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+          </Button>
+          <Button onClick={() => { setEditingStudent(null); setIsModalOpen(true); }} className="bg-primary hover:bg-primary/90 gap-2 h-11 px-6 font-bold shadow-lg shadow-primary/20">
+            <Plus className="h-4 w-4" /> Matricular Estudiante
+          </Button>
+        </div>
       </div>
 
       <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if(!open) setEditingStudent(null); }}>
@@ -208,7 +216,7 @@ export default function AdminStudentsPage() {
           {isLoading ? (
             <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-3">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-sm font-medium">Sincronizando alumnos con el servidor...</p>
+              <p className="text-sm font-medium">Sincronizando alumnos...</p>
             </div>
           ) : (
             <Table>
@@ -255,12 +263,15 @@ export default function AdminStudentsPage() {
                               <MoreVertical className="h-4 w-4 text-slate-400" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-32">
+                          <DropdownMenuContent align="end" className="w-48">
                             <DropdownMenuItem className="gap-2 text-xs" onClick={() => { setEditingStudent(student); setIsModalOpen(true); }}>
-                              <Edit2 className="h-3 w-3" /> Editar
+                              <Edit2 className="h-3 w-3" /> Editar Datos
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="gap-2 text-xs text-primary">
+                              <ArrowRightLeft className="h-3 w-3" /> Promover Ciclo (Migrar)
                             </DropdownMenuItem>
                             <DropdownMenuItem className="gap-2 text-destructive text-xs" onClick={() => handleDelete(student.id)}>
-                              <Trash2 className="h-3 w-3" /> Retirar
+                              <Trash2 className="h-3 w-3" /> Retirar Matrícula
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>

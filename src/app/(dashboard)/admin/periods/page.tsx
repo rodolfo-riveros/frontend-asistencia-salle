@@ -12,7 +12,8 @@ import {
   AlertCircle,
   Loader2,
   CheckCircle2,
-  XCircle
+  XCircle,
+  RefreshCcw
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -125,38 +126,44 @@ export default function AdminPeriodsPage() {
           <p className="text-slate-500 text-sm">Define el ciclo activo para matrículas y asistencias.</p>
         </div>
         
-        <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if(!open) setEditingPeriod(null); }}>
-          <DialogTrigger asChild>
-            <Button className="bg-primary hover:bg-primary/90 gap-2 shadow-lg shadow-primary/20 h-11 px-6 font-bold">
-              <Plus className="h-4 w-4" /> Nuevo Ciclo
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
-            <form onSubmit={handleSave}>
-              <DialogHeader>
-                <DialogTitle>{editingPeriod ? "Editar Ciclo" : "Crear Nuevo Ciclo"}</DialogTitle>
-                <DialogDescription>Asigna el nombre oficial (Ej: 2024-I) y define su vigencia.</DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-6">
-                <div className="space-y-2">
-                  <Label htmlFor="nombre">Nombre del Periodo</Label>
-                  <Input id="nombre" name="nombre" defaultValue={editingPeriod?.nombre} placeholder="Ej. 2024-II" required />
-                </div>
-                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border">
-                  <div className="space-y-0.5">
-                    <Label className="text-sm font-bold">Ciclo Activo</Label>
-                    <p className="text-xs text-slate-500">Marcar como periodo vigente del sistema.</p>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={fetchPeriods} className="gap-2">
+            <RefreshCcw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            Sincronizar
+          </Button>
+          <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if(!open) setEditingPeriod(null); }}>
+            <DialogTrigger asChild>
+              <Button className="bg-primary hover:bg-primary/90 gap-2 shadow-lg shadow-primary/20 h-11 px-6 font-bold">
+                <Plus className="h-4 w-4" /> Nuevo Ciclo
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+              <form onSubmit={handleSave}>
+                <DialogHeader>
+                  <DialogTitle>{editingPeriod ? "Editar Ciclo" : "Crear Nuevo Ciclo"}</DialogTitle>
+                  <DialogDescription>Asigna el nombre oficial (Ej: 2024-I) y define su vigencia.</DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="nombre">Nombre del Periodo</Label>
+                    <Input id="nombre" name="nombre" defaultValue={editingPeriod?.nombre} placeholder="Ej. 2024-II" required />
                   </div>
-                  <Switch name="es_activo" defaultChecked={editingPeriod?.es_activo} />
+                  <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border">
+                    <div className="space-y-0.5">
+                      <Label className="text-sm font-bold">Ciclo Activo</Label>
+                      <p className="text-xs text-slate-500">Marcar como periodo vigente del sistema.</p>
+                    </div>
+                    <Switch name="es_activo" defaultChecked={editingPeriod?.es_activo} />
+                  </div>
                 </div>
-              </div>
-              <DialogFooter>
-                <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
-                <Button type="submit" className="bg-primary font-bold">Confirmar</Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+                <DialogFooter>
+                  <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
+                  <Button type="submit" className="bg-primary font-bold">Confirmar</Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       <div className="relative">
