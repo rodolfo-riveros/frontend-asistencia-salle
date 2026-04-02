@@ -1,3 +1,4 @@
+
 {
   "placeholderImages": [
     {
@@ -23,6 +24,12 @@
       "description": "Docente profesional",
       "imageUrl": "https://picsum.photos/seed/201/200/200",
       "imageHint": "professor portrait"
+    },
+    {
+      "id": "sjb-avatar",
+      "description": "San Juan Bautista de La Salle",
+      "imageUrl": "https://picsum.photos/seed/sjb/200/200",
+      "imageHint": "religious portrait"
     }
   ]
 }

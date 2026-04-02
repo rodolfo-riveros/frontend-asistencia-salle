@@ -1,18 +1,22 @@
+
 "use client"
 
 import * as React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { GraduationCap, Mail, Lock, Eye, LogIn, ChevronRight, ShieldCheck } from 'lucide-react';
+import { GraduationCap, Mail, Lock, Eye, LogIn, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 export default function LoginPage() {
   const router = useRouter();
   const [showPassword, setShowPassword] = React.useState(false);
   const [currentYear, setCurrentYear] = React.useState<number | null>(null);
+
+  const sjbImage = PlaceHolderImages.find(img => img.id === 'sjb-avatar')?.imageUrl || "https://picsum.photos/seed/sjb/200/200";
 
   React.useEffect(() => {
     setCurrentYear(new Date().getFullYear());
@@ -38,7 +42,7 @@ export default function LoginPage() {
                 <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center shadow-lg">
                   <GraduationCap className="text-primary w-8 h-8" />
                 </div>
-                <h1 className="font-bold text-2xl tracking-tight uppercase">La Salle Urubamba</h1>
+                <h1 className="font-bold text-2xl tracking-tight uppercase">IES La Salle Urubamba</h1>
               </div>
               <div className="space-y-6">
                 <h2 className="text-4xl font-bold leading-tight max-w-sm">
@@ -53,19 +57,20 @@ export default function LoginPage() {
             <div className="z-10 mt-auto">
               <div className="p-6 bg-white/10 backdrop-blur-md rounded-xl border border-white/10">
                 <p className="text-sm italic font-medium leading-relaxed">
-                  "Grandes cosas son posibles si nos mantenemos unidos y comprometidos con la formación de calidad."
+                  "Tengan un amor bien tierno para con los jóvenes, a imitación de Jesucristo."
                 </p>
                 <div className="mt-4 flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-blue-800 overflow-hidden border border-white/20">
                     <img 
-                      alt="avatar" 
+                      alt="San Juan Bautista de La Salle" 
                       className="w-full h-full object-cover" 
-                      src="https://picsum.photos/seed/director/200/200" 
+                      src={sjbImage}
+                      data-ai-hint="San Juan Bautista"
                     />
                   </div>
                   <div>
-                    <p className="text-xs font-bold">Dirección Académica</p>
-                    <p className="text-blue-200 text-[10px] uppercase tracking-widest">IES La Salle Urubamba</p>
+                    <p className="text-xs font-bold">San Juan Bautista de La Salle</p>
+                    <p className="text-blue-200 text-[10px] uppercase tracking-widest font-semibold">Patrono de los Educadores</p>
                   </div>
                 </div>
               </div>
@@ -179,7 +184,7 @@ export default function LoginPage() {
           © {currentYear || '2024'} IES La Salle Urubamba | Cusco - Perú
         </div>
         <div className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">
-          Desarrollado por Rodolfo Riveros
+          Desarrollado por Rodolfo Rodolfo Riveros
         </div>
       </footer>
     </div>
