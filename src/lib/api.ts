@@ -1,10 +1,10 @@
 
 /**
  * @fileOverview Utilidad centralizada para realizar peticiones al backend de FastAPI v1.
- * Optimizado para producción (Vercel/Railway).
+ * Optimizado para producción (Render / Railway).
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://backend-asistencia-salle.onrender.com';
 const API_VERSION = '/api/v1';
 
 export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -51,7 +51,7 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
     return response.json();
   } catch (err: any) {
     if (err instanceof TypeError && err.message === 'Failed to fetch') {
-      throw new Error(`No se pudo conectar con el servidor en ${API_BASE_URL}. Verifica que el backend esté encendido.`);
+      throw new Error(`No se pudo conectar con el servidor de producción en ${API_BASE_URL}. Verifica que el servicio en Render esté activo.`);
     }
     throw err;
   }
