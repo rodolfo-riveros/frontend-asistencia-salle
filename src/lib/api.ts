@@ -1,5 +1,5 @@
 /**
- * @fileOverview Cliente de API optimizado para FastAPI con diagnóstico mejorado.
+ * @fileOverview Cliente de API optimizado para FastAPI con diagnóstico mejorado y manejo de 204 No Content.
  */
 import { supabase } from './supabase';
 
@@ -14,9 +14,8 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token;
 
-  if (token && process.env.NODE_ENV === 'development') {
-    console.log(`[DEBUG] LLAMADA ${options.method || 'GET'}: ${url}`);
-    console.log(`[DEBUG] TOKEN PARA POSTMAN: ${token}`);
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`[API REQUEST] ${options.method || 'GET'} ${url}`);
   }
 
   const headers = new Headers({
@@ -35,33 +34,26 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
       credentials: 'omit',
     });
 
-    // Manejo específico de 401 (Token inválido o secreto JWT incorrecto en Render)
-    if (response.status === 401) {
-      console.error("[API ERROR] 401: Sesión no válida en el servidor.");
-      throw new Error("Tu sesión ha expirado o el servidor no reconoce tu acceso. Por favor, intenta cerrar sesión y volver a entrar.");
+    // Manejo de éxito sin contenido (Común en DELETE de FastAPI)
+    if (response.status === 204) {
+      return {} as T;
     }
 
     if (!response.ok) {
-      let errorMessage = `Error del servidor (${response.status})`;
+      let errorMessage = `Error (${response.status})`;
       try {
         const errorData = await response.json();
         errorMessage = errorData.detail || errorMessage;
-        // Si el detalle es un objeto (común en errores de validación de FastAPI)
-        if (typeof errorMessage === 'object') {
-          errorMessage = JSON.stringify(errorMessage);
-        }
+        if (typeof errorMessage === 'object') errorMessage = JSON.stringify(errorMessage);
       } catch (e) {
-        const textError = await response.text();
-        if (textError) errorMessage = textError;
+        const text = await response.text();
+        if (text) errorMessage = text;
       }
       
       console.error(`[API ERROR] ${response.status}:`, errorMessage);
       throw new Error(errorMessage);
     }
 
-    // Para DELETE o respuestas sin contenido (204 No Content)
-    if (response.status === 204) return {} as T;
-    
     const text = await response.text();
     if (!text) return {} as T;
     
@@ -71,10 +63,8 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
       return text as unknown as T;
     }
   } catch (err: any) {
-    // Si es un error de red (CORS o servidor apagado)
     if (err.message === 'Failed to fetch') {
-      console.error("[NETWORK ERROR] No se pudo conectar con el servidor. Revisa el CORS en el backend o si el servidor está encendido.");
-      throw new Error("No se pudo conectar con el servidor de FastAPI. Verifica tu conexión o si el servicio en Render está activo.");
+      throw new Error("No se pudo conectar con el servidor. Verifica que el backend en Render esté encendido y el CORS configurado.");
     }
     throw err;
   }

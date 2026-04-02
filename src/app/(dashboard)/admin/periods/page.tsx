@@ -49,7 +49,7 @@ export default function AdminPeriodsPage() {
   const [periods, setPeriods] = React.useState<any[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
   const [isModalOpen, setIsModalOpen] = React.useState(false)
-  const [isDeleting, setIsDeleting] = React.useState<string | null>(null)
+  const [isDeletingId, setIsDeletingId] = React.useState<string | null>(null)
   const [searchTerm, setSearchTerm] = React.useState("")
 
   const fetchPeriods = React.useCallback(async () => {
@@ -60,7 +60,7 @@ export default function AdminPeriodsPage() {
     } catch (err: any) {
       toast({ 
         variant: "destructive", 
-        title: "Error de Conexión", 
+        title: "Error de Sincronización", 
         description: err.message
       })
     } finally {
@@ -92,29 +92,32 @@ export default function AdminPeriodsPage() {
 
   const handleDelete = async (id: string) => {
     if(!id) return
-    if(!confirm("¿Desea eliminar este periodo académico? Se borrarán los datos vinculados (alumnos, cursos, asistencias).")) return
     
-    setIsDeleting(id)
+    const confirmDelete = window.confirm("¿Desea eliminar este periodo? Esto fallará si hay alumnos o cursos vinculados a él.")
+    if(!confirmDelete) return
+    
+    setIsDeletingId(id)
+    console.log(`[DEBUG] Intentando eliminar periodo ID: ${id}`)
+    
     try {
-      // Llamada directa al DELETE
       await api.delete(`/periodos/${id}`)
       
       toast({ 
-        title: "Ciclo eliminado", 
-        description: "El registro ha sido retirado correctamente de la base de datos." 
+        title: "Eliminado", 
+        description: "El periodo ha sido retirado correctamente." 
       })
       
-      // Actualización optimista de la UI
+      // Actualización optimista de la tabla
       setPeriods(prev => prev.filter(p => p.id !== id))
     } catch (err: any) {
       console.error("[DELETE ERROR]", err)
       toast({ 
         variant: "destructive", 
-        title: "Error al eliminar", 
-        description: err.message || "No se pudo eliminar el periodo. Verifique si tiene dependencias activas."
+        title: "No se pudo eliminar", 
+        description: err.message || "Es probable que el periodo tenga datos vinculados (llave foránea)."
       })
     } finally {
-      setIsDeleting(null)
+      setIsDeletingId(null)
     }
   }
 
@@ -132,13 +135,13 @@ export default function AdminPeriodsPage() {
         <div className="space-y-1">
           <p className="text-primary font-bold uppercase tracking-[0.2em] text-xs">Gestión Institucional</p>
           <h2 className="text-3xl font-headline font-extrabold tracking-tight text-slate-900">Periodos Académicos</h2>
-          <p className="text-slate-500 text-sm">Define el ciclo activo para matrículas y asistencias.</p>
+          <p className="text-slate-500 text-sm">Define el ciclo activo para el sistema.</p>
         </div>
         
         <div className="flex gap-2">
           <Button variant="outline" onClick={fetchPeriods} className="gap-2 h-11" disabled={isLoading}>
             <RefreshCcw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-            Sincronizar
+            Actualizar
           </Button>
           <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
             <DialogTrigger asChild>
@@ -150,24 +153,24 @@ export default function AdminPeriodsPage() {
               <form onSubmit={handleSave}>
                 <DialogHeader>
                   <DialogTitle>Crear Nuevo Ciclo</DialogTitle>
-                  <DialogDescription>Asigna el nombre oficial (Ej: 2024-I) y define su vigencia.</DialogDescription>
+                  <DialogDescription>Asigna el nombre oficial (Ej: 2024-II).</DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-6">
                   <div className="space-y-2">
                     <Label htmlFor="nombre">Nombre del Periodo</Label>
-                    <Input id="nombre" name="nombre" placeholder="Ej. 2024-II" required />
+                    <Input id="nombre" name="nombre" placeholder="Ej. 2025-I" required />
                   </div>
                   <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border">
                     <div className="space-y-0.5">
                       <Label className="text-sm font-bold">Ciclo Activo</Label>
-                      <p className="text-xs text-slate-500">Marcar como periodo vigente del sistema.</p>
+                      <p className="text-xs text-slate-500">Solo puede haber un ciclo activo.</p>
                     </div>
                     <Switch name="es_activo" />
                   </div>
                 </div>
                 <DialogFooter>
                   <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
-                  <Button type="submit" className="bg-primary font-bold">Confirmar</Button>
+                  <Button type="submit" className="bg-primary font-bold">Guardar</Button>
                 </DialogFooter>
               </form>
             </DialogContent>
@@ -178,7 +181,7 @@ export default function AdminPeriodsPage() {
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
         <Input 
-          placeholder="Busca por nombre o ID de periodo..." 
+          placeholder="Busca por nombre..." 
           className="pl-11 h-11 bg-white border-slate-100 shadow-sm"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
@@ -190,16 +193,16 @@ export default function AdminPeriodsPage() {
           {isLoading && periods.length === 0 ? (
             <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-3">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-sm font-medium italic">Sincronizando con FastAPI...</p>
+              <p className="text-sm font-medium italic">Sincronizando...</p>
             </div>
           ) : (
             <Table>
               <TableHeader className="bg-slate-50/50">
                 <TableRow className="hover:bg-transparent">
-                  <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest pl-6">Nombre del Ciclo</TableHead>
+                  <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest pl-6">Nombre</TableHead>
                   <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest text-center">Estado</TableHead>
                   <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest">ID Sistema</TableHead>
-                  <TableHead className="w-[100px] pr-6 text-right">Acciones</TableHead>
+                  <TableHead className="w-[80px] pr-6 text-right"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -224,24 +227,28 @@ export default function AdminPeriodsPage() {
                         )}
                       </TableCell>
                       <TableCell className="font-mono text-[10px] text-slate-400">
-                        {p.id?.substring(0, 8)}...
+                        {p.id}
                       </TableCell>
                       <TableCell className="pr-6 text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="rounded-full h-9 w-9" disabled={isDeleting === p.id}>
-                              {isDeleting === p.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreVertical className="h-4 w-4 text-slate-400" />}
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-40">
-                            <DropdownMenuItem 
-                              className="gap-2 text-destructive focus:text-destructive focus:bg-red-50 cursor-pointer" 
-                              onClick={() => handleDelete(p.id)}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" /> Eliminar Ciclo
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        {isDeletingId === p.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin text-primary ml-auto" />
+                        ) : (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
+                                <MoreVertical className="h-4 w-4 text-slate-400" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-40">
+                              <DropdownMenuItem 
+                                className="gap-2 text-destructive focus:text-destructive focus:bg-red-50 cursor-pointer" 
+                                onClick={() => handleDelete(p.id)}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" /> Eliminar Ciclo
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))
@@ -250,9 +257,9 @@ export default function AdminPeriodsPage() {
                     <TableCell colSpan={4} className="h-48 text-center text-slate-400">
                       <div className="flex flex-col items-center gap-3">
                         <AlertCircle className="h-10 w-10 opacity-10" />
-                        <p className="font-bold text-slate-900 uppercase text-xs tracking-widest">No hay periodos registrados</p>
+                        <p className="font-bold text-slate-900 uppercase text-xs tracking-widest">No hay periodos</p>
                       </div>
-                    </TableRow>
+                    </TableCell>
                   </TableRow>
                 )}
               </TableBody>
