@@ -1,15 +1,14 @@
-
 /**
- * @fileOverview Utilidad centralizada para realizar peticiones al backend de FastAPI.
- * Implementa soporte para autenticación Bearer Token compatible con Supabase JWT.
+ * @fileOverview Utilidad centralizada para realizar peticiones al backend de FastAPI v1.
  */
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_VERSION = '/api/v1';
 
 export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  const url = `${API_BASE_URL}${API_VERSION}${cleanEndpoint}`;
   
-  // Obtenemos el token del almacenamiento local (o cookies en producción)
   const token = typeof window !== 'undefined' ? localStorage.getItem('supabase_access_token') : null;
 
   const headers = new Headers({
@@ -31,10 +30,18 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
     try {
       const errorData = await response.json();
       detail = errorData.detail || detail;
+      if (Array.isArray(detail)) {
+        detail = detail.map(d => `${d.loc.join('.')}: ${d.msg}`).join(', ');
+      }
     } catch (e) {
       detail = `Error ${response.status}: ${response.statusText}`;
     }
     throw new Error(detail);
+  }
+
+  // Handle 204 No Content
+  if (response.status === 204) {
+    return {} as T;
   }
 
   return response.json();
@@ -45,7 +52,9 @@ export const api = {
   post: <T>(endpoint: string, data: any, options?: RequestInit) => 
     apiFetch<T>(endpoint, { ...options, method: 'POST', body: JSON.stringify(data) }),
   put: <T>(endpoint: string, data: any, options?: RequestInit) => 
-    apiFetch<T>(endpoint, { ...options, method: 'PUT', body: JSON.stringify(data) }),
+    apiFetch<T>(endpoint, { ...options, method: 'PATCH', body: JSON.stringify(data) }), // Using PATCH as per your API
+  patch: <T>(endpoint: string, data: any, options?: RequestInit) => 
+    apiFetch<T>(endpoint, { ...options, method: 'PATCH', body: JSON.stringify(data) }),
   delete: <T>(endpoint: string, options?: RequestInit) => 
     apiFetch<T>(endpoint, { ...options, method: 'DELETE' }),
 };

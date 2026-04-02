@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -11,14 +10,14 @@ import { toast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
 
 export default function InstructorDashboard() {
-  const [courses, setCourses] = React.useState<any[]>([])
+  const [asignaciones, setAsignaciones] = React.useState<any[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
 
   const fetchAssignedCourses = React.useCallback(async () => {
     setIsLoading(true)
     try {
-      const data = await api.get<any[]>('/instructor/courses')
-      setCourses(data)
+      const data = await api.get<any[]>('/me/asignaciones')
+      setAsignaciones(data)
     } catch (err: any) {
       toast({ 
         variant: "destructive", 
@@ -61,15 +60,15 @@ export default function InstructorDashboard() {
           <Loader2 className="h-12 w-12 animate-spin text-primary" />
           <p className="font-bold text-lg">Cargando unidades desde el backend...</p>
         </div>
-      ) : courses.length > 0 ? (
+      ) : asignaciones.length > 0 ? (
         <div className="grid gap-6 md:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-          {courses.map((course) => (
-            <Card key={course.id} className="group border-none shadow-xl hover:shadow-2xl transition-all bg-white overflow-hidden flex flex-col">
+          {asignaciones.map((asg) => (
+            <Card key={asg.id} className="group border-none shadow-xl hover:shadow-2xl transition-all bg-white overflow-hidden flex flex-col">
               <div className={`h-2 bg-gradient-to-r from-primary to-blue-400`} />
               <CardHeader className="space-y-4">
                 <div className="flex justify-between items-start">
                   <Badge variant="outline" className="text-[10px] font-black uppercase tracking-widest bg-slate-50 border-slate-200">
-                    ID: {course.id}
+                    ID: {asg.unidad_id}
                   </Badge>
                   <div className="p-2.5 bg-primary/5 rounded-xl text-primary">
                     <BookOpen className="h-5 w-5" />
@@ -77,10 +76,10 @@ export default function InstructorDashboard() {
                 </div>
                 <div>
                   <CardTitle className="text-xl md:text-2xl font-headline font-extrabold group-hover:text-primary transition-colors line-clamp-2">
-                    {course.name}
+                    {asg.unidad_nombre}
                   </CardTitle>
                   <p className="text-[10px] font-black uppercase text-slate-400 mt-1 tracking-tight">
-                    {course.program}
+                    {asg.programa_nombre}
                   </p>
                 </div>
               </CardHeader>
@@ -90,30 +89,21 @@ export default function InstructorDashboard() {
                     <Users className="h-4 w-4 text-primary" />
                   </div>
                   <div className="flex flex-col min-w-0">
-                    <span className="text-[9px] font-black text-slate-400 uppercase">Inscritos</span>
-                    <span className="text-sm font-bold text-slate-700 truncate">{course.students_count || 0} Estudiantes</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-100">
-                  <div className="bg-white p-2 rounded-lg shadow-sm shrink-0">
-                    <Clock className="h-4 w-4 text-primary" />
-                  </div>
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-[9px] font-black text-slate-400 uppercase">Horario</span>
-                    <span className="text-sm font-bold text-slate-700 truncate">{course.schedule}</span>
+                    <span className="text-[9px] font-black text-slate-400 uppercase">Semestre</span>
+                    <span className="text-sm font-bold text-slate-700 truncate">Ciclo {asg.semestre}</span>
                   </div>
                 </div>
               </CardContent>
               <CardFooter className="bg-slate-50/50 p-4 md:p-6 gap-3">
                 <Button asChild className="flex-1 h-12 md:h-14 font-black text-sm md:text-base shadow-lg shadow-primary/20">
-                  <Link href={`/instructor/attendance/${course.id}`}>
+                  <Link href={`/instructor/attendance/${asg.unidad_id}`}>
                     Asistencia <ArrowRight className="ml-2 h-4 w-4 md:h-5 md:w-5" />
                   </Link>
                 </Button>
                 <Button 
                   variant="outline" 
                   className="h-12 md:h-14 w-12 md:w-14 p-0 border-slate-200 hover:text-green-600 transition-all shrink-0"
-                  onClick={() => handleExport(course.name)}
+                  onClick={() => handleExport(asg.unidad_nombre)}
                 >
                   <FileSpreadsheet className="h-5 w-5 md:h-6 md:w-6" />
                 </Button>

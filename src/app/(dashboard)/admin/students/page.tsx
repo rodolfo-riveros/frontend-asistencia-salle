@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -54,6 +53,7 @@ import { api } from "@/lib/api"
 
 export default function AdminStudentsPage() {
   const [students, setStudents] = React.useState<any[]>([])
+  const [programs, setPrograms] = React.useState<any[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
   const [isModalOpen, setIsModalOpen] = React.useState(false)
   const [isImportOpen, setIsImportOpen] = React.useState(false)
@@ -65,16 +65,20 @@ export default function AdminStudentsPage() {
   const [uploading, setUploading] = React.useState(false)
   const [progress, setProgress] = React.useState(0)
 
-  const fetchStudents = React.useCallback(async () => {
+  const fetchData = React.useCallback(async () => {
     setIsLoading(true)
     try {
-      const data = await api.get<any[]>('/students')
-      setStudents(data)
+      const [studentsData, programsData] = await Promise.all([
+        api.get<any[]>('/alumnos/'),
+        api.get<any[]>('/programas/')
+      ])
+      setStudents(studentsData)
+      setPrograms(programsData)
     } catch (err: any) {
       toast({ 
         variant: "destructive", 
-        title: "Error de conexión", 
-        description: "No se pudieron cargar los alumnos del servidor." 
+        title: "Error de servidor", 
+        description: err.message || "No se pudo sincronizar con FastAPI." 
       })
     } finally {
       setIsLoading(false)
@@ -82,28 +86,29 @@ export default function AdminStudentsPage() {
   }, [])
 
   React.useEffect(() => {
-    fetchStudents()
-  }, [fetchStudents])
+    fetchData()
+  }, [fetchData])
 
   const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
     const studentData = {
-      name: formData.get("name") as string,
-      program: formData.get("program") as string,
-      semester: formData.get("semester") as string,
-      status: formData.get("status") as string
+      nombre: formData.get("nombre") as string,
+      dni: formData.get("dni") as string,
+      programa_id: formData.get("programa_id") as string,
+      semestre: formData.get("semestre") as string,
+      estado: formData.get("estado") as string
     }
 
     try {
       if (editingStudent) {
-        await api.put(`/students/${editingStudent.id}`, studentData)
+        await api.patch(`/alumnos/${editingStudent.id}`, studentData)
         toast({ title: "Matrícula actualizada", description: "El registro del alumno fue modificado." })
       } else {
-        await api.post('/students', studentData)
+        await api.post('/alumnos/', studentData)
         toast({ title: "Alumno matriculado", description: "Se ha registrado al nuevo estudiante con éxito." })
       }
-      fetchStudents()
+      fetchData()
       setIsModalOpen(false)
       setEditingStudent(null)
     } catch (err: any) {
@@ -113,31 +118,11 @@ export default function AdminStudentsPage() {
 
   const handleDelete = async (id: string) => {
     try {
-      await api.delete(`/students/${id}`)
-      setStudents(prev => prev.filter(s => s.id !== id))
+      await api.delete(`/alumnos/${id}`)
       toast({ variant: "destructive", title: "Alumno retirado", description: "La matrícula fue cancelada." })
+      fetchData()
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Error", description: "No se pudo eliminar el registro." })
-    }
-  }
-
-  const handleDrag = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setIsDragging(true)
-    } else if (e.type === "dragleave") {
-      setIsDragging(false)
-    }
-  }
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setIsDragging(false)
-    const droppedFile = e.dataTransfer.files[0]
-    if (droppedFile && (droppedFile.name.endsWith('.xlsx') || droppedFile.name.endsWith('.xls'))) {
-      setFile(droppedFile)
+      toast({ variant: "destructive", title: "Error", description: err.message })
     }
   }
 
@@ -151,14 +136,14 @@ export default function AdminStudentsPage() {
         clearInterval(interval)
         setUploading(false)
         toast({ title: "Importación completa", description: "Se han procesado los registros del archivo." })
-        fetchStudents()
+        fetchData()
       }
     }, 200)
   }
 
   const filteredStudents = (students || []).filter(s => 
-    s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    s.id?.toString().includes(searchTerm)
+    s.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    s.dni.includes(searchTerm)
   )
 
   return (
@@ -178,21 +163,13 @@ export default function AdminStudentsPage() {
             </DialogTrigger>
             <DialogContent className="sm:max-w-[600px] w-[95vw]">
               <DialogHeader>
-                <DialogTitle>Importación Masiva desde FastAPI</DialogTitle>
+                <DialogTitle>Importación Masiva</DialogTitle>
                 <DialogDescription>Sube tu archivo .xlsx o .xls para procesar los registros.</DialogDescription>
               </DialogHeader>
               <div className="space-y-6 py-4">
                 {!file ? (
                   <div
-                    onDragEnter={handleDrag}
-                    onDragOver={handleDrag}
-                    onDragLeave={handleDrag}
-                    onDrop={handleDrop}
-                    className={`
-                      border-2 border-dashed rounded-xl p-8 md:p-12 transition-all cursor-pointer
-                      flex flex-col items-center justify-center text-center gap-4
-                      ${isDragging ? 'border-primary bg-primary/5' : 'border-slate-200 hover:border-primary/50'}
-                    `}
+                    className="border-2 border-dashed rounded-xl p-8 md:p-12 transition-all cursor-pointer flex flex-col items-center justify-center text-center gap-4 border-slate-200 hover:border-primary/50"
                     onClick={() => document.getElementById('fileInput')?.click()}
                   >
                     <div className="p-3 md:p-4 bg-primary/10 rounded-full">
@@ -216,11 +193,6 @@ export default function AdminStudentsPage() {
                           <p className="text-[10px] md:text-xs text-slate-500">{(file.size / 1024).toFixed(2)} KB</p>
                         </div>
                       </div>
-                      {!uploading && progress < 100 && (
-                        <Button variant="ghost" size="icon" onClick={() => setFile(null)} className="h-8 w-8">
-                          <X className="h-4 w-4 text-slate-400" />
-                        </Button>
-                      )}
                     </div>
                     {uploading ? (
                       <div className="space-y-2">
@@ -262,27 +234,30 @@ export default function AdminStudentsPage() {
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                   <div className="space-y-2">
-                    <Label htmlFor="name" className="text-xs">Nombre Completo</Label>
-                    <Input id="name" name="name" defaultValue={editingStudent?.name} placeholder="Apellidos y Nombres" required className="text-sm" />
+                    <Label htmlFor="nombre" className="text-xs">Nombre Completo</Label>
+                    <Input id="nombre" name="nombre" defaultValue={editingStudent?.nombre} placeholder="Apellidos y Nombres" required className="text-sm" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="dni" className="text-xs">DNI</Label>
+                    <Input id="dni" name="dni" defaultValue={editingStudent?.dni} placeholder="8 dígitos" required maxLength={8} className="text-sm" />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs">Programa Académico</Label>
-                    <Select name="program" defaultValue={editingStudent?.program || "Desarrollo de Sistemas"}>
+                    <Select name="programa_id" defaultValue={editingStudent?.programa_id}>
                       <SelectTrigger className="text-sm">
-                        <SelectValue />
+                        <SelectValue placeholder="Seleccione un programa" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Desarrollo de Sistemas">Sistemas</SelectItem>
-                        <SelectItem value="Contabilidad">Contabilidad</SelectItem>
-                        <SelectItem value="Enfermería Técnica">Enfermería</SelectItem>
-                        <SelectItem value="Turismo">Turismo</SelectItem>
+                        {programs.map(p => (
+                          <SelectItem key={p.id} value={p.id}>{p.nombre}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label className="text-xs">Semestre</Label>
-                      <Select name="semester" defaultValue={editingStudent?.semester || "I"}>
+                      <Select name="semestre" defaultValue={editingStudent?.semestre || "I"}>
                         <SelectTrigger className="text-sm">
                           <SelectValue />
                         </SelectTrigger>
@@ -293,7 +268,7 @@ export default function AdminStudentsPage() {
                     </div>
                     <div className="space-y-2">
                       <Label className="text-xs">Condición</Label>
-                      <Select name="status" defaultValue={editingStudent?.status || "Regular"}>
+                      <Select name="estado" defaultValue={editingStudent?.estado || "Regular"}>
                         <SelectTrigger className="text-sm">
                           <SelectValue />
                         </SelectTrigger>
@@ -358,25 +333,25 @@ export default function AdminStudentsPage() {
                         <TableCell className="pl-4 md:pl-6 py-3">
                           <Avatar className="h-8 w-8 md:h-10 md:w-10 border-2 border-white shadow-sm shrink-0">
                             <AvatarImage src={`https://picsum.photos/seed/${student.id}/200/200`} />
-                            <AvatarFallback>{student.name[0]}</AvatarFallback>
+                            <AvatarFallback>{student.nombre[0]}</AvatarFallback>
                           </Avatar>
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-col min-w-0">
-                            <span className="font-bold text-slate-900 text-xs md:text-sm truncate">{student.name}</span>
-                            <span className="text-[10px] text-slate-400 font-mono">ID: {student.id}</span>
+                            <span className="font-bold text-slate-900 text-xs md:text-sm truncate">{student.nombre}</span>
+                            <span className="text-[10px] text-slate-400 font-mono">DNI: {student.dni}</span>
                           </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1.5 text-slate-500 text-[10px] md:text-xs">
-                            <GraduationCap className="h-3 w-3 shrink-0" /> <span className="truncate">{student.program}</span>
+                            <GraduationCap className="h-3 w-3 shrink-0" /> <span className="truncate">{student.programa_nombre || 'N/A'}</span>
                           </div>
                         </TableCell>
                         <TableCell className="text-center">
-                          <Badge className="bg-slate-100 text-slate-600 border-none font-bold text-[9px] md:text-xs">Sem {student.semester}</Badge>
+                          <Badge className="bg-slate-100 text-slate-600 border-none font-bold text-[9px] md:text-xs">Sem {student.semestre}</Badge>
                         </TableCell>
                         <TableCell>
-                          <StatusBadge status={student.status} />
+                          <StatusBadge status={student.estado} />
                         </TableCell>
                         <TableCell className="pr-4 md:pr-6 text-right">
                           <DropdownMenu>

@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -53,16 +52,21 @@ import { api } from "@/lib/api"
 
 export default function AdminCoursesPage() {
   const [courses, setCourses] = React.useState<any[]>([])
+  const [programs, setPrograms] = React.useState<any[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
   const [isModalOpen, setIsModalOpen] = React.useState(false)
   const [editingCourse, setEditingCourse] = React.useState<any>(null)
   const [searchTerm, setSearchTerm] = React.useState("")
 
-  const fetchCourses = React.useCallback(async () => {
+  const fetchData = React.useCallback(async () => {
     setIsLoading(true)
     try {
-      const data = await api.get<any[]>('/unidades')
-      setCourses(data)
+      const [coursesData, programsData] = await Promise.all([
+        api.get<any[]>('/unidades/'),
+        api.get<any[]>('/programas/')
+      ])
+      setCourses(coursesData)
+      setPrograms(programsData)
     } catch (err: any) {
       toast({ 
         variant: "destructive", 
@@ -75,28 +79,28 @@ export default function AdminCoursesPage() {
   }, [])
 
   React.useEffect(() => {
-    fetchCourses()
-  }, [fetchCourses])
+    fetchData()
+  }, [fetchData])
 
   const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
     const courseData = {
-      nombre: formData.get("name") as string,
-      programa_id: formData.get("program") as string,
-      semestre: formData.get("semester") as string,
-      creditos: parseInt(formData.get("credits") as string)
+      nombre: formData.get("nombre") as string,
+      programa_id: formData.get("programa_id") as string,
+      semestre: formData.get("semestre") as string,
+      creditos: parseInt(formData.get("creditos") as string)
     }
 
     try {
       if (editingCourse) {
-        await api.put(`/unidades/${editingCourse.id}`, courseData)
-        toast({ title: "Curso actualizado", description: "Los cambios se guardaron en Supabase." })
+        await api.patch(`/unidades/${editingCourse.id}`, courseData)
+        toast({ title: "Curso actualizado", description: "Los cambios se guardaron exitosamente." })
       } else {
-        await api.post('/unidades', courseData)
+        await api.post('/unidades/', courseData)
         toast({ title: "Curso creado", description: "La unidad didáctica ha sido registrada." })
       }
-      fetchCourses()
+      fetchData()
       setIsModalOpen(false)
       setEditingCourse(null)
     } catch (err: any) {
@@ -108,9 +112,9 @@ export default function AdminCoursesPage() {
     try {
       await api.delete(`/unidades/${id}`)
       toast({ variant: "destructive", title: "Curso eliminado", description: "La unidad fue borrada correctamente." })
-      fetchCourses()
+      fetchData()
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Error", description: "No se pudo eliminar el registro." })
+      toast({ variant: "destructive", title: "Error", description: err.message })
     }
   }
 
@@ -125,7 +129,7 @@ export default function AdminCoursesPage() {
         <div className="space-y-1">
           <p className="text-primary font-bold uppercase tracking-[0.2em] text-xs">Unidades Didácticas</p>
           <h2 className="text-3xl font-headline font-extrabold tracking-tight text-slate-900">Gestión de Cursos</h2>
-          <p className="text-slate-500 text-sm">Administra el catálogo de asignaturas desde FastAPI + Supabase.</p>
+          <p className="text-slate-500 text-sm">Administra el catálogo de asignaturas desde FastAPI.</p>
         </div>
 
         <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if(!open) setEditingCourse(null); }}>
@@ -142,17 +146,26 @@ export default function AdminCoursesPage() {
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name">Nombre del Curso</Label>
-                  <Input id="name" name="name" defaultValue={editingCourse?.nombre} placeholder="Ej. Análisis de Sistemas" required />
+                  <Label htmlFor="nombre">Nombre del Curso</Label>
+                  <Input id="nombre" name="nombre" defaultValue={editingCourse?.nombre} placeholder="Ej. Análisis de Sistemas" required />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="program">Programa Académico (ID)</Label>
-                  <Input id="program" name="program" defaultValue={editingCourse?.programa_id} placeholder="ID del programa en Supabase" required />
+                  <Label htmlFor="programa_id">Programa Académico</Label>
+                  <Select name="programa_id" defaultValue={editingCourse?.programa_id}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccione un programa" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {programs.map(p => (
+                        <SelectItem key={p.id} value={p.id}>{p.nombre}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="semester">Semestre / Ciclo</Label>
-                    <Select name="semester" defaultValue={editingCourse?.semestre || "I"}>
+                    <Label htmlFor="semestre">Semestre</Label>
+                    <Select name="semestre" defaultValue={editingCourse?.semestre || "I"}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -164,8 +177,8 @@ export default function AdminCoursesPage() {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="credits">Créditos</Label>
-                    <Input id="credits" name="credits" type="number" min="1" max="10" defaultValue={editingCourse?.creditos || 4} required />
+                    <Label htmlFor="creditos">Créditos</Label>
+                    <Input id="creditos" name="creditos" type="number" min="1" max="10" defaultValue={editingCourse?.creditos || 4} required />
                   </div>
                 </div>
               </div>
@@ -199,7 +212,7 @@ export default function AdminCoursesPage() {
             <Table>
               <TableHeader className="bg-slate-50/50">
                 <TableRow className="hover:bg-transparent">
-                  <TableHead className="w-[100px] font-bold text-slate-400 uppercase text-[10px] tracking-widest pl-6">ID</TableHead>
+                  <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest pl-6">ID</TableHead>
                   <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest">Nombre del Curso</TableHead>
                   <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest">Programa</TableHead>
                   <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest text-center">Ciclo</TableHead>
@@ -211,7 +224,7 @@ export default function AdminCoursesPage() {
                 {filteredCourses.length > 0 ? (
                   filteredCourses.map((course) => (
                     <TableRow key={course.id} className="group hover:bg-slate-50/50 transition-colors">
-                      <TableCell className="font-bold text-slate-900 pl-6 text-[10px] font-mono">{course.id.substring(0,8)}...</TableCell>
+                      <TableCell className="font-bold text-slate-900 pl-6 text-[10px] font-mono">{course.id.substring(0,8)}</TableCell>
                       <TableCell className="font-semibold text-slate-700">
                         <div className="flex items-center gap-2">
                           <div className="w-8 h-8 rounded bg-primary/5 flex items-center justify-center text-primary">
@@ -222,7 +235,7 @@ export default function AdminCoursesPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2 text-slate-500 text-sm">
-                          <GraduationCap className="h-3.5 w-3.5" /> {course.programa_nombre || 'N/A'}
+                          <GraduationCap className="h-3.5 w-3.5" /> {course.programa_nombre || 'Sin programa'}
                         </div>
                       </TableCell>
                       <TableCell className="text-center">
