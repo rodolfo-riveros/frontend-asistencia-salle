@@ -89,7 +89,7 @@ export default function RegisterPage() {
                   Únete a nuestra Comunidad Educativa.
                 </h2>
                 <p className="text-blue-100 text-lg font-medium opacity-90 max-w-xs">
-                  Solicita tu acceso al portal institucional para gestionar la asistencia y el rendimiento académico de tus alumnos.
+                  Regístrate en el portal institucional para gestionar la asistencia y el rendimiento académico de tus alumnos.
                 </p>
               </div>
             </div>
@@ -127,7 +127,7 @@ export default function RegisterPage() {
             </div>
             
             <div className="mb-8">
-              <h3 className="font-headline text-2xl font-bold text-slate-900 mb-2">Solicitud de Registro</h3>
+              <h3 className="font-headline text-2xl font-bold text-slate-900 mb-2">Registro de Cuenta</h3>
               <p className="text-slate-500 text-sm">Complete sus datos para registrar su cuenta docente.</p>
             </div>
 

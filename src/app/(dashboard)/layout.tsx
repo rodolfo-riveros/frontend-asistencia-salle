@@ -11,7 +11,6 @@ import {
   BookOpen,
   UserRound,
   ClipboardList,
-  UserCheck,
   Search,
   LogOut,
   Loader2
@@ -38,7 +37,6 @@ import { supabase } from "@/lib/supabase"
 
 const ADMIN_NAV = [
   { name: "Panel", href: "/admin", icon: LayoutDashboard },
-  { name: "Solicitudes", href: "/admin/requests", icon: UserCheck },
   { name: "Programas", href: "/admin/programs", icon: GraduationCap },
   { name: "Cursos", href: "/admin/courses", icon: BookOpen },
   { name: "Docentes", href: "/admin/instructors", icon: UserRound },
