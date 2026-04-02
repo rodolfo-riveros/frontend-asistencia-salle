@@ -42,17 +42,19 @@ export default function LoginPage() {
 
       if (error) throw error;
 
-      if (data.session) {
+      if (data.session && data.user) {
         // Guardamos el token para que api.ts lo use en las peticiones a FastAPI
         localStorage.setItem('supabase_access_token', data.session.access_token);
         
-        const role = data.user?.user_metadata?.role;
+        // Extraemos el rol de los metadatos del usuario
+        const role = data.user.user_metadata?.role;
         
         toast({
           title: "Sesión Iniciada",
-          description: `Bienvenido de nuevo, ${data.user?.user_metadata?.firstname || 'Usuario'}.`,
+          description: `Bienvenido, ${data.user.user_metadata?.firstname || 'Usuario'}.`,
         });
 
+        // Redirección basada en el rol guardado en Supabase
         if (role === 'admin') {
           router.push('/admin');
         } else {
@@ -219,7 +221,7 @@ export default function LoginPage() {
           © {currentYear || '2024'} IES La Salle Urubamba | Cusco - Perú
         </div>
         <div className="text-slate-400 text-center md:text-right">
-          Desarrollado por Rodolfo Rodolfo Riveros
+          Desarrollado por Rodolfo Riveros
         </div>
       </footer>
     </div>
