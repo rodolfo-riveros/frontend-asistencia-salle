@@ -34,7 +34,8 @@ export function NavUser({
   user: {
     name: string
     email: string
-    avatar: string
+    avatar?: string
+    initials: string
     role?: string
   }
   onLogout: () => void
@@ -51,9 +52,9 @@ export function NavUser({
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
               <Avatar className="h-8 w-8 rounded-lg">
-                <AvatarImage src={user.avatar} alt={user.name} />
-                <AvatarFallback className="rounded-lg bg-white/20 text-white">
-                  <User className="h-4 w-4" />
+                {user.avatar && <AvatarImage src={user.avatar} alt={user.name} />}
+                <AvatarFallback className="rounded-lg bg-white/20 text-white font-bold text-xs">
+                  {user.initials}
                 </AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight text-white">
@@ -74,9 +75,9 @@ export function NavUser({
             <DropdownMenuLabel className="p-0 font-normal">
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <Avatar className="h-8 w-8 rounded-lg">
-                  <AvatarImage src={user.avatar} alt={user.name} />
-                  <AvatarFallback className="rounded-lg bg-slate-100 text-slate-400">
-                    <User className="h-4 w-4" />
+                  {user.avatar && <AvatarImage src={user.avatar} alt={user.name} />}
+                  <AvatarFallback className="rounded-lg bg-slate-100 text-slate-500 font-bold text-xs">
+                    {user.initials}
                   </AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">

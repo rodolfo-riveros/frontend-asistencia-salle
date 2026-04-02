@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/sidebar"
 import { NavUser } from "@/components/layout/nav-user"
 import { Button } from "@/components/ui/button"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { supabase } from "@/lib/supabase"
 
 const ADMIN_NAV = [
@@ -63,10 +64,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       }
 
       const metadata = user.user_metadata
+      const firstName = metadata?.firstname || ""
+      const lastName = metadata?.lastname || ""
+      const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || "US"
+
       setUserData({
-        name: metadata?.firstname ? `${metadata.firstname} ${metadata.lastname || ''}` : "Usuario La Salle",
+        name: firstName ? `${firstName} ${lastName}`.trim() : "Usuario La Salle",
         email: user.email,
-        avatar: `https://picsum.photos/seed/${user.id}/200/200`,
+        initials: initials,
         role: metadata?.role || 'docente'
       })
       setIsLoading(false)
@@ -176,9 +181,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </span>
         </Link>
         <div className="flex items-center gap-3 md:gap-6 shrink-0">
-          <div className="hidden sm:flex flex-col text-right">
-            <span className="text-xs md:text-sm font-black text-white leading-tight truncate max-w-[200px]">{userData?.name}</span>
-            <span className="text-[9px] md:text-[10px] text-white/80 font-bold uppercase tracking-widest">{userData?.role === 'admin' ? 'Administrador Central' : 'Docente de Especialidad'}</span>
+          <div className="hidden sm:flex items-center gap-3">
+            <div className="flex flex-col text-right">
+              <span className="text-xs md:text-sm font-black text-white leading-tight truncate max-w-[200px]">{userData?.name}</span>
+              <span className="text-[9px] md:text-[10px] text-white/80 font-bold uppercase tracking-widest">{userData?.role === 'admin' ? 'Administrador Central' : 'Docente de Especialidad'}</span>
+            </div>
+            <Avatar className="h-10 w-10 border-2 border-white/20">
+              <AvatarFallback className="bg-white/10 text-white font-bold text-sm">
+                {userData?.initials}
+              </AvatarFallback>
+            </Avatar>
           </div>
           <Button 
             variant="ghost" 
