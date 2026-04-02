@@ -3,7 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { GraduationCap, Mail, Lock, Eye, LogIn, ChevronRight } from 'lucide-react';
+import { GraduationCap, Mail, Lock, Eye, LogIn, ChevronRight, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,7 +15,7 @@ export default function LoginPage() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    // Simulación de login: redirigir a instructor por defecto para propósitos del prototipo
+    // Redirección simulada al portal del docente
     router.push('/instructor');
   };
 
@@ -24,9 +24,8 @@ export default function LoginPage() {
       <main className="flex-grow flex items-center justify-center p-6 md:p-12">
         <div className="max-w-6xl w-full grid grid-cols-1 md:grid-cols-2 bg-white rounded-xl overflow-hidden shadow-[0_12px_32px_-4px_rgba(25,28,29,0.06)]">
           
-          {/* Columna Izquierda: Branding */}
+          {/* Columna Izquierda: Branding La Salle */}
           <div className="hidden md:flex flex-col justify-between p-12 bg-primary relative overflow-hidden text-white">
-            {/* Overlay decorativo */}
             <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '32px 32px' }}></div>
             
             <div className="z-10">
@@ -34,14 +33,14 @@ export default function LoginPage() {
                 <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center shadow-lg">
                   <GraduationCap className="text-primary w-8 h-8" />
                 </div>
-                <h1 className="font-bold text-2xl tracking-tight">Precisión Académica</h1>
+                <h1 className="font-bold text-2xl tracking-tight uppercase">La Salle Urubamba</h1>
               </div>
               <div className="space-y-6">
                 <h2 className="text-4xl font-bold leading-tight max-w-sm">
-                  Gestión Redefinida para la Educación Superior.
+                  Excelencia y Valores en la Educación Técnica.
                 </h2>
                 <p className="text-blue-100 text-lg font-medium opacity-90 max-w-xs">
-                  Rastrea, gestiona y cura datos institucionales de forma segura con herramientas diseñadas para la excelencia técnica.
+                  Gestiona el rendimiento académico y la asistencia con la precisión que nuestra comunidad educativa merece.
                 </p>
               </div>
             </div>
@@ -49,25 +48,24 @@ export default function LoginPage() {
             <div className="z-10 mt-auto">
               <div className="p-6 bg-white/10 backdrop-blur-md rounded-xl border border-white/10">
                 <p className="text-sm italic font-medium leading-relaxed">
-                  "El Portal de Precisión ha transformado cómo nuestra facultad maneja la asistencia, ahorrando cientos de horas administrativas por semestre."
+                  "Grandes cosas son posibles si nos mantenemos unidos y comprometidos con la formación de calidad."
                 </p>
                 <div className="mt-4 flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-blue-800 overflow-hidden border border-white/20">
                     <img 
                       alt="avatar" 
                       className="w-full h-full object-cover" 
-                      src="https://picsum.photos/seed/vance/200/200" 
+                      src="https://picsum.photos/seed/director/200/200" 
                     />
                   </div>
                   <div>
-                    <p className="text-xs font-bold">Dra. Helena Vance</p>
-                    <p className="text-blue-200 text-[10px] uppercase tracking-widest">Decana de Ingeniería</p>
+                    <p className="text-xs font-bold">Dirección Académica</p>
+                    <p className="text-blue-200 text-[10px] uppercase tracking-widest">IES La Salle Urubamba</p>
                   </div>
                 </div>
               </div>
             </div>
             
-            {/* Gráfico decorativo */}
             <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-blue-700 rounded-full blur-3xl opacity-50"></div>
           </div>
 
@@ -75,12 +73,12 @@ export default function LoginPage() {
           <div className="p-8 md:p-16 flex flex-col justify-center bg-white">
             <div className="md:hidden flex items-center gap-2 mb-10">
               <GraduationCap className="text-primary w-6 h-6" />
-              <span className="font-bold text-xl text-primary">Precisión Académica</span>
+              <span className="font-bold text-xl text-primary">La Salle Urubamba</span>
             </div>
             
             <div className="mb-10 text-left">
-              <h3 className="text-2xl font-bold text-slate-900 mb-2">Acceso al Portal</h3>
-              <p className="text-slate-500 text-sm">Por favor, identifícate con tus credenciales institucionales.</p>
+              <h3 className="text-2xl font-bold text-slate-900 mb-2">Portal de Asistencia</h3>
+              <p className="text-slate-500 text-sm">Ingresa con tu correo institucional asignado.</p>
             </div>
 
             <form className="space-y-6" onSubmit={handleLogin}>
@@ -93,7 +91,7 @@ export default function LoginPage() {
                   <Input 
                     className="w-full bg-slate-100 border-none rounded-lg py-6 pl-12 pr-4 focus-visible:ring-1 focus-visible:ring-primary text-slate-900 placeholder:text-slate-400" 
                     id="email" 
-                    placeholder="nombre@universidad.edu.pe" 
+                    placeholder="usuario@lasalleurubamba.edu.pe" 
                     type="email" 
                     required 
                   />
@@ -103,7 +101,7 @@ export default function LoginPage() {
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
                   <Label className="text-xs font-semibold uppercase tracking-widest text-slate-500" htmlFor="password">
-                    Contraseña Segura
+                    Contraseña
                   </Label>
                   <Link href="#" className="text-[10px] font-bold text-primary hover:underline uppercase tracking-wider">
                     ¿Olvidaste tu contraseña?
@@ -131,7 +129,7 @@ export default function LoginPage() {
               <div className="flex items-center space-x-3">
                 <Checkbox id="remember" className="w-5 h-5" />
                 <Label className="text-sm text-slate-500 font-normal cursor-pointer" htmlFor="remember">
-                  Mantener sesión activa por 30 días
+                  Mantener sesión activa
                 </Label>
               </div>
 
@@ -139,31 +137,32 @@ export default function LoginPage() {
                 type="submit" 
                 className="w-full py-6 bg-primary hover:bg-primary/90 text-white font-bold rounded-lg shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2"
               >
-                <span>Autorizar Acceso</span>
+                <span>Acceder al Portal</span>
                 <LogIn className="w-5 h-5" />
               </Button>
 
               <div className="flex items-center gap-4 py-2">
                 <div className="flex-grow h-px bg-slate-100"></div>
-                <span className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-bold whitespace-nowrap">Nuevos Registros</span>
+                <span className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-bold whitespace-nowrap">Nuevos Docentes</span>
                 <div className="flex-grow h-px bg-slate-100"></div>
               </div>
 
               <div className="text-center">
-                <p className="text-slate-500 text-sm mb-4">¿Eres un nuevo docente o administrador?</p>
+                <p className="text-slate-500 text-sm mb-4">¿Aún no tienes acceso?</p>
                 <Button 
                   variant="outline" 
                   className="w-full py-6 border-2 border-primary/10 text-primary font-bold rounded-lg hover:bg-slate-50 transition-colors" 
                   asChild
                 >
-                  <Link href="/register">Solicitar Cuenta Institucional</Link>
+                  <Link href="/register">Solicitar Registro</Link>
                 </Button>
               </div>
             </form>
 
-            <div className="mt-12 pt-8 border-t border-slate-100 text-center">
+            <div className="mt-12 pt-8 border-t border-slate-100 text-center flex items-center justify-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-slate-400" />
               <p className="text-[10px] text-slate-400 uppercase tracking-widest font-medium">
-                Sistema protegido por protocolos de Educación Técnica Superior
+                Acceso Protegido - IES LA SALLE URUBAMBA
               </p>
             </div>
           </div>
@@ -172,12 +171,12 @@ export default function LoginPage() {
 
       <footer className="bg-white w-full py-4 px-8 mt-auto flex flex-col md:flex-row justify-between items-center border-t border-slate-100 gap-4">
         <div className="text-[10px] uppercase tracking-widest text-slate-500 text-center md:text-left">
-          © 2024 Educación Técnica Superior | Versión 2.4.0-PRC
+          © 2024 IES La Salle Urubamba | Cusco - Perú
         </div>
         <div className="flex gap-6">
-          <Link className="text-[10px] uppercase tracking-widest text-slate-400 hover:text-primary transition-colors" href="#">Soporte</Link>
+          <Link className="text-[10px] uppercase tracking-widest text-slate-400 hover:text-primary transition-colors" href="#">Soporte TICs</Link>
           <Link className="text-[10px] uppercase tracking-widest text-slate-400 hover:text-primary transition-colors" href="#">Privacidad</Link>
-          <Link className="text-[10px] uppercase tracking-widest text-slate-400 hover:text-primary transition-colors" href="#">Documentación</Link>
+          <Link className="text-[10px] uppercase tracking-widest text-slate-400 hover:text-primary transition-colors" href="#">Reglamento</Link>
         </div>
       </footer>
     </div>

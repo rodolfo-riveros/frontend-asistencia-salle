@@ -46,7 +46,7 @@ const instructorNav = [
 
 const user = {
   name: "Carlos Mendoza",
-  email: "carlos.mendoza@idat.edu.pe",
+  email: "carlos.mendoza@lasalleurubamba.edu.pe",
   avatar: "https://picsum.photos/seed/doc/200/200",
 }
 
@@ -65,8 +65,8 @@ export default function DashboardLayout({
         <SidebarHeader className="h-16 flex items-center px-6">
           <Link href="/" className="flex items-center gap-2">
             <GraduationCap className="h-6 w-6 text-primary" />
-            <span className="font-bold text-lg text-primary group-data-[collapsible=icon]:hidden">
-              PresenciaTech
+            <span className="font-bold text-lg text-primary group-data-[collapsible=icon]:hidden uppercase">
+              La Salle
             </span>
           </Link>
         </SidebarHeader>
@@ -117,7 +117,7 @@ export default function DashboardLayout({
           <SidebarTrigger className="-ml-1" />
           <div className="flex-1">
              <h1 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-               {isAdmin ? 'Módulo Administrativo' : 'Portal del Docente'}
+               IES La Salle Urubamba - {isAdmin ? 'Administración' : 'Docente'}
              </h1>
           </div>
         </header>

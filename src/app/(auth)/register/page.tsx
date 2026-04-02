@@ -13,16 +13,16 @@ export default function RegisterPage() {
         <div className="text-center">
           <Link href="/" className="inline-flex items-center justify-center mb-6">
             <GraduationCap className="h-10 w-10 text-primary" />
-            <span className="ml-2 text-3xl font-bold text-primary">PresenciaTech</span>
+            <span className="ml-2 text-3xl font-bold text-primary uppercase tracking-tighter">La Salle Urubamba</span>
           </Link>
           <h2 className="text-2xl font-bold tracking-tight">Solicitud de Acceso</h2>
-          <p className="text-sm text-muted-foreground mt-2">Los administradores revisarán tu solicitud para activar tu cuenta.</p>
+          <p className="text-sm text-muted-foreground mt-2">Personal docente y administrativo podrá solicitar la activación de su cuenta institucional.</p>
         </div>
 
         <Card className="border-none shadow-xl">
           <CardHeader>
-            <CardTitle className="text-xl">Datos del Usuario</CardTitle>
-            <CardDescription>Completa el formulario para enviarlo a revisión</CardDescription>
+            <CardTitle className="text-xl">Formulario de Registro</CardTitle>
+            <CardDescription>Los administradores validarán su información institucional.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -37,22 +37,22 @@ export default function RegisterPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Correo Institucional</Label>
-              <Input id="email" type="email" placeholder="juan.perez@instituto.edu.pe" required />
+              <Input id="email" type="email" placeholder="usuario@lasalleurubamba.edu.pe" required />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="id-card">DNI / Carné de Identidad</Label>
+              <Label htmlFor="id-card">DNI</Label>
               <Input id="id-card" placeholder="8 dígitos" required />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="reason">Justificación de acceso</Label>
-              <Textarea id="reason" placeholder="Indica tu programa de estudio o curso asignado" rows={3} />
+              <Label htmlFor="reason">Departamento o Programa</Label>
+              <Textarea id="reason" placeholder="Indique su especialidad o cargo" rows={3} />
             </div>
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
             <Button className="w-full h-11 text-base">Enviar Solicitud</Button>
             <Button variant="ghost" className="w-full" asChild>
-              <Link href="/login" className="flex items-center justify-center gap-2">
-                <ArrowLeft className="h-4 w-4" /> Volver al login
+              <Link href="/" className="flex items-center justify-center gap-2">
+                <ArrowLeft className="h-4 w-4" /> Volver al inicio
               </Link>
             </Button>
           </CardFooter>

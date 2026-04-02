@@ -2,8 +2,8 @@ import type {Metadata} from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'PresenciaTech - Sistema de Gestión de Asistencia',
-  description: 'Gestión moderna de asistencia para educación técnica superior.',
+  title: 'IES LA SALLE URUBAMBA - Sistema de Gestión de Asistencia',
+  description: 'Plataforma oficial de control de asistencia para el Instituto de Educación Superior La Salle - Urubamba.',
 };
 
 export default function RootLayout({
