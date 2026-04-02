@@ -1,14 +1,15 @@
-
 /**
- * @fileOverview Inicialización del cliente de Supabase para autenticación.
+ * @fileOverview Inicialización segura del cliente de Supabase para autenticación.
  */
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+// Usamos valores por defecto temporales para evitar que la aplicación falle al cargar (Module Evaluation Error)
+// El usuario debe reemplazar estos valores en su archivo .env
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder-project.supabase.co';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key';
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('Faltan las variables de entorno de Supabase. La autenticación no funcionará.');
+if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+  console.warn('⚠️ Configuración de Supabase incompleta: Revisa tu archivo .env para habilitar la autenticación real.');
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
