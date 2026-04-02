@@ -32,7 +32,7 @@ export default function RegisterPage() {
       <main className="flex-grow flex items-center justify-center p-6 md:p-12">
         <div className="max-w-6xl w-full grid grid-cols-1 md:grid-cols-2 bg-white rounded-xl overflow-hidden shadow-[0_12px_32px_-4px_rgba(25,28,29,0.06)]">
           
-          {/* Columna Izquierda: Branding La Salle (Igual al Login) */}
+          {/* Columna Izquierda: Branding La Salle */}
           <div className="hidden md:flex flex-col justify-between p-12 bg-primary relative overflow-hidden text-white">
             <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '32px 32px' }}></div>
             
@@ -48,7 +48,7 @@ export default function RegisterPage() {
                   Únete a nuestra Comunidad Educativa.
                 </h2>
                 <p className="text-blue-100 text-lg font-medium opacity-90 max-w-xs">
-                  Solicita tu acceso al portal institucional para gestionar la asistencia y el rendimiento académico de tus estudiantes.
+                  Solicita tu acceso al portal institucional para gestionar la asistencia y el rendimiento académico de tus alumnos.
                 </p>
               </div>
             </div>
@@ -64,7 +64,7 @@ export default function RegisterPage() {
                       alt="San Juan Bautista de La Salle" 
                       className="w-full h-full object-cover" 
                       src={sjbImage}
-                      data-ai-hint="religious portrait"
+                      data-ai-hint="San Juan Bautista"
                     />
                   </div>
                   <div>
@@ -101,7 +101,7 @@ export default function RegisterPage() {
                 </div>
                 <div className="space-y-2">
                   <Label className="text-[10px] font-bold uppercase tracking-widest text-slate-400" htmlFor="lastname">Apellidos</Label>
-                  <Input className="bg-slate-50 border-none py-5" id="lastname" placeholder="Ej. Pérez" required />
+                  <Input className="bg-slate-50 border-none py-5" id="lastname" placeholder="Ej. Pérez García" required />
                 </div>
               </div>
 
@@ -125,7 +125,7 @@ export default function RegisterPage() {
                 <Label className="text-[10px] font-bold uppercase tracking-widest text-slate-400" htmlFor="program">Programa de Estudio</Label>
                 <div className="relative group">
                   <BookOpen className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-primary" />
-                  <Input className="bg-slate-50 border-none pl-11 py-5" id="program" placeholder="Ej. Computación e Informática" required />
+                  <Input className="bg-slate-50 border-none pl-11 py-5" id="program" placeholder="Ej. Desarrollo de Sistemas de Información" required />
                 </div>
               </div>
 
