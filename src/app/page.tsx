@@ -29,10 +29,11 @@ export default function LoginPage() {
     const formData = new FormData(e.currentTarget as HTMLFormElement);
     const email = formData.get('email') as string;
     
-    // Simulación de almacenamiento de token tras login exitoso
-    // En producción, esto vendría de Supabase Auth
+    // Simulación de almacenamiento de token tras login exitoso con Supabase
+    // Una vez que integres Supabase Auth, aquí guardarías el 'access_token' real.
     localStorage.setItem('supabase_access_token', 'mock_token_for_fastapi_integration');
 
+    // Navegación basada en el correo (simulado)
     if (email.toLowerCase().includes('admin')) {
       router.push('/admin');
     } else {
@@ -178,12 +179,12 @@ export default function LoginPage() {
         </div>
       </main>
 
-      <footer className="bg-white w-full py-4 px-8 mt-auto flex flex-col md:flex-row justify-between items-center border-t border-slate-100 gap-4">
-        <div className="text-[10px] uppercase tracking-widest text-slate-500 text-center md:text-left">
+      <footer className="bg-white w-full py-4 px-8 mt-auto flex flex-col md:flex-row justify-between items-center border-t border-slate-100 gap-4 text-[10px] uppercase tracking-widest font-bold">
+        <div className="text-slate-500 text-center md:text-left">
           © {currentYear || '2024'} IES La Salle Urubamba | Cusco - Perú
         </div>
-        <div className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">
-          Desarrollado por Rodolfo Rodolfo Riveros
+        <div className="text-slate-400 text-center md:text-right">
+          Desarrollado por Rodolfo Riveros
         </div>
       </footer>
     </div>
