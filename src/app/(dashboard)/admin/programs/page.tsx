@@ -13,7 +13,9 @@ import {
   Loader2,
   Hash,
   RefreshCcw,
-  ShieldAlert
+  ShieldAlert,
+  Terminal,
+  Info
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -42,6 +44,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { toast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
 
@@ -52,24 +55,20 @@ export default function AdminProgramsPage() {
   const [isSaving, setIsSaving] = React.useState(false)
   const [editingProgram, setEditingProgram] = React.useState<any>(null)
   const [searchTerm, setSearchTerm] = React.useState("")
+  const [showDebug, setShowDebug] = React.useState(false)
 
   const fetchPrograms = React.useCallback(async () => {
     setIsLoading(true)
     try {
       const data = await api.get<any[]>('/programas/')
-      console.log("[DEBUG] Datos crudos de programas:", data)
-      
-      if (Array.isArray(data) && data.length === 0) {
-        console.warn("[ALERTA RLS] El servidor devolvió [] pero hay datos en DB. Revisa las Políticas RLS en Supabase.")
-      }
-      
+      console.log("[DEBUG] Respuesta del servidor /programas/:", data)
       setPrograms(Array.isArray(data) ? data : [])
     } catch (err: any) {
-      console.error("[FETCH ERROR]", err)
+      console.error("[FETCH ERROR] Falló la carga de programas:", err)
       toast({ 
         variant: "destructive", 
         title: "Error al cargar", 
-        description: "No se pudieron obtener los programas. Verifica la conexión con el servidor." 
+        description: "No se pudieron obtener los programas. Verifica la consola." 
       })
     } finally {
       setIsLoading(false)
@@ -84,12 +83,11 @@ export default function AdminProgramsPage() {
     e.preventDefault()
     setIsSaving(true)
     const formData = new FormData(e.currentTarget)
-    
     const nombre = (formData.get("nombre") as string).trim()
     
-    // Generación automática compatible con Regex ^[A-Z0-9_]+$
+    // Generar código modular automático compatible con backend (SOLO MAYÚSCULAS Y _)
     const cleanName = nombre.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]/g, '_').toUpperCase().substring(0, 5)
-    const generatedCode = editingProgram?.codigo || `PRG_${cleanName}_${Date.now().toString().slice(-4)}`
+    const generatedCode = editingProgram?.codigo || `PRG_${cleanName}_${Math.floor(Math.random() * 9000 + 1000)}`
 
     const payload = {
       nombre,
@@ -102,7 +100,7 @@ export default function AdminProgramsPage() {
         toast({ title: "Programa actualizado" })
       } else {
         await api.post('/programas/', payload)
-        toast({ title: "Programa creado", description: `Código: ${generatedCode}` })
+        toast({ title: "Programa creado", description: `Código autogenerado: ${generatedCode}` })
       }
       fetchPrograms()
       setIsModalOpen(false)
@@ -149,7 +147,12 @@ export default function AdminProgramsPage() {
         <div className="space-y-1">
           <p className="text-primary font-bold uppercase tracking-[0.2em] text-xs">Padrón Institucional</p>
           <h2 className="text-3xl font-headline font-extrabold tracking-tight text-slate-900">Programas de Estudio</h2>
-          <p className="text-slate-500 text-sm">Gestiona el catálogo de carreras profesionales.</p>
+          <div className="flex items-center gap-2">
+            <p className="text-slate-500 text-sm">Gestiona el catálogo de carreras profesionales.</p>
+            <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-slate-400" onClick={() => setShowDebug(!showDebug)}>
+              <Terminal className="h-3 w-3" />
+            </Button>
+          </div>
         </div>
         
         <div className="flex gap-2">
@@ -167,7 +170,7 @@ export default function AdminProgramsPage() {
                 <DialogHeader>
                   <DialogTitle>{editingProgram ? "Editar Programa" : "Registrar Carrera"}</DialogTitle>
                   <DialogDescription>
-                    Ingresa el nombre del programa académico. El código se generará automáticamente.
+                    Ingresa el nombre del programa académico. El código modular se generará automáticamente.
                   </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-6">
@@ -193,6 +196,18 @@ export default function AdminProgramsPage() {
           </Dialog>
         </div>
       </div>
+
+      {showDebug && (
+        <Alert className="bg-slate-900 text-slate-100 border-slate-800 animate-in fade-in zoom-in-95 duration-200">
+          <Terminal className="h-4 w-4 text-emerald-400" />
+          <AlertTitle className="font-mono text-emerald-400">Diagnóstico de Datos []</AlertTitle>
+          <AlertDescription className="font-mono text-[10px] space-y-2 mt-2">
+            <p>> Si ves la lista vacía pero hay datos en Supabase, el RLS está bloqueando al usuario.</p>
+            <p>> Verifica que la política incluya: <span className="text-yellow-400">TO authenticated</span>.</p>
+            <p>> URL API: <span className="text-blue-400">{process.env.NEXT_PUBLIC_API_URL || 'https://backend-asistencia-salle.onrender.com'}/api/v1/programas/</span></p>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -263,15 +278,32 @@ export default function AdminProgramsPage() {
               <div className="p-4 bg-amber-50 rounded-full">
                 <ShieldAlert className="h-8 w-8 text-amber-500" />
               </div>
-              <div className="space-y-1 text-center">
-                <p className="font-bold text-slate-900">No hay programas para mostrar</p>
-                <p className="text-xs max-w-[300px]">Si hay datos en Supabase, asegúrate de haber creado las Políticas RLS para permitir la lectura.</p>
+              <div className="space-y-2 text-center">
+                <p className="font-bold text-slate-900">La lista de programas está vacía</p>
+                <div className="flex flex-col gap-1 items-center">
+                  <p className="text-xs text-slate-500 max-w-[350px]">
+                    Si hay datos en Supabase, el problema es el <strong>RLS</strong>. Ejecuta este SQL en Supabase para permitir la lectura:
+                  </p>
+                  <code className="text-[10px] bg-slate-100 p-2 rounded block mt-2 font-mono text-slate-700">
+                    ALTER TABLE programas_estudio ENABLE ROW LEVEL SECURITY;<br/>
+                    CREATE POLICY "Permitir lectura" ON programas_estudio FOR SELECT TO authenticated USING (true);
+                  </code>
+                </div>
               </div>
-              <Button variant="outline" size="sm" onClick={fetchPrograms} className="mt-2">Reintentar</Button>
+              <Button variant="outline" size="sm" onClick={fetchPrograms} className="mt-4 gap-2">
+                <RefreshCcw className="h-3 w-3" /> Reintentar Sincronización
+              </Button>
             </div>
           )}
         </CardContent>
       </Card>
+
+      <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl flex gap-3">
+        <Info className="h-5 w-5 text-blue-600 shrink-0" />
+        <p className="text-xs text-blue-700 leading-relaxed">
+          <strong>Nota sobre Seguridad:</strong> Si sigues viendo la lista vacía después de aplicar las políticas, asegúrate de que el token JWT que envías pertenece al mismo proyecto de Supabase. El servidor FastAPI debe tener configurado el mismo <strong>SUPABASE_JWT_SECRET</strong> que tu dashboard.
+        </p>
+      </div>
     </div>
   )
 }
