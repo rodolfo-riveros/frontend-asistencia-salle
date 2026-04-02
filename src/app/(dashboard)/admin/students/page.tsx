@@ -70,7 +70,7 @@ export default function AdminStudentsPage() {
       toast({ 
         variant: "destructive", 
         title: "Error de Sincronización", 
-        description: err.message || "No se pudieron obtener los datos de los alumnos." 
+        description: err.message
       })
     } finally {
       setIsLoading(false)
@@ -95,10 +95,10 @@ export default function AdminStudentsPage() {
     try {
       if (editingStudent) {
         await api.patch(`/alumnos/${editingStudent.id}`, studentData)
-        toast({ title: "Datos actualizados", description: "La matrícula del alumno fue modificada con éxito." })
+        toast({ title: "Datos actualizados", description: "Matrícula modificada con éxito." })
       } else {
         await api.post('/alumnos/', studentData)
-        toast({ title: "Matrícula Exitosa", description: "El alumno ha sido registrado en el sistema." })
+        toast({ title: "Matrícula Exitosa", description: "Alumno registrado en el sistema." })
       }
       fetchData()
       setIsModalOpen(false)
@@ -114,7 +114,7 @@ export default function AdminStudentsPage() {
     if(!confirm("¿Desea retirar a este estudiante de la matrícula?")) return
     try {
       await api.delete(`/alumnos/${id}`)
-      toast({ title: "Alumno retirado", description: "El registro fue eliminado correctamente." })
+      toast({ title: "Alumno retirado" })
       fetchData()
     } catch (err: any) {
       toast({ variant: "destructive", title: "Error al eliminar", description: err.message })
@@ -136,7 +136,7 @@ export default function AdminStudentsPage() {
         <div className="space-y-1">
           <p className="text-primary font-bold uppercase tracking-[0.2em] text-xs">Padrón Estudiantil</p>
           <h2 className="text-3xl font-headline font-extrabold tracking-tight text-slate-900">Registro de Alumnos</h2>
-          <p className="text-slate-500 text-sm">Control centralizado de matrícula por periodo académico.</p>
+          <p className="text-slate-500 text-sm">Control centralizado de matrícula institucional.</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" className="gap-2 h-11" onClick={fetchData}>
@@ -204,7 +204,7 @@ export default function AdminStudentsPage() {
       <div className="relative mb-6">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
         <Input 
-          placeholder="Buscador inteligente: filtra por DNI, Nombre o Carrera..." 
+          placeholder="Busca por DNI, Nombre o Carrera..." 
           className="pl-11 h-11 bg-white border-slate-100 shadow-sm"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
@@ -283,7 +283,7 @@ export default function AdminStudentsPage() {
                     <TableCell colSpan={5} className="h-32 text-center text-slate-400">
                       <div className="flex flex-col items-center gap-2">
                         <AlertCircle className="h-6 w-6 opacity-20" />
-                        <span className="text-sm">No se encontraron estudiantes matriculados.</span>
+                        <span className="text-sm">No hay estudiantes matriculados.</span>
                       </div>
                     </TableCell>
                   </TableRow>

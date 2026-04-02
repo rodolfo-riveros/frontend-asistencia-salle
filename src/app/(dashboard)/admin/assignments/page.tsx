@@ -11,7 +11,6 @@ import {
   Link2,
   AlertCircle,
   Loader2,
-  Calendar,
   RefreshCcw
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -61,13 +60,14 @@ export default function AcademicAssignmentsPage() {
   const fetchData = React.useCallback(async () => {
     setIsLoading(true)
     try {
-      const query = selectedPeriodId !== "all" ? `?periodo_id=${selectedPeriodId}` : ""
+      const periodQuery = selectedPeriodId !== "all" ? `?periodo_id=${selectedPeriodId}` : ""
       const [asgData, instData, courseData, periodData] = await Promise.all([
-        api.get<any[]>(`/asignaciones/${query}`),
+        api.get<any[]>(`/asignaciones/${periodQuery}`),
         api.get<any[]>('/docentes/'),
         api.get<any[]>('/unidades/'),
         api.get<any[]>('/periodos/')
       ])
+      
       setAssignments(asgData)
       setInstructors(instData)
       setCourses(courseData)
@@ -81,7 +81,7 @@ export default function AcademicAssignmentsPage() {
       toast({ 
         variant: "destructive", 
         title: "Error de Sincronización", 
-        description: err.message || "No se pudo conectar con el servidor."
+        description: err.message
       })
     } finally {
       setIsLoading(false)
@@ -105,10 +105,10 @@ export default function AcademicAssignmentsPage() {
     try {
       if (editingAssignment) {
         await api.patch(`/asignaciones/${editingAssignment.id}`, payload)
-        toast({ title: "Asignación actualizada", description: "Los cambios han sido guardados con éxito." })
+        toast({ title: "Asignación actualizada", description: "Los cambios han sido guardados." })
       } else {
         await api.post('/asignaciones/', payload)
-        toast({ title: "Carga asignada", description: "Docente vinculado correctamente a la unidad." })
+        toast({ title: "Carga asignada", description: "Docente vinculado correctamente." })
       }
       fetchData()
       setIsModalOpen(false)
@@ -122,7 +122,7 @@ export default function AcademicAssignmentsPage() {
     if(!confirm("¿Desea eliminar esta carga académica?")) return
     try {
       await api.delete(`/asignaciones/${id}`)
-      toast({ title: "Asignación retirada", description: "El registro fue eliminado del ciclo académico." })
+      toast({ title: "Asignación retirada" })
       fetchData()
     } catch (err: any) {
       toast({ variant: "destructive", title: "Error", description: err.message })
@@ -174,7 +174,7 @@ export default function AcademicAssignmentsPage() {
               <form onSubmit={handleSave}>
                 <DialogHeader>
                   <DialogTitle>{editingAssignment ? "Editar Asignación" : "Nueva Asignación"}</DialogTitle>
-                  <DialogDescription>Define el responsable de una unidad para un periodo académico real.</DialogDescription>
+                  <DialogDescription>Define el responsable de una unidad para un periodo académico.</DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-6">
                   <div className="space-y-2">
@@ -227,10 +227,10 @@ export default function AcademicAssignmentsPage() {
         </div>
       </div>
 
-      <div className="relative">
+      <div className="relative mb-4">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
         <Input 
-          placeholder="Buscador inteligente: filtra por docente, unidad o periodo..." 
+          placeholder="Busca por docente, unidad o ciclo..." 
           className="pl-11 py-6 bg-white border-slate-100 shadow-sm"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
@@ -242,7 +242,7 @@ export default function AcademicAssignmentsPage() {
           {isLoading ? (
             <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-3">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-sm font-medium">Cargando asignaciones...</p>
+              <p className="text-sm font-medium">Sincronizando asignaciones...</p>
             </div>
           ) : (
             <Table>

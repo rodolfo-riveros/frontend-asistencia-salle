@@ -1,7 +1,7 @@
 
 /**
  * @fileOverview Utilidad centralizada para realizar peticiones al backend de FastAPI v1.
- * Soporta autenticación mediante Bearer Token compatible con Supabase JWT.
+ * Optimizado para producción (Vercel/Railway).
  */
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -36,7 +36,7 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
         const errorData = await response.json();
         detail = errorData.detail || detail;
         if (Array.isArray(detail)) {
-          detail = detail.map((d: any) => `${d.loc.join('.')}: ${d.msg}`).join(', ');
+          detail = detail.map((d: any) => `${d.loc?.join('.') || 'error'}: ${d.msg}`).join(', ');
         }
       } catch (e) {
         detail = `Error ${response.status}: ${response.statusText}`;
@@ -50,9 +50,8 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
 
     return response.json();
   } catch (err: any) {
-    // Capturamos el error de red (servidor apagado o inalcanzable)
     if (err instanceof TypeError && err.message === 'Failed to fetch') {
-      throw new Error('No se pudo conectar con el servidor (FastAPI). Por favor, verifica que esté encendido en http://localhost:8000.');
+      throw new Error(`No se pudo conectar con el servidor en ${API_BASE_URL}. Verifica que el backend esté encendido.`);
     }
     throw err;
   }
