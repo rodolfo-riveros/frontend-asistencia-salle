@@ -25,8 +25,15 @@ export default function LoginPage() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    // Simulación de login exitoso redirigiendo al dashboard del docente por defecto
-    router.push('/instructor');
+    const formData = new FormData(e.currentTarget as HTMLFormElement);
+    const email = formData.get('email') as string;
+    
+    // Lógica simple para distinguir entre admin y docente en el prototipo
+    if (email.toLowerCase().includes('admin')) {
+      router.push('/admin');
+    } else {
+      router.push('/instructor');
+    }
   };
 
   return (
@@ -104,6 +111,7 @@ export default function LoginPage() {
                   <Input 
                     className="w-full bg-slate-100 border-none rounded-lg py-6 pl-12 pr-4 focus-visible:ring-1 focus-visible:ring-primary text-slate-900 placeholder:text-slate-400" 
                     id="email" 
+                    name="email"
                     placeholder="usuario@lasalleurubamba.edu.pe" 
                     type="email" 
                     required 
