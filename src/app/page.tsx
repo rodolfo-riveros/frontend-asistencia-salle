@@ -25,6 +25,8 @@ export default function LoginPage() {
 
   React.useEffect(() => {
     setCurrentYear(new Date().getFullYear());
+    // Limpiamos errores al montar
+    setErrorMessage(null);
   }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -39,18 +41,18 @@ export default function LoginPage() {
     const password = formData.get('password') as string;
 
     try {
+      // Intentamos login con Supabase Auth
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
-        setErrorMessage(error.message);
+        setErrorMessage(error.message === 'Invalid login credentials' ? 'Credenciales incorrectas.' : error.message);
         return;
       }
 
       if (data.session && data.user) {
-        // Dejamos que el cliente de Supabase gestione el token automáticamente
         const metadata = data.user.user_metadata;
         const role = metadata?.role || 'docente';
         
@@ -59,10 +61,11 @@ export default function LoginPage() {
           description: `Bienvenido, ${metadata?.firstname || 'Usuario'}.`,
         });
 
+        // Forzamos redirección según rol
         router.replace(role === 'admin' ? '/admin' : '/instructor');
       }
     } catch (error: any) {
-      setErrorMessage("Error inesperado al intentar iniciar sesión.");
+      setErrorMessage("Error de conexión con el servicio de autenticación.");
     } finally {
       setIsLoading(false);
     }
