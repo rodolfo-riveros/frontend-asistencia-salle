@@ -87,18 +87,17 @@ export default function AcademicAssignmentsPage() {
     
     const docenteId = formData.get("docente_id") as string
     const unidadId = formData.get("unidad_id") as string
-    const periodId = formData.get("period_id") as string
+    const periodoId = formData.get("periodo_id") as string // Sincronizado: periodo_id
 
-    if (!docenteId || !unidadId || !periodId) {
+    if (!docenteId || !unidadId || !periodoId) {
       toast({ variant: "destructive", title: "Faltan datos", description: "Completa todos los campos del formulario." })
       return
     }
 
-    // Payload alineado con AsignacionBase corregido: periodo_id como UUID
     const payload = {
       docente_id: docenteId,
       unidad_id: unidadId,
-      periodo_id: periodId 
+      periodo_id: periodoId // Sincronizado: periodo_id como UUID
     }
 
     try {
@@ -109,7 +108,7 @@ export default function AcademicAssignmentsPage() {
     } catch (err: any) {
       toast({ 
         variant: "destructive", 
-        title: "Error de validación (422)", 
+        title: "Error de validación", 
         description: err.message || "Verifica los tipos de datos en el backend."
       })
     }
@@ -180,7 +179,7 @@ export default function AcademicAssignmentsPage() {
                 <div className="grid gap-4 py-6">
                   <div className="space-y-2">
                     <Label>Periodo Académico (UUID)</Label>
-                    <Select name="period_id" defaultValue={periods.find(p => p.es_activo)?.id}>
+                    <Select name="periodo_id" defaultValue={periods.find(p => p.es_activo)?.id}>
                       <SelectTrigger>
                         <SelectValue placeholder="Seleccione periodo..." />
                       </SelectTrigger>
