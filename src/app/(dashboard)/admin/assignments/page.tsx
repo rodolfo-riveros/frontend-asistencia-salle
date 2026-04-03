@@ -95,15 +95,14 @@ export default function AcademicAssignmentsPage() {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
     
-    const selectedPeriodId = formData.get("periodo_id") as string
-    // Buscamos el nombre del periodo (ej. "2024-II") para cumplir con el esquema str(4,20)
-    const periodObj = periods.find(p => p.id === selectedPeriodId)
+    const periodId = formData.get("periodo_id") as string
+    const periodObj = periods.find(p => p.id === periodId)
     const periodName = periodObj ? periodObj.nombre : ""
 
     const payload = {
       docente_id: formData.get("docente_id") as string,
       unidad_id: formData.get("unidad_id") as string,
-      periodo_academicos: periodName, // Enviamos el texto, no el UUID
+      periodo_academicos: periodName, // Enviamos el texto (ej. "2024-II") como pide el esquema str(4,20)
     }
 
     if (!payload.docente_id || !payload.unidad_id || !payload.periodo_academicos) {
