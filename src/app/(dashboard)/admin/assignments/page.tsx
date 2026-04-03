@@ -64,8 +64,7 @@ export default function AcademicAssignmentsPage() {
     setErrorSync(null)
     
     try {
-      // 1. Cargamos los datos maestros primero de forma independiente
-      // Esto asegura que el formulario de creación funcione siempre
+      // 1. Cargamos los datos maestros de forma paralela e independiente
       const [instData, courseData, periodData] = await Promise.all([
         api.get<any[]>('/docentes/').catch(() => []),
         api.get<any[]>('/unidades/').catch(() => []),
@@ -81,7 +80,7 @@ export default function AcademicAssignmentsPage() {
         if (active) setSelectedPeriodId(active.id)
       }
 
-      // 2. Intentamos cargar las asignaciones (esto es lo que podría fallar por el backend)
+      // 2. Intentamos cargar las asignaciones
       const periodParam = selectedPeriodId !== "all" ? `?periodo_id=${selectedPeriodId}` : ""
       try {
         const asgData = await api.get<any[]>(`/asignaciones/${periodParam}`)
@@ -89,7 +88,6 @@ export default function AcademicAssignmentsPage() {
       } catch (err: any) {
         console.error("[DEBUG] Error en listado de asignaciones:", err.message)
         setErrorSync(err.message)
-        // No bloqueamos todo, solo notificamos el error del listado
       }
 
     } catch (err: any) {
@@ -112,13 +110,14 @@ export default function AcademicAssignmentsPage() {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
     
+    // Ajustado para enviar 'periodo_academicos' según requiere el backend corregido
     const payload = {
       docente_id: formData.get("docente_id") as string,
       unidad_id: formData.get("unidad_id") as string,
-      periodo_id: formData.get("periodo_id") as string,
+      periodo_academicos: formData.get("periodo_id") as string,
     }
 
-    if (!payload.docente_id || !payload.unidad_id || !payload.periodo_id) {
+    if (!payload.docente_id || !payload.unidad_id || !payload.periodo_academicos) {
       toast({ variant: "destructive", title: "Campos incompletos", description: "Debes seleccionar todos los campos." })
       return
     }
@@ -129,7 +128,14 @@ export default function AcademicAssignmentsPage() {
       fetchData()
       setIsModalOpen(false)
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Error al guardar", description: err.message })
+      // Parsear el error de validación de FastAPI para mostrarlo mejor
+      let msg = err.message
+      try {
+        const parsed = JSON.parse(err.message)
+        if (Array.isArray(parsed)) msg = parsed[0].msg
+      } catch (e) {}
+      
+      toast({ variant: "destructive", title: "Error al guardar", description: msg })
     }
   }
 
@@ -251,14 +257,14 @@ export default function AcademicAssignmentsPage() {
       </div>
 
       {errorSync && (
-        <Alert variant="destructive" className="bg-red-50 border-red-200 text-red-800 border-2 shadow-lg animate-in fade-in zoom-in duration-300">
+        <Alert variant="destructive" className="bg-red-50 border-red-200 text-red-800 border-2 shadow-lg">
           <Database className="h-5 w-5" />
-          <AlertTitle className="font-black text-base uppercase tracking-tight">¡Error detectado en el Listado!</AlertTitle>
+          <AlertTitle className="font-black text-base uppercase tracking-tight">¡Error en el Listado!</AlertTitle>
           <AlertDescription className="text-sm mt-3 space-y-4">
             <div className="p-3 bg-red-900/10 rounded border border-red-200 font-mono text-xs overflow-x-auto leading-relaxed">
               {errorSync}
             </div>
-            <p className="font-medium">El listado no se muestra, pero ya puedes crear nuevas vinculaciones usando el botón superior.</p>
+            <p className="font-medium">El listado tiene un error de base de datos, pero ya puedes crear nuevas vinculaciones usando el botón superior.</p>
           </AlertDescription>
         </Alert>
       )}
