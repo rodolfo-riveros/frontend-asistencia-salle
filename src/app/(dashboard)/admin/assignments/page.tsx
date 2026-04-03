@@ -45,7 +45,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "@/hooks/use-toast"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { api } from "@/lib/api"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 export default function AcademicAssignmentsPage() {
   const [assignments, setAssignments] = React.useState<any[]>([])
@@ -55,13 +54,10 @@ export default function AcademicAssignmentsPage() {
   const [isLoading, setIsLoading] = React.useState(true)
   const [isModalOpen, setIsModalOpen] = React.useState(false)
   const [searchTerm, setSearchTerm] = React.useState("")
-  const [selectedPeriodId, setSelectedPeriodId] = React.useState<string>("all")
-  const [error, setError] = React.useState<string | null>(null)
+  const [selectedPeriodFilter, setSelectedPeriodFilter] = React.useState<string>("all")
 
   const fetchData = React.useCallback(async () => {
     setIsLoading(true)
-    setError(null)
-    
     try {
       const [instData, courseData, periodData] = await Promise.all([
         api.get<any[]>('/docentes/').catch(() => []),
@@ -73,17 +69,14 @@ export default function AcademicAssignmentsPage() {
       setCourses(Array.isArray(courseData) ? courseData : [])
       setPeriods(Array.isArray(periodData) ? periodData : [])
       
-      const filterParam = selectedPeriodId !== "all" ? `?periodo_id=${selectedPeriodId}` : ""
-      const asgData = await api.get<any[]>(`/asignaciones/${filterParam}`)
+      const asgData = await api.get<any[]>('/asignaciones/')
       setAssignments(Array.isArray(asgData) ? asgData : [])
-
     } catch (err: any) {
-      console.error("Error al cargar asignaciones:", err.message)
-      setError(err.message)
+      console.error("Error al cargar datos:", err)
     } finally {
       setIsLoading(false)
     }
-  }, [selectedPeriodId])
+  }, [])
 
   React.useEffect(() => {
     fetchData()
@@ -93,21 +86,28 @@ export default function AcademicAssignmentsPage() {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
     
-    // Payload alineado con tu BD y Esquema UUID
-    const payload = {
-      docente_id: formData.get("docente_id") as string,
-      unidad_id: formData.get("unidad_id") as string,
-      periodo_id: formData.get("periodo_id") as string, // UUID
+    const docenteId = formData.get("docente_id") as string
+    const unidadId = formData.get("unidad_id") as string
+    const periodId = formData.get("period_id") as string
+
+    // Obtenemos el nombre del periodo porque tu Pydantic pide un 'str' en 'periodo_academicos'
+    const periodName = periods.find(p => p.id === periodId)?.nombre
+
+    if (!docenteId || !unidadId || !periodName) {
+      toast({ variant: "destructive", title: "Faltan datos", description: "Completa todos los campos." })
+      return
     }
 
-    if (!payload.docente_id || !payload.unidad_id || !payload.periodo_id) {
-      toast({ variant: "destructive", title: "Campos incompletos", description: "Debes seleccionar todos los campos." })
-      return
+    // El Payload debe coincidir EXACTAMENTE con tu clase AsignacionBase en Python
+    const payload = {
+      docente_id: docenteId,
+      unidad_id: unidadId,
+      periodo_academicos: periodName // Enviamos el nombre (2025-I) como pide tu esquema
     }
 
     try {
       await api.post('/asignaciones/', payload)
-      toast({ title: "Carga asignada", description: "Docente vinculado correctamente." })
+      toast({ title: "Carga asignada", description: "Relación creada correctamente." })
       fetchData()
       setIsModalOpen(false)
     } catch (err: any) {
@@ -133,12 +133,15 @@ export default function AcademicAssignmentsPage() {
   const filteredAssignments = React.useMemo(() => {
     const term = searchTerm.toLowerCase()
     return (assignments || []).filter(asg => {
-      const pName = (asg.periodo_academicos || asg.periodo_academico || "").toLowerCase()
-      return asg.docente_nombre?.toLowerCase().includes(term) || 
-             asg.unidad_nombre?.toLowerCase().includes(term) ||
-             pName.includes(term)
+      const matchesSearch = (asg.docente_nombre || "").toLowerCase().includes(term) || 
+                           (asg.unidad_nombre || "").toLowerCase().includes(term)
+      
+      const periodVal = asg.periodo_academicos || asg.periodo_academico || ""
+      const matchesPeriod = selectedPeriodFilter === "all" || periodVal === selectedPeriodFilter
+
+      return matchesSearch && matchesPeriod
     })
-  }, [assignments, searchTerm])
+  }, [assignments, searchTerm, selectedPeriodFilter])
 
   return (
     <div className="space-y-6">
@@ -148,14 +151,14 @@ export default function AcademicAssignmentsPage() {
           <h2 className="text-3xl font-headline font-extrabold tracking-tight text-slate-900">Asignación por Ciclo</h2>
           <div className="flex items-center gap-3 mt-3">
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Filtrar Ciclo:</span>
-            <Select value={selectedPeriodId} onValueChange={setSelectedPeriodId}>
+            <Select value={selectedPeriodFilter} onValueChange={setSelectedPeriodFilter}>
               <SelectTrigger className="h-8 w-[180px] bg-white border-none shadow-sm font-bold text-xs">
                 <SelectValue placeholder="Seleccione Ciclo" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos los Periodos</SelectItem>
                 {periods.map(p => (
-                  <SelectItem key={p.id} value={p.id}>{p.nombre} {p.es_activo && "(Activo)"}</SelectItem>
+                  <SelectItem key={p.id} value={p.nombre}>{p.nombre}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -176,21 +179,19 @@ export default function AcademicAssignmentsPage() {
               <form onSubmit={handleSave}>
                 <DialogHeader>
                   <DialogTitle>Nueva Asignación</DialogTitle>
-                  <DialogDescription>Define el responsable de una unidad para un periodo académico.</DialogDescription>
+                  <DialogDescription>Asigna un responsable para una unidad didáctica.</DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-6">
                   <div className="space-y-2">
                     <Label>Periodo Académico</Label>
-                    <Select name="periodo_id" defaultValue={periods.find(p => p.es_activo)?.id}>
+                    <Select name="period_id" defaultValue={periods.find(p => p.es_activo)?.id}>
                       <SelectTrigger>
                         <SelectValue placeholder="Seleccione periodo" />
                       </SelectTrigger>
                       <SelectContent>
-                        {periods.length > 0 ? periods.map(p => (
+                        {periods.map(p => (
                           <SelectItem key={p.id} value={p.id}>{p.nombre}</SelectItem>
-                        )) : (
-                          <SelectItem value="none" disabled>No hay periodos disponibles</SelectItem>
-                        )}
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -201,11 +202,9 @@ export default function AcademicAssignmentsPage() {
                         <SelectValue placeholder="Seleccione docente..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {instructors.length > 0 ? instructors.map(inst => (
+                        {instructors.map(inst => (
                           <SelectItem key={inst.id} value={inst.id}>{inst.nombre}</SelectItem>
-                        )) : (
-                          <SelectItem value="none" disabled>No hay docentes registrados</SelectItem>
-                        )}
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -216,13 +215,11 @@ export default function AcademicAssignmentsPage() {
                         <SelectValue placeholder="Seleccione unidad..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {courses.length > 0 ? courses.map(course => (
+                        {courses.map(course => (
                           <SelectItem key={course.id} value={course.id}>
-                            {course.nombre} {course.programa_nombre ? `(${course.programa_nombre})` : ''}
+                            {course.nombre} ({course.programa_nombre})
                           </SelectItem>
-                        )) : (
-                          <SelectItem value="none" disabled>No hay unidades registradas</SelectItem>
-                        )}
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -237,20 +234,10 @@ export default function AcademicAssignmentsPage() {
         </div>
       </div>
 
-      {error && (
-        <Alert variant="destructive" className="bg-red-50 border-red-200">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Error de Sincronización</AlertTitle>
-          <AlertDescription>
-            {error}. Asegúrate de que tu backend FastAPI use la columna <strong>periodo_id</strong> en lugar de periodo_academico.
-          </AlertDescription>
-        </Alert>
-      )}
-
       <div className="relative mb-4">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
         <Input 
-          placeholder="Busca por docente, unidad o ciclo..." 
+          placeholder="Busca por docente o unidad..." 
           className="pl-11 py-6 bg-white border-slate-100 shadow-sm"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
@@ -295,7 +282,7 @@ export default function AcademicAssignmentsPage() {
                           </div>
                           <div className="flex flex-col">
                             <span className="font-semibold text-slate-700 text-sm">{asg.unidad_nombre}</span>
-                            <span className="text-[10px] text-slate-400 uppercase">{asg.programa_nombre}</span>
+                            <span className="text-[10px] text-slate-400 uppercase">{asg.programa_nombre} - Sem {asg.semestre}</span>
                           </div>
                         </div>
                       </TableCell>
