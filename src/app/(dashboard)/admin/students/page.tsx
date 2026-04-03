@@ -18,7 +18,8 @@ import {
   FileSpreadsheet,
   Download,
   CheckCircle2,
-  X
+  X,
+  Info
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -53,6 +54,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Progress } from "@/components/ui/progress"
 import { toast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
+import * as XLSX from 'xlsx'
 
 export default function AdminStudentsPage() {
   const [students, setStudents] = React.useState<any[]>([])
@@ -133,29 +135,68 @@ export default function AdminStudentsPage() {
     }
   }
 
-  const handleImportExcel = () => {
+  const handleImportExcel = async () => {
     if (!importFile) return
     setIsUploading(true)
     setUploadProgress(0)
     
-    // Simulación de carga (sustituir por endpoint real cuando esté listo)
-    const interval = setInterval(() => {
-      setUploadProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval)
+    try {
+      const reader = new FileReader()
+      reader.onload = async (e) => {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer)
+        const workbook = XLSX.read(data, { type: 'array' })
+        const sheetName = workbook.SheetNames[0]
+        const worksheet = workbook.Sheets[sheetName]
+        const jsonData: any[] = XLSX.utils.sheet_to_json(worksheet)
+
+        if (jsonData.length === 0) {
+          toast({ variant: "destructive", title: "Archivo vacío", description: "No se encontraron registros en el Excel." })
           setIsUploading(false)
-          toast({
-            title: "Importación Completada",
-            description: "Los alumnos han sido cargados exitosamente al padrón.",
-          })
-          fetchData()
-          setIsImportModalOpen(false)
-          setImportFile(null)
-          return 100
+          return
         }
-        return prev + 10
-      })
-    }, 200)
+
+        let successCount = 0
+        let errorCount = 0
+
+        for (let i = 0; i < jsonData.length; i++) {
+          const row = jsonData[i]
+          const program = programs.find(p => p.codigo === String(row.programa_codigo).toUpperCase())
+          
+          if (!program) {
+            console.error(`Programa no encontrado para el código: ${row.programa_codigo}`)
+            errorCount++
+            continue
+          }
+
+          try {
+            await api.post('/alumnos/', {
+              nombre: row.nombre,
+              dni: String(row.dni),
+              programa_id: program.id,
+              semestre: String(row.semestre).toUpperCase()
+            })
+            successCount++
+          } catch (err) {
+            errorCount++
+          }
+          
+          setUploadProgress(Math.round(((i + 1) / jsonData.length) * 100))
+        }
+
+        toast({
+          title: "Importación Finalizada",
+          description: `Se registraron ${successCount} alumnos. Errores: ${errorCount}.`,
+        })
+        fetchData()
+        setIsImportModalOpen(false)
+        setImportFile(null)
+        setIsUploading(false)
+      }
+      reader.readAsArrayBuffer(importFile)
+    } catch (err) {
+      toast({ variant: "destructive", title: "Error crítico", description: "No se pudo procesar el archivo Excel." })
+      setIsUploading(false)
+    }
   }
 
   const filteredStudents = React.useMemo(() => {
@@ -186,12 +227,25 @@ export default function AdminStudentsPage() {
                 <FileUp className="h-4 w-4" /> Importar Excel
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
+            <DialogContent className="sm:max-w-[600px]">
               <DialogHeader>
                 <DialogTitle>Importación Masiva de Alumnos</DialogTitle>
-                <DialogDescription>Sube un archivo Excel (.xlsx) con los datos de los estudiantes.</DialogDescription>
+                <DialogDescription>Sigue el formato requerido para cargar los datos correctamente.</DialogDescription>
               </DialogHeader>
               <div className="py-6 space-y-6">
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+                  <div className="flex items-center gap-2 text-primary">
+                    <Info className="h-4 w-4" />
+                    <span className="text-xs font-bold uppercase tracking-widest">Estructura del Excel</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-[10px] font-medium text-slate-600">
+                    <div className="bg-white p-2 border rounded"><strong>nombre</strong>: Texto completo</div>
+                    <div className="bg-white p-2 border rounded"><strong>dni</strong>: 8 números</div>
+                    <div className="bg-white p-2 border rounded"><strong>programa_codigo</strong>: Ej. SIS, CON</div>
+                    <div className="bg-white p-2 border rounded"><strong>semestre</strong>: I, II, III, IV, V, VI</div>
+                  </div>
+                </div>
+
                 {!importFile ? (
                   <div 
                     className="border-2 border-dashed border-slate-200 rounded-2xl p-10 flex flex-col items-center justify-center gap-4 hover:border-primary/50 transition-colors cursor-pointer bg-slate-50/50"
@@ -222,14 +276,14 @@ export default function AdminStudentsPage() {
                           <p className="text-[10px] text-slate-500 uppercase tracking-widest font-black">{(importFile.size / 1024).toFixed(1)} KB</p>
                         </div>
                       </div>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setImportFile(null)}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setImportFile(null)} disabled={isUploading}>
                         <X className="h-4 w-4" />
                       </Button>
                     </div>
                     {isUploading && (
                       <div className="space-y-2">
                         <div className="flex justify-between text-[10px] font-bold uppercase text-primary">
-                          <span>Procesando alumnos...</span>
+                          <span>Procesando registros...</span>
                           <span>{uploadProgress}%</span>
                         </div>
                         <Progress value={uploadProgress} className="h-1.5" />
@@ -237,24 +291,16 @@ export default function AdminStudentsPage() {
                     )}
                   </div>
                 )}
-
-                <div className="bg-slate-50 p-4 rounded-xl border flex gap-3">
-                  <Download className="h-5 w-5 text-primary shrink-0" />
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-black uppercase text-slate-400">Plantilla Oficial</p>
-                    <p className="text-xs text-slate-700">Descarga la <span className="text-primary font-bold cursor-pointer hover:underline">plantilla excel</span> para asegurar el formato correcto.</p>
-                  </div>
-                </div>
               </div>
               <DialogFooter>
-                <Button variant="ghost" onClick={() => setIsImportModalOpen(false)}>Cancelar</Button>
+                <Button variant="ghost" onClick={() => setIsImportModalOpen(false)} disabled={isUploading}>Cancelar</Button>
                 <Button 
                   onClick={handleImportExcel} 
                   disabled={!importFile || isUploading}
                   className="bg-primary font-bold gap-2"
                 >
                   {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                  Procesar Archivo
+                  Procesar Importación
                 </Button>
               </DialogFooter>
             </DialogContent>
