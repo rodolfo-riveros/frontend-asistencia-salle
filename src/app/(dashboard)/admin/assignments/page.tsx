@@ -46,7 +46,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "@/hooks/use-toast"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { api } from "@/lib/api"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 export default function AcademicAssignmentsPage() {
   const [assignments, setAssignments] = React.useState<any[]>([])
@@ -82,7 +81,7 @@ export default function AcademicAssignmentsPage() {
       setAssignments(Array.isArray(asgData) ? asgData : [])
 
     } catch (err: any) {
-      console.error("Error al cargar asignaciones:", err.message)
+      console.error("Error al cargar datos:", err.message)
     } finally {
       setIsLoading(false)
     }
@@ -96,11 +95,15 @@ export default function AcademicAssignmentsPage() {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
     
-    // El backend espera 'periodo_academicos' según el error 422
+    const selectedPeriodId = formData.get("periodo_id") as string
+    // Buscamos el nombre del periodo (ej. "2024-II") para cumplir con el esquema str(4,20)
+    const periodObj = periods.find(p => p.id === selectedPeriodId)
+    const periodName = periodObj ? periodObj.nombre : ""
+
     const payload = {
       docente_id: formData.get("docente_id") as string,
       unidad_id: formData.get("unidad_id") as string,
-      periodo_academicos: formData.get("periodo_id") as string,
+      periodo_academicos: periodName, // Enviamos el texto, no el UUID
     }
 
     if (!payload.docente_id || !payload.unidad_id || !payload.periodo_academicos) {
@@ -138,7 +141,7 @@ export default function AcademicAssignmentsPage() {
     return (assignments || []).filter(asg => 
       asg.docente_nombre?.toLowerCase().includes(term) || 
       asg.unidad_nombre?.toLowerCase().includes(term) ||
-      asg.periodo_nombre?.toLowerCase().includes(term)
+      asg.periodo_academicos?.toLowerCase().includes(term)
     )
   }, [assignments, searchTerm])
 
@@ -293,7 +296,7 @@ export default function AcademicAssignmentsPage() {
                       </TableCell>
                       <TableCell className="text-center">
                         <Badge variant="outline" className="border-primary/20 text-primary font-black text-[10px] bg-primary/5">
-                          {asg.periodo_nombre}
+                          {asg.periodo_academicos}
                         </Badge>
                       </TableCell>
                       <TableCell className="pr-6 text-right">
