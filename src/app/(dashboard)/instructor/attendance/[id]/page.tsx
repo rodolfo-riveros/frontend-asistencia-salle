@@ -68,29 +68,29 @@ export default function AttendancePage() {
     if (!params.id || !date) return
     setIsSyncing(true)
     try {
-      // El backend en reporte_por_unidad usa la vista v_asistencias_completas
-      // Importante: Asegurar que el backend filtre por la columna correcta (unidad)
+      // Intentamos obtener los registros de ese día
       const existing = await api.get<any[]>(`/asistencias/reporte/unidad/${params.id}?fecha_inicio=${date}&fecha_fin=${date}`)
       
       if (existing && Array.isArray(existing) && existing.length > 0) {
         const mapped: Record<string, string> = {}
         existing.forEach(reg => {
-          // VITAL: Usar alumno_id. Si usamos reg.id estaríamos usando el ID de la asistencia, no del alumno.
+          // Importante: La vista v_asistencias_completas usa 'alumno_id'
           const aid = reg.alumno_id;
           if (aid) {
             mapped[aid] = REVERSE_STATUS_MAP[reg.estado] || reg.estado
           }
         })
+        
         setAttendance(prev => {
           const newState = { ...prev }
-          // Solo actualizamos los que existen en el mapeo para no borrar los nulls de alumnos nuevos
+          // Actualizamos los estados que encontramos en la DB
           Object.keys(mapped).forEach(key => {
             newState[key] = mapped[key]
           })
           return newState
         })
       } else {
-        // Si no hay registros para ese día, limpiamos el mapa pero mantenemos las llaves de los alumnos
+        // Si no hay registros para ese día, limpiamos el mapa localmente
         setAttendance(prev => {
           const reset: Record<string, string | null> = {}
           Object.keys(prev).forEach(key => {
@@ -111,9 +111,11 @@ export default function AttendancePage() {
     try {
       const data = await api.get<any[]>(`/me/unidades/${params.id}/alumnos`)
       setStudents(data)
+      // Inicializamos el mapa de asistencia con null para todos los alumnos cargados
       const initialMap = Object.fromEntries(data.map(s => [s.id, null]))
       setAttendance(initialMap)
-      // Una vez tenemos los alumnos, buscamos si ya marcaron hoy
+      
+      // Una vez tenemos los alumnos, cargamos la asistencia grabada
       await fetchExistingAttendance()
     } catch (err: any) {
       toast({ 
@@ -130,7 +132,7 @@ export default function AttendancePage() {
     fetchStudents()
   }, [fetchStudents])
 
-  // Recargar asistencia si cambia la fecha
+  // Recargar asistencia si cambia la fecha manualmente
   React.useEffect(() => {
     if (!isLoading && students.length > 0) {
       fetchExistingAttendance()
@@ -184,14 +186,14 @@ export default function AttendancePage() {
       await api.post('/asistencias/pase-lista', payload)
       toast({ 
         title: "¡Guardado exitoso!", 
-        description: `La asistencia se registró correctamente en el sistema.`,
+        description: `La asistencia se registró correctamente.`,
       })
       router.push('/instructor')
     } catch (err: any) {
       toast({ 
         variant: "destructive", 
         title: "Error al guardar", 
-        description: err.message || "Verifica que el periodo y alumnos existan en la DB."
+        description: err.message || "Error interno del servidor."
       })
     }
   }
@@ -214,7 +216,7 @@ export default function AttendancePage() {
       })
       setAiResult(result)
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Error de IA", description: "No hay datos históricos suficientes." })
+      toast({ variant: "destructive", title: "Error de IA", description: "No hay datos suficientes." })
     } finally {
       setIsAnalyzing(false)
     }
@@ -252,7 +254,7 @@ export default function AttendancePage() {
           <div className="flex flex-wrap items-center gap-2 md:gap-3 w-full lg:w-auto">
             <Button variant="outline" className="flex-1 lg:flex-none h-12 px-6 gap-2 text-accent border-accent/20 font-bold text-sm" onClick={runAnalysis} disabled={isAnalyzing}>
               <Sparkles className={`h-5 w-5 ${isAnalyzing ? 'animate-spin' : ''}`} />
-              IA Analysis
+              Análisis IA
             </Button>
             <Button className="flex-1 lg:flex-none h-12 px-8 gap-2 font-black shadow-lg shadow-primary/20 text-sm" onClick={handleSave}>
               <Save className="h-5 w-5" /> Guardar Cambios
@@ -334,7 +336,7 @@ export default function AttendancePage() {
                     )) : (
                       <TableRow>
                         <TableCell colSpan={4} className="h-32 text-center text-slate-400 italic">
-                          No hay alumnos en este filtro
+                          No hay alumnos registrados
                         </TableCell>
                       </TableRow>
                     )}
