@@ -13,7 +13,8 @@ import {
   Clock,
   MessageSquareQuote,
   Loader2,
-  RefreshCcw
+  RefreshCcw,
+  CheckCircle2
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -55,6 +56,7 @@ export default function AttendancePage() {
   const [isSyncing, setIsSyncing] = React.useState(false)
   const [searchTerm, setSearchTerm] = React.useState("")
   
+  // Fecha ajustada a la zona horaria de Perú (Lima)
   const [date, setDate] = React.useState(() => {
     return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Lima' });
   })
@@ -66,20 +68,34 @@ export default function AttendancePage() {
     if (!params.id || !date) return
     setIsSyncing(true)
     try {
+      // El backend en reporte_por_unidad usa la vista v_asistencias_completas
+      // Importante: Asegurar que el backend filtre por la columna correcta (unidad)
       const existing = await api.get<any[]>(`/asistencias/reporte/unidad/${params.id}?fecha_inicio=${date}&fecha_fin=${date}`)
       
       if (existing && Array.isArray(existing) && existing.length > 0) {
         const mapped: Record<string, string> = {}
         existing.forEach(reg => {
-          // El backend puede devolver alumno_id o id dependiendo de la vista
-          const aid = reg.alumno_id || reg.id;
-          if (aid) mapped[aid] = REVERSE_STATUS_MAP[reg.estado] || reg.estado
+          // VITAL: Usar alumno_id. Si usamos reg.id estaríamos usando el ID de la asistencia, no del alumno.
+          const aid = reg.alumno_id;
+          if (aid) {
+            mapped[aid] = REVERSE_STATUS_MAP[reg.estado] || reg.estado
+          }
         })
-        setAttendance(prev => ({ ...prev, ...mapped }))
-      } else {
         setAttendance(prev => {
-          const reset = { ...prev }
-          Object.keys(reset).forEach(key => reset[key] = null)
+          const newState = { ...prev }
+          // Solo actualizamos los que existen en el mapeo para no borrar los nulls de alumnos nuevos
+          Object.keys(mapped).forEach(key => {
+            newState[key] = mapped[key]
+          })
+          return newState
+        })
+      } else {
+        // Si no hay registros para ese día, limpiamos el mapa pero mantenemos las llaves de los alumnos
+        setAttendance(prev => {
+          const reset: Record<string, string | null> = {}
+          Object.keys(prev).forEach(key => {
+            reset[key] = null
+          })
           return reset
         })
       }
@@ -97,6 +113,7 @@ export default function AttendancePage() {
       setStudents(data)
       const initialMap = Object.fromEntries(data.map(s => [s.id, null]))
       setAttendance(initialMap)
+      // Una vez tenemos los alumnos, buscamos si ya marcaron hoy
       await fetchExistingAttendance()
     } catch (err: any) {
       toast({ 
@@ -113,11 +130,12 @@ export default function AttendancePage() {
     fetchStudents()
   }, [fetchStudents])
 
+  // Recargar asistencia si cambia la fecha
   React.useEffect(() => {
-    if (!isLoading) {
+    if (!isLoading && students.length > 0) {
       fetchExistingAttendance()
     }
-  }, [date, fetchExistingAttendance, isLoading])
+  }, [date, fetchExistingAttendance, isLoading, students.length])
 
   const handleStatus = (id: string, status: string) => setAttendance(p => ({ ...p, [id]: status }))
   
@@ -127,16 +145,20 @@ export default function AttendancePage() {
       newAttendance[s.id] = status
     })
     setAttendance(newAttendance)
-    toast({ title: "Marcado Masivo", description: `Todos marcados como: ${status}` })
+    toast({ 
+      title: "Marcado Masivo", 
+      description: `Todos marcados como: ${status}`,
+    })
   }
 
   const handleSave = async () => {
-    const incomplete = Object.values(attendance).some(v => v === null)
-    if (incomplete) {
+    const records = Object.entries(attendance).filter(([_, estado]) => estado !== null);
+    
+    if (records.length === 0) {
       return toast({ 
         variant: "destructive", 
-        title: "Pase incompleto", 
-        description: "Por favor, marque la asistencia de todos los alumnos." 
+        title: "Pase vacío", 
+        description: "No has marcado la asistencia de ningún alumno." 
       })
     }
     
@@ -144,7 +166,7 @@ export default function AttendancePage() {
       return toast({ 
         variant: "destructive", 
         title: "Error de Periodo", 
-        description: "El ID del ciclo académico no está presente." 
+        description: "No se encontró el ID del ciclo académico." 
       })
     }
 
@@ -152,7 +174,7 @@ export default function AttendancePage() {
       unidad_id: params.id as string,
       periodo_id: periodoId,
       fecha: date,
-      registros: Object.entries(attendance).map(([studentId, estado]) => ({
+      registros: records.map(([studentId, estado]) => ({
         alumno_id: studentId,
         estado: STATUS_MAP[estado as string] || estado
       }))
@@ -161,15 +183,15 @@ export default function AttendancePage() {
     try {
       await api.post('/asistencias/pase-lista', payload)
       toast({ 
-        title: "¡Guardado!", 
-        description: `Asistencia del ${date} registrada con éxito.` 
+        title: "¡Guardado exitoso!", 
+        description: `La asistencia se registró correctamente en el sistema.`,
       })
       router.push('/instructor')
     } catch (err: any) {
       toast({ 
         variant: "destructive", 
         title: "Error al guardar", 
-        description: err.message || "Ocurrió un error en el servidor."
+        description: err.message || "Verifica que el periodo y alumnos existan en la DB."
       })
     }
   }
@@ -183,16 +205,16 @@ export default function AttendancePage() {
         studentName: h.alumno,
         courseUnitId: params.id as string,
         courseUnitName: "Unidad Didáctica",
-        date: "Histórico",
+        date: "Análisis Histórico",
         status: h.faltas > 3 ? "Falta" : "Presente"
       }))
       const result = await aiAttendanceInsights({ 
         attendanceRecords: records as any, 
-        analysisContext: `Análisis crítico para la unidad ${params.id}.` 
+        analysisContext: `Unidad Didáctica ID: ${params.id}` 
       })
       setAiResult(result)
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Error de IA", description: "No se pudo generar el análisis." })
+      toast({ variant: "destructive", title: "Error de IA", description: "No hay datos históricos suficientes." })
     } finally {
       setIsAnalyzing(false)
     }
@@ -215,7 +237,7 @@ export default function AttendancePage() {
                 UD: {params.id.toString().substring(0,8)}
               </Badge>
               <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-xl border border-slate-100 shadow-sm">
-                <Label className="text-[9px] font-black uppercase text-slate-400">Fecha Perú:</Label>
+                <Label className="text-[9px] font-black uppercase text-slate-400">Fecha:</Label>
                 <input 
                   type="date" 
                   value={date} 
@@ -230,10 +252,10 @@ export default function AttendancePage() {
           <div className="flex flex-wrap items-center gap-2 md:gap-3 w-full lg:w-auto">
             <Button variant="outline" className="flex-1 lg:flex-none h-12 px-6 gap-2 text-accent border-accent/20 font-bold text-sm" onClick={runAnalysis} disabled={isAnalyzing}>
               <Sparkles className={`h-5 w-5 ${isAnalyzing ? 'animate-spin' : ''}`} />
-              {isAnalyzing ? "Analizando..." : "Análisis IA"}
+              IA Analysis
             </Button>
             <Button className="flex-1 lg:flex-none h-12 px-8 gap-2 font-black shadow-lg shadow-primary/20 text-sm" onClick={handleSave}>
-              <Save className="h-5 w-5" /> Guardar Pase
+              <Save className="h-5 w-5" /> Guardar Cambios
             </Button>
           </div>
         </div>
@@ -243,7 +265,7 @@ export default function AttendancePage() {
         {isLoading ? (
           <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-3">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="text-sm font-medium">Sincronizando padrón...</p>
+            <p className="text-sm font-medium">Cargando alumnos...</p>
           </div>
         ) : (
           <>
@@ -257,7 +279,7 @@ export default function AttendancePage() {
               <div className="relative w-full md:w-80">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <Input 
-                  placeholder="Filtrar alumno..." 
+                  placeholder="Buscar estudiante..." 
                   className="pl-10 h-11 bg-white border-none rounded-xl text-sm shadow-sm"
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
@@ -271,8 +293,8 @@ export default function AttendancePage() {
                     <TableRow className="border-none">
                       <TableHead className="w-[80px] pl-8"></TableHead>
                       <TableHead className="font-black text-[10px] uppercase tracking-widest text-slate-400">Estudiante</TableHead>
-                      <TableHead className="text-center font-black text-[10px] uppercase tracking-widest text-slate-400">Estado Actual</TableHead>
-                      <TableHead className="text-right pr-8 font-black text-[10px] uppercase tracking-widest text-slate-400">Registrar</TableHead>
+                      <TableHead className="text-center font-black text-[10px] uppercase tracking-widest text-slate-400">Estado</TableHead>
+                      <TableHead className="text-right pr-8 font-black text-[10px] uppercase tracking-widest text-slate-400">Marcar</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -287,7 +309,7 @@ export default function AttendancePage() {
                         </TableCell>
                         <TableCell>
                           <div className="font-bold text-sm text-slate-900">{s.nombre}</div>
-                          <div className="text-[10px] text-slate-400 font-mono uppercase tracking-tighter">DNI: {s.dni}</div>
+                          <div className="text-[10px] text-slate-400 font-mono">DNI: {s.dni}</div>
                         </TableCell>
                         <TableCell className="text-center">
                           {!attendance[s.id] ? (
@@ -312,7 +334,7 @@ export default function AttendancePage() {
                     )) : (
                       <TableRow>
                         <TableCell colSpan={4} className="h-32 text-center text-slate-400 italic">
-                          No se encontraron alumnos coincidentes
+                          No hay alumnos en este filtro
                         </TableCell>
                       </TableRow>
                     )}
