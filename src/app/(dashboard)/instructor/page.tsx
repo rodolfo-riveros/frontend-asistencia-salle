@@ -7,9 +7,10 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { BookOpen, Users, Clock, ArrowRight, FileSpreadsheet, Loader2, AlertCircle, Calendar } from "lucide-react"
+import { BookOpen, Users, Clock, ArrowRight, FileSpreadsheet, Loader2, AlertCircle, Calendar, GraduationCap } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
+import { supabase } from "@/lib/supabase"
 import * as XLSX from 'xlsx'
 
 export default function InstructorDashboard() {
@@ -18,10 +19,16 @@ export default function InstructorDashboard() {
   const [isLoading, setIsLoading] = React.useState(true)
   const [selectedPeriodId, setSelectedPeriodId] = React.useState<string>("")
   const [isExporting, setIsExporting] = React.useState<string | null>(null)
+  const [userName, setUserName] = React.useState("USUARIO DOCENTE")
 
   const fetchData = React.useCallback(async () => {
     setIsLoading(true)
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user?.user_metadata?.firstname) {
+        setUserName(`${user.user_metadata.firstname} ${user.user_metadata.lastname || ""}`.trim().toUpperCase())
+      }
+
       const periodData = await api.get<any[]>('/periodos/')
       setPeriods(periodData)
       
@@ -56,13 +63,12 @@ export default function InstructorDashboard() {
   const handleExport = async (asg: any) => {
     setIsExporting(asg.id)
     toast({
-      title: "Generando Reporte",
-      description: `Procesando matriz de asistencia profesional para ${asg.unidad_nombre}...`,
+      title: "Generando Reporte Profesional",
+      description: `Procesando matriz de asistencia para ${asg.unidad_nombre}...`,
     })
 
     try {
-      // 1. Obtener datos necesarios
-      // Nota: El backend usa .eq("unidad", unidad_id) segun el error previo
+      // 1. Obtener datos (Nota: Usamos 'unidad' en el filtro como pide el backend)
       const [reportData, alumnos] = await Promise.all([
         api.get<any[]>(`/asistencias/reporte/unidad/${asg.unidad_id}`),
         api.get<any[]>(`/me/unidades/${asg.unidad_id}/alumnos`)
@@ -72,36 +78,38 @@ export default function InstructorDashboard() {
         throw new Error("No hay alumnos matriculados para generar el reporte.")
       }
 
-      // 2. Procesar fechas únicas del periodo y pivotar datos
+      // 2. Procesar fechas únicas y pivotar datos
       const uniqueDates = Array.from(new Set(reportData.map(r => r.fecha))).sort()
       const matrix: Record<string, Record<string, string>> = {}
       reportData.forEach(reg => {
-        if (!matrix[reg.alumno_id]) matrix[reg.alumno_id] = {}
-        matrix[reg.alumno_id][reg.fecha] = reg.estado
+        const idAlumno = reg.alumno_id || reg.id_alumno;
+        if (!matrix[idAlumno]) matrix[idAlumno] = {}
+        matrix[idAlumno][reg.fecha] = reg.estado
       })
 
-      // 3. Construir filas para el Excel (AOA - Array of Arrays)
+      // 3. Construir Matriz Elaborada (AOA)
       const rows: any[] = []
       const periodName = periods.find(p => p.id === selectedPeriodId)?.nombre || "N/A"
 
-      // --- CABECERA INSTITUCIONAL ---
+      // CABECERA DE ALTO IMPACTO
       rows.push(["INSTITUTO DE EDUCACIÓN SUPERIOR LA SALLE - URUBAMBA"])
-      rows.push([`SISTEMA DE CONTROL DE ASISTENCIA Y RENDIMIENTO ACADÉMICO`])
-      rows.push([]) // Espacio
-      rows.push([`UNIDAD DIDÁCTICA:`, asg.unidad_nombre.toUpperCase(), "", `PROGRAMA:`, asg.programa_nombre.toUpperCase()])
-      rows.push([`DOCENTE:`, "USUARIO DOCENTE", "", `SEMESTRE:`, asg.semestre, "", `PERIODO:`, periodName])
-      rows.push([]) // Espacio
+      rows.push(["SISTEMA DE CONTROL DE ASISTENCIA Y RENDIMIENTO ACADÉMICO"])
+      rows.push([])
+      rows.push(["UNIDAD DIDÁCTICA:", asg.unidad_nombre.toUpperCase(), "", "PROGRAMA:", asg.programa_nombre.toUpperCase()])
+      rows.push(["DOCENTE RESPONSABLE:", userName, "", "SEMESTRE:", asg.semestre, "", "PERIODO:", periodName])
+      rows.push(["FECHA DE REPORTE:", new Date().toLocaleDateString(), "", "ESTADO:", "MATRIZ FINALIZADA"])
+      rows.push([])
 
-      // --- ENCABEZADOS DE LA TABLA ---
+      // ENCABEZADOS DE TABLA
       const headerRow = ['N°', 'APELLIDOS Y NOMBRES']
       uniqueDates.forEach(d => {
         const [year, month, day] = d.split('-')
         headerRow.push(`${day}/${month}`)
       })
-      headerRow.push('FALTAS', '% INAS.')
+      headerRow.push('TOTAL FALTAS', '% INASISTENCIA')
       rows.push(headerRow)
 
-      // --- CUERPO DE LA TABLA (ALUMNOS) ---
+      // CUERPO DE DATOS (ALUMNOS ORDENADOS)
       alumnos.sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach((alumno, index) => {
         const studentRow: any[] = [
           (index + 1).toString().padStart(2, '0'),
@@ -116,47 +124,46 @@ export default function InstructorDashboard() {
         })
 
         const totalSessions = uniqueDates.length
-        const pct = totalSessions > 0 ? ((absences / totalSessions) * 100).toFixed(0) : "0"
+        const pct = totalSessions > 0 ? ((absences / totalSessions) * 100).toFixed(1) : "0"
 
         studentRow.push(absences)
         studentRow.push(`${pct}%`)
         rows.push(studentRow)
       })
 
-      // 4. Crear el libro de trabajo (Workbook)
+      // 4. Crear Workbook y Aplicar Formatos Básicos
       const wb = XLSX.utils.book_new()
       const ws = XLSX.utils.aoa_to_sheet(rows)
 
-      // --- CONFIGURACIÓN DE ESTILOS Y ESTRUCTURA ---
-      
-      // Anchos de columna
+      // Configuración de anchos de columna
       const wscols = [
         { wch: 4 },   // N°
         { wch: 45 },  // Nombres
-        ...uniqueDates.map(() => ({ wch: 6 })), // Fechas
-        { wch: 10 },  // Faltas
-        { wch: 10 }   // %
+        ...uniqueDates.map(() => ({ wch: 7 })), // Fechas
+        { wch: 15 },  // Total Faltas
+        { wch: 15 }   // %
       ]
       ws['!cols'] = wscols
 
-      // Combinación de celdas para los títulos
+      // Combinación de celdas para el encabezado (Merges)
       ws['!merges'] = [
-        { s: { r: 0, c: 0 }, e: { r: 0, c: headerRow.length - 1 } }, // Titulo 1
-        { s: { r: 1, c: 0 }, e: { r: 1, c: headerRow.length - 1 } }, // Titulo 2
-        { s: { r: 3, c: 1 }, e: { r: 3, c: 2 } }, // Unidad Nombre
-        { s: { r: 3, c: 4 }, e: { r: 3, c: 6 } }, // Programa Nombre
+        { s: { r: 0, c: 0 }, e: { r: 0, c: headerRow.length - 1 } }, // Título 1
+        { s: { r: 1, c: 0 }, e: { r: 1, c: headerRow.length - 1 } }, // Título 2
+        { s: { r: 3, c: 1 }, e: { r: 3, c: 2 } }, // Unidad
+        { s: { r: 3, c: 4 }, e: { r: 3, c: 6 } }, // Programa
+        { s: { r: 4, c: 1 }, e: { r: 4, c: 2 } }, // Docente
       ]
 
-      XLSX.utils.book_append_sheet(wb, ws, "Matriz_Asistencia")
+      XLSX.utils.book_append_sheet(wb, ws, "Matriz_Oficial")
 
-      // 5. Descargar archivo
-      const fileName = `Matriz_${asg.unidad_nombre.replace(/\s+/g, '_')}_${periodName}.xlsx`
+      // 5. Descargar
+      const fileName = `MATRIZ_${asg.unidad_nombre.replace(/\s+/g, '_')}_${periodName}.xlsx`
       XLSX.writeFile(wb, fileName)
 
-      toast({ title: "Reporte generado", description: "La matriz de asistencia se descargó con éxito." })
+      toast({ title: "Reporte generado con éxito", description: "El archivo Excel se ha descargado." })
     } catch (err: any) {
       console.error(err)
-      toast({ variant: "destructive", title: "Error al exportar", description: err.message })
+      toast({ variant: "destructive", title: "Fallo en la exportación", description: err.message })
     } finally {
       setIsExporting(null)
     }
@@ -178,7 +185,7 @@ export default function InstructorDashboard() {
           
           <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
             <div className="flex flex-col">
-              <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Periodo Lectivo Seleccionado</span>
+              <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Periodo Lectivo Activo</span>
               <Select value={selectedPeriodId} onValueChange={setSelectedPeriodId}>
                 <SelectTrigger className="h-9 w-[220px] border-none bg-slate-50 font-bold text-slate-900 focus:ring-0">
                   <Calendar className="h-4 w-4 mr-2 text-primary" />
@@ -187,7 +194,7 @@ export default function InstructorDashboard() {
                 <SelectContent>
                   {periods.map(p => (
                     <SelectItem key={p.id} value={p.id}>
-                      {p.nombre} {p.es_activo && "(Activo)"}
+                      {p.nombre} {p.es_activo && "(Actual)"}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -200,7 +207,7 @@ export default function InstructorDashboard() {
       {isLoading ? (
         <div className="h-96 flex flex-col items-center justify-center text-slate-400 gap-4">
           <Loader2 className="h-12 w-12 animate-spin text-primary" />
-          <p className="font-bold text-lg">Sincronizando con FastAPI...</p>
+          <p className="font-bold text-lg">Sincronizando carga académica...</p>
         </div>
       ) : asignaciones.length > 0 ? (
         <div className="grid gap-6 md:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
@@ -238,7 +245,7 @@ export default function InstructorDashboard() {
                     <Clock className="h-4 w-4 text-indigo-500" />
                     <div className="flex flex-col">
                       <span className="text-[8px] font-black text-slate-400 uppercase">Estado</span>
-                      <span className="text-[10px] font-bold text-slate-700">Vigente</span>
+                      <span className="text-[10px] font-bold text-slate-700">Dictando</span>
                     </div>
                   </div>
                 </div>
@@ -251,7 +258,7 @@ export default function InstructorDashboard() {
                 </Button>
                 <Button 
                   variant="outline" 
-                  className="h-14 w-14 p-0 border-slate-200 hover:text-green-600 transition-all"
+                  className="h-14 w-14 p-0 border-slate-200 hover:text-green-600 hover:bg-green-50/50 transition-all"
                   disabled={isExporting === asg.id}
                   onClick={() => handleExport(asg)}
                 >
@@ -262,14 +269,14 @@ export default function InstructorDashboard() {
           ))}
         </div>
       ) : (
-        <Card className="p-20 text-center border-dashed border-2 flex flex-col items-center gap-4 text-slate-400 bg-white">
+        <Card className="p-20 text-center border-dashed border-2 flex flex-col items-center gap-4 text-slate-400 bg-white rounded-3xl">
           <AlertCircle className="h-12 w-12 opacity-10" />
           <div className="space-y-1">
-            <p className="font-bold text-lg text-slate-900">Sin carga académica</p>
-            <p className="text-sm">No se encontraron unidades para este periodo.</p>
+            <p className="font-bold text-lg text-slate-900">Sin carga académica registrada</p>
+            <p className="text-sm">Contacta con administración para que se te asigne unidades en el periodo actual.</p>
           </div>
-          <Button variant="outline" className="mt-4 font-bold" onClick={fetchData}>
-            Actualizar
+          <Button variant="outline" className="mt-4 font-bold rounded-xl" onClick={fetchData}>
+            Actualizar Sincronización
           </Button>
         </Card>
       )}
