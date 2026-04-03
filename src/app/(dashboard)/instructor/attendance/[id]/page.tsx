@@ -55,7 +55,6 @@ export default function AttendancePage() {
   const [isSyncing, setIsSyncing] = React.useState(false)
   const [searchTerm, setSearchTerm] = React.useState("")
   
-  // Fecha ajustada a Perú (Lima)
   const [date, setDate] = React.useState(() => {
     return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Lima' });
   })
@@ -67,17 +66,17 @@ export default function AttendancePage() {
     if (!params.id || !date) return
     setIsSyncing(true)
     try {
-      // Intentamos obtener el reporte para este día específico
       const existing = await api.get<any[]>(`/asistencias/reporte/unidad/${params.id}?fecha_inicio=${date}&fecha_fin=${date}`)
       
       if (existing && Array.isArray(existing) && existing.length > 0) {
-        const mapped = Object.fromEntries(
-          existing.map(reg => [reg.alumno_id, REVERSE_STATUS_MAP[reg.estado] || null])
-        )
+        const mapped: Record<string, string> = {}
+        existing.forEach(reg => {
+          // El backend puede devolver alumno_id o id dependiendo de la vista
+          const aid = reg.alumno_id || reg.id;
+          if (aid) mapped[aid] = REVERSE_STATUS_MAP[reg.estado] || reg.estado
+        })
         setAttendance(prev => ({ ...prev, ...mapped }))
-        toast({ title: "Datos cargados", description: `Se encontró asistencia registrada para el día ${date}.` })
       } else {
-        // Limpiar si no hay registros para ese día
         setAttendance(prev => {
           const reset = { ...prev }
           Object.keys(reset).forEach(key => reset[key] = null)
@@ -85,7 +84,7 @@ export default function AttendancePage() {
         })
       }
     } catch (err) {
-      console.error("No se pudo cargar la asistencia previa:", err)
+      console.error("Error al cargar asistencia previa:", err)
     } finally {
       setIsSyncing(false)
     }
@@ -96,14 +95,14 @@ export default function AttendancePage() {
     try {
       const data = await api.get<any[]>(`/me/unidades/${params.id}/alumnos`)
       setStudents(data)
-      setAttendance(Object.fromEntries(data.map(s => [s.id, null])))
-      // Una vez cargados los alumnos, buscamos si ya tienen asistencia ese día
+      const initialMap = Object.fromEntries(data.map(s => [s.id, null]))
+      setAttendance(initialMap)
       await fetchExistingAttendance()
     } catch (err: any) {
       toast({ 
         variant: "destructive", 
         title: "Error", 
-        description: err.message || "No se pudo cargar la lista de alumnos." 
+        description: "No se pudo cargar la lista de alumnos." 
       })
     } finally {
       setIsLoading(false)
@@ -114,7 +113,6 @@ export default function AttendancePage() {
     fetchStudents()
   }, [fetchStudents])
 
-  // Refrescar cuando cambie la fecha
   React.useEffect(() => {
     if (!isLoading) {
       fetchExistingAttendance()
@@ -124,7 +122,11 @@ export default function AttendancePage() {
   const handleStatus = (id: string, status: string) => setAttendance(p => ({ ...p, [id]: status }))
   
   const handleMassive = (status: string) => {
-    setAttendance(Object.fromEntries(students.map(s => [s.id, status])))
+    const newAttendance = { ...attendance }
+    students.forEach(s => {
+      newAttendance[s.id] = status
+    })
+    setAttendance(newAttendance)
     toast({ title: "Marcado Masivo", description: `Todos marcados como: ${status}` })
   }
 
@@ -176,7 +178,6 @@ export default function AttendancePage() {
     setIsAnalyzing(true)
     try {
       const history = await api.get<any[]>(`/asistencias/reporte/resumen/${params.id}`)
-      
       const records = history.map(h => ({
         studentId: h.alumno_id,
         studentName: h.alumno,
@@ -185,7 +186,6 @@ export default function AttendancePage() {
         date: "Histórico",
         status: h.faltas > 3 ? "Falta" : "Presente"
       }))
-
       const result = await aiAttendanceInsights({ 
         attendanceRecords: records as any, 
         analysisContext: `Análisis crítico para la unidad ${params.id}.` 
@@ -197,6 +197,8 @@ export default function AttendancePage() {
       setIsAnalyzing(false)
     }
   }
+
+  const filteredStudents = students.filter(s => s.nombre.toLowerCase().includes(searchTerm.toLowerCase()))
 
   return (
     <div className="space-y-6 md:space-y-8 pb-10">
@@ -274,7 +276,7 @@ export default function AttendancePage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {students.filter(s => s.nombre.toLowerCase().includes(searchTerm.toLowerCase())).map((s) => (
+                    {filteredStudents.length > 0 ? filteredStudents.map((s) => (
                       <TableRow key={s.id} className="hover:bg-slate-50/30 transition-colors border-slate-50">
                         <TableCell className="pl-8 py-4">
                           <Avatar className="h-11 w-11 border-2 border-white shadow-sm ring-2 ring-slate-100">
@@ -307,7 +309,13 @@ export default function AttendancePage() {
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))}
+                    )) : (
+                      <TableRow>
+                        <TableCell colSpan={4} className="h-32 text-center text-slate-400 italic">
+                          No se encontraron alumnos coincidentes
+                        </TableCell>
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
                 <ScrollBar orientation="horizontal" />
