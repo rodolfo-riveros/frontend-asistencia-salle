@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -58,7 +59,6 @@ export default function AcademicAssignmentsPage() {
     setIsLoading(true)
     
     try {
-      // Carga independiente de datos maestros para evitar que un error en lista bloquee el formulario
       const [instData, courseData, periodData] = await Promise.all([
         api.get<any[]>('/docentes/').catch(() => []),
         api.get<any[]>('/unidades/').catch(() => []),
@@ -69,7 +69,6 @@ export default function AcademicAssignmentsPage() {
       setCourses(Array.isArray(courseData) ? courseData : [])
       setPeriods(Array.isArray(periodData) ? periodData : [])
       
-      // Intentamos cargar las asignaciones
       const periodParam = selectedPeriodName !== "all" ? `?periodo=${selectedPeriodName}` : ""
       const asgData = await api.get<any[]>(`/asignaciones/${periodParam}`)
       setAssignments(Array.isArray(asgData) ? asgData : [])
@@ -89,15 +88,15 @@ export default function AcademicAssignmentsPage() {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
     
-    // Obtenemos el ID del periodo para buscar su nombre real (ej: 2025-I)
     const periodId = formData.get("periodo_id") as string
     const periodObj = periods.find(p => p.id === periodId)
     const periodName = periodObj ? periodObj.nombre : ""
 
+    // Payload alineado exactamente con AsignacionCreate de tu backend
     const payload = {
       docente_id: formData.get("docente_id") as string,
       unidad_id: formData.get("unidad_id") as string,
-      periodo_academicos: periodName, // Enviamos el texto que pide el esquema AsignacionCreate
+      periodo_academicos: periodName, 
     }
 
     if (!payload.docente_id || !payload.unidad_id || !payload.periodo_academicos) {
@@ -132,11 +131,12 @@ export default function AcademicAssignmentsPage() {
 
   const filteredAssignments = React.useMemo(() => {
     const term = searchTerm.toLowerCase()
-    return (assignments || []).filter(asg => 
-      asg.docente_nombre?.toLowerCase().includes(term) || 
-      asg.unidad_nombre?.toLowerCase().includes(term) ||
-      asg.periodo_academicos?.toLowerCase().includes(term)
-    )
+    return (assignments || []).filter(asg => {
+      const pName = (asg.periodo_academicos || asg.periodo_academico || "").toLowerCase()
+      return asg.docente_nombre?.toLowerCase().includes(term) || 
+             asg.unidad_nombre?.toLowerCase().includes(term) ||
+             pName.includes(term)
+    })
   }, [assignments, searchTerm])
 
   return (
@@ -290,7 +290,7 @@ export default function AcademicAssignmentsPage() {
                       </TableCell>
                       <TableCell className="text-center">
                         <Badge variant="outline" className="border-primary/20 text-primary font-black text-[10px] bg-primary/5">
-                          {asg.periodo_academicos}
+                          {asg.periodo_academicos || asg.periodo_academico}
                         </Badge>
                       </TableCell>
                       <TableCell className="pr-6 text-right">
