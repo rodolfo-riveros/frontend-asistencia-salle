@@ -27,6 +27,21 @@ import { aiAttendanceInsights, type AttendanceInsightsOutput } from "@/ai/flows/
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import { api } from "@/lib/api"
 
+// Mapeo de estados para el backend (Enum P, F, T, J)
+const STATUS_MAP: Record<string, string> = {
+  'Presente': 'P',
+  'Falta': 'F',
+  'Tarde': 'T',
+  'Justificado': 'J'
+}
+
+const REVERSE_STATUS_MAP: Record<string, string> = {
+  'P': 'Presente',
+  'F': 'Falta',
+  'T': 'Tarde',
+  'J': 'Justificado'
+}
+
 export default function AttendancePage() {
   const params = useParams()
   const router = useRouter()
@@ -75,13 +90,13 @@ export default function AttendancePage() {
       fecha: date,
       registros: Object.entries(attendance).map(([studentId, estado]) => ({
         alumno_id: studentId,
-        estado: estado
+        estado: STATUS_MAP[estado as string] || estado // Convertimos a P, F, T, J
       }))
     }
 
     try {
       await api.post('/asistencias/pase-lista', payload)
-      toast({ title: "Éxito", description: "Asistencia guardada correctamente en el servidor." })
+      toast({ title: "Éxito", description: "Asistencia guardada correctamente." })
     } catch (err: any) {
       toast({ variant: "destructive", title: "Error al guardar", description: err.message })
     }
@@ -90,16 +105,15 @@ export default function AttendancePage() {
   const runAnalysis = async () => {
     setIsAnalyzing(true)
     try {
-      // Fetch historical summary from API for better analysis
       const history = await api.get<any[]>(`/asistencias/reporte/resumen/${params.id}`)
       
       const records = history.map(h => ({
         studentId: h.alumno_id,
-        studentName: h.alumno_nombre,
+        studentName: h.alumno,
         courseUnitId: params.id as string,
         courseUnitName: "Unidad Didáctica",
         date: "Histórico",
-        status: h.porcentaje_inasistencia > 20 ? "Falta" : "Presente"
+        status: h.faltas > 3 ? "Falta" : "Presente"
       }))
 
       const result = await aiAttendanceInsights({ 
@@ -117,7 +131,7 @@ export default function AttendancePage() {
   return (
     <div className="space-y-6 md:space-y-8 pb-10">
       <div className="space-y-4">
-        <Button variant="ghost" onClick={() => router.back()} className="h-10 hover:bg-slate-100 -ml-2 text-white hover:text-white/80">
+        <Button variant="ghost" onClick={() => router.back()} className="h-10 hover:bg-slate-200 -ml-2 text-primary font-bold">
           <ArrowLeft className="mr-2 h-4 w-4" /> Volver
         </Button>
         
@@ -139,7 +153,7 @@ export default function AttendancePage() {
               <span className="truncate">{isAnalyzing ? "Analizando..." : "Predecir Deserción (IA)"}</span>
             </Button>
             <Button className="flex-1 lg:flex-none h-10 md:h-12 px-4 md:px-8 gap-2 font-black shadow-lg shadow-primary/20 text-xs md:text-sm" onClick={handleSave}>
-              <Save className="h-4 w-4 md:h-5 md:w-5" /> Guardar
+              <Save className="h-4 w-4 md:h-5 md:w-5" /> Guardar Pase
             </Button>
           </div>
         </div>
@@ -234,7 +248,7 @@ export default function AttendancePage() {
                             {attendance[s.id] && (
                               <div className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 md:h-4 md:w-4 rounded-full flex items-center justify-center text-[7px] md:text-[8px] text-white shadow-sm ${
                                 attendance[s.id] === 'Presente' ? 'bg-green-500' : attendance[s.id] === 'Falta' ? 'bg-red-500' : 'bg-amber-500'
-                              }`}><CheckCircle2 className="h-2 w-2 md:h-2.5 md:h-2.5" /></div>
+                              }`}><CheckCircle2 className="h-2 w-2 md:h-2.5 md:w-2.5" /></div>
                             )}
                           </div>
                         </TableCell>
@@ -247,7 +261,7 @@ export default function AttendancePage() {
                             <Badge variant="outline" className="border-dashed text-slate-300 text-[8px] md:text-[10px] px-1 md:px-2 py-0">Pendiente</Badge>
                           ) : (
                             <Badge className={`uppercase text-[8px] md:text-[9px] font-black tracking-widest px-1.5 md:px-2 ${
-                              attendance[s.id] === 'Presente' ? 'bg-green-100 text-green-700' : attendance[s.id] === 'Falta' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
+                              attendance[s.id] === 'Presente' ? 'bg-green-100 text-green-700' : attendance[s.id] === 'Falta' ? 'bg-red-100 text-red-700' : attendance[s.id] === 'Tarde' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
                             }`}>
                               {attendance[s.id]}
                             </Badge>

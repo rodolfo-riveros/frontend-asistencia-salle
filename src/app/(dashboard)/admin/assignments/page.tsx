@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -53,12 +52,13 @@ export default function AcademicAssignmentsPage() {
   const [isLoading, setIsLoading] = React.useState(true)
   const [isModalOpen, setIsModalOpen] = React.useState(false)
   const [searchTerm, setSearchTerm] = React.useState("")
-  const [selectedPeriodId, setSelectedPeriodId] = React.useState<string>("all")
+  const [selectedPeriodName, setSelectedPeriodName] = React.useState<string>("all")
 
   const fetchData = React.useCallback(async () => {
     setIsLoading(true)
     
     try {
+      // Carga independiente de datos maestros para evitar que un error en lista bloquee el formulario
       const [instData, courseData, periodData] = await Promise.all([
         api.get<any[]>('/docentes/').catch(() => []),
         api.get<any[]>('/unidades/').catch(() => []),
@@ -69,21 +69,17 @@ export default function AcademicAssignmentsPage() {
       setCourses(Array.isArray(courseData) ? courseData : [])
       setPeriods(Array.isArray(periodData) ? periodData : [])
       
-      if (selectedPeriodId === "all" && Array.isArray(periodData) && periodData.length > 0) {
-        const active = periodData.find((p: any) => p.es_activo)
-        if (active) setSelectedPeriodId(active.id)
-      }
-
-      const periodParam = selectedPeriodId !== "all" ? `?periodo_id=${selectedPeriodId}` : ""
+      // Intentamos cargar las asignaciones
+      const periodParam = selectedPeriodName !== "all" ? `?periodo=${selectedPeriodName}` : ""
       const asgData = await api.get<any[]>(`/asignaciones/${periodParam}`)
       setAssignments(Array.isArray(asgData) ? asgData : [])
 
     } catch (err: any) {
-      console.error("Error al cargar datos:", err.message)
+      console.error("Error al cargar asignaciones:", err.message)
     } finally {
       setIsLoading(false)
     }
-  }, [selectedPeriodId])
+  }, [selectedPeriodName])
 
   React.useEffect(() => {
     fetchData()
@@ -93,6 +89,7 @@ export default function AcademicAssignmentsPage() {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
     
+    // Obtenemos el ID del periodo para buscar su nombre real (ej: 2025-I)
     const periodId = formData.get("periodo_id") as string
     const periodObj = periods.find(p => p.id === periodId)
     const periodName = periodObj ? periodObj.nombre : ""
@@ -100,7 +97,7 @@ export default function AcademicAssignmentsPage() {
     const payload = {
       docente_id: formData.get("docente_id") as string,
       unidad_id: formData.get("unidad_id") as string,
-      periodo_academicos: periodName, // Enviamos el texto (ej. "2024-II") como pide el esquema str(4,20)
+      periodo_academicos: periodName, // Enviamos el texto que pide el esquema AsignacionCreate
     }
 
     if (!payload.docente_id || !payload.unidad_id || !payload.periodo_academicos) {
@@ -150,14 +147,14 @@ export default function AcademicAssignmentsPage() {
           <h2 className="text-3xl font-headline font-extrabold tracking-tight text-slate-900">Asignación por Ciclo</h2>
           <div className="flex items-center gap-3 mt-3">
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Filtrar Ciclo:</span>
-            <Select value={selectedPeriodId} onValueChange={setSelectedPeriodId}>
+            <Select value={selectedPeriodName} onValueChange={setSelectedPeriodName}>
               <SelectTrigger className="h-8 w-[180px] bg-white border-none shadow-sm font-bold text-xs">
                 <SelectValue placeholder="Seleccione Ciclo" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos los Periodos</SelectItem>
                 {periods.map(p => (
-                  <SelectItem key={p.id} value={p.id}>{p.nombre} {p.es_activo && "(Activo)"}</SelectItem>
+                  <SelectItem key={p.id} value={p.nombre}>{p.nombre} {p.es_activo && "(Activo)"}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
