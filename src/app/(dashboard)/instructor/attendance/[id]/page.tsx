@@ -39,10 +39,8 @@ import {
   XAxis,
   YAxis,
   Tooltip,
-  Legend,
-  Cell as BarCell
 } from "recharts"
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
+import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart"
 
 const STATUS_MAP: Record<string, string> = {
   'Presente': 'P',
@@ -59,10 +57,10 @@ const REVERSE_MAP: Record<string, string> = {
 }
 
 const COLORS = {
-  Presente: '#10b981', // Emerald 500
-  Falta: '#ef4444',    // Red 500
-  Tarde: '#f59e0b',    // Amber 500
-  Justificado: '#3b82f6' // Blue 500
+  Presente: '#10b981', 
+  Falta: '#ef4444',    
+  Tarde: '#f59e0b',    
+  Justificado: '#3b82f6' 
 }
 
 export default function AttendancePage() {
@@ -78,7 +76,9 @@ export default function AttendancePage() {
   const [searchTerm, setSearchTerm] = React.useState("")
   
   const [date, setDate] = React.useState(() => {
-    return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Lima' });
+    // Sincronización con fecha Perú
+    const now = new Date();
+    return new Date(now.getTime() - (5 * 60 * 60 * 1000)).toISOString().split('T')[0];
   })
 
   const [isAnalyzing, setIsAnalyzing] = React.useState(false)
@@ -88,8 +88,7 @@ export default function AttendancePage() {
     if (!params.id || !date || studentList.length === 0) return
     setIsSyncing(true)
     try {
-      // Intentamos cargar la asistencia guardada para este día
-      // Nota: Si falla el endpoint v_asistencias_completas, es posible que el backend requiera 'unidad' en lugar de 'unidad_id'
+      // Cargamos registros previos para la fecha seleccionada
       const existing = await api.get<any[]>(`/asistencias/reporte/unidad/${params.id}?fecha_inicio=${date}&fecha_fin=${date}`)
       
       const mapped: Record<string, string | null> = {}
@@ -97,13 +96,10 @@ export default function AttendancePage() {
 
       if (existing && Array.isArray(existing)) {
         existing.forEach(reg => {
-          // Robustez: intentamos varios nombres de campos de ID de alumno
-          const idAlumno = reg.alumno_id || reg.id_alumno || reg.id_estudiante;
-          if (idAlumno && mapped[idAlumno] === null) {
+          // Mapeo flexible para evitar errores de nombres de campos
+          const idAlumno = reg.alumno_id || reg.id_alumno || reg.id;
+          if (idAlumno && mapped[idAlumno] !== undefined) {
             mapped[idAlumno] = REVERSE_MAP[reg.estado] || reg.estado
-          } else if (reg.dni) {
-            const student = studentList.find(s => s.dni === reg.dni);
-            if (student) mapped[student.id] = REVERSE_MAP[reg.estado] || reg.estado
           }
         })
       }
@@ -186,29 +182,24 @@ export default function AttendancePage() {
   const runAnalysis = async () => {
     setIsAnalyzing(true)
     try {
-      // Obtenemos historial extendido para que la IA tenga contexto de tardanzas
       const history = await api.get<any[]>(`/asistencias/reporte/unidad/${params.id}`)
       
-      const records = history.map(h => {
-        // Mapeamos el ID del alumno si viene como UUID o lo buscamos
-        return {
-          studentId: h.alumno_id || h.id_alumno || "id",
-          studentName: h.alumno,
-          courseUnitId: params.id as string,
-          courseUnitName: "Unidad Didáctica",
-          date: h.fecha,
-          status: REVERSE_MAP[h.estado] || h.estado
-        }
-      })
+      const records = history.map(h => ({
+        studentId: h.alumno_id || h.id_alumno || "id",
+        studentName: h.alumno,
+        courseUnitId: params.id as string,
+        courseUnitName: "Unidad Didáctica",
+        date: h.fecha,
+        status: REVERSE_MAP[h.estado] || h.estado
+      }))
 
       const result = await aiAttendanceInsights({ 
         attendanceRecords: records as any,
-        analysisContext: "Analizar específicamente tardanzas frecuentes como alerta pedagógica."
+        analysisContext: "Analizar específicamente tardanzas frecuentes como alerta pedagógica temprana."
       })
       setAiResult(result)
       toast({ title: "Análisis IA Completado" })
     } catch (e: any) {
-      console.error(e)
       toast({ variant: "destructive", title: "Error de IA", description: "No hay registros históricos suficientes." })
     } finally {
       setIsAnalyzing(false)
@@ -217,7 +208,6 @@ export default function AttendancePage() {
 
   const filteredStudents = students.filter(s => s.nombre.toLowerCase().includes(searchTerm.toLowerCase()))
 
-  // Datos para los gráficos
   const statsData = React.useMemo(() => {
     const counts = { Presente: 0, Falta: 0, Tarde: 0, Justificado: 0 }
     Object.values(attendance).forEach(val => {
@@ -225,23 +215,13 @@ export default function AttendancePage() {
         counts[val as keyof typeof counts]++
       }
     })
-    
-    const total = Object.values(attendance).filter(v => v !== null).length
-    
     return [
-      { name: 'Presente', value: counts.Presente, color: COLORS.Presente },
-      { name: 'Falta', value: counts.Falta, color: COLORS.Falta },
-      { name: 'Tarde', value: counts.Tarde, color: COLORS.Tarde },
-      { name: 'Justificado', value: counts.Justificado, color: COLORS.Justificado }
-    ].filter(d => d.value > 0 || total === 0)
+      { name: 'Presente', value: counts.Presente, fill: COLORS.Presente },
+      { name: 'Falta', value: counts.Falta, fill: COLORS.Falta },
+      { name: 'Tarde', value: counts.Tarde, fill: COLORS.Tarde },
+      { name: 'Justificado', value: counts.Justificado, fill: COLORS.Justificado }
+    ].filter(d => d.value > 0)
   }, [attendance])
-
-  const chartConfig = {
-    Presente: { label: "Presente", color: COLORS.Presente },
-    Falta: { label: "Falta", color: COLORS.Falta },
-    Tarde: { label: "Tarde", color: COLORS.Tarde },
-    Justificado: { label: "Justificado", color: COLORS.Justificado },
-  }
 
   return (
     <div className="space-y-6 md:space-y-8 pb-10">
@@ -378,9 +358,8 @@ export default function AttendancePage() {
           <Card className="border-none shadow-xl bg-white">
             <CardHeader className="pb-2">
               <CardTitle className="text-lg font-black flex items-center gap-2">
-                <PieIcon className="h-5 w-5 text-primary" /> Distribución
+                <PieIcon className="h-5 w-5 text-primary" /> Distribución Hoy
               </CardTitle>
-              <CardDescription className="text-xs">Estado de la sesión actual</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="h-[200px] w-full">
@@ -396,17 +375,17 @@ export default function AttendancePage() {
                       dataKey="value"
                     >
                       {statsData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
+                        <Cell key={`cell-${index}`} fill={entry.fill} />
                       ))}
                     </Pie>
-                    <Tooltip content={<ChartTooltipContent />} />
+                    <Tooltip />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
               <div className="grid grid-cols-2 gap-2 mt-4">
                 {statsData.map((item, i) => (
                   <div key={i} className="flex items-center gap-2 text-[10px] font-bold">
-                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.fill }} />
                     <span className="text-slate-500 uppercase">{item.name}: {item.value}</span>
                   </div>
                 ))}
@@ -426,10 +405,10 @@ export default function AttendancePage() {
                   <BarChart data={statsData}>
                     <XAxis dataKey="name" hide />
                     <YAxis hide />
-                    <Tooltip content={<ChartTooltipContent />} />
+                    <Tooltip />
                     <Bar dataKey="value" radius={[4, 4, 0, 0]}>
                       {statsData.map((entry, index) => (
-                        <BarCell key={`cell-${index}`} fill={entry.color} />
+                        <Cell key={`cell-${index}`} fill={entry.fill} />
                       ))}
                     </Bar>
                   </BarChart>
@@ -446,7 +425,7 @@ export default function AttendancePage() {
             <div className="p-2 bg-yellow-400/10 rounded-lg">
               <Sparkles className="h-6 w-6 text-yellow-400" />
             </div>
-            <h3 className="text-2xl font-black uppercase tracking-tighter italic">Diagnóstico de Inteligencia Académica</h3>
+            <h3 className="text-2xl font-black uppercase tracking-tighter italic">Diagnóstico Académico de IA</h3>
           </div>
           
           <div className="grid lg:grid-cols-2 gap-10">
@@ -459,7 +438,9 @@ export default function AttendancePage() {
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
                   <UserX className="h-5 w-5 text-red-500" />
-                  <Label className="text-[10px] font-black uppercase text-red-400 tracking-widest">Alerta: Riesgo de Deserción (>= 30% Faltas)</Label>
+                  <Label className="text-[10px] font-black uppercase text-red-400 tracking-widest">
+                    Riesgo de Deserción ({'≥'} 30% Faltas)
+                  </Label>
                 </div>
                 {aiResult.atRiskStudents.length > 0 ? aiResult.atRiskStudents.map((st, i) => (
                   <div key={i} className="bg-red-500/5 border border-red-500/20 p-4 rounded-xl flex items-center justify-between">
@@ -469,7 +450,7 @@ export default function AttendancePage() {
                     </div>
                     <Badge className="bg-red-500 text-white font-black">{st.absencePercentage}%</Badge>
                   </div>
-                )) : <p className="text-xs text-emerald-400 flex items-center gap-2"><UserCheck className="h-4 w-4"/> Sin alumnos en riesgo crítico.</p>}
+                )) : <p className="text-xs text-emerald-400">No se detectó riesgo crítico de deserción.</p>}
               </div>
             </div>
 
@@ -477,22 +458,20 @@ export default function AttendancePage() {
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
                   <AlertTriangle className="h-5 w-5 text-amber-500" />
-                  <Label className="text-[10px] font-black uppercase text-amber-400 tracking-widest">Advertencia Temprana: Tardanzas Frecuentes</Label>
+                  <Label className="text-[10px] font-black uppercase text-amber-400 tracking-widest">Alerta Temprana: Tardanzas Frecuentes</Label>
                 </div>
-                <p className="text-xs text-slate-400 mb-4 italic">Intervención recomendada: Hablar personalmente con el alumno para entender causas externas.</p>
                 {aiResult.warningStudents && aiResult.warningStudents.length > 0 ? aiResult.warningStudents.map((st, i) => (
                   <div key={i} className="bg-amber-500/5 border border-amber-500/20 p-4 rounded-xl space-y-3">
                     <div className="flex items-center justify-between">
                       <p className="font-bold text-sm text-amber-50">{st.name}</p>
                       <Badge variant="outline" className="text-amber-500 border-amber-500/40 text-[10px]">{st.tardyCount} Tardanzas</Badge>
                     </div>
-                    <p className="text-xs text-amber-100/70">{st.reason}</p>
-                    <div className="p-3 bg-white/5 rounded-lg border border-white/10">
+                    <div className="p-3 bg-white/5 rounded-lg">
                       <p className="text-[10px] font-black uppercase text-amber-400 mb-1">Sugerencia:</p>
                       <p className="text-[11px] text-white/80">{st.suggestion}</p>
                     </div>
                   </div>
-                )) : <p className="text-xs text-emerald-400">No se detectaron patrones de tardanza preocupantes.</p>}
+                )) : <p className="text-xs text-emerald-400">Sin patrones de tardanza preocupantes.</p>}
               </div>
 
               <div className="p-6 bg-white/5 rounded-2xl border border-white/10 space-y-4">
@@ -500,7 +479,7 @@ export default function AttendancePage() {
                 <ul className="space-y-3">
                   {aiResult.recommendations.map((r, i) => (
                     <li key={i} className="flex gap-3 text-sm text-blue-50/80">
-                      <span className="font-black text-emerald-500 shrink-0">✓</span>
+                      <span className="font-black text-emerald-500">✓</span>
                       {r}
                     </li>
                   ))}
@@ -516,17 +495,17 @@ export default function AttendancePage() {
 
 function ActionBtn({ icon: Icon, active, color, onClick }: any) {
   const themes: any = {
-    green: active ? "bg-green-600 text-white shadow-md scale-110 border-green-600" : "hover:bg-green-50 text-slate-400 hover:text-green-600",
-    amber: active ? "bg-amber-500 text-white shadow-md scale-110 border-amber-500" : "hover:bg-amber-50 text-slate-400 hover:text-amber-600",
-    red: active ? "bg-red-600 text-white shadow-md scale-110 border-red-600" : "hover:bg-red-50 text-slate-400 hover:text-red-600",
-    blue: active ? "bg-blue-600 text-white shadow-md scale-110 border-blue-600" : "hover:bg-blue-50 text-slate-400 hover:text-blue-600",
+    green: active ? "bg-green-600 text-white scale-110" : "text-slate-400 hover:text-green-600",
+    amber: active ? "bg-amber-500 text-white scale-110" : "text-slate-400 hover:text-amber-600",
+    red: active ? "bg-red-600 text-white scale-110" : "text-slate-400 hover:text-red-600",
+    blue: active ? "bg-blue-600 text-white scale-110" : "text-slate-400 hover:text-blue-600",
   }
   return (
     <Button 
       size="icon" 
       variant="outline" 
       onClick={onClick} 
-      className={`h-9 w-9 rounded-full transition-all border-slate-100 shrink-0 ${themes[color]}`}
+      className={`h-9 w-9 rounded-full transition-all border-slate-100 ${themes[color]}`}
     >
       <Icon className="h-4 w-4" />
     </Button>
