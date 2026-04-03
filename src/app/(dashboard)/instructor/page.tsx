@@ -24,6 +24,7 @@ export default function InstructorDashboard() {
       setPeriods(periodData)
       
       const active = periodData.find((p: any) => p.es_activo)
+      // Si ya hay un periodo seleccionado, lo mantenemos, si no, usamos el activo
       const currentId = selectedPeriodId || (active ? active.id : "")
       
       if (!selectedPeriodId && active) {
@@ -40,7 +41,7 @@ export default function InstructorDashboard() {
       toast({ 
         variant: "destructive", 
         title: "Error de Sincronización", 
-        description: err.message || "No se pudo conectar con el servidor para obtener tu carga académica." 
+        description: "No se pudo conectar con el servidor para obtener tu carga académica." 
       })
     } finally {
       setIsLoading(false)
@@ -74,9 +75,9 @@ export default function InstructorDashboard() {
           
           <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
             <div className="flex flex-col">
-              <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Periodo Lectivo</span>
+              <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Periodo Lectivo Seleccionado</span>
               <Select value={selectedPeriodId} onValueChange={setSelectedPeriodId}>
-                <SelectTrigger className="h-9 w-[200px] border-none bg-slate-50 font-bold text-slate-900 focus:ring-0">
+                <SelectTrigger className="h-9 w-[220px] border-none bg-slate-50 font-bold text-slate-900 focus:ring-0">
                   <Calendar className="h-4 w-4 mr-2 text-primary" />
                   <SelectValue placeholder="Seleccione Ciclo" />
                 </SelectTrigger>
@@ -110,7 +111,7 @@ export default function InstructorDashboard() {
               <CardHeader className="space-y-4 p-6">
                 <div className="flex justify-between items-start">
                   <Badge variant="outline" className="text-[10px] font-black uppercase tracking-widest bg-slate-50 border-slate-200">
-                    ID: {asg.unidad_id.substring(0,8)}
+                    UD: {asg.unidad_id.substring(0,8)}
                   </Badge>
                   <div className="p-2.5 bg-primary/5 rounded-xl text-primary transition-colors group-hover:bg-primary group-hover:text-white">
                     <BookOpen className="h-5 w-5" />
@@ -145,7 +146,7 @@ export default function InstructorDashboard() {
               </CardContent>
               <CardFooter className="bg-slate-50/50 p-6 gap-3">
                 <Button asChild className="flex-1 h-14 font-black text-sm shadow-lg shadow-primary/20">
-                  <Link href={`/instructor/attendance/${asg.unidad_id}?periodo_id=${asg.periodo_id || selectedPeriodId}`}>
+                  <Link href={`/instructor/attendance/${asg.unidad_id}?periodo_id=${selectedPeriodId}`}>
                     Pasar Lista <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
                 </Button>
@@ -165,10 +166,10 @@ export default function InstructorDashboard() {
           <AlertCircle className="h-12 w-12 opacity-10" />
           <div className="space-y-1">
             <p className="font-bold text-lg text-slate-900">Sin carga académica</p>
-            <p className="text-sm">No se encontraron unidades asignadas para el periodo {periods.find(p => p.id === selectedPeriodId)?.nombre || "seleccionado"}.</p>
+            <p className="text-sm">No se encontraron unidades asignadas para el periodo seleccionado.</p>
           </div>
           <Button variant="outline" className="mt-4 font-bold h-11 px-8" onClick={fetchData}>
-            Reintentar Sincronización
+            Actualizar Lista
           </Button>
         </Card>
       )}

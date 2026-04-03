@@ -18,7 +18,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -41,13 +41,19 @@ export default function AttendancePage() {
   const searchParams = useSearchParams()
   const router = useRouter()
   
+  // Capturar el periodo_id de la URL
   const periodoId = searchParams.get('periodo_id')
   
   const [students, setStudents] = React.useState<any[]>([])
   const [attendance, setAttendance] = React.useState<Record<string, string | null>>({})
   const [isLoading, setIsLoading] = React.useState(true)
   const [searchTerm, setSearchTerm] = React.useState("")
-  const [date, setDate] = React.useState(new Date().toISOString().split('T')[0])
+  
+  // Ajuste de fecha a zona horaria de Perú (Lima)
+  const [date, setDate] = React.useState(() => {
+    return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Lima' });
+  })
+
   const [isAnalyzing, setIsAnalyzing] = React.useState(false)
   const [aiResult, setAiResult] = React.useState<AttendanceInsightsOutput | null>(null)
 
@@ -55,7 +61,6 @@ export default function AttendancePage() {
     if (!name) return "ST"
     const words = name.trim().split(/\s+/)
     if (words.length >= 2) {
-      // Tomamos la primera letra de las dos primeras palabras (Nombres/Apellidos)
       return (words[0][0] + words[1][0]).toUpperCase()
     }
     return words[0].substring(0, 2).toUpperCase()
@@ -66,6 +71,7 @@ export default function AttendancePage() {
     try {
       const data = await api.get<any[]>(`/me/unidades/${params.id}/alumnos`)
       setStudents(data)
+      // Inicializar asistencia como null para obligar a marcar
       setAttendance(Object.fromEntries(data.map(s => [s.id, null])))
     } catch (err: any) {
       toast({ 
@@ -91,19 +97,26 @@ export default function AttendancePage() {
 
   const handleSave = async () => {
     const incomplete = Object.values(attendance).some(v => v === null)
-    if (incomplete) return toast({ variant: "destructive", title: "Error", description: "Faltan alumnos por marcar." })
+    if (incomplete) {
+      return toast({ 
+        variant: "destructive", 
+        title: "Pase incompleto", 
+        description: "Por favor, marque la asistencia de todos los alumnos." 
+      })
+    }
     
+    // Verificación crítica del periodo_id
     if (!periodoId) {
       return toast({ 
         variant: "destructive", 
         title: "Error de Periodo", 
-        description: "No se identificó el periodo académico. Por favor, vuelva al panel e intente de nuevo." 
+        description: "No se encontró el ID del ciclo académico. Intente volver al panel y entrar de nuevo." 
       })
     }
 
     const payload = {
       unidad_id: params.id as string,
-      periodo_id: periodoId,
+      periodo_id: periodoId, // Se envía el UUID correctamente
       fecha: date,
       registros: Object.entries(attendance).map(([studentId, estado]) => ({
         alumno_id: studentId,
@@ -113,12 +126,16 @@ export default function AttendancePage() {
 
     try {
       await api.post('/asistencias/pase-lista', payload)
-      toast({ title: "Éxito", description: "Asistencia guardada correctamente." })
+      toast({ 
+        title: "Asistencia Guardada", 
+        description: `Se han registrado ${students.length} asistencias para el día ${date}.` 
+      })
+      router.push('/instructor')
     } catch (err: any) {
       toast({ 
         variant: "destructive", 
         title: "Error al guardar", 
-        description: err.message || "Error en el servidor al procesar la asistencia."
+        description: "Ocurrió un error en el servidor. Revise la consola para más detalles."
       })
     }
   }
@@ -139,11 +156,11 @@ export default function AttendancePage() {
 
       const result = await aiAttendanceInsights({ 
         attendanceRecords: records as any, 
-        analysisContext: `Análisis crítico para la unidad ${params.id}. Regla del 30%.` 
+        analysisContext: `Análisis crítico para la unidad ${params.id}.` 
       })
       setAiResult(result)
     } catch (e: any) {
-      toast({ variant: "destructive", title: "IA Error", description: e.message || "No se pudo conectar con el motor de IA." })
+      toast({ variant: "destructive", title: "IA Error", description: "No se pudo generar el análisis predictivo." })
     } finally {
       setIsAnalyzing(false)
     }
@@ -153,7 +170,7 @@ export default function AttendancePage() {
     <div className="space-y-6 md:space-y-8 pb-10">
       <div className="space-y-4">
         <Button variant="ghost" onClick={() => router.back()} className="h-10 hover:bg-slate-200 -ml-2 text-primary font-bold">
-          <ArrowLeft className="mr-2 h-4 w-4" /> Volver
+          <ArrowLeft className="mr-2 h-4 w-4" /> Volver al Panel
         </Button>
         
         <div className="flex flex-col lg:flex-row justify-between items-start gap-6">
@@ -161,11 +178,16 @@ export default function AttendancePage() {
             <h2 className="text-3xl md:text-4xl font-headline font-black tracking-tighter text-slate-900 leading-tight">Pase de Lista</h2>
             <div className="flex flex-wrap items-center gap-3 md:gap-4">
               <Badge variant="outline" className="font-black bg-primary/5 text-primary border-primary/20 px-3 md:px-4 py-1 uppercase text-[10px] md:text-xs">
-                UD: {params.id.toString().substring(0,8)}
+                UUID Unidad: {params.id.toString().substring(0,8)}
               </Badge>
               <div className="flex items-center gap-2 md:gap-3 bg-white px-3 md:px-4 py-1.5 md:py-2 rounded-xl border border-slate-100 shadow-sm">
-                <Label className="text-[8px] md:text-[9px] font-black uppercase text-slate-400">Fecha:</Label>
-                <input type="date" value={date} onChange={e => setDate(e.target.value)} className="bg-transparent border-none font-bold text-xs md:text-sm text-slate-700 outline-none w-24 md:w-32" />
+                <Label className="text-[8px] md:text-[9px] font-black uppercase text-slate-400">Fecha Local (Perú):</Label>
+                <input 
+                  type="date" 
+                  value={date} 
+                  onChange={e => setDate(e.target.value)} 
+                  className="bg-transparent border-none font-bold text-xs md:text-sm text-slate-700 outline-none w-24 md:w-32" 
+                />
               </div>
             </div>
           </div>
@@ -173,10 +195,10 @@ export default function AttendancePage() {
           <div className="flex flex-wrap items-center gap-2 md:gap-3 w-full lg:w-auto">
             <Button variant="outline" className="flex-1 lg:flex-none h-10 md:h-12 px-4 md:px-6 gap-2 text-accent border-accent/20 font-bold text-xs md:text-sm" onClick={runAnalysis} disabled={isAnalyzing}>
               <Sparkles className={`h-4 w-4 md:h-5 md:w-5 ${isAnalyzing ? 'animate-spin' : ''}`} />
-              <span className="truncate">{isAnalyzing ? "Analizando..." : "Predecir Deserción (IA)"}</span>
+              <span className="truncate">{isAnalyzing ? "Analizando..." : "Análisis de Riesgo IA"}</span>
             </Button>
             <Button className="flex-1 lg:flex-none h-10 md:h-12 px-4 md:px-8 gap-2 font-black shadow-lg shadow-primary/20 text-xs md:text-sm" onClick={handleSave}>
-              <Save className="h-4 w-4 md:h-5 md:w-5" /> Guardar Pase
+              <Save className="h-4 w-4 md:h-5 md:w-5" /> Guardar Registro
             </Button>
           </div>
         </div>
@@ -187,7 +209,7 @@ export default function AttendancePage() {
           <CardHeader className="bg-white/5 p-4 md:p-6 border-b border-white/10 flex flex-row items-center justify-between">
             <div className="flex items-center gap-3">
               <AlertTriangle className="h-5 w-5 md:h-6 md:w-6 text-red-400" />
-              <CardTitle className="text-lg md:text-xl font-bold">Análisis de Deserción Escolar</CardTitle>
+              <CardTitle className="text-lg md:text-xl font-bold">Diagnóstico de Deserción</CardTitle>
             </div>
             <Button variant="ghost" size="sm" onClick={() => setAiResult(null)} className="text-white h-8 w-8 p-0">×</Button>
           </CardHeader>
@@ -205,20 +227,6 @@ export default function AttendancePage() {
                 <p className="text-blue-200/60 text-sm">No se detectaron alumnos en riesgo crítico.</p>
               )}
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6 border-t border-white/5">
-              <div className="space-y-4">
-                <h4 className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-blue-400">Tendencias</h4>
-                <ul className="space-y-2 text-xs md:text-sm text-blue-50/70">
-                  {aiResult.trends.map((t, i) => <li key={i} className="flex gap-2"><span>•</span>{t}</li>)}
-                </ul>
-              </div>
-              <div className="space-y-4">
-                <h4 className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-emerald-400">Recomendaciones</h4>
-                <ul className="space-y-2 text-xs md:text-sm text-emerald-50/70">
-                  {aiResult.recommendations.map((r, i) => <li key={i} className="flex gap-2"><span>•</span>{r}</li>)}
-                </ul>
-              </div>
-            </div>
           </CardContent>
         </Card>
       )}
@@ -227,21 +235,20 @@ export default function AttendancePage() {
         {isLoading ? (
           <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-3">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="text-sm font-medium">Cargando alumnos de la unidad...</p>
+            <p className="text-sm font-medium">Cargando padrón de alumnos...</p>
           </div>
         ) : (
           <>
             <div className="p-4 md:p-6 bg-slate-50/50 border-b flex flex-col md:flex-row items-center justify-between gap-4 md:gap-6">
               <div className="flex flex-wrap gap-2 w-full md:w-auto">
                 <Button variant="outline" className="flex-1 md:flex-none h-9 md:h-10 border-green-200 text-green-700 hover:bg-green-50 font-bold text-[10px] md:text-xs px-2" onClick={() => handleMassive('Presente')}>P a Todos</Button>
-                <Button variant="outline" className="flex-1 md:flex-none h-9 md:h-10 border-amber-200 text-amber-700 hover:bg-amber-50 font-bold text-[10px] md:text-xs px-2" onClick={() => handleMassive('Tarde')}>T a Todos</Button>
                 <Button variant="outline" className="flex-1 md:flex-none h-9 md:h-10 border-red-200 text-red-700 hover:bg-red-50 font-bold text-[10px] md:text-xs px-2" onClick={() => handleMassive('Falta')}>F a Todos</Button>
-                <Button variant="outline" className="flex-1 md:flex-none h-9 md:h-10 border-blue-200 text-blue-700 hover:bg-blue-50 font-bold text-[10px] md:text-xs px-2" onClick={() => handleMassive('Justificado')}>J a Todos</Button>
+                <Button variant="outline" className="flex-1 md:flex-none h-9 md:h-10 border-amber-200 text-amber-700 hover:bg-amber-50 font-bold text-[10px] md:text-xs px-2" onClick={() => handleMassive('Tarde')}>T a Todos</Button>
               </div>
               <div className="relative w-full md:w-72 lg:w-96">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <Input 
-                  placeholder="Buscar estudiante..." 
+                  placeholder="Filtrar por nombre..." 
                   className="pl-10 h-10 bg-slate-50 border-none rounded-lg text-sm"
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
@@ -254,35 +261,28 @@ export default function AttendancePage() {
                   <TableHeader className="bg-slate-50/50">
                     <TableRow className="border-none">
                       <TableHead className="w-[60px] md:w-[80px] pl-4 md:pl-8"></TableHead>
-                      <TableHead className="font-black text-[9px] md:text-[10px] uppercase tracking-widest text-slate-400">Estudiante</TableHead>
+                      <TableHead className="font-black text-[9px] md:text-[10px] uppercase tracking-widest text-slate-400">Alumno</TableHead>
                       <TableHead className="text-center font-black text-[9px] md:text-[10px] uppercase tracking-widest text-slate-400">Estado</TableHead>
-                      <TableHead className="text-right pr-4 md:pr-8 font-black text-[9px] md:text-[10px] uppercase tracking-widest text-slate-400">Acciones</TableHead>
+                      <TableHead className="text-right pr-4 md:pr-8 font-black text-[9px] md:text-[10px] uppercase tracking-widest text-slate-400">Acción</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {students.filter(s => s.nombre.toLowerCase().includes(searchTerm.toLowerCase())).map((s) => (
                       <TableRow key={s.id} className="hover:bg-slate-50/30 transition-colors border-slate-50">
                         <TableCell className="pl-4 md:pl-8 py-3 md:py-4">
-                          <div className="relative">
-                            <Avatar className="h-8 w-8 md:h-10 md:w-10 border-2 border-white shadow-sm ring-2 ring-slate-100">
-                              <AvatarFallback className="bg-primary/5 text-primary font-black text-[10px] md:text-xs">
-                                {getInitials(s.nombre)}
-                              </AvatarFallback>
-                            </Avatar>
-                            {attendance[s.id] && (
-                              <div className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 md:h-4 md:w-4 rounded-full flex items-center justify-center text-[7px] md:text-[8px] text-white shadow-sm ring-2 ring-white ${
-                                attendance[s.id] === 'Presente' ? 'bg-green-500' : attendance[s.id] === 'Falta' ? 'bg-red-500' : 'bg-amber-500'
-                              }`}><CheckCircle2 className="h-2 w-2 md:h-2.5 md:w-2.5" /></div>
-                            )}
-                          </div>
+                          <Avatar className="h-8 w-8 md:h-10 md:w-10 border-2 border-white shadow-sm ring-2 ring-slate-100">
+                            <AvatarFallback className="bg-primary/5 text-primary font-black text-[10px] md:text-xs">
+                              {getInitials(s.nombre)}
+                            </AvatarFallback>
+                          </Avatar>
                         </TableCell>
                         <TableCell>
-                          <div className="font-bold text-xs md:text-sm text-slate-900 truncate max-w-[120px] md:max-w-none">{s.nombre}</div>
-                          <div className="text-[8px] md:text-[10px] text-slate-400 font-mono">DNI: {s.dni}</div>
+                          <div className="font-bold text-xs md:text-sm text-slate-900">{s.nombre}</div>
+                          <div className="text-[8px] md:text-[10px] text-slate-400 font-mono uppercase tracking-tighter">DNI: {s.dni}</div>
                         </TableCell>
                         <TableCell className="text-center">
                           {!attendance[s.id] ? (
-                            <Badge variant="outline" className="border-dashed text-slate-300 text-[8px] md:text-[10px] px-1 md:px-2 py-0">Pendiente</Badge>
+                            <Badge variant="outline" className="border-dashed text-slate-300 text-[8px] md:text-[10px] px-1 md:px-2 py-0 uppercase">Pendiente</Badge>
                           ) : (
                             <Badge className={`uppercase text-[8px] md:text-[9px] font-black tracking-widest px-1.5 md:px-2 ${
                               attendance[s.id] === 'Presente' ? 'bg-green-100 text-green-700' : attendance[s.id] === 'Falta' ? 'bg-red-100 text-red-700' : attendance[s.id] === 'Tarde' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
