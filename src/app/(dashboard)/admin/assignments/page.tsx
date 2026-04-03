@@ -10,7 +10,8 @@ import {
   Link2,
   Loader2,
   RefreshCcw,
-  CalendarDays
+  CalendarDays,
+  AlertCircle
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -44,6 +45,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "@/hooks/use-toast"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { api } from "@/lib/api"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 export default function AcademicAssignmentsPage() {
   const [assignments, setAssignments] = React.useState<any[]>([])
@@ -53,10 +55,12 @@ export default function AcademicAssignmentsPage() {
   const [isLoading, setIsLoading] = React.useState(true)
   const [isModalOpen, setIsModalOpen] = React.useState(false)
   const [searchTerm, setSearchTerm] = React.useState("")
-  const [selectedPeriodName, setSelectedPeriodName] = React.useState<string>("all")
+  const [selectedPeriodId, setSelectedPeriodId] = React.useState<string>("all")
+  const [error, setError] = React.useState<string | null>(null)
 
   const fetchData = React.useCallback(async () => {
     setIsLoading(true)
+    setError(null)
     
     try {
       const [instData, courseData, periodData] = await Promise.all([
@@ -69,16 +73,17 @@ export default function AcademicAssignmentsPage() {
       setCourses(Array.isArray(courseData) ? courseData : [])
       setPeriods(Array.isArray(periodData) ? periodData : [])
       
-      const periodParam = selectedPeriodName !== "all" ? `?periodo=${selectedPeriodName}` : ""
-      const asgData = await api.get<any[]>(`/asignaciones/${periodParam}`)
+      const filterParam = selectedPeriodId !== "all" ? `?periodo_id=${selectedPeriodId}` : ""
+      const asgData = await api.get<any[]>(`/asignaciones/${filterParam}`)
       setAssignments(Array.isArray(asgData) ? asgData : [])
 
     } catch (err: any) {
       console.error("Error al cargar asignaciones:", err.message)
+      setError(err.message)
     } finally {
       setIsLoading(false)
     }
-  }, [selectedPeriodName])
+  }, [selectedPeriodId])
 
   React.useEffect(() => {
     fetchData()
@@ -88,18 +93,14 @@ export default function AcademicAssignmentsPage() {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
     
-    const periodId = formData.get("periodo_id") as string
-    const periodObj = periods.find(p => p.id === periodId)
-    const periodName = periodObj ? periodObj.nombre : ""
-
-    // Payload alineado con AsignacionCreate del backend
+    // Payload alineado con tu BD y Esquema UUID
     const payload = {
       docente_id: formData.get("docente_id") as string,
       unidad_id: formData.get("unidad_id") as string,
-      periodo_academicos: periodName, 
+      periodo_id: formData.get("periodo_id") as string, // UUID
     }
 
-    if (!payload.docente_id || !payload.unidad_id || !payload.periodo_academicos) {
+    if (!payload.docente_id || !payload.unidad_id || !payload.periodo_id) {
       toast({ variant: "destructive", title: "Campos incompletos", description: "Debes seleccionar todos los campos." })
       return
     }
@@ -147,14 +148,14 @@ export default function AcademicAssignmentsPage() {
           <h2 className="text-3xl font-headline font-extrabold tracking-tight text-slate-900">Asignación por Ciclo</h2>
           <div className="flex items-center gap-3 mt-3">
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Filtrar Ciclo:</span>
-            <Select value={selectedPeriodName} onValueChange={setSelectedPeriodName}>
+            <Select value={selectedPeriodId} onValueChange={setSelectedPeriodId}>
               <SelectTrigger className="h-8 w-[180px] bg-white border-none shadow-sm font-bold text-xs">
                 <SelectValue placeholder="Seleccione Ciclo" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos los Periodos</SelectItem>
                 {periods.map(p => (
-                  <SelectItem key={p.id} value={p.nombre}>{p.nombre} {p.es_activo && "(Activo)"}</SelectItem>
+                  <SelectItem key={p.id} value={p.id}>{p.nombre} {p.es_activo && "(Activo)"}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -235,6 +236,16 @@ export default function AcademicAssignmentsPage() {
           </Dialog>
         </div>
       </div>
+
+      {error && (
+        <Alert variant="destructive" className="bg-red-50 border-red-200">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error de Sincronización</AlertTitle>
+          <AlertDescription>
+            {error}. Asegúrate de que tu backend FastAPI use la columna <strong>periodo_id</strong> en lugar de periodo_academico.
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="relative mb-4">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
