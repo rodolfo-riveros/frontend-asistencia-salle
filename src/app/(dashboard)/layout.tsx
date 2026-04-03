@@ -4,33 +4,8 @@
 import * as React from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import {
-  LayoutDashboard,
-  Users,
-  GraduationCap,
-  BookOpen,
-  UserRound,
-  ClipboardList,
-  Search,
-  LogOut,
-  Loader2,
-  CalendarDays
-} from "lucide-react"
-
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarHeader,
-  SidebarInset,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar"
+import { LayoutDashboard, Users, GraduationCap, BookOpen, UserRound, ClipboardList, Search, LogOut, Loader2, CalendarDays } from "lucide-react"
+import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { NavUser } from "@/components/layout/nav-user"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -56,137 +31,59 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   React.useEffect(() => {
     const fetchUser = async () => {
       const { data: { user }, error } = await supabase.auth.getUser()
+      if (error || !user) { router.replace('/'); return }
       
-      if (error || !user) {
-        router.replace('/')
-        return
-      }
-
-      const metadata = user.user_metadata
-      const role = metadata?.role || 'docente'
-
-      // Protección de rutas por rol
-      if (role === 'docente' && pathname.startsWith('/admin')) {
-        router.replace('/instructor')
-        return
-      }
-      if (role === 'admin' && pathname.startsWith('/instructor')) {
-        router.replace('/admin')
-        return
-      }
+      const role = user.user_metadata?.role || 'docente'
+      if (role === 'docente' && pathname.startsWith('/admin')) { router.replace('/instructor'); return }
+      if (role === 'admin' && pathname.startsWith('/instructor')) { router.replace('/admin'); return }
 
       let isTransversal = false;
       if (role === 'docente') {
         try {
           const profile = await api.get<any>(`/docentes/${user.id}`);
           isTransversal = profile?.es_transversal || false;
-        } catch (e) {
-          console.error("Error al obtener perfil docente para navbar:", e);
-        }
+        } catch (e) { console.error(e) }
       }
 
-      const firstName = metadata?.firstname || ""
-      const lastName = metadata?.lastname || ""
-      const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || "US"
-
       setUserData({
-        name: firstName ? `${firstName} ${lastName}`.trim() : "Usuario La Salle",
+        name: `${user.user_metadata?.firstname || ""} ${user.user_metadata?.lastname || ""}`.trim() || "Usuario",
         email: user.email,
-        initials: initials,
+        initials: `${(user.user_metadata?.firstname || "U").charAt(0)}${(user.user_metadata?.lastname || "S").charAt(0)}`.toUpperCase(),
         role: role,
         isTransversal: isTransversal
       })
       setIsLoading(false)
     }
-
     fetchUser()
   }, [router, pathname])
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.replace('/')
-  }
+  const handleLogout = async () => { await supabase.auth.signOut(); router.replace('/') }
 
-  const InstitutionalFooter = () => (
-    <footer className="w-full py-6 px-4 md:px-8 mt-auto flex flex-col md:flex-row justify-between items-center border-t border-slate-100 bg-white gap-4 text-[10px] uppercase tracking-widest font-bold">
-      <div className="text-slate-500 text-center md:text-left">
-        © {new Date().getFullYear()} IES La Salle Urubamba | Cusco - Perú
-      </div>
-      <div className="text-slate-400 text-center md:text-right">
-        Desarrollado por Rodolfo Riveros
-      </div>
+  const Footer = () => (
+    <footer className="w-full py-6 px-8 mt-auto flex flex-col md:flex-row justify-between items-center border-t bg-white gap-4 text-[10px] uppercase tracking-widest font-bold text-slate-400">
+      <div>© {new Date().getFullYear()} IES La Salle Urubamba | Cusco - Perú</div>
+      <div>Desarrollado por Rodolfo Riveros</div>
     </footer>
   )
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4">
-        <Loader2 className="h-10 w-10 animate-spin text-primary" />
-        <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Verificando Autorización...</p>
-      </div>
-    )
-  }
+  if (isLoading) return <div className="min-h-screen flex flex-col items-center justify-center gap-4"><Loader2 className="h-10 w-10 animate-spin text-primary" /><p className="text-sm font-bold text-slate-500 uppercase">Autorizando...</p></div>
 
-  const isAdminView = pathname.startsWith('/admin')
-
-  if (isAdminView) {
+  if (pathname.startsWith('/admin')) {
     return (
       <SidebarProvider>
         <Sidebar collapsible="icon" className="border-r-0 shadow-2xl">
           <SidebarHeader className="h-20 flex items-center justify-center border-b border-white/10 px-6">
-            <Link href="/admin" className="flex items-center gap-3">
-              <div className="bg-white p-1.5 rounded-lg shadow-md shrink-0">
-                <GraduationCap className="h-6 w-6 text-primary" />
-              </div>
-              <span className="font-extrabold text-xl text-white group-data-[collapsible=icon]:hidden uppercase font-headline tracking-tighter truncate">
-                La Salle
-              </span>
-            </Link>
+            <Link href="/admin" className="flex items-center gap-3"><GraduationCap className="h-6 w-6 text-white" /><span className="font-extrabold text-xl text-white uppercase tracking-tighter">La Salle</span></Link>
           </SidebarHeader>
           <SidebarContent className="py-6">
-            <SidebarGroup>
-              <SidebarGroupContent>
-                <SidebarMenu className="gap-2 px-3">
-                  {ADMIN_NAV.map((item) => (
-                    <SidebarMenuItem key={item.name}>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={pathname === item.href}
-                        tooltip={item.name}
-                        className={`py-6 px-4 rounded-xl transition-all ${pathname === item.href ? 'bg-white/15 text-white shadow-lg' : 'text-white/70 hover:bg-white/5 hover:text-white'}`}
-                      >
-                        <Link href={item.href} className="flex items-center gap-3">
-                          <item.icon className="h-5 w-5" />
-                          <span className="font-semibold text-sm">{item.name}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
+            <SidebarGroup><SidebarMenu className="gap-2 px-3">{ADMIN_NAV.map((it) => (<SidebarMenuItem key={it.name}><SidebarMenuButton asChild isActive={pathname === it.href} className={`py-6 px-4 rounded-xl ${pathname === it.href ? 'bg-white/15 text-white' : 'text-white/70 hover:bg-white/5'}`}><Link href={it.href} className="flex items-center gap-3"><it.icon className="h-5 w-5" /><span>{it.name}</span></Link></SidebarMenuButton></SidebarMenuItem>))}</SidebarMenu></SidebarGroup>
           </SidebarContent>
-          <SidebarFooter className="border-t border-white/10 p-4">
-            <NavUser user={userData} onLogout={handleLogout} />
-          </SidebarFooter>
+          <SidebarFooter className="border-t border-white/10 p-4"><NavUser user={userData} onLogout={handleLogout} /></SidebarFooter>
         </Sidebar>
         <SidebarInset className="bg-[#f8f9fa] flex flex-col min-h-screen">
-          <header className="flex h-20 shrink-0 items-center gap-2 border-b bg-white/60 backdrop-blur-xl px-4 md:px-8 sticky top-0 z-40">
-            <SidebarTrigger className="-ml-1" />
-            <div className="flex-1 px-4 flex justify-end">
-              <div className="relative w-full max-w-72 hidden sm:block">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                <input 
-                  placeholder="Buscar en el portal..." 
-                  className="h-10 w-full rounded-full border-none bg-slate-100 px-10 py-2 text-sm focus:ring-1 focus:ring-primary outline-none" 
-                />
-              </div>
-            </div>
-          </header>
-          <div className="p-4 md:p-6 lg:p-12 max-w-[1600px] mx-auto w-full flex-grow">
-            {children}
-          </div>
-          <InstitutionalFooter />
+          <header className="flex h-20 shrink-0 items-center gap-2 border-b bg-white/60 backdrop-blur-xl px-4 md:px-8 sticky top-0 z-40"><SidebarTrigger /><div className="flex-1 flex justify-end"><Search className="h-4 w-4 text-slate-400" /></div></header>
+          <div className="p-4 md:p-12 max-w-[1600px] mx-auto w-full flex-grow">{children}</div>
+          <Footer />
         </SidebarInset>
       </SidebarProvider>
     )
@@ -195,43 +92,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-screen bg-[#f8f9fa] flex flex-col">
       <header className="h-20 bg-primary sticky top-0 z-50 px-4 md:px-10 lg:px-20 flex items-center justify-between shadow-lg">
-        <Link href="/instructor" className="flex items-center gap-2 md:gap-3 group min-w-0">
-          <div className="bg-white p-1.5 rounded-lg shadow-lg group-hover:scale-110 transition-transform shrink-0">
-            <GraduationCap className="h-5 w-5 md:h-6 md:w-6 text-primary" />
-          </div>
-          <span className="font-extrabold text-sm md:text-xl text-white uppercase font-headline tracking-tight truncate">
-            La Salle Urubamba
-          </span>
+        <Link href="/instructor" className="flex items-center gap-3 group">
+          <div className="bg-white p-1.5 rounded-lg shadow-lg group-hover:scale-110 transition-transform"><GraduationCap className="h-6 w-6 text-primary" /></div>
+          <span className="font-extrabold text-xl text-white uppercase tracking-tight">La Salle Urubamba</span>
         </Link>
-        <div className="flex items-center gap-3 md:gap-6 shrink-0">
+        <div className="flex items-center gap-6">
           <div className="hidden sm:flex items-center gap-3">
-            <div className="flex flex-col text-right">
-              <span className="text-xs md:text-sm font-black text-white leading-tight truncate max-w-[200px]">{userData?.name}</span>
-              <span className="text-[9px] md:text-[10px] text-white/80 font-bold uppercase tracking-widest">
-                {userData?.isTransversal ? "Docente Transversal" : "Docente de Especialidad"}
-              </span>
-            </div>
-            <Avatar className="h-10 w-10 border-2 border-white/20">
-              <AvatarFallback className="bg-white/10 text-white font-bold text-sm">
-                {userData?.initials}
-              </AvatarFallback>
-            </Avatar>
+            <div className="text-right flex flex-col"><span className="text-sm font-black text-white leading-tight">{userData?.name}</span><span className="text-[10px] text-white/80 font-bold uppercase tracking-widest">{userData?.isTransversal ? "Docente Transversal" : "Docente de Especialidad"}</span></div>
+            <Avatar className="h-10 w-10 border-2 border-white/20"><AvatarFallback className="bg-white/10 text-white font-bold">{userData?.initials}</AvatarFallback></Avatar>
           </div>
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="rounded-full h-10 w-10 md:h-11 md:w-11 text-white/70 hover:text-white hover:bg-white/10"
-            onClick={handleLogout}
-            title="Cerrar Sesión"
-          >
-            <LogOut className="h-4 w-4 md:h-5 md:w-5" />
-          </Button>
+          <Button variant="ghost" size="icon" className="rounded-full h-11 w-11 text-white/70 hover:text-white hover:bg-white/10" onClick={handleLogout}><LogOut className="h-5 w-5" /></Button>
         </div>
       </header>
-      <main className="flex-grow p-4 md:p-8 lg:p-12 max-w-7xl mx-auto w-full">
-        {children}
-      </main>
-      <InstitutionalFooter />
+      <main className="flex-grow p-4 md:p-12 max-w-7xl mx-auto w-full">{children}</main>
+      <Footer />
     </div>
   )
 }

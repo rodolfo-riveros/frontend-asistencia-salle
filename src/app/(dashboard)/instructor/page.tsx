@@ -44,13 +44,12 @@ export default function InstructorDashboard() {
         const data = await api.get<any[]>(`/me/asignaciones/?periodo_id=${currentId}`)
         setAsignaciones(data)
         
-        // Verificar estado de asistencia para hoy
+        // Verificar estado de asistencia para hoy (UTC-5)
         const today = new Date(new Date().getTime() - (5 * 60 * 60 * 1000)).toISOString().split('T')[0];
         const statusMap: Record<string, boolean> = {};
         
         await Promise.all(data.map(async (asg) => {
           try {
-            // Usamos el reporte filtrado por fecha para saber si ya hay registros hoy
             const history = await api.get<any[]>(`/asistencias/reporte/unidad/${asg.unidad_id}?fecha_inicio=${today}&fecha_fin=${today}`)
             statusMap[asg.unidad_id] = history && history.length > 0;
           } catch (e) {
@@ -80,8 +79,8 @@ export default function InstructorDashboard() {
   const handleExport = async (asg: any) => {
     setIsExporting(asg.id)
     toast({
-      title: "Generando Matriz Académica",
-      description: `Procesando matriz de asistencia profesional para ${asg.unidad_nombre}...`,
+      title: "Generando Matriz Profesional",
+      description: "Construyendo reporte académico de asistencia...",
     })
 
     try {
@@ -95,7 +94,6 @@ export default function InstructorDashboard() {
       }
 
       const uniqueDates = Array.from(new Set(reportData.map(r => r.fecha))).sort()
-      
       const matrix: Record<string, Record<string, string>> = {}
       reportData.forEach(reg => {
         const idAlumno = reg.alumno_id || reg.id_alumno;
@@ -108,7 +106,7 @@ export default function InstructorDashboard() {
       const rows: any[] = []
       const periodName = periods.find(p => p.id === selectedPeriodId)?.nombre || "N/A"
 
-      // Cabecera Institucional
+      // --- ESTRUCTURA DE EXCEL PROFESIONAL ---
       rows.push(["INSTITUTO DE EDUCACIÓN SUPERIOR LA SALLE - URUBAMBA"])
       rows.push(["REGISTRO OFICIAL DE ASISTENCIA ACADÉMICA"])
       rows.push([])
@@ -118,16 +116,16 @@ export default function InstructorDashboard() {
       rows.push(["DOCENTE RESPONSABLE:", userName, "", "FECHA REPORTE:", new Date().toLocaleDateString()])
       rows.push([])
 
-      // Cabecera de Tabla
+      // Cabecera de la tabla
       const headerRow = ['N°', 'APELLIDOS Y NOMBRES']
       uniqueDates.forEach(d => {
-        const [year, month, day] = d.split('-')
+        const [_, month, day] = d.split('-')
         headerRow.push(`${day}/${month}`)
       })
       headerRow.push('TOTAL FALTAS', '% INASISTENCIA')
       rows.push(headerRow)
 
-      // Datos de Alumnos
+      // Cuerpo de la tabla
       alumnos.sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach((alumno, index) => {
         const studentRow: any[] = [
           (index + 1).toString().padStart(2, '0'),
@@ -152,61 +150,55 @@ export default function InstructorDashboard() {
       const wb = XLSX.utils.book_new()
       const ws = XLSX.utils.aoa_to_sheet(rows)
 
-      // Estilos Básicos (Anchos de columna)
+      // Configuración de anchos de columna
       const wscols = [
-        { wch: 5 },   // N°
-        { wch: 50 },  // Nombres
-        ...uniqueDates.map(() => ({ wch: 7 })), // Fechas
+        { wch: 4 },   // N°
+        { wch: 45 },  // Nombres
+        ...uniqueDates.map(() => ({ wch: 6 })), // Fechas
         { wch: 15 },  // Total Faltas
-        { wch: 18 }   // % Inasistencia
+        { wch: 15 }   // % Inasistencia
       ]
       ws['!cols'] = wscols
 
-      XLSX.utils.book_append_sheet(wb, ws, "Matriz_Asistencia")
-
+      XLSX.utils.book_append_sheet(wb, ws, "Asistencia")
       const fileName = `MATRIZ_${asg.unidad_nombre.replace(/\s+/g, '_')}_${periodName}.xlsx`
       XLSX.writeFile(wb, fileName)
 
-      toast({ title: "Reporte Profesional Exportado", description: `Se ha descargado la matriz para ${asg.unidad_nombre}.` })
+      toast({ title: "Reporte Exportado", description: "La matriz está lista para impresión." })
     } catch (err: any) {
-      console.error(err)
-      toast({ variant: "destructive", title: "Error en reporte", description: err.message })
+      toast({ variant: "destructive", title: "Error", description: err.message })
     } finally {
       setIsExporting(null)
     }
   }
 
   return (
-    <div className="space-y-8 md:space-y-12">
-      <div className="space-y-4 border-b pb-8">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <div className="h-1.5 w-12 bg-primary rounded-full" />
-              <span className="text-primary font-bold uppercase tracking-[0.3em] text-[10px]">Portal del Docente</span>
-            </div>
-            <h2 className="text-3xl md:text-5xl font-headline font-black tracking-tighter text-slate-900 leading-tight">
-              Carga Académica
-            </h2>
+    <div className="space-y-8 pb-10">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b pb-8">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <div className="h-1.5 w-8 bg-primary rounded-full" />
+            <span className="text-primary font-bold uppercase tracking-widest text-[10px]">Portal del Docente</span>
           </div>
-          
-          <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
-            <div className="flex flex-col">
-              <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Periodo Lectivo Activo</span>
-              <Select value={selectedPeriodId} onValueChange={setSelectedPeriodId}>
-                <SelectTrigger className="h-9 w-[220px] border-none bg-slate-50 font-bold text-slate-900 focus:ring-0">
-                  <Calendar className="h-4 w-4 mr-2 text-primary" />
-                  <SelectValue placeholder="Seleccione Ciclo" />
-                </SelectTrigger>
-                <SelectContent>
-                  {periods.map(p => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.nombre} {p.es_activo && "(Actual)"}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <h2 className="text-3xl md:text-5xl font-headline font-black tracking-tighter text-slate-900 leading-tight">
+            Mis Cursos
+          </h2>
+        </div>
+        
+        <div className="bg-white p-4 rounded-2xl border shadow-sm flex items-center gap-4">
+          <div className="flex flex-col">
+            <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Periodo Activo</span>
+            <Select value={selectedPeriodId} onValueChange={setSelectedPeriodId}>
+              <SelectTrigger className="h-9 w-[220px] border-none bg-slate-50 font-bold text-slate-900">
+                <Calendar className="h-4 w-4 mr-2 text-primary" />
+                <SelectValue placeholder="Ciclo" />
+              </SelectTrigger>
+              <SelectContent>
+                {periods.map(p => (
+                  <SelectItem key={p.id} value={p.id}>{p.nombre} {p.es_activo && "(Actual)"}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
       </div>
@@ -214,17 +206,17 @@ export default function InstructorDashboard() {
       {isLoading ? (
         <div className="h-96 flex flex-col items-center justify-center text-slate-400 gap-4">
           <Loader2 className="h-12 w-12 animate-spin text-primary" />
-          <p className="font-bold text-lg">Sincronizando carga académica...</p>
+          <p className="font-bold">Cargando...</p>
         </div>
       ) : asignaciones.length > 0 ? (
         <div className="grid gap-6 md:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           {asignaciones.map((asg) => (
-            <Card key={asg.id} className="group border-none shadow-xl hover:shadow-2xl transition-all bg-white overflow-hidden flex flex-col">
-              <div className={`h-2 bg-gradient-to-r from-primary to-blue-400`} />
+            <Card key={asg.id} className="group border-none shadow-xl hover:shadow-2xl transition-all bg-white flex flex-col">
+              <div className="h-2 bg-primary rounded-t-lg" />
               <CardHeader className="space-y-4 p-6">
                 <div className="flex justify-between items-start">
                   <Badge variant="outline" className="text-[10px] font-black uppercase tracking-widest bg-slate-50 border-slate-200">
-                    UD: {asg.unidad_id.substring(0,8)}
+                    ID: {asg.unidad_id.substring(0,8)}
                   </Badge>
                   <div className="p-2.5 bg-primary/5 rounded-xl text-primary transition-colors group-hover:bg-primary group-hover:text-white">
                     <BookOpen className="h-5 w-5" />
@@ -234,7 +226,7 @@ export default function InstructorDashboard() {
                   <CardTitle className="text-xl md:text-2xl font-headline font-extrabold line-clamp-2">
                     {asg.unidad_nombre}
                   </CardTitle>
-                  <p className="text-[10px] font-black uppercase text-slate-400 mt-1 tracking-tight">
+                  <p className="text-[10px] font-black uppercase text-slate-400 mt-1">
                     {asg.programa_nombre}
                   </p>
                 </div>
@@ -266,14 +258,14 @@ export default function InstructorDashboard() {
                 </div>
               </CardContent>
               <CardFooter className="bg-slate-50/50 p-6 gap-3 mt-4">
-                <Button asChild className="flex-1 h-14 font-black text-sm shadow-lg shadow-primary/20">
+                <Button asChild className="flex-1 h-14 font-black shadow-lg shadow-primary/20">
                   <Link href={`/instructor/attendance/${asg.unidad_id}?periodo_id=${selectedPeriodId}`}>
                     Pasar Lista <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
                 </Button>
                 <Button 
                   variant="outline" 
-                  className="h-14 w-14 p-0 border-slate-200 hover:text-green-600 hover:bg-green-50/50 transition-all"
+                  className="h-14 w-14 p-0 border-slate-200"
                   disabled={isExporting === asg.id}
                   onClick={() => handleExport(asg)}
                 >
@@ -284,15 +276,10 @@ export default function InstructorDashboard() {
           ))}
         </div>
       ) : (
-        <Card className="p-20 text-center border-dashed border-2 flex flex-col items-center gap-4 text-slate-400 bg-white rounded-3xl">
-          <AlertCircle className="h-12 w-12 opacity-10" />
-          <div className="space-y-1">
-            <p className="font-bold text-lg text-slate-900">Sin carga académica registrada</p>
-            <p className="text-sm">Contacta con administración para que se te asigne unidades en el periodo actual.</p>
-          </div>
-          <Button variant="outline" className="mt-4 font-bold rounded-xl" onClick={fetchData}>
-            Actualizar Sincronización
-          </Button>
+        <Card className="p-20 text-center border-dashed border-2 text-slate-400 bg-white rounded-3xl">
+          <AlertCircle className="h-12 w-12 opacity-10 mx-auto mb-4" />
+          <p className="font-bold text-lg text-slate-900">Sin carga académica registrada</p>
+          <p className="text-sm">Contacta con administración para asignar unidades didácticas.</p>
         </Card>
       )}
     </div>
