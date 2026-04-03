@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
+import { api } from '@/lib/api';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -36,7 +37,8 @@ export default function RegisterPage() {
     const program = formData.get('program') as string;
 
     try {
-      // Todo registro nuevo es "docente" por defecto para proteger el sistema
+      // 1. Registro en Supabase Auth
+      // Todo registro nuevo es "docente" por defecto
       const { data, error } = await supabase.auth.signUp({
         email,
         password: dni, // El DNI será su contraseña inicial
@@ -52,6 +54,21 @@ export default function RegisterPage() {
       });
 
       if (error) throw error;
+      if (!data.user) throw new Error("No se pudo crear la cuenta de usuario.");
+
+      // 2. Sincronización con FastAPI (public.docentes)
+      // Es vital llamar al backend para que el docente aparezca en las listas
+      try {
+        await api.post('/docentes/', {
+          id: data.user.id,
+          nombre: `${firstname} ${lastname}`.trim(),
+          especialidad: program,
+          es_transversal: false
+        });
+      } catch (apiError: any) {
+        console.error("[ERROR] Sincronización con Backend fallida:", apiError.message);
+        // No bloqueamos el flujo principal, pero lo logueamos para diagnóstico
+      }
 
       toast({
         title: "Registro exitoso",
