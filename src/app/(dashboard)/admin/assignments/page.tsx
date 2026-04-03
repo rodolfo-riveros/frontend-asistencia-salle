@@ -10,9 +10,7 @@ import {
   Link2,
   Loader2,
   RefreshCcw,
-  CalendarDays,
-  UserCheck,
-  AlertCircle
+  CalendarDays
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
