@@ -101,11 +101,11 @@ export default function InstructorDashboard() {
       const rows: any[] = []
       const periodName = periods.find(p => p.id === selectedPeriodId)?.nombre || "N/A"
 
+      // CABECERA INSTITUCIONAL ESTILIZADA (Estructura)
       rows.push(["INSTITUTO DE EDUCACIÓN SUPERIOR LA SALLE - URUBAMBA"])
-      rows.push(["REGISTRO OFICIAL DE ASISTENCIA ACADÉMICA"])
+      rows.push(["CONTROL ACADÉMICO DE ASISTENCIA - MATRIZ OFICIAL"])
       rows.push([])
-      rows.push(["DATOS DE LA UNIDAD DIDÁCTICA"])
-      rows.push(["PROGRAMA PROFESIONAL:", asg.programa_nombre.toUpperCase(), "", "PERIODO:", periodName])
+      rows.push(["PROGRAMA:", asg.programa_nombre.toUpperCase(), "", "PERIODO:", periodName])
       rows.push(["UNIDAD DIDÁCTICA:", asg.unidad_nombre.toUpperCase(), "", "SEMESTRE:", asg.semestre])
       rows.push(["DOCENTE RESPONSABLE:", userName, "", "FECHA REPORTE:", new Date().toLocaleDateString()])
       rows.push([])
@@ -115,7 +115,7 @@ export default function InstructorDashboard() {
         const [_, month, day] = d.split('-')
         headerRow.push(`${day}/${month}`)
       })
-      headerRow.push('TOTAL FALTAS', '% INASISTENCIA')
+      headerRow.push('FALTAS', '% INASIST.')
       rows.push(headerRow)
 
       alumnos.sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach((alumno, index) => {
@@ -134,10 +134,20 @@ export default function InstructorDashboard() {
 
       const wb = XLSX.utils.book_new()
       const ws = XLSX.utils.aoa_to_sheet(rows)
-      ws['!cols'] = [{ wch: 4 }, { wch: 45 }, ...uniqueDates.map(() => ({ wch: 6 })), { wch: 15 }, { wch: 15 }]
+      
+      // Ajuste de anchos para que se vea profesional
+      const wscols = [
+        { wch: 5 }, 
+        { wch: 50 }, 
+        ...uniqueDates.map(() => ({ wch: 8 })), 
+        { wch: 10 }, 
+        { wch: 12 }
+      ]
+      ws['!cols'] = wscols
+
       XLSX.utils.book_append_sheet(wb, ws, "Asistencia")
       XLSX.writeFile(wb, `MATRIZ_${asg.unidad_nombre.replace(/\s+/g, '_')}.xlsx`)
-      toast({ title: "Excel Exportado" })
+      toast({ title: "Excel Generado Profesional" })
     } catch (err: any) {
       toast({ variant: "destructive", title: "Error", description: err.message })
     } finally {
@@ -168,26 +178,26 @@ export default function InstructorDashboard() {
       const doc = new jsPDF('l', 'mm', 'a4')
       const periodName = periods.find(p => p.id === selectedPeriodId)?.nombre || "N/A"
 
-      // Cabecera Institucional
-      doc.setFontSize(16)
-      doc.setTextColor(0, 51, 102)
+      // Cabecera Institucional PDF
+      doc.setFontSize(14)
+      doc.setTextColor(34, 97, 203) // Azul Salle
       doc.text("INSTITUTO DE EDUCACIÓN SUPERIOR LA SALLE - URUBAMBA", 14, 15)
       
-      doc.setFontSize(12)
+      doc.setFontSize(10)
       doc.setTextColor(100)
-      doc.text("MATRIZ DE CONTROL DE ASISTENCIA ACADÉMICA", 14, 22)
+      doc.text("REGISTRO DE CONTROL DE ASISTENCIA ACADÉMICA", 14, 22)
       
-      doc.setFontSize(9)
+      doc.setFontSize(8)
       doc.setTextColor(0)
       doc.text(`PROGRAMA: ${asg.programa_nombre.toUpperCase()}`, 14, 32)
       doc.text(`UNIDAD DIDÁCTICA: ${asg.unidad_nombre.toUpperCase()}`, 14, 37)
       doc.text(`DOCENTE: ${userName}`, 14, 42)
       
-      doc.text(`PERIODO: ${periodName}`, 220, 32)
-      doc.text(`SEMESTRE: ${asg.semestre}`, 220, 37)
-      doc.text(`FECHA REPORTE: ${new Date().toLocaleDateString()}`, 220, 42)
+      doc.text(`PERIODO: ${periodName}`, 240, 32)
+      doc.text(`SEMESTRE: ${asg.semestre}`, 240, 37)
+      doc.text(`REPORTE: ${new Date().toLocaleDateString()}`, 240, 42)
 
-      // Preparar Datos Tabla
+      // Tabla de Datos
       const headers = ['N°', 'APELLIDOS Y NOMBRES']
       uniqueDates.forEach(d => {
         const [_, month, day] = d.split('-')
@@ -213,14 +223,14 @@ export default function InstructorDashboard() {
         head: [headers],
         body: body,
         startY: 50,
-        styles: { fontSize: 7, cellPadding: 1.5, halign: 'center' },
-        headStyles: { fillStyle: 'f', fillColor: [0, 51, 102], textColor: 255, fontStyle: 'bold' },
-        columnStyles: { 1: { halign: 'left', fontStyle: 'bold', cellWidth: 60 } },
-        alternateRowStyles: { fillColor: [245, 245, 245] },
+        styles: { fontSize: 7, halign: 'center' },
+        headStyles: { fillColor: [34, 97, 203], textColor: 255, fontStyle: 'bold' },
+        columnStyles: { 1: { halign: 'left', fontStyle: 'bold', cellWidth: 50 } },
+        alternateRowStyles: { fillColor: [245, 247, 251] },
         theme: 'grid'
       })
 
-      doc.save(`MATRIZ_${asg.unidad_nombre.replace(/\s+/g, '_')}.pdf`)
+      doc.save(`REPORTE_${asg.unidad_nombre.replace(/\s+/g, '_')}.pdf`)
       toast({ title: "PDF Generado con éxito" })
     } catch (err: any) {
       toast({ variant: "destructive", title: "Error", description: err.message })
@@ -238,21 +248,21 @@ export default function InstructorDashboard() {
             <span className="text-primary font-bold uppercase tracking-widest text-[10px]">Portal del Docente</span>
           </div>
           <h2 className="text-3xl md:text-5xl font-headline font-black tracking-tighter text-slate-900 leading-tight">
-            Mis Cursos
+            Gestión de Cursos
           </h2>
         </div>
         
         <div className="bg-white p-4 rounded-2xl border shadow-sm flex items-center gap-4">
           <div className="flex flex-col">
-            <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Periodo Activo</span>
+            <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Filtro por Periodo</span>
             <Select value={selectedPeriodId} onValueChange={setSelectedPeriodId}>
               <SelectTrigger className="h-9 w-[220px] border-none bg-slate-50 font-bold text-slate-900">
                 <Calendar className="h-4 w-4 mr-2 text-primary" />
-                <SelectValue placeholder="Ciclo" />
+                <SelectValue placeholder="Seleccione Ciclo" />
               </SelectTrigger>
               <SelectContent>
                 {periods.map(p => (
-                  <SelectItem key={p.id} value={p.id}>{p.nombre} {p.es_activo && "(Actual)"}</SelectItem>
+                  <SelectItem key={p.id} value={p.id}>{p.nombre} {p.es_activo && "(Activo)"}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -263,81 +273,80 @@ export default function InstructorDashboard() {
       {isLoading ? (
         <div className="h-96 flex flex-col items-center justify-center text-slate-400 gap-4">
           <Loader2 className="h-12 w-12 animate-spin text-primary" />
-          <p className="font-bold">Cargando...</p>
+          <p className="font-bold uppercase text-xs tracking-widest">Sincronizando con La Salle...</p>
         </div>
       ) : asignaciones.length > 0 ? (
         <div className="grid gap-6 md:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           {asignaciones.map((asg) => (
-            <Card key={asg.id} className="group border-none shadow-xl hover:shadow-2xl transition-all bg-white flex flex-col">
-              <div className="h-2 bg-primary rounded-t-lg" />
+            <Card key={asg.id} className="group border-none shadow-xl hover:shadow-2xl transition-all bg-white flex flex-col overflow-hidden">
+              <div className="h-2 bg-primary" />
               <CardHeader className="space-y-4 p-6">
                 <div className="flex justify-between items-start">
-                  <Badge variant="outline" className="text-[10px] font-black uppercase tracking-widest bg-slate-50 border-slate-200">
-                    ID: {asg.unidad_id.substring(0,8)}
+                  <Badge variant="outline" className="text-[10px] font-black uppercase tracking-widest bg-slate-50 text-slate-500">
+                    UD: {asg.unidad_id.substring(0,8)}
                   </Badge>
-                  <div className="p-2.5 bg-primary/5 rounded-xl text-primary transition-colors group-hover:bg-primary group-hover:text-white">
+                  <div className="p-3 bg-primary/5 rounded-2xl text-primary transition-all group-hover:bg-primary group-hover:text-white">
                     <BookOpen className="h-5 w-5" />
                   </div>
                 </div>
                 <div>
-                  <CardTitle className="text-xl md:text-2xl font-headline font-extrabold line-clamp-2">
+                  <CardTitle className="text-xl md:text-2xl font-headline font-extrabold line-clamp-2 text-slate-800">
                     {asg.unidad_nombre}
                   </CardTitle>
-                  <p className="text-[10px] font-black uppercase text-slate-400 mt-1">
+                  <p className="text-[10px] font-black uppercase text-primary/60 mt-2">
                     {asg.programa_nombre}
                   </p>
                 </div>
               </CardHeader>
               <CardContent className="px-6 py-0 space-y-4 flex-grow">
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
+                  <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100">
                     <Users className="h-4 w-4 text-primary" />
                     <div className="flex flex-col">
-                      <span className="text-[8px] font-black text-slate-400 uppercase">Semestre</span>
-                      <span className="text-xs font-bold text-slate-700">{asg.semestre}</span>
+                      <span className="text-[8px] font-black text-slate-400 uppercase">Ciclo</span>
+                      <span className="text-xs font-bold text-slate-700">Semestre {asg.semestre}</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
-                    <Clock className="h-4 w-4 text-indigo-500" />
-                    <div className="flex flex-col">
+                  <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100">
+                    <div className="flex flex-col flex-1">
                       <span className="text-[8px] font-black text-slate-400 uppercase">Estado Hoy</span>
                       {attendanceStatus[asg.unidad_id] ? (
                         <span className="text-[9px] font-bold text-emerald-600 flex items-center gap-1">
-                          <CheckCircle2 className="h-3 w-3" /> Tomada
+                          <CheckCircle2 className="h-3 w-3" /> LISTA TOMADA
                         </span>
                       ) : (
                         <span className="text-[9px] font-bold text-amber-600 flex items-center gap-1">
-                          <CircleDashed className="h-3 w-3 animate-pulse" /> Pendiente
+                          <CircleDashed className="h-3 w-3 animate-pulse" /> PENDIENTE
                         </span>
                       )}
                     </div>
                   </div>
                 </div>
               </CardContent>
-              <CardFooter className="bg-slate-50/50 p-6 gap-2 mt-4">
-                <Button asChild className="flex-1 h-14 font-black shadow-lg shadow-primary/20">
+              <CardFooter className="bg-slate-50/50 p-6 gap-2 mt-6 border-t">
+                <Button asChild className="flex-1 h-14 font-black shadow-lg shadow-primary/20 bg-primary hover:bg-primary/90 text-white">
                   <Link href={`/instructor/attendance/${asg.unidad_id}?periodo_id=${selectedPeriodId}`}>
-                    Pasar Lista <ArrowRight className="ml-2 h-4 w-4" />
+                    PASAR LISTA <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
                 </Button>
-                <div className="flex gap-1.5">
+                <div className="flex gap-2">
                   <Button 
                     variant="outline" 
-                    className="h-14 w-11 p-0 border-slate-200 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                    className="h-14 w-12 p-0 border-emerald-100 text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
                     disabled={isExporting === asg.id}
                     onClick={() => handleExportExcel(asg)}
-                    title="Exportar Excel"
+                    title="Matriz Excel"
                   >
-                    {isExporting === asg.id ? <Loader2 className="h-5 w-5 animate-spin" /> : <FileSpreadsheet className="h-5 w-5" />}
+                    {isExporting === asg.id ? <Loader2 className="h-5 w-5 animate-spin" /> : <FileSpreadsheet className="h-6 w-6" />}
                   </Button>
                   <Button 
                     variant="outline" 
-                    className="h-14 w-11 p-0 border-slate-200 text-red-600 hover:text-red-700 hover:bg-red-50"
+                    className="h-14 w-12 p-0 border-red-100 text-red-600 hover:bg-red-600 hover:text-white transition-all shadow-sm"
                     disabled={isExportingPdf === asg.id}
                     onClick={() => handleExportPdf(asg)}
-                    title="Exportar PDF"
+                    title="Reporte PDF"
                   >
-                    {isExportingPdf === asg.id ? <Loader2 className="h-5 w-5 animate-spin" /> : <FileText className="h-5 w-5" />}
+                    {isExportingPdf === asg.id ? <Loader2 className="h-5 w-5 animate-spin" /> : <FileText className="h-6 w-6" />}
                   </Button>
                 </div>
               </CardFooter>
@@ -348,7 +357,7 @@ export default function InstructorDashboard() {
         <Card className="p-20 text-center border-dashed border-2 text-slate-400 bg-white rounded-3xl">
           <AlertCircle className="h-12 w-12 opacity-10 mx-auto mb-4" />
           <p className="font-bold text-lg text-slate-900">Sin carga académica registrada</p>
-          <p className="text-sm">Contacta con administración para asignar unidades didácticas.</p>
+          <p className="text-sm">Si eres nuevo, contacta con secretaría académica para tu asignación de cursos.</p>
         </Card>
       )}
     </div>
