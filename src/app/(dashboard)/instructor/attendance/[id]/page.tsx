@@ -2,7 +2,7 @@
 "use client"
 
 import * as React from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { 
   ArrowLeft, 
   Search, 
@@ -28,7 +28,7 @@ import { aiAttendanceInsights, type AttendanceInsightsOutput } from "@/ai/flows/
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import { api } from "@/lib/api"
 
-// Mapeo de estados para el backend (Enum P, F, T, J)
+// Mapeo de estados para el backend
 const STATUS_MAP: Record<string, string> = {
   'Presente': 'P',
   'Falta': 'F',
@@ -38,7 +38,11 @@ const STATUS_MAP: Record<string, string> = {
 
 export default function AttendancePage() {
   const params = useParams()
+  const searchParams = useSearchParams()
   const router = useRouter()
+  
+  const periodoId = searchParams.get('periodo_id')
+  
   const [students, setStudents] = React.useState<any[]>([])
   const [attendance, setAttendance] = React.useState<Record<string, string | null>>({})
   const [isLoading, setIsLoading] = React.useState(true)
@@ -46,6 +50,15 @@ export default function AttendancePage() {
   const [date, setDate] = React.useState(new Date().toISOString().split('T')[0])
   const [isAnalyzing, setIsAnalyzing] = React.useState(false)
   const [aiResult, setAiResult] = React.useState<AttendanceInsightsOutput | null>(null)
+
+  const getInitials = (name: string) => {
+    if (!name) return "ST"
+    const words = name.trim().split(/\s+/)
+    if (words.length >= 2) {
+      return (words[0][0] + words[1][0]).toUpperCase()
+    }
+    return words[0].substring(0, 2).toUpperCase()
+  }
 
   const fetchStudents = React.useCallback(async () => {
     setIsLoading(true)
@@ -78,13 +91,22 @@ export default function AttendancePage() {
   const handleSave = async () => {
     const incomplete = Object.values(attendance).some(v => v === null)
     if (incomplete) return toast({ variant: "destructive", title: "Error", description: "Faltan alumnos por marcar." })
+    
+    if (!periodoId) {
+      return toast({ 
+        variant: "destructive", 
+        title: "Error de Periodo", 
+        description: "No se identificó el periodo académico. Por favor, vuelva al panel e intente de nuevo." 
+      })
+    }
 
     const payload = {
       unidad_id: params.id as string,
+      periodo_id: periodoId,
       fecha: date,
       registros: Object.entries(attendance).map(([studentId, estado]) => ({
         alumno_id: studentId,
-        estado: STATUS_MAP[estado as string] || estado // Convertimos a P, F, T, J
+        estado: STATUS_MAP[estado as string] || estado
       }))
     }
 
@@ -92,7 +114,11 @@ export default function AttendancePage() {
       await api.post('/asistencias/pase-lista', payload)
       toast({ title: "Éxito", description: "Asistencia guardada correctamente." })
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Error al guardar", description: err.message })
+      toast({ 
+        variant: "destructive", 
+        title: "Error al guardar", 
+        description: err.message || "Error en el servidor al procesar la asistencia."
+      })
     }
   }
 
@@ -133,7 +159,9 @@ export default function AttendancePage() {
           <div className="space-y-3 w-full lg:w-auto">
             <h2 className="text-3xl md:text-4xl font-headline font-black tracking-tighter text-slate-900 leading-tight">Pase de Lista</h2>
             <div className="flex flex-wrap items-center gap-3 md:gap-4">
-              <Badge variant="outline" className="font-black bg-primary/5 text-primary border-primary/20 px-3 md:px-4 py-1 uppercase text-[10px] md:text-xs">{params.id}</Badge>
+              <Badge variant="outline" className="font-black bg-primary/5 text-primary border-primary/20 px-3 md:px-4 py-1 uppercase text-[10px] md:text-xs">
+                UD: {params.id.toString().substring(0,8)}
+              </Badge>
               <div className="flex items-center gap-2 md:gap-3 bg-white px-3 md:px-4 py-1.5 md:py-2 rounded-xl border border-slate-100 shadow-sm">
                 <Label className="text-[8px] md:text-[9px] font-black uppercase text-slate-400">Fecha:</Label>
                 <input type="date" value={date} onChange={e => setDate(e.target.value)} className="bg-transparent border-none font-bold text-xs md:text-sm text-slate-700 outline-none w-24 md:w-32" />
@@ -235,12 +263,13 @@ export default function AttendancePage() {
                       <TableRow key={s.id} className="hover:bg-slate-50/30 transition-colors border-slate-50">
                         <TableCell className="pl-4 md:pl-8 py-3 md:py-4">
                           <div className="relative">
-                            <Avatar className="h-8 w-8 md:h-10 md:w-10 border shadow-sm">
-                              <AvatarImage src={`https://picsum.photos/seed/${s.id}/200/200`} />
-                              <AvatarFallback>{s.nombre[0]}</AvatarFallback>
+                            <Avatar className="h-8 w-8 md:h-10 md:w-10 border-2 border-white shadow-sm ring-2 ring-slate-100">
+                              <AvatarFallback className="bg-primary/5 text-primary font-black text-[10px] md:text-xs">
+                                {getInitials(s.nombre)}
+                              </AvatarFallback>
                             </Avatar>
                             {attendance[s.id] && (
-                              <div className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 md:h-4 md:w-4 rounded-full flex items-center justify-center text-[7px] md:text-[8px] text-white shadow-sm ${
+                              <div className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 md:h-4 md:w-4 rounded-full flex items-center justify-center text-[7px] md:text-[8px] text-white shadow-sm ring-2 ring-white ${
                                 attendance[s.id] === 'Presente' ? 'bg-green-500' : attendance[s.id] === 'Falta' ? 'bg-red-500' : 'bg-amber-500'
                               }`}><CheckCircle2 className="h-2 w-2 md:h-2.5 md:w-2.5" /></div>
                             )}

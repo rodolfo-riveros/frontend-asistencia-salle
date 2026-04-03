@@ -20,11 +20,9 @@ export default function InstructorDashboard() {
   const fetchData = React.useCallback(async () => {
     setIsLoading(true)
     try {
-      // 1. Obtener periodos disponibles desde FastAPI
       const periodData = await api.get<any[]>('/periodos/')
       setPeriods(periodData)
       
-      // 2. Definir periodo inicial (el activo por defecto o el ya seleccionado)
       const active = periodData.find((p: any) => p.es_activo)
       const currentId = selectedPeriodId || (active ? active.id : "")
       
@@ -33,7 +31,6 @@ export default function InstructorDashboard() {
       }
 
       if (currentId) {
-        // 3. Obtener carga académica del docente para ese periodo específico
         const data = await api.get<any[]>(`/me/asignaciones/?periodo_id=${currentId}`)
         setAsignaciones(data)
       } else {
@@ -148,7 +145,7 @@ export default function InstructorDashboard() {
               </CardContent>
               <CardFooter className="bg-slate-50/50 p-6 gap-3">
                 <Button asChild className="flex-1 h-14 font-black text-sm shadow-lg shadow-primary/20">
-                  <Link href={`/instructor/attendance/${asg.unidad_id}`}>
+                  <Link href={`/instructor/attendance/${asg.unidad_id}?periodo_id=${asg.periodo_id}`}>
                     Pasar Lista <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
                 </Button>
