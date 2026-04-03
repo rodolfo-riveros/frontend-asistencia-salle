@@ -19,7 +19,8 @@ import {
   Download,
   CheckCircle2,
   X,
-  Info
+  Info,
+  ExternalLink
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -136,15 +137,37 @@ export default function AdminStudentsPage() {
   }
 
   const downloadTemplate = () => {
+    // Hoja 1: Estructura de datos
     const templateData = [
-      { nombre: "JUAN PEREZ GARCIA", dni: "12345678", programa_codigo: "SIS", semestre: "I" },
-      { nombre: "MARIA LOPEZ HUAMAN", dni: "87654321", programa_codigo: "CON", semestre: "II" }
+      { nombre: "APELLIDOS Y NOMBRES", dni: "00000000", programa_codigo: "CODIGO_AQUI", semestre: "I" },
     ]
-    const worksheet = XLSX.utils.json_to_sheet(templateData)
+    const wsData = XLSX.utils.json_to_sheet(templateData)
+
+    // Hoja 2: Leyenda / Referencia de Códigos
+    const referenceData = programs.map(p => ({
+      CODIGO: p.codigo,
+      PROGRAMA_DE_ESTUDIO: p.nombre
+    }))
+    
+    // Si no hay programas, damos ejemplos
+    if (referenceData.length === 0) {
+      referenceData.push({ CODIGO: "SIS", PROGRAMA_DE_ESTUDIO: "Desarrollo de Sistemas (Ejemplo)" })
+    }
+
+    const wsRef = XLSX.utils.json_to_sheet(referenceData)
+
+    // Crear libro
     const workbook = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Plantilla")
-    XLSX.writeFile(workbook, "plantilla_alumnos_salle.xlsx")
-    toast({ title: "Plantilla descargada", description: "Usa este formato para subir tus datos." })
+    XLSX.utils.book_append_sheet(workbook, wsData, "Datos_Alumnos")
+    XLSX.utils.book_append_sheet(workbook, wsRef, "Codigos_Programas")
+
+    // Guardar
+    XLSX.writeFile(workbook, "plantilla_importacion_salle.xlsx")
+    
+    toast({ 
+      title: "Plantilla generada", 
+      description: "Revisa la pestaña 'Codigos_Programas' en el Excel para ver qué códigos usar." 
+    })
   }
 
   const handleImportExcel = async () => {
@@ -162,7 +185,7 @@ export default function AdminStudentsPage() {
         const jsonData: any[] = XLSX.utils.sheet_to_json(worksheet)
 
         if (jsonData.length === 0) {
-          toast({ variant: "destructive", title: "Archivo vacío", description: "No se encontraron registros en el Excel." })
+          toast({ variant: "destructive", title: "Archivo vacío", description: "No se encontraron registros." })
           setIsUploading(false)
           return
         }
@@ -172,20 +195,22 @@ export default function AdminStudentsPage() {
 
         for (let i = 0; i < jsonData.length; i++) {
           const row = jsonData[i]
-          const program = programs.find(p => p.codigo === String(row.programa_codigo).toUpperCase())
+          if (!row.nombre || !row.dni || !row.programa_codigo) continue
+
+          const program = programs.find(p => String(p.codigo).toUpperCase() === String(row.programa_codigo).toUpperCase())
           
           if (!program) {
-            console.error(`Programa no encontrado para el código: ${row.programa_codigo}`)
+            console.error(`Error: Código ${row.programa_codigo} no existe.`)
             errorCount++
             continue
           }
 
           try {
             await api.post('/alumnos/', {
-              nombre: row.nombre,
+              nombre: String(row.nombre).toUpperCase(),
               dni: String(row.dni),
               programa_id: program.id,
-              semestre: String(row.semestre).toUpperCase()
+              semestre: String(row.semestre || "I").toUpperCase()
             })
             successCount++
           } catch (err) {
@@ -197,7 +222,7 @@ export default function AdminStudentsPage() {
 
         toast({
           title: "Importación Finalizada",
-          description: `Se registraron ${successCount} alumnos. Errores: ${errorCount}.`,
+          description: `Se procesaron ${successCount} alumnos exitosamente. Errores: ${errorCount}.`,
         })
         fetchData()
         setIsImportModalOpen(false)
@@ -206,7 +231,7 @@ export default function AdminStudentsPage() {
       }
       reader.readAsArrayBuffer(importFile)
     } catch (err) {
-      toast({ variant: "destructive", title: "Error crítico", description: "No se pudo procesar el archivo Excel." })
+      toast({ variant: "destructive", title: "Error crítico", description: "El archivo no pudo ser leído." })
       setIsUploading(false)
     }
   }
@@ -216,7 +241,7 @@ export default function AdminStudentsPage() {
     return (students || []).filter(s => 
       s.nombre.toLowerCase().includes(term) || 
       s.dni.includes(term) ||
-      s.programa_nombre?.toLowerCase().includes(term)
+      (s.programa_nombre || "").toLowerCase().includes(term)
     )
   }, [students, searchTerm])
 
@@ -224,9 +249,9 @@ export default function AdminStudentsPage() {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
         <div className="space-y-1">
-          <p className="text-primary font-bold uppercase tracking-[0.2em] text-xs">Padrón Estudiantil</p>
-          <h2 className="text-3xl font-headline font-extrabold tracking-tight text-slate-900">Registro de Alumnos</h2>
-          <p className="text-slate-500 text-sm">Control centralizado de matrícula institucional.</p>
+          <p className="text-primary font-bold uppercase tracking-[0.2em] text-xs">Gestión de Matrícula</p>
+          <h2 className="text-3xl font-headline font-extrabold tracking-tight text-slate-900">Alumnos</h2>
+          <p className="text-slate-500 text-sm">Registro centralizado de la comunidad estudiantil.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" className="gap-2 h-11" onClick={fetchData}>
@@ -236,47 +261,53 @@ export default function AdminStudentsPage() {
           <Dialog open={isImportModalOpen} onOpenChange={setIsImportModalOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" className="gap-2 h-11 border-primary text-primary hover:bg-primary/5 font-bold shadow-sm">
-                <FileUp className="h-4 w-4" /> Importar Excel
+                <FileUp className="h-4 w-4" /> Importar Masivo
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px]">
+            <DialogContent className="sm:max-w-[650px]">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <FileSpreadsheet className="h-5 w-5 text-primary" />
-                  Importación Masiva de Alumnos
+                  Importador de Alumnos
                 </DialogTitle>
-                <DialogDescription>Sigue el formato requerido para cargar los datos correctamente.</DialogDescription>
+                <DialogDescription>Sube tu padrón de alumnos. El sistema validará los códigos de carrera automáticamente.</DialogDescription>
               </DialogHeader>
               <div className="py-6 space-y-6">
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-primary">
-                      <Info className="h-4 w-4" />
-                      <span className="text-xs font-bold uppercase tracking-widest">Estructura del Excel</span>
+                <Card className="bg-slate-50 border-dashed border-2">
+                  <CardContent className="p-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Badge className="bg-primary/10 text-primary border-none text-[10px] font-black uppercase">Leyenda de Datos</Badge>
+                      </div>
+                      <Button onClick={downloadTemplate} variant="link" size="sm" className="h-auto p-0 gap-1.5 text-xs font-bold text-primary">
+                        <Download className="h-3.5 w-3.5" /> Descargar Plantilla con Códigos
+                      </Button>
                     </div>
-                    <Button variant="link" size="sm" onClick={downloadTemplate} className="text-[10px] font-black uppercase tracking-tighter p-0 h-auto">
-                      <Download className="h-3 w-3 mr-1" /> Descargar Plantilla
-                    </Button>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 text-[10px] font-medium text-slate-600">
-                    <div className="bg-white p-2 border rounded"><strong>nombre</strong>: Texto completo</div>
-                    <div className="bg-white p-2 border rounded"><strong>dni</strong>: 8 números</div>
-                    <div className="bg-white p-2 border rounded"><strong>programa_codigo</strong>: Ej. SIS, CON</div>
-                    <div className="bg-white p-2 border rounded"><strong>semestre</strong>: I, II, III, IV, V, VI</div>
-                  </div>
-                </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-black uppercase text-slate-400">Pestaña 1</p>
+                        <p className="text-xs font-semibold text-slate-700">Tus datos (Nombre, DNI, Código Carrera, Ciclo)</p>
+                      </div>
+                      <div className="space-y-1 text-right">
+                        <p className="text-[10px] font-black uppercase text-primary">Pestaña 2 (Vital)</p>
+                        <p className="text-xs font-bold text-slate-700">Lista de códigos oficiales para tu institución</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
 
                 {!importFile ? (
                   <div 
-                    className="border-2 border-dashed border-slate-200 rounded-2xl p-12 flex flex-col items-center justify-center gap-4 hover:border-primary/50 transition-colors cursor-pointer bg-slate-50/50"
+                    className="border-2 border-dashed border-slate-200 rounded-2xl p-12 flex flex-col items-center justify-center gap-4 hover:border-primary/50 transition-colors cursor-pointer bg-slate-50/50 group"
                     onClick={() => document.getElementById('excel-input')?.click()}
                   >
-                    <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                      <FileSpreadsheet className="h-7 w-7" />
+                    <div className="h-16 w-16 rounded-full bg-primary/5 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all">
+                      <FileSpreadsheet className="h-8 w-8" />
                     </div>
-                    <div className="text-center">
-                      <p className="font-bold text-slate-900 text-lg">Seleccionar archivo Excel</p>
-                      <p className="text-xs text-slate-500">Arrastra el archivo o haz clic aquí (.xlsx o .xls)</p>
+                    <div className="text-center space-y-1">
+                      <p className="font-bold text-slate-900">Haz clic para subir tu Excel</p>
+                      <p className="text-xs text-slate-400">Formatos compatibles: .xlsx o .xls</p>
                     </div>
                     <input 
                       id="excel-input" 
@@ -287,47 +318,49 @@ export default function AdminStudentsPage() {
                     />
                   </div>
                 ) : (
-                  <div className="border rounded-xl p-5 bg-primary/5 border-primary/20 space-y-4">
+                  <div className="border rounded-xl p-5 bg-white shadow-sm border-slate-100 space-y-4">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <FileSpreadsheet className="h-9 w-9 text-primary" />
+                      <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
+                          <FileSpreadsheet className="h-6 w-6" />
+                        </div>
                         <div>
                           <p className="text-sm font-bold text-slate-900">{importFile.name}</p>
-                          <p className="text-[10px] text-slate-500 uppercase tracking-widest font-black">{(importFile.size / 1024).toFixed(1)} KB</p>
+                          <p className="text-[10px] text-slate-400 uppercase font-black">{(importFile.size / 1024).toFixed(1)} KB</p>
                         </div>
                       </div>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-destructive" onClick={() => setImportFile(null)} disabled={isUploading}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-300 hover:text-destructive" onClick={() => setImportFile(null)} disabled={isUploading}>
                         <X className="h-4 w-4" />
                       </Button>
                     </div>
                     {isUploading && (
                       <div className="space-y-2">
-                        <div className="flex justify-between text-[10px] font-bold uppercase text-primary">
-                          <span>Procesando registros...</span>
+                        <div className="flex justify-between text-[10px] font-black uppercase text-primary">
+                          <span>Registrando en el servidor...</span>
                           <span>{uploadProgress}%</span>
                         </div>
-                        <Progress value={uploadProgress} className="h-1.5" />
+                        <Progress value={uploadProgress} className="h-2 rounded-full" />
                       </div>
                     )}
                   </div>
                 )}
               </div>
-              <DialogFooter>
-                <Button variant="ghost" onClick={() => setIsImportModalOpen(false)} disabled={isUploading}>Cancelar</Button>
+              <DialogFooter className="bg-slate-50 p-6 -mx-6 -mb-6 rounded-b-lg gap-2">
+                <Button variant="ghost" onClick={() => setIsImportModalOpen(false)} disabled={isUploading} className="font-bold">Cancelar</Button>
                 <Button 
                   onClick={handleImportExcel} 
                   disabled={!importFile || isUploading}
-                  className="bg-primary font-bold gap-2 min-w-[150px]"
+                  className="bg-primary font-black gap-2 min-w-[200px] shadow-lg shadow-primary/20 h-11"
                 >
                   {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                  Procesar Importación
+                  Confirmar Importación
                 </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
 
           <Button onClick={() => { setEditingStudent(null); setIsModalOpen(true); }} className="bg-primary hover:bg-primary/90 gap-2 h-11 px-6 font-bold shadow-lg shadow-primary/20">
-            <Plus className="h-4 w-4" /> Matricular Estudiante
+            <Plus className="h-4 w-4" /> Nuevo Alumno
           </Button>
         </div>
       </div>
@@ -336,8 +369,8 @@ export default function AdminStudentsPage() {
         <DialogContent className="sm:max-w-[500px]">
           <form onSubmit={handleSave}>
             <DialogHeader>
-              <DialogTitle>{editingStudent ? "Editar Matrícula" : "Nueva Matrícula"}</DialogTitle>
-              <DialogDescription>Asegúrate de que el DNI sea único en el sistema institucional.</DialogDescription>
+              <DialogTitle>{editingStudent ? "Editar Alumno" : "Nueva Matrícula"}</DialogTitle>
+              <DialogDescription>Completa los datos del estudiante para el ciclo actual.</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="space-y-2">
@@ -378,7 +411,7 @@ export default function AdminStudentsPage() {
             <DialogFooter>
               <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
               <Button type="submit" className="bg-primary font-bold" disabled={isSaving}>
-                {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirmar Matrícula"}
+                {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Guardar Registro"}
               </Button>
             </DialogFooter>
           </form>
@@ -389,7 +422,7 @@ export default function AdminStudentsPage() {
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
         <Input 
           placeholder="Busca por DNI, Nombre o Carrera..." 
-          className="pl-11 h-11 bg-white border-slate-100 shadow-sm"
+          className="pl-11 h-12 bg-white border-slate-100 shadow-sm text-sm"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
@@ -400,7 +433,7 @@ export default function AdminStudentsPage() {
           {isLoading ? (
             <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-3">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-sm font-medium">Sincronizando alumnos...</p>
+              <p className="text-sm font-medium">Sincronizando con FastAPI...</p>
             </div>
           ) : (
             <Table>
@@ -418,8 +451,8 @@ export default function AdminStudentsPage() {
                   filteredStudents.map((student) => (
                     <TableRow key={student.id} className="group hover:bg-slate-50/50 transition-colors">
                       <TableCell className="pl-6 py-3">
-                        <Avatar className="h-9 w-9 border-2 border-white shadow-sm">
-                          <AvatarFallback className="bg-slate-100 text-slate-500 font-bold">
+                        <Avatar className="h-10 w-10 border-2 border-white shadow-sm">
+                          <AvatarFallback className="bg-slate-100 text-slate-500 font-bold text-xs">
                             {student.nombre[0]}
                           </AvatarFallback>
                         </Avatar>
@@ -428,34 +461,34 @@ export default function AdminStudentsPage() {
                         <div className="flex flex-col">
                           <span className="font-bold text-slate-900 text-sm">{student.nombre}</span>
                           <span className="text-[10px] text-slate-400 flex items-center gap-1 font-mono">
-                            <Fingerprint className="h-2.5 w-2.5" /> DNI: {student.dni}
+                            <Fingerprint className="h-3 w-3" /> {student.dni}
                           </span>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-1.5 text-slate-500 text-xs">
+                        <div className="flex items-center gap-1.5 text-slate-600 text-xs font-medium">
                           <GraduationCap className="h-3.5 w-3.5 text-primary/40" /> {student.programa_nombre || 'No asignado'}
                         </div>
                       </TableCell>
                       <TableCell className="text-center">
-                        <Badge className="bg-slate-100 text-slate-600 border-none font-bold text-xs">Sem {student.semestre}</Badge>
+                        <Badge className="bg-slate-100 text-slate-600 border-none font-black text-[10px] tracking-widest uppercase">Sem {student.semestre}</Badge>
                       </TableCell>
                       <TableCell className="pr-6 text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="rounded-full h-8 w-8">
+                            <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
                               <MoreVertical className="h-4 w-4 text-slate-400" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-48">
-                            <DropdownMenuItem className="gap-2 text-xs" onClick={() => { setEditingStudent(student); setIsModalOpen(true); }}>
-                              <Edit2 className="h-3 w-3" /> Editar Datos
+                          <DropdownMenuContent align="end" className="w-52">
+                            <DropdownMenuItem className="gap-2 text-xs font-bold" onClick={() => { setEditingStudent(student); setIsModalOpen(true); }}>
+                              <Edit2 className="h-3.5 w-3.5" /> Editar Datos
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="gap-2 text-xs text-primary">
-                              <ArrowRightLeft className="h-3 w-3" /> Promover Ciclo (Migrar)
+                            <DropdownMenuItem className="gap-2 text-xs font-bold text-primary">
+                              <ArrowRightLeft className="h-3.5 w-3.5" /> Migrar Semestre
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="gap-2 text-destructive text-xs" onClick={() => handleDelete(student.id)}>
-                              <Trash2 className="h-3 w-3" /> Retirar Matrícula
+                            <DropdownMenuItem className="gap-2 text-destructive text-xs font-bold" onClick={() => handleDelete(student.id)}>
+                              <Trash2 className="h-3.5 w-3.5" /> Retirar de Matrícula
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -464,10 +497,10 @@ export default function AdminStudentsPage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-32 text-center text-slate-400">
-                      <div className="flex flex-col items-center gap-2">
-                        <AlertCircle className="h-6 w-6 opacity-20" />
-                        <span className="text-sm">No hay estudiantes matriculados.</span>
+                    <TableCell colSpan={5} className="h-48 text-center text-slate-400">
+                      <div className="flex flex-col items-center gap-2 opacity-30">
+                        <AlertCircle className="h-10 w-10" />
+                        <span className="text-xs font-black uppercase tracking-widest">Sin resultados</span>
                       </div>
                     </TableCell>
                   </TableRow>
