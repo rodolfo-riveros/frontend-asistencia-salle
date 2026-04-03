@@ -11,7 +11,8 @@ import {
   AlertCircle,
   Loader2,
   RefreshCcw,
-  CalendarDays
+  CalendarDays,
+  Database
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -62,16 +63,13 @@ export default function AcademicAssignmentsPage() {
     setIsLoading(true)
     setErrorSync(null)
     try {
-      const periodParam = selectedPeriodId !== "all" ? `?periodo_id=${selectedPeriodId}` : ""
-      
-      const [asgData, instData, courseData, periodData] = await Promise.all([
-        api.get<any[]>(`/asignaciones/${periodParam}`),
+      // Intentamos obtener los datos maestros primero
+      const [instData, courseData, periodData] = await Promise.all([
         api.get<any[]>('/docentes/'),
         api.get<any[]>('/unidades/'),
         api.get<any[]>('/periodos/')
       ])
       
-      setAssignments(Array.isArray(asgData) ? asgData : [])
       setInstructors(Array.isArray(instData) ? instData : [])
       setCourses(Array.isArray(courseData) ? courseData : [])
       setPeriods(Array.isArray(periodData) ? periodData : [])
@@ -80,12 +78,19 @@ export default function AcademicAssignmentsPage() {
         const active = periodData.find((p: any) => p.es_activo)
         if (active) setSelectedPeriodId(active.id)
       }
+
+      // Intentamos cargar las asignaciones
+      const periodParam = selectedPeriodId !== "all" ? `?periodo_id=${selectedPeriodId}` : ""
+      const asgData = await api.get<any[]>(`/asignaciones/${periodParam}`)
+      setAssignments(Array.isArray(asgData) ? asgData : [])
+
     } catch (err: any) {
+      console.error("[DEBUG] Error capturado:", err.message)
       setErrorSync(err.message)
       toast({ 
         variant: "destructive", 
-        title: "Error de Servidor (500)", 
-        description: "El backend reporta un error de base de datos. Revisa el nombre de las columnas en tu código Python."
+        title: "Error del Servidor", 
+        description: "El backend reporta un problema con las columnas de la base de datos."
       })
     } finally {
       setIsLoading(false)
@@ -231,16 +236,25 @@ export default function AcademicAssignmentsPage() {
       </div>
 
       {errorSync && (
-        <Alert variant="destructive" className="bg-red-50 border-red-200 text-red-800">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Error en el Servidor (Backend)</AlertTitle>
-          <AlertDescription className="text-xs mt-2 space-y-2">
-            <p>Tu código Python está intentando acceder a una columna que no existe.</p>
-            <div className="bg-black/5 p-2 rounded font-mono text-[10px]">
+        <Alert variant="destructive" className="bg-red-50 border-red-200 text-red-800 border-2 shadow-lg animate-in fade-in zoom-in duration-300">
+          <Database className="h-5 w-5" />
+          <AlertTitle className="font-black text-base uppercase tracking-tight">¡Error en tu código Python!</AlertTitle>
+          <AlertDescription className="text-sm mt-3 space-y-4">
+            <div className="p-3 bg-red-900/10 rounded border border-red-200 font-mono text-xs overflow-x-auto leading-relaxed">
               {errorSync}
             </div>
-            <p className="font-bold">Solución sugerida para tu Backend:</p>
-            <p>En tu archivo CRUD de asignaciones, cambia <code className="bg-red-100 px-1">periodo_academico</code> por <code className="bg-green-100 px-1">periodos_academicos</code> en el método <code className="italic">.select()</code>.</p>
+            
+            <div className="space-y-2 bg-white/50 p-4 rounded-lg border border-red-100">
+              <p className="font-bold text-red-900 underline decoration-red-300 decoration-2 underline-offset-4">Cómo solucionar este error en tu Backend:</p>
+              <ol className="list-decimal pl-5 space-y-2 text-xs font-medium">
+                <li>Abre el archivo CRUD de asignaciones en tu proyecto FastAPI.</li>
+                <li>Busca la función que hace el <code className="bg-white px-1 rounded border">.select()</code> de la tabla <code className="bg-white px-1 rounded border">asignacion_docente</code>.</li>
+                <li>Cambia <code className="bg-red-100 text-red-600 px-1 rounded">periodo_academico</code> por <code className="bg-green-100 text-green-700 px-1 rounded">periodos_academicos</code>.</li>
+                <li>Asegúrate de que el nombre coincida exactamente con el nombre de la tabla en tu SQL: <code className="italic font-bold">periodos_academicos</code>.</li>
+              </ol>
+            </div>
+            
+            <p className="text-[10px] uppercase font-bold text-red-400">Nota: La base de datos no encuentra la columna porque el nombre de la relación es incorrecto.</p>
           </AlertDescription>
         </Alert>
       )}
@@ -257,10 +271,15 @@ export default function AcademicAssignmentsPage() {
 
       <Card className="border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
         <CardContent className="p-0">
-          {isLoading ? (
+          {isLoading && !errorSync ? (
             <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-3">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
               <p className="text-sm font-medium">Sincronizando asignaciones...</p>
+            </div>
+          ) : errorSync ? (
+            <div className="h-64 flex flex-col items-center justify-center text-slate-300 gap-3 italic">
+              <AlertCircle className="h-10 w-10 opacity-20" />
+              <p className="text-sm">No se pueden mostrar datos debido al error del servidor.</p>
             </div>
           ) : (
             <Table>
