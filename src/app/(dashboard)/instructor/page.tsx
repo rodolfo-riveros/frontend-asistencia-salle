@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -77,7 +76,10 @@ export default function InstructorDashboard() {
         throw new Error("No hay alumnos matriculados para generar el reporte.")
       }
 
+      // Obtener fechas únicas ordenadas
       const uniqueDates = Array.from(new Set(reportData.map(r => r.fecha))).sort()
+      
+      // Mapear asistencia por alumno y fecha
       const matrix: Record<string, Record<string, string>> = {}
       reportData.forEach(reg => {
         const idAlumno = reg.alumno_id || reg.id_alumno;
@@ -100,6 +102,7 @@ export default function InstructorDashboard() {
       rows.push(["DOCENTE RESPONSABLE:", userName, "", "FECHA REPORTE:", new Date().toLocaleDateString()])
       rows.push([])
 
+      // Cabecera de la tabla
       const headerRow = ['N°', 'APELLIDOS Y NOMBRES']
       uniqueDates.forEach(d => {
         const [year, month, day] = d.split('-')
@@ -108,6 +111,7 @@ export default function InstructorDashboard() {
       headerRow.push('TOTAL FALTAS', '% INASISTENCIA')
       rows.push(headerRow)
 
+      // Filas de alumnos
       alumnos.sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach((alumno, index) => {
         const studentRow: any[] = [
           (index + 1).toString().padStart(2, '0'),
@@ -132,6 +136,7 @@ export default function InstructorDashboard() {
       const wb = XLSX.utils.book_new()
       const ws = XLSX.utils.aoa_to_sheet(rows)
 
+      // Formato básico de anchos de columna
       const wscols = [
         { wch: 5 },   // N°
         { wch: 50 },  // Nombres

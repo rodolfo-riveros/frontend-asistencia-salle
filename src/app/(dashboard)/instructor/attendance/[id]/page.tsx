@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -67,7 +66,6 @@ export default function AttendancePage() {
     setIsSyncing(true)
     try {
       // Consultamos el reporte de la unidad filtrado por la fecha actual
-      // Importante: El backend debe devolver el alumno_id en AsistenciaDetalle
       const existing = await api.get<any[]>(`/asistencias/reporte/unidad/${params.id}?fecha_inicio=${date}&fecha_fin=${date}`)
       
       const mapped: Record<string, string | null> = {}
@@ -75,9 +73,18 @@ export default function AttendancePage() {
 
       if (existing && existing.length > 0) {
         existing.forEach(reg => {
+          // El backend puede devolver alumno_id, id_alumno o estar en una vista donde es 'alumno' (pero necesitamos el UUID)
+          // Buscamos el ID del alumno comparando el DNI si el ID no viene directo
           const idAlumno = reg.alumno_id || reg.id_alumno;
+          
           if (idAlumno) {
             mapped[idAlumno] = REVERSE_MAP[reg.estado] || reg.estado
+          } else if (reg.dni) {
+            // Fallback: buscar por DNI en la lista de alumnos cargada
+            const student = studentList.find(s => s.dni === reg.dni);
+            if (student) {
+              mapped[student.id] = REVERSE_MAP[reg.estado] || reg.estado
+            }
           }
         })
       }
@@ -111,11 +118,12 @@ export default function AttendancePage() {
     fetchStudents()
   }, [fetchStudents])
 
+  // Recargar asistencia al cambiar la fecha
   React.useEffect(() => {
     if (students.length > 0) {
       fetchExistingAttendance(students)
     }
-  }, [date, fetchExistingAttendance])
+  }, [date, students, fetchExistingAttendance])
 
   const handleStatus = (id: string, status: string) => setAttendance(p => ({ ...p, [id]: status }))
   
@@ -204,7 +212,7 @@ export default function AttendancePage() {
               {isSyncing && (
                 <div className="flex items-center gap-2 text-primary/60 text-xs font-bold animate-pulse">
                   <RefreshCcw className="h-3 w-3 animate-spin" />
-                  Cargando asistencia guardada...
+                  Sincronizando registros...
                 </div>
               )}
             </div>

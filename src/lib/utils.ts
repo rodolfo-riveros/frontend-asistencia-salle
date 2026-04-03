@@ -1,4 +1,3 @@
-
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 
@@ -19,6 +18,9 @@ export function getInitials(name: string) {
   
   if (words.length >= 2) {
     // Tomar la primera letra de las dos primeras palabras significativas
+    // Si es "PÉREZ GARCÍA, JUAN", words será ["PÉREZ", "GARCÍA", "JUAN"] -> "PG"
+    // Intentamos ser inteligentes: si hay más de 2 palabras, preferimos la primera y la última (o la primera del nombre)
+    // Pero para simplificar y que sea consistente:
     return (words[0][0] + words[1][0])
   }
   
