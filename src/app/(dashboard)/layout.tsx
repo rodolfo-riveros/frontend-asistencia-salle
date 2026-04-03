@@ -35,6 +35,7 @@ import { NavUser } from "@/components/layout/nav-user"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { supabase } from "@/lib/supabase"
+import { api } from "@/lib/api"
 
 const ADMIN_NAV = [
   { name: "Panel", href: "/admin", icon: LayoutDashboard },
@@ -74,6 +75,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         return
       }
 
+      let isTransversal = false;
+      if (role === 'docente') {
+        try {
+          const profile = await api.get<any>(`/docentes/${user.id}`);
+          isTransversal = profile?.es_transversal || false;
+        } catch (e) {
+          console.error("Error al obtener perfil docente para navbar:", e);
+        }
+      }
+
       const firstName = metadata?.firstname || ""
       const lastName = metadata?.lastname || ""
       const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || "US"
@@ -82,7 +93,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         name: firstName ? `${firstName} ${lastName}`.trim() : "Usuario La Salle",
         email: user.email,
         initials: initials,
-        role: role
+        role: role,
+        isTransversal: isTransversal
       })
       setIsLoading(false)
     }
@@ -195,7 +207,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div className="hidden sm:flex items-center gap-3">
             <div className="flex flex-col text-right">
               <span className="text-xs md:text-sm font-black text-white leading-tight truncate max-w-[200px]">{userData?.name}</span>
-              <span className="text-[9px] md:text-[10px] text-white/80 font-bold uppercase tracking-widest">Docente de Especialidad</span>
+              <span className="text-[9px] md:text-[10px] text-white/80 font-bold uppercase tracking-widest">
+                {userData?.isTransversal ? "Docente Transversal" : "Docente de Especialidad"}
+              </span>
             </div>
             <Avatar className="h-10 w-10 border-2 border-white/20">
               <AvatarFallback className="bg-white/10 text-white font-bold text-sm">

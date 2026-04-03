@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -6,7 +7,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { BookOpen, Users, Clock, ArrowRight, FileSpreadsheet, Loader2, AlertCircle, Calendar, GraduationCap } from "lucide-react"
+import { BookOpen, Users, Clock, ArrowRight, FileSpreadsheet, Loader2, AlertCircle, Calendar, CheckCircle2, CircleDashed } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
 import { supabase } from "@/lib/supabase"
@@ -19,6 +20,7 @@ export default function InstructorDashboard() {
   const [selectedPeriodId, setSelectedPeriodId] = React.useState<string>("")
   const [isExporting, setIsExporting] = React.useState<string | null>(null)
   const [userName, setUserName] = React.useState("USUARIO DOCENTE")
+  const [attendanceStatus, setAttendanceStatus] = React.useState<Record<string, boolean>>({})
 
   const fetchData = React.useCallback(async () => {
     setIsLoading(true)
@@ -41,6 +43,22 @@ export default function InstructorDashboard() {
       if (currentId) {
         const data = await api.get<any[]>(`/me/asignaciones/?periodo_id=${currentId}`)
         setAsignaciones(data)
+        
+        // Verificar estado de asistencia para hoy
+        const today = new Date(new Date().getTime() - (5 * 60 * 60 * 1000)).toISOString().split('T')[0];
+        const statusMap: Record<string, boolean> = {};
+        
+        await Promise.all(data.map(async (asg) => {
+          try {
+            // Usamos el reporte filtrado por fecha para saber si ya hay registros hoy
+            const history = await api.get<any[]>(`/asistencias/reporte/unidad/${asg.unidad_id}?fecha_inicio=${today}&fecha_fin=${today}`)
+            statusMap[asg.unidad_id] = history && history.length > 0;
+          } catch (e) {
+            statusMap[asg.unidad_id] = false;
+          }
+        }));
+        
+        setAttendanceStatus(statusMap);
       } else {
         setAsignaciones([])
       }
@@ -76,10 +94,8 @@ export default function InstructorDashboard() {
         throw new Error("No hay alumnos matriculados para generar el reporte.")
       }
 
-      // Obtener fechas únicas ordenadas
       const uniqueDates = Array.from(new Set(reportData.map(r => r.fecha))).sort()
       
-      // Mapear asistencia por alumno y fecha
       const matrix: Record<string, Record<string, string>> = {}
       reportData.forEach(reg => {
         const idAlumno = reg.alumno_id || reg.id_alumno;
@@ -92,7 +108,6 @@ export default function InstructorDashboard() {
       const rows: any[] = []
       const periodName = periods.find(p => p.id === selectedPeriodId)?.nombre || "N/A"
 
-      // CABECERA INSTITUCIONAL ELABORADA
       rows.push(["INSTITUTO DE EDUCACIÓN SUPERIOR LA SALLE - URUBAMBA"])
       rows.push(["REGISTRO OFICIAL DE ASISTENCIA ACADÉMICA"])
       rows.push([])
@@ -102,7 +117,6 @@ export default function InstructorDashboard() {
       rows.push(["DOCENTE RESPONSABLE:", userName, "", "FECHA REPORTE:", new Date().toLocaleDateString()])
       rows.push([])
 
-      // Cabecera de la tabla
       const headerRow = ['N°', 'APELLIDOS Y NOMBRES']
       uniqueDates.forEach(d => {
         const [year, month, day] = d.split('-')
@@ -111,7 +125,6 @@ export default function InstructorDashboard() {
       headerRow.push('TOTAL FALTAS', '% INASISTENCIA')
       rows.push(headerRow)
 
-      // Filas de alumnos
       alumnos.sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach((alumno, index) => {
         const studentRow: any[] = [
           (index + 1).toString().padStart(2, '0'),
@@ -136,7 +149,6 @@ export default function InstructorDashboard() {
       const wb = XLSX.utils.book_new()
       const ws = XLSX.utils.aoa_to_sheet(rows)
 
-      // Formato básico de anchos de columna
       const wscols = [
         { wch: 5 },   // N°
         { wch: 50 },  // Nombres
@@ -235,13 +247,21 @@ export default function InstructorDashboard() {
                   <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
                     <Clock className="h-4 w-4 text-indigo-500" />
                     <div className="flex flex-col">
-                      <span className="text-[8px] font-black text-slate-400 uppercase">Estado</span>
-                      <span className="text-[10px] font-bold text-slate-700">Dictando</span>
+                      <span className="text-[8px] font-black text-slate-400 uppercase">Estado Hoy</span>
+                      {attendanceStatus[asg.unidad_id] ? (
+                        <span className="text-[9px] font-bold text-emerald-600 flex items-center gap-1">
+                          <CheckCircle2 className="h-3 w-3" /> Tomada
+                        </span>
+                      ) : (
+                        <span className="text-[9px] font-bold text-amber-600 flex items-center gap-1">
+                          <CircleDashed className="h-3 w-3 animate-pulse" /> Pendiente
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
               </CardContent>
-              <CardFooter className="bg-slate-50/50 p-6 gap-3">
+              <CardFooter className="bg-slate-50/50 p-6 gap-3 mt-4">
                 <Button asChild className="flex-1 h-14 font-black text-sm shadow-lg shadow-primary/20">
                   <Link href={`/instructor/attendance/${asg.unidad_id}?periodo_id=${selectedPeriodId}`}>
                     Pasar Lista <ArrowRight className="ml-2 h-4 w-4" />
