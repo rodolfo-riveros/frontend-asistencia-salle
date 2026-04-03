@@ -10,12 +10,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { BookOpen, Users, Clock, ArrowRight, FileSpreadsheet, Loader2, AlertCircle, Calendar } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
+import * as XLSX from 'xlsx'
 
 export default function InstructorDashboard() {
   const [asignaciones, setAsignaciones] = React.useState<any[]>([])
   const [periods, setPeriods] = React.useState<any[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
   const [selectedPeriodId, setSelectedPeriodId] = React.useState<string>("")
+  const [isExporting, setIsExporting] = React.useState<string | null>(null)
 
   const fetchData = React.useCallback(async () => {
     setIsLoading(true)
@@ -24,7 +26,6 @@ export default function InstructorDashboard() {
       setPeriods(periodData)
       
       const active = periodData.find((p: any) => p.es_activo)
-      // Si ya hay un periodo seleccionado, lo mantenemos, si no, usamos el activo
       const currentId = selectedPeriodId || (active ? active.id : "")
       
       if (!selectedPeriodId && active) {
@@ -52,11 +53,108 @@ export default function InstructorDashboard() {
     fetchData()
   }, [fetchData])
 
-  const handleExport = (name: string) => {
+  const handleExport = async (asg: any) => {
+    setIsExporting(asg.id)
     toast({
       title: "Generando Reporte",
-      description: `Exportando Excel de asistencia para ${name}.`,
+      description: `Procesando matriz de asistencia para ${asg.unidad_nombre}...`,
     })
+
+    try {
+      // 1. Obtener datos: Reporte completo de asistencia y lista de alumnos matriculados
+      const [reportData, alumnos] = await Promise.all([
+        api.get<any[]>(`/asistencias/reporte/unidad/${asg.unidad_id}`),
+        api.get<any[]>(`/me/unidades/${asg.unidad_id}/alumnos`)
+      ])
+
+      if (!alumnos || alumnos.length === 0) {
+        throw new Error("No hay alumnos matriculados para generar el reporte.")
+      }
+
+      // 2. Procesar fechas únicas del periodo
+      const uniqueDates = Array.from(new Set(reportData.map(r => r.fecha))).sort()
+      
+      // 3. Crear matriz de datos: Alumno -> { fecha: estado }
+      const matrix: Record<string, Record<string, string>> = {}
+      reportData.forEach(reg => {
+        if (!matrix[reg.alumno_id]) matrix[reg.alumno_id] = {}
+        matrix[reg.alumno_id][reg.fecha] = reg.estado
+      })
+
+      // 4. Construir filas del Excel
+      const rows: any[] = []
+      const periodName = periods.find(p => p.id === selectedPeriodId)?.nombre || "SIN PERIODO"
+
+      // Cabecera institucional (Filas 1 y 2)
+      rows.push([`CONTROL DE ASISTENCIA - ${asg.unidad_nombre.toUpperCase()} (${asg.semestre})`])
+      rows.push([`PROGRAMA: ${asg.programa_nombre.toUpperCase()} | PERIODO: ${periodName}`])
+      rows.push([]) // Fila vacía de separación
+
+      // Encabezados de tabla
+      const headerRow = ['N°', 'APELLIDOS Y NOMBRES']
+      uniqueDates.forEach(d => {
+        const dateObj = new Date(d)
+        // Formato DD/MM
+        headerRow.push(`${dateObj.getUTCDate()}/${dateObj.getUTCMonth() + 1}`)
+      })
+      headerRow.push('TOTAL FALTAS', '% INASISTENCIA')
+      rows.push(headerRow)
+
+      // Cuerpo de la tabla (Alumnos)
+      alumnos.sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach((alumno, index) => {
+        const studentRow: any[] = [
+          (index + 1).toString().padStart(2, '0'),
+          alumno.nombre.toUpperCase()
+        ]
+
+        let faltasCount = 0
+        uniqueDates.forEach(date => {
+          const status = matrix[alumno.id]?.[date] || "-"
+          studentRow.push(status)
+          if (status === 'F') faltasCount++
+        })
+
+        const totalSesiones = uniqueDates.length
+        const pctInasistencia = totalSesiones > 0 ? ((faltasCount / totalSesiones) * 100).toFixed(0) : "0"
+
+        studentRow.push(faltasCount)
+        studentRow.push(`${pctInasistencia}%`)
+        rows.push(studentRow)
+      })
+
+      // 5. Crear el libro y aplicar estilos básicos (merge y anchos)
+      const wb = XLSX.utils.book_new()
+      const ws = XLSX.utils.aoa_to_sheet(rows)
+
+      // Configurar anchos de columna
+      const wscols = [
+        { wch: 5 },   // N°
+        { wch: 45 },  // Nombres
+        ...uniqueDates.map(() => ({ wch: 6 })), // Columnas de fechas
+        { wch: 12 },  // Total Faltas
+        { wch: 15 }   // % Inasistencia
+      ]
+      ws['!cols'] = wscols
+
+      // Combinar celdas del título principal
+      ws['!merges'] = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: headerRow.length - 1 } },
+        { s: { r: 1, c: 0 }, e: { r: 1, c: headerRow.length - 1 } }
+      ]
+
+      XLSX.utils.book_append_sheet(wb, ws, "Reporte Asistencia")
+
+      // 6. Descargar archivo
+      const fileName = `Reporte_${asg.unidad_nombre.replace(/\s+/g, '_')}_${periodName}.xlsx`
+      XLSX.writeFile(wb, fileName)
+
+      toast({ title: "Exportación exitosa", description: "El archivo Excel ha sido generado." })
+    } catch (err: any) {
+      console.error(err)
+      toast({ variant: "destructive", title: "Error al exportar", description: err.message || "No se pudo generar el Excel." })
+    } finally {
+      setIsExporting(null)
+    }
   }
 
   return (
@@ -153,9 +251,10 @@ export default function InstructorDashboard() {
                 <Button 
                   variant="outline" 
                   className="h-14 w-14 p-0 border-slate-200 hover:text-green-600 transition-all"
-                  onClick={() => handleExport(asg.unidad_nombre)}
+                  disabled={isExporting === asg.id}
+                  onClick={() => handleExport(asg)}
                 >
-                  <FileSpreadsheet className="h-6 w-6" />
+                  {isExporting === asg.id ? <Loader2 className="h-6 w-6 animate-spin" /> : <FileSpreadsheet className="h-6 w-6" />}
                 </Button>
               </CardFooter>
             </Card>
