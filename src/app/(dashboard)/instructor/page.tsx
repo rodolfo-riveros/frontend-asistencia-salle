@@ -68,7 +68,6 @@ export default function InstructorDashboard() {
     })
 
     try {
-      // 1. Obtener datos (Usamos 'unidad' como exige la vista del backend según el log)
       const [reportData, alumnos] = await Promise.all([
         api.get<any[]>(`/asistencias/reporte/unidad/${asg.unidad_id}`).catch(() => []),
         api.get<any[]>(`/me/unidades/${asg.unidad_id}/alumnos`).catch(() => [])
@@ -78,16 +77,16 @@ export default function InstructorDashboard() {
         throw new Error("No hay alumnos matriculados para generar el reporte.")
       }
 
-      // 2. Procesar fechas únicas y pivotar datos
       const uniqueDates = Array.from(new Set(reportData.map(r => r.fecha))).sort()
       const matrix: Record<string, Record<string, string>> = {}
       reportData.forEach(reg => {
         const idAlumno = reg.alumno_id || reg.id_alumno;
-        if (!matrix[idAlumno]) matrix[idAlumno] = {}
-        matrix[idAlumno][reg.fecha] = reg.estado
+        if (idAlumno) {
+          if (!matrix[idAlumno]) matrix[idAlumno] = {}
+          matrix[idAlumno][reg.fecha] = reg.estado
+        }
       })
 
-      // 3. Construir Matriz de Alto Impacto (AOA)
       const rows: any[] = []
       const periodName = periods.find(p => p.id === selectedPeriodId)?.nombre || "N/A"
 
@@ -101,7 +100,6 @@ export default function InstructorDashboard() {
       rows.push(["DOCENTE RESPONSABLE:", userName, "", "FECHA REPORTE:", new Date().toLocaleDateString()])
       rows.push([])
 
-      // ENCABEZADOS DE TABLA MATRICIAL
       const headerRow = ['N°', 'APELLIDOS Y NOMBRES']
       uniqueDates.forEach(d => {
         const [year, month, day] = d.split('-')
@@ -110,7 +108,6 @@ export default function InstructorDashboard() {
       headerRow.push('TOTAL FALTAS', '% INASISTENCIA')
       rows.push(headerRow)
 
-      // CUERPO DE DATOS
       alumnos.sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach((alumno, index) => {
         const studentRow: any[] = [
           (index + 1).toString().padStart(2, '0'),
@@ -132,33 +129,20 @@ export default function InstructorDashboard() {
         rows.push(studentRow)
       })
 
-      // 4. Crear Workbook y Aplicar Estilos
       const wb = XLSX.utils.book_new()
       const ws = XLSX.utils.aoa_to_sheet(rows)
 
-      // Configuración de anchos de columna para profesionalismo
       const wscols = [
         { wch: 5 },   // N°
-        { wch: 50 },  // Nombres (ancho para apellidos)
-        ...uniqueDates.map(() => ({ wch: 7 })), // Fechas (estrecho)
+        { wch: 50 },  // Nombres
+        ...uniqueDates.map(() => ({ wch: 7 })), // Fechas
         { wch: 15 },  // Total Faltas
         { wch: 18 }   // % Inasistencia
       ]
       ws['!cols'] = wscols
 
-      // Combinación de celdas para títulos (Merges)
-      ws['!merges'] = [
-        { s: { r: 0, c: 0 }, e: { r: 0, c: headerRow.length - 1 } }, // Título Central
-        { s: { r: 1, c: 0 }, e: { r: 1, c: headerRow.length - 1 } }, // Subtítulo
-        { s: { r: 3, c: 0 }, e: { r: 3, c: 2 } }, // Subsección Datos
-        { s: { r: 4, c: 1 }, e: { r: 4, c: 2 } }, // Programa
-        { s: { r: 5, c: 1 }, e: { r: 5, c: 2 } }, // Unidad
-        { s: { r: 6, c: 1 }, e: { r: 6, c: 2 } }, // Docente
-      ]
-
       XLSX.utils.book_append_sheet(wb, ws, "Matriz_Asistencia")
 
-      // 5. Descargar archivo
       const fileName = `MATRIZ_${asg.unidad_nombre.replace(/\s+/g, '_')}_${periodName}.xlsx`
       XLSX.writeFile(wb, fileName)
 
