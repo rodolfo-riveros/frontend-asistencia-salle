@@ -87,7 +87,7 @@ export default function AcademicAssignmentsPage() {
     
     const docenteId = formData.get("docente_id") as string
     const unidadId = formData.get("unidad_id") as string
-    const periodoId = formData.get("periodo_id") as string // Sincronizado: periodo_id
+    const periodoId = formData.get("periodo_id") as string
 
     if (!docenteId || !unidadId || !periodoId) {
       toast({ variant: "destructive", title: "Faltan datos", description: "Completa todos los campos del formulario." })
@@ -97,7 +97,7 @@ export default function AcademicAssignmentsPage() {
     const payload = {
       docente_id: docenteId,
       unidad_id: unidadId,
-      periodo_id: periodoId // Sincronizado: periodo_id como UUID
+      periodo_id: periodoId
     }
 
     try {
@@ -108,8 +108,8 @@ export default function AcademicAssignmentsPage() {
     } catch (err: any) {
       toast({ 
         variant: "destructive", 
-        title: "Error de validación", 
-        description: err.message || "Verifica los tipos de datos en el backend."
+        title: "Error de guardado", 
+        description: err.message || "Verifica la conexión con el servidor."
       })
     }
   }
@@ -125,18 +125,27 @@ export default function AcademicAssignmentsPage() {
     }
   }
 
+  // Función para obtener el nombre legible del periodo a partir de su ID
+  const getPeriodName = (periodoId: string, periodoOriginal: string) => {
+    if (periodoOriginal && periodoOriginal.length < 20 && !periodoOriginal.includes('-')) {
+       // Si ya es un nombre corto, lo usamos
+    }
+    const period = periods.find(p => p.id === periodoId);
+    return period ? period.nombre : (periodoOriginal || 'N/A');
+  }
+
   const filteredAssignments = React.useMemo(() => {
     const term = searchTerm.toLowerCase()
     return (assignments || []).filter(asg => {
       const matchesSearch = (asg.docente_nombre || "").toLowerCase().includes(term) || 
                            (asg.unidad_nombre || "").toLowerCase().includes(term)
       
-      const periodVal = asg.periodo_academicos || asg.periodo_academico || ""
-      const matchesPeriod = selectedPeriodFilter === "all" || periodVal === selectedPeriodFilter
+      const periodName = getPeriodName(asg.periodo_id, asg.periodo_academicos || asg.periodo_academico);
+      const matchesPeriod = selectedPeriodFilter === "all" || periodName === selectedPeriodFilter
 
       return matchesSearch && matchesPeriod
     })
-  }, [assignments, searchTerm, selectedPeriodFilter])
+  }, [assignments, searchTerm, selectedPeriodFilter, periods])
 
   return (
     <div className="space-y-6">
@@ -178,7 +187,7 @@ export default function AcademicAssignmentsPage() {
                 </DialogHeader>
                 <div className="grid gap-4 py-6">
                   <div className="space-y-2">
-                    <Label>Periodo Académico (UUID)</Label>
+                    <Label>Periodo Académico</Label>
                     <Select name="periodo_id" defaultValue={periods.find(p => p.es_activo)?.id}>
                       <SelectTrigger>
                         <SelectValue placeholder="Seleccione periodo..." />
@@ -283,7 +292,7 @@ export default function AcademicAssignmentsPage() {
                       </TableCell>
                       <TableCell className="text-center">
                         <Badge variant="outline" className="border-primary/20 text-primary font-black text-[10px] bg-primary/5">
-                          {asg.periodo_academicos || asg.periodo_academico || 'N/A'}
+                          {getPeriodName(asg.periodo_id, asg.periodo_academicos || asg.periodo_academico)}
                         </Badge>
                       </TableCell>
                       <TableCell className="pr-6 text-right">
