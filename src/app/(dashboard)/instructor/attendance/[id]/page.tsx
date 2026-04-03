@@ -59,11 +59,12 @@ export default function AttendancePage() {
 
   const getInitials = (name: string) => {
     if (!name) return "ST"
-    const words = name.trim().split(/\s+/)
+    const words = name.trim().toUpperCase().split(/\s+/)
     if (words.length >= 2) {
-      return (words[0][0] + words[1][0]).toUpperCase()
+      // Tomamos la primera letra del primer nombre y la primera letra del primer apellido
+      return (words[0][0] + words[1][0])
     }
-    return words[0].substring(0, 2).toUpperCase()
+    return words[0].substring(0, 2)
   }
 
   const fetchStudents = React.useCallback(async () => {
@@ -105,18 +106,17 @@ export default function AttendancePage() {
       })
     }
     
-    // Verificación crítica del periodo_id
     if (!periodoId) {
       return toast({ 
         variant: "destructive", 
         title: "Error de Periodo", 
-        description: "No se encontró el ID del ciclo académico. Intente volver al panel y entrar de nuevo." 
+        description: "El ID del ciclo académico no está presente. Vuelva al panel y reintente." 
       })
     }
 
     const payload = {
       unidad_id: params.id as string,
-      periodo_id: periodoId, // Se envía el UUID correctamente
+      periodo_id: periodoId,
       fecha: date,
       registros: Object.entries(attendance).map(([studentId, estado]) => ({
         alumno_id: studentId,
@@ -127,15 +127,16 @@ export default function AttendancePage() {
     try {
       await api.post('/asistencias/pase-lista', payload)
       toast({ 
-        title: "Asistencia Guardada", 
-        description: `Se han registrado ${students.length} asistencias para el día ${date}.` 
+        title: "¡Asistencia Exitosa!", 
+        description: `Se han registrado las asistencias del día ${date}.` 
       })
       router.push('/instructor')
     } catch (err: any) {
+      // Mostramos el mensaje de error real del backend (FastAPI/Supabase)
       toast({ 
         variant: "destructive", 
         title: "Error al guardar", 
-        description: "Ocurrió un error en el servidor. Revise la consola para más detalles."
+        description: err.message || "Ocurrió un error inesperado en el servidor."
       })
     }
   }
@@ -160,7 +161,7 @@ export default function AttendancePage() {
       })
       setAiResult(result)
     } catch (e: any) {
-      toast({ variant: "destructive", title: "IA Error", description: "No se pudo generar el análisis predictivo." })
+      toast({ variant: "destructive", title: "Error de IA", description: "No se pudo generar el análisis." })
     } finally {
       setIsAnalyzing(false)
     }
@@ -178,7 +179,7 @@ export default function AttendancePage() {
             <h2 className="text-3xl md:text-4xl font-headline font-black tracking-tighter text-slate-900 leading-tight">Pase de Lista</h2>
             <div className="flex flex-wrap items-center gap-3 md:gap-4">
               <Badge variant="outline" className="font-black bg-primary/5 text-primary border-primary/20 px-3 md:px-4 py-1 uppercase text-[10px] md:text-xs">
-                UUID Unidad: {params.id.toString().substring(0,8)}
+                UD: {params.id.toString().substring(0,8)}
               </Badge>
               <div className="flex items-center gap-2 md:gap-3 bg-white px-3 md:px-4 py-1.5 md:py-2 rounded-xl border border-slate-100 shadow-sm">
                 <Label className="text-[8px] md:text-[9px] font-black uppercase text-slate-400">Fecha Local (Perú):</Label>
