@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -33,13 +34,6 @@ const STATUS_MAP: Record<string, string> = {
   'Falta': 'F',
   'Tarde': 'T',
   'Justificado': 'J'
-}
-
-const REVERSE_STATUS_MAP: Record<string, string> = {
-  'P': 'Presente',
-  'F': 'Falta',
-  'T': 'Tarde',
-  'J': 'Justificado'
 }
 
 export default function AttendancePage() {

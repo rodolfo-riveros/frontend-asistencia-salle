@@ -92,7 +92,7 @@ export default function AcademicAssignmentsPage() {
     const periodObj = periods.find(p => p.id === periodId)
     const periodName = periodObj ? periodObj.nombre : ""
 
-    // Payload alineado exactamente con AsignacionCreate de tu backend
+    // Payload alineado con AsignacionCreate del backend
     const payload = {
       docente_id: formData.get("docente_id") as string,
       unidad_id: formData.get("unidad_id") as string,
