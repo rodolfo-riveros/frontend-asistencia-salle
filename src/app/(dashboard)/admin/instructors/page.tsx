@@ -99,7 +99,7 @@ export default function AdminInstructorsPage() {
         })
         toast({ title: "Perfil actualizado", description: "Los datos se guardaron correctamente." })
       } else {
-        // 1. Crear usuario en Supabase Auth usando el cliente administrativo
+        // 1. Crear usuario en Supabase Auth usando el cliente administrativo (Silencioso)
         const { data: authData, error: authError } = await supabaseAdminTask.auth.signUp({
           email,
           password: dni,

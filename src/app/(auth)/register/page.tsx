@@ -38,7 +38,6 @@ export default function RegisterPage() {
 
     try {
       // 1. Registro en Supabase Auth
-      // Todo registro nuevo es "docente" por defecto
       const { data, error } = await supabase.auth.signUp({
         email,
         password: dni, // El DNI será su contraseña inicial
@@ -47,7 +46,6 @@ export default function RegisterPage() {
             firstname,
             lastname,
             dni,
-            program,
             role: 'docente' 
           }
         }
@@ -56,23 +54,18 @@ export default function RegisterPage() {
       if (error) throw error;
       if (!data.user) throw new Error("No se pudo crear la cuenta de usuario.");
 
-      // 2. Sincronización con FastAPI (public.docentes)
+      // 2. Sincronización con FastAPI (Tabla public.docentes)
       // Es vital llamar al backend para que el docente aparezca en las listas
-      try {
-        await api.post('/docentes/', {
-          id: data.user.id,
-          nombre: `${firstname} ${lastname}`.trim(),
-          especialidad: program,
-          es_transversal: false
-        });
-      } catch (apiError: any) {
-        console.error("[ERROR] Sincronización con Backend fallida:", apiError.message);
-        // No bloqueamos el flujo principal, pero lo logueamos para diagnóstico
-      }
+      await api.post('/docentes/', {
+        id: data.user.id,
+        nombre: `${firstname} ${lastname}`.trim(),
+        especialidad: program,
+        es_transversal: false
+      });
 
       toast({
         title: "Registro exitoso",
-        description: "Su cuenta ha sido creada como Docente. Use su DNI como contraseña para ingresar.",
+        description: "Su cuenta ha sido creada. Ahora puede ingresar con su correo y DNI.",
       });
       router.push('/');
     } catch (error: any) {
@@ -119,7 +112,7 @@ export default function RegisterPage() {
                 <div className="mt-4 flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-blue-800 overflow-hidden border border-white/20 relative">
                     <Image 
-                      alt="San Juan Bautista de La Salle" 
+                      alt="San Juan" 
                       className="object-cover" 
                       src={sjbImage}
                       fill
