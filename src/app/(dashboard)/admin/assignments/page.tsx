@@ -8,11 +8,10 @@ import {
   Trash2, 
   BookOpen,
   Link2,
-  AlertCircle,
   Loader2,
   RefreshCcw,
   CalendarDays,
-  Database
+  UserCheck
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -46,7 +45,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "@/hooks/use-toast"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { api } from "@/lib/api"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 export default function AcademicAssignmentsPage() {
   const [assignments, setAssignments] = React.useState<any[]>([])
@@ -57,14 +55,12 @@ export default function AcademicAssignmentsPage() {
   const [isModalOpen, setIsModalOpen] = React.useState(false)
   const [searchTerm, setSearchTerm] = React.useState("")
   const [selectedPeriodId, setSelectedPeriodId] = React.useState<string>("all")
-  const [errorSync, setErrorSync] = React.useState<string | null>(null)
 
   const fetchData = React.useCallback(async () => {
     setIsLoading(true)
-    setErrorSync(null)
     
     try {
-      // 1. Cargamos los datos maestros de forma paralela e independiente
+      // Cargamos los datos maestros (Docentes, Unidades, Periodos)
       const [instData, courseData, periodData] = await Promise.all([
         api.get<any[]>('/docentes/').catch(() => []),
         api.get<any[]>('/unidades/').catch(() => []),
@@ -80,23 +76,13 @@ export default function AcademicAssignmentsPage() {
         if (active) setSelectedPeriodId(active.id)
       }
 
-      // 2. Intentamos cargar las asignaciones
+      // Intentamos cargar las asignaciones actuales
       const periodParam = selectedPeriodId !== "all" ? `?periodo_id=${selectedPeriodId}` : ""
-      try {
-        const asgData = await api.get<any[]>(`/asignaciones/${periodParam}`)
-        setAssignments(Array.isArray(asgData) ? asgData : [])
-      } catch (err: any) {
-        console.error("[DEBUG] Error en listado de asignaciones:", err.message)
-        setErrorSync(err.message)
-      }
+      const asgData = await api.get<any[]>(`/asignaciones/${periodParam}`).catch(() => [])
+      setAssignments(Array.isArray(asgData) ? asgData : [])
 
     } catch (err: any) {
-      console.error("[DEBUG] Error crítico en fetchData:", err.message)
-      toast({ 
-        variant: "destructive", 
-        title: "Error de Conexión", 
-        description: "No se pudieron obtener los datos base del servidor."
-      })
+      console.error("Error al sincronizar datos:", err.message)
     } finally {
       setIsLoading(false)
     }
@@ -110,7 +96,6 @@ export default function AcademicAssignmentsPage() {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
     
-    // Ajustado para enviar 'periodo_academicos' según requiere el backend corregido
     const payload = {
       docente_id: formData.get("docente_id") as string,
       unidad_id: formData.get("unidad_id") as string,
@@ -128,14 +113,7 @@ export default function AcademicAssignmentsPage() {
       fetchData()
       setIsModalOpen(false)
     } catch (err: any) {
-      // Parsear el error de validación de FastAPI para mostrarlo mejor
-      let msg = err.message
-      try {
-        const parsed = JSON.parse(err.message)
-        if (Array.isArray(parsed)) msg = parsed[0].msg
-      } catch (e) {}
-      
-      toast({ variant: "destructive", title: "Error al guardar", description: msg })
+      toast({ variant: "destructive", title: "Error al guardar", description: err.message })
     }
   }
 
@@ -256,19 +234,6 @@ export default function AcademicAssignmentsPage() {
         </div>
       </div>
 
-      {errorSync && (
-        <Alert variant="destructive" className="bg-red-50 border-red-200 text-red-800 border-2 shadow-lg">
-          <Database className="h-5 w-5" />
-          <AlertTitle className="font-black text-base uppercase tracking-tight">¡Error en el Listado!</AlertTitle>
-          <AlertDescription className="text-sm mt-3 space-y-4">
-            <div className="p-3 bg-red-900/10 rounded border border-red-200 font-mono text-xs overflow-x-auto leading-relaxed">
-              {errorSync}
-            </div>
-            <p className="font-medium">El listado tiene un error de base de datos, pero ya puedes crear nuevas vinculaciones usando el botón superior.</p>
-          </AlertDescription>
-        </Alert>
-      )}
-
       <div className="relative mb-4">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
         <Input 
@@ -284,7 +249,7 @@ export default function AcademicAssignmentsPage() {
           {isLoading && assignments.length === 0 ? (
             <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-3">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-sm font-medium">Sincronizando asignaciones...</p>
+              <p className="text-sm font-medium">Cargando asignaciones...</p>
             </div>
           ) : (
             <Table>
