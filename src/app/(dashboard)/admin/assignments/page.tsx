@@ -10,8 +10,7 @@ import {
   Link2,
   Loader2,
   RefreshCcw,
-  CalendarDays,
-  AlertCircle
+  CalendarDays
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -90,31 +89,28 @@ export default function AcademicAssignmentsPage() {
     const unidadId = formData.get("unidad_id") as string
     const periodId = formData.get("period_id") as string
 
-    // Obtenemos el nombre del periodo porque tu Pydantic pide un 'str' en 'periodo_academicos'
-    const periodName = periods.find(p => p.id === periodId)?.nombre
-
-    if (!docenteId || !unidadId || !periodName) {
-      toast({ variant: "destructive", title: "Faltan datos", description: "Completa todos los campos." })
+    if (!docenteId || !unidadId || !periodId) {
+      toast({ variant: "destructive", title: "Faltan datos", description: "Completa todos los campos del formulario." })
       return
     }
 
-    // El Payload debe coincidir EXACTAMENTE con tu clase AsignacionBase en Python
+    // Payload alineado con AsignacionBase corregido: periodo_id como UUID
     const payload = {
       docente_id: docenteId,
       unidad_id: unidadId,
-      periodo_academicos: periodName // Enviamos el nombre (2025-I) como pide tu esquema
+      periodo_id: periodId 
     }
 
     try {
       await api.post('/asignaciones/', payload)
-      toast({ title: "Carga asignada", description: "Relación creada correctamente." })
+      toast({ title: "Asignación exitosa", description: "El docente ha sido vinculado a la unidad didáctica." })
       fetchData()
       setIsModalOpen(false)
     } catch (err: any) {
       toast({ 
         variant: "destructive", 
-        title: "Error al guardar", 
-        description: err.message 
+        title: "Error de validación (422)", 
+        description: err.message || "Verifica los tipos de datos en el backend."
       })
     }
   }
@@ -179,14 +175,14 @@ export default function AcademicAssignmentsPage() {
               <form onSubmit={handleSave}>
                 <DialogHeader>
                   <DialogTitle>Nueva Asignación</DialogTitle>
-                  <DialogDescription>Asigna un responsable para una unidad didáctica.</DialogDescription>
+                  <DialogDescription>Asigna un responsable para una unidad didáctica en el periodo seleccionado.</DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-6">
                   <div className="space-y-2">
-                    <Label>Periodo Académico</Label>
+                    <Label>Periodo Académico (UUID)</Label>
                     <Select name="period_id" defaultValue={periods.find(p => p.es_activo)?.id}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Seleccione periodo" />
+                        <SelectValue placeholder="Seleccione periodo..." />
                       </SelectTrigger>
                       <SelectContent>
                         {periods.map(p => (
@@ -288,7 +284,7 @@ export default function AcademicAssignmentsPage() {
                       </TableCell>
                       <TableCell className="text-center">
                         <Badge variant="outline" className="border-primary/20 text-primary font-black text-[10px] bg-primary/5">
-                          {asg.periodo_academicos || asg.periodo_academico}
+                          {asg.periodo_academicos || asg.periodo_academico || 'N/A'}
                         </Badge>
                       </TableCell>
                       <TableCell className="pr-6 text-right">
@@ -312,7 +308,7 @@ export default function AcademicAssignmentsPage() {
                     <TableCell colSpan={4} className="h-48 text-center text-slate-400">
                       <div className="flex flex-col items-center gap-3">
                         <CalendarDays className="h-10 w-10 opacity-10" />
-                        <p className="font-bold text-slate-900 uppercase text-xs tracking-widest">Sin asignaciones</p>
+                        <p className="font-bold text-slate-900 uppercase text-xs tracking-widest">Sin asignaciones registradas</p>
                       </div>
                     </TableCell>
                   </TableRow>
