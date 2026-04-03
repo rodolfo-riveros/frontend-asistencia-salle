@@ -62,12 +62,14 @@ export default function AcademicAssignmentsPage() {
   const fetchData = React.useCallback(async () => {
     setIsLoading(true)
     setErrorSync(null)
+    
     try {
-      // Intentamos obtener los datos maestros primero
+      // 1. Cargamos los datos maestros primero de forma independiente
+      // Esto asegura que el formulario de creación funcione siempre
       const [instData, courseData, periodData] = await Promise.all([
-        api.get<any[]>('/docentes/'),
-        api.get<any[]>('/unidades/'),
-        api.get<any[]>('/periodos/')
+        api.get<any[]>('/docentes/').catch(() => []),
+        api.get<any[]>('/unidades/').catch(() => []),
+        api.get<any[]>('/periodos/').catch(() => [])
       ])
       
       setInstructors(Array.isArray(instData) ? instData : [])
@@ -79,18 +81,23 @@ export default function AcademicAssignmentsPage() {
         if (active) setSelectedPeriodId(active.id)
       }
 
-      // Intentamos cargar las asignaciones
+      // 2. Intentamos cargar las asignaciones (esto es lo que podría fallar por el backend)
       const periodParam = selectedPeriodId !== "all" ? `?periodo_id=${selectedPeriodId}` : ""
-      const asgData = await api.get<any[]>(`/asignaciones/${periodParam}`)
-      setAssignments(Array.isArray(asgData) ? asgData : [])
+      try {
+        const asgData = await api.get<any[]>(`/asignaciones/${periodParam}`)
+        setAssignments(Array.isArray(asgData) ? asgData : [])
+      } catch (err: any) {
+        console.error("[DEBUG] Error en listado de asignaciones:", err.message)
+        setErrorSync(err.message)
+        // No bloqueamos todo, solo notificamos el error del listado
+      }
 
     } catch (err: any) {
-      console.error("[DEBUG] Error capturado:", err.message)
-      setErrorSync(err.message)
+      console.error("[DEBUG] Error crítico en fetchData:", err.message)
       toast({ 
         variant: "destructive", 
-        title: "Error del Servidor", 
-        description: "El backend reporta un problema con las columnas de la base de datos."
+        title: "Error de Conexión", 
+        description: "No se pudieron obtener los datos base del servidor."
       })
     } finally {
       setIsLoading(false)
@@ -192,9 +199,11 @@ export default function AcademicAssignmentsPage() {
                         <SelectValue placeholder="Seleccione periodo" />
                       </SelectTrigger>
                       <SelectContent>
-                        {periods.map(p => (
+                        {periods.length > 0 ? periods.map(p => (
                           <SelectItem key={p.id} value={p.id}>{p.nombre}</SelectItem>
-                        ))}
+                        )) : (
+                          <SelectItem value="none" disabled>No hay periodos disponibles</SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
@@ -205,9 +214,11 @@ export default function AcademicAssignmentsPage() {
                         <SelectValue placeholder="Seleccione docente..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {instructors.map(inst => (
+                        {instructors.length > 0 ? instructors.map(inst => (
                           <SelectItem key={inst.id} value={inst.id}>{inst.nombre}</SelectItem>
-                        ))}
+                        )) : (
+                          <SelectItem value="none" disabled>No hay docentes registrados</SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
@@ -218,9 +229,13 @@ export default function AcademicAssignmentsPage() {
                         <SelectValue placeholder="Seleccione unidad..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {courses.map(course => (
-                          <SelectItem key={course.id} value={course.id}>{course.nombre} ({course.programa_nombre})</SelectItem>
-                        ))}
+                        {courses.length > 0 ? courses.map(course => (
+                          <SelectItem key={course.id} value={course.id}>
+                            {course.nombre} {course.programa_nombre ? `(${course.programa_nombre})` : ''}
+                          </SelectItem>
+                        )) : (
+                          <SelectItem value="none" disabled>No hay unidades registradas</SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
@@ -238,23 +253,12 @@ export default function AcademicAssignmentsPage() {
       {errorSync && (
         <Alert variant="destructive" className="bg-red-50 border-red-200 text-red-800 border-2 shadow-lg animate-in fade-in zoom-in duration-300">
           <Database className="h-5 w-5" />
-          <AlertTitle className="font-black text-base uppercase tracking-tight">¡Error en tu código Python!</AlertTitle>
+          <AlertTitle className="font-black text-base uppercase tracking-tight">¡Error detectado en el Listado!</AlertTitle>
           <AlertDescription className="text-sm mt-3 space-y-4">
             <div className="p-3 bg-red-900/10 rounded border border-red-200 font-mono text-xs overflow-x-auto leading-relaxed">
               {errorSync}
             </div>
-            
-            <div className="space-y-2 bg-white/50 p-4 rounded-lg border border-red-100">
-              <p className="font-bold text-red-900 underline decoration-red-300 decoration-2 underline-offset-4">Cómo solucionar este error en tu Backend:</p>
-              <ol className="list-decimal pl-5 space-y-2 text-xs font-medium">
-                <li>Abre el archivo CRUD de asignaciones en tu proyecto FastAPI.</li>
-                <li>Busca la función que hace el <code className="bg-white px-1 rounded border">.select()</code> de la tabla <code className="bg-white px-1 rounded border">asignacion_docente</code>.</li>
-                <li>Cambia <code className="bg-red-100 text-red-600 px-1 rounded">periodo_academico</code> por <code className="bg-green-100 text-green-700 px-1 rounded">periodos_academicos</code>.</li>
-                <li>Asegúrate de que el nombre coincida exactamente con el nombre de la tabla en tu SQL: <code className="italic font-bold">periodos_academicos</code>.</li>
-              </ol>
-            </div>
-            
-            <p className="text-[10px] uppercase font-bold text-red-400">Nota: La base de datos no encuentra la columna porque el nombre de la relación es incorrecto.</p>
+            <p className="font-medium">El listado no se muestra, pero ya puedes crear nuevas vinculaciones usando el botón superior.</p>
           </AlertDescription>
         </Alert>
       )}
@@ -271,15 +275,10 @@ export default function AcademicAssignmentsPage() {
 
       <Card className="border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
         <CardContent className="p-0">
-          {isLoading && !errorSync ? (
+          {isLoading && assignments.length === 0 ? (
             <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-3">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
               <p className="text-sm font-medium">Sincronizando asignaciones...</p>
-            </div>
-          ) : errorSync ? (
-            <div className="h-64 flex flex-col items-center justify-center text-slate-300 gap-3 italic">
-              <AlertCircle className="h-10 w-10 opacity-20" />
-              <p className="text-sm">No se pueden mostrar datos debido al error del servidor.</p>
             </div>
           ) : (
             <Table>
