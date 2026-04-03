@@ -63,15 +63,15 @@ export default function InstructorDashboard() {
   const handleExport = async (asg: any) => {
     setIsExporting(asg.id)
     toast({
-      title: "Generando Reporte Profesional",
-      description: `Procesando matriz de asistencia para ${asg.unidad_nombre}...`,
+      title: "Generando Matriz Académica",
+      description: `Procesando matriz de asistencia profesional para ${asg.unidad_nombre}...`,
     })
 
     try {
-      // 1. Obtener datos (Nota: Usamos 'unidad' en el filtro como pide el backend)
+      // 1. Obtener datos (Usamos 'unidad' como exige la vista del backend según el log)
       const [reportData, alumnos] = await Promise.all([
-        api.get<any[]>(`/asistencias/reporte/unidad/${asg.unidad_id}`),
-        api.get<any[]>(`/me/unidades/${asg.unidad_id}/alumnos`)
+        api.get<any[]>(`/asistencias/reporte/unidad/${asg.unidad_id}`).catch(() => []),
+        api.get<any[]>(`/me/unidades/${asg.unidad_id}/alumnos`).catch(() => [])
       ])
 
       if (!alumnos || alumnos.length === 0) {
@@ -87,20 +87,21 @@ export default function InstructorDashboard() {
         matrix[idAlumno][reg.fecha] = reg.estado
       })
 
-      // 3. Construir Matriz Elaborada (AOA)
+      // 3. Construir Matriz de Alto Impacto (AOA)
       const rows: any[] = []
       const periodName = periods.find(p => p.id === selectedPeriodId)?.nombre || "N/A"
 
-      // CABECERA DE ALTO IMPACTO
+      // CABECERA INSTITUCIONAL ELABORADA
       rows.push(["INSTITUTO DE EDUCACIÓN SUPERIOR LA SALLE - URUBAMBA"])
-      rows.push(["SISTEMA DE CONTROL DE ASISTENCIA Y RENDIMIENTO ACADÉMICO"])
+      rows.push(["REGISTRO OFICIAL DE ASISTENCIA ACADÉMICA"])
       rows.push([])
-      rows.push(["UNIDAD DIDÁCTICA:", asg.unidad_nombre.toUpperCase(), "", "PROGRAMA:", asg.programa_nombre.toUpperCase()])
-      rows.push(["DOCENTE RESPONSABLE:", userName, "", "SEMESTRE:", asg.semestre, "", "PERIODO:", periodName])
-      rows.push(["FECHA DE REPORTE:", new Date().toLocaleDateString(), "", "ESTADO:", "MATRIZ FINALIZADA"])
+      rows.push(["DATOS DE LA UNIDAD DIDÁCTICA"])
+      rows.push(["PROGRAMA PROFESIONAL:", asg.programa_nombre.toUpperCase(), "", "PERIODO:", periodName])
+      rows.push(["UNIDAD DIDÁCTICA:", asg.unidad_nombre.toUpperCase(), "", "SEMESTRE:", asg.semestre])
+      rows.push(["DOCENTE RESPONSABLE:", userName, "", "FECHA REPORTE:", new Date().toLocaleDateString()])
       rows.push([])
 
-      // ENCABEZADOS DE TABLA
+      // ENCABEZADOS DE TABLA MATRICIAL
       const headerRow = ['N°', 'APELLIDOS Y NOMBRES']
       uniqueDates.forEach(d => {
         const [year, month, day] = d.split('-')
@@ -109,7 +110,7 @@ export default function InstructorDashboard() {
       headerRow.push('TOTAL FALTAS', '% INASISTENCIA')
       rows.push(headerRow)
 
-      // CUERPO DE DATOS (ALUMNOS ORDENADOS)
+      // CUERPO DE DATOS
       alumnos.sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach((alumno, index) => {
         const studentRow: any[] = [
           (index + 1).toString().padStart(2, '0'),
@@ -131,39 +132,40 @@ export default function InstructorDashboard() {
         rows.push(studentRow)
       })
 
-      // 4. Crear Workbook y Aplicar Formatos Básicos
+      // 4. Crear Workbook y Aplicar Estilos
       const wb = XLSX.utils.book_new()
       const ws = XLSX.utils.aoa_to_sheet(rows)
 
-      // Configuración de anchos de columna
+      // Configuración de anchos de columna para profesionalismo
       const wscols = [
-        { wch: 4 },   // N°
-        { wch: 45 },  // Nombres
-        ...uniqueDates.map(() => ({ wch: 7 })), // Fechas
+        { wch: 5 },   // N°
+        { wch: 50 },  // Nombres (ancho para apellidos)
+        ...uniqueDates.map(() => ({ wch: 7 })), // Fechas (estrecho)
         { wch: 15 },  // Total Faltas
-        { wch: 15 }   // %
+        { wch: 18 }   // % Inasistencia
       ]
       ws['!cols'] = wscols
 
-      // Combinación de celdas para el encabezado (Merges)
+      // Combinación de celdas para títulos (Merges)
       ws['!merges'] = [
-        { s: { r: 0, c: 0 }, e: { r: 0, c: headerRow.length - 1 } }, // Título 1
-        { s: { r: 1, c: 0 }, e: { r: 1, c: headerRow.length - 1 } }, // Título 2
-        { s: { r: 3, c: 1 }, e: { r: 3, c: 2 } }, // Unidad
-        { s: { r: 3, c: 4 }, e: { r: 3, c: 6 } }, // Programa
-        { s: { r: 4, c: 1 }, e: { r: 4, c: 2 } }, // Docente
+        { s: { r: 0, c: 0 }, e: { r: 0, c: headerRow.length - 1 } }, // Título Central
+        { s: { r: 1, c: 0 }, e: { r: 1, c: headerRow.length - 1 } }, // Subtítulo
+        { s: { r: 3, c: 0 }, e: { r: 3, c: 2 } }, // Subsección Datos
+        { s: { r: 4, c: 1 }, e: { r: 4, c: 2 } }, // Programa
+        { s: { r: 5, c: 1 }, e: { r: 5, c: 2 } }, // Unidad
+        { s: { r: 6, c: 1 }, e: { r: 6, c: 2 } }, // Docente
       ]
 
-      XLSX.utils.book_append_sheet(wb, ws, "Matriz_Oficial")
+      XLSX.utils.book_append_sheet(wb, ws, "Matriz_Asistencia")
 
-      // 5. Descargar
+      // 5. Descargar archivo
       const fileName = `MATRIZ_${asg.unidad_nombre.replace(/\s+/g, '_')}_${periodName}.xlsx`
       XLSX.writeFile(wb, fileName)
 
-      toast({ title: "Reporte generado con éxito", description: "El archivo Excel se ha descargado." })
+      toast({ title: "Reporte Profesional Exportado", description: `Se ha descargado la matriz para ${asg.unidad_nombre}.` })
     } catch (err: any) {
       console.error(err)
-      toast({ variant: "destructive", title: "Fallo en la exportación", description: err.message })
+      toast({ variant: "destructive", title: "Error en reporte", description: err.message })
     } finally {
       setIsExporting(null)
     }

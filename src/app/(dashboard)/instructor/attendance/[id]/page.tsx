@@ -54,6 +54,7 @@ export default function AttendancePage() {
   const [isSyncing, setIsSyncing] = React.useState(false)
   const [searchTerm, setSearchTerm] = React.useState("")
   
+  // Fecha sincronizada con Lima, Perú
   const [date, setDate] = React.useState(() => {
     return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Lima' });
   })
@@ -65,45 +66,38 @@ export default function AttendancePage() {
     if (!params.id || !date) return
     setIsSyncing(true)
     try {
-      // Nota: El backend usa la vista v_asistencias_completas
+      // Nota: El backend usa la vista v_asistencias_completas filtrando por unidad y fechas
       const existing = await api.get<any[]>(`/asistencias/reporte/unidad/${params.id}?fecha_inicio=${date}&fecha_fin=${date}`)
       
+      const mapped: Record<string, string | null> = {}
+      // Limpiar estados previos antes de cargar nuevos
+      students.forEach(s => mapped[s.id] = null)
+
       if (existing && existing.length > 0) {
-        const mapped: Record<string, string> = {}
         existing.forEach(reg => {
-          // Usamos alumno_id de la respuesta del servidor
           const idAlumno = reg.alumno_id || reg.id_alumno;
           if (idAlumno) {
             mapped[idAlumno] = REVERSE_MAP[reg.estado] || reg.estado
           }
         })
-        
-        setAttendance(prev => ({ ...prev, ...mapped }))
-      } else {
-        // Si no hay datos, limpiamos la selección para la fecha actual
-        setAttendance(prev => {
-          const reset: Record<string, string | null> = {}
-          Object.keys(prev).forEach(key => reset[key] = null)
-          return reset
-        })
       }
+      
+      setAttendance(mapped)
     } catch (err) {
       console.error("Error al cargar asistencia previa:", err)
     } finally {
       setIsSyncing(false)
     }
-  }, [params.id, date])
+  }, [params.id, date, students])
 
   const fetchStudents = React.useCallback(async () => {
     setIsLoading(true)
     try {
       const data = await api.get<any[]>(`/me/unidades/${params.id}/alumnos`)
       setStudents(data)
+      // Inicializar el mapa de asistencia
       const initialMap = Object.fromEntries(data.map(s => [s.id, null]))
       setAttendance(initialMap)
-      
-      // Intentar cargar asistencia existente para la fecha inicial
-      await fetchExistingAttendance()
     } catch (err: any) {
       toast({ 
         variant: "destructive", 
@@ -113,18 +107,18 @@ export default function AttendancePage() {
     } finally {
       setIsLoading(false)
     }
-  }, [params.id, fetchExistingAttendance])
+  }, [params.id])
 
   React.useEffect(() => {
     fetchStudents()
   }, [fetchStudents])
 
-  // Recargar datos si cambia la fecha manualmente
+  // Recargar datos si cambia la fecha manualmente o después de cargar alumnos
   React.useEffect(() => {
-    if (!isLoading && students.length > 0) {
+    if (students.length > 0) {
       fetchExistingAttendance()
     }
-  }, [date, fetchExistingAttendance, isLoading, students.length])
+  }, [date, students, fetchExistingAttendance])
 
   const handleStatus = (id: string, status: string) => setAttendance(p => ({ ...p, [id]: status }))
   
