@@ -135,6 +135,18 @@ export default function AdminStudentsPage() {
     }
   }
 
+  const downloadTemplate = () => {
+    const templateData = [
+      { nombre: "JUAN PEREZ GARCIA", dni: "12345678", programa_codigo: "SIS", semestre: "I" },
+      { nombre: "MARIA LOPEZ HUAMAN", dni: "87654321", programa_codigo: "CON", semestre: "II" }
+    ]
+    const worksheet = XLSX.utils.json_to_sheet(templateData)
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Plantilla")
+    XLSX.writeFile(workbook, "plantilla_alumnos_salle.xlsx")
+    toast({ title: "Plantilla descargada", description: "Usa este formato para subir tus datos." })
+  }
+
   const handleImportExcel = async () => {
     if (!importFile) return
     setIsUploading(true)
@@ -223,20 +235,28 @@ export default function AdminStudentsPage() {
           
           <Dialog open={isImportModalOpen} onOpenChange={setIsImportModalOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" className="gap-2 h-11 border-primary text-primary hover:bg-primary/5 font-bold">
+              <Button variant="outline" className="gap-2 h-11 border-primary text-primary hover:bg-primary/5 font-bold shadow-sm">
                 <FileUp className="h-4 w-4" /> Importar Excel
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[600px]">
               <DialogHeader>
-                <DialogTitle>Importación Masiva de Alumnos</DialogTitle>
+                <DialogTitle className="flex items-center gap-2">
+                  <FileSpreadsheet className="h-5 w-5 text-primary" />
+                  Importación Masiva de Alumnos
+                </DialogTitle>
                 <DialogDescription>Sigue el formato requerido para cargar los datos correctamente.</DialogDescription>
               </DialogHeader>
               <div className="py-6 space-y-6">
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
-                  <div className="flex items-center gap-2 text-primary">
-                    <Info className="h-4 w-4" />
-                    <span className="text-xs font-bold uppercase tracking-widest">Estructura del Excel</span>
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-primary">
+                      <Info className="h-4 w-4" />
+                      <span className="text-xs font-bold uppercase tracking-widest">Estructura del Excel</span>
+                    </div>
+                    <Button variant="link" size="sm" onClick={downloadTemplate} className="text-[10px] font-black uppercase tracking-tighter p-0 h-auto">
+                      <Download className="h-3 w-3 mr-1" /> Descargar Plantilla
+                    </Button>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-[10px] font-medium text-slate-600">
                     <div className="bg-white p-2 border rounded"><strong>nombre</strong>: Texto completo</div>
@@ -248,15 +268,15 @@ export default function AdminStudentsPage() {
 
                 {!importFile ? (
                   <div 
-                    className="border-2 border-dashed border-slate-200 rounded-2xl p-10 flex flex-col items-center justify-center gap-4 hover:border-primary/50 transition-colors cursor-pointer bg-slate-50/50"
+                    className="border-2 border-dashed border-slate-200 rounded-2xl p-12 flex flex-col items-center justify-center gap-4 hover:border-primary/50 transition-colors cursor-pointer bg-slate-50/50"
                     onClick={() => document.getElementById('excel-input')?.click()}
                   >
-                    <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                      <FileSpreadsheet className="h-6 w-6" />
+                    <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                      <FileSpreadsheet className="h-7 w-7" />
                     </div>
                     <div className="text-center">
-                      <p className="font-bold text-slate-900">Seleccionar archivo Excel</p>
-                      <p className="text-xs text-slate-500">Arrastra el archivo o haz clic aquí</p>
+                      <p className="font-bold text-slate-900 text-lg">Seleccionar archivo Excel</p>
+                      <p className="text-xs text-slate-500">Arrastra el archivo o haz clic aquí (.xlsx o .xls)</p>
                     </div>
                     <input 
                       id="excel-input" 
@@ -267,16 +287,16 @@ export default function AdminStudentsPage() {
                     />
                   </div>
                 ) : (
-                  <div className="border rounded-xl p-4 bg-primary/5 border-primary/20 space-y-4">
+                  <div className="border rounded-xl p-5 bg-primary/5 border-primary/20 space-y-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <FileSpreadsheet className="h-8 w-8 text-primary" />
+                        <FileSpreadsheet className="h-9 w-9 text-primary" />
                         <div>
                           <p className="text-sm font-bold text-slate-900">{importFile.name}</p>
                           <p className="text-[10px] text-slate-500 uppercase tracking-widest font-black">{(importFile.size / 1024).toFixed(1)} KB</p>
                         </div>
                       </div>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setImportFile(null)} disabled={isUploading}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-destructive" onClick={() => setImportFile(null)} disabled={isUploading}>
                         <X className="h-4 w-4" />
                       </Button>
                     </div>
@@ -297,7 +317,7 @@ export default function AdminStudentsPage() {
                 <Button 
                   onClick={handleImportExcel} 
                   disabled={!importFile || isUploading}
-                  className="bg-primary font-bold gap-2"
+                  className="bg-primary font-bold gap-2 min-w-[150px]"
                 >
                   {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
                   Procesar Importación
