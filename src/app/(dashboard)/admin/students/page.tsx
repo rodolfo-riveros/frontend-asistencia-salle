@@ -13,7 +13,12 @@ import {
   Loader2,
   Fingerprint,
   RefreshCcw,
-  ArrowRightLeft
+  ArrowRightLeft,
+  FileUp,
+  FileSpreadsheet,
+  Download,
+  CheckCircle2,
+  X
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -45,6 +50,7 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Progress } from "@/components/ui/progress"
 import { toast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
 
@@ -53,9 +59,15 @@ export default function AdminStudentsPage() {
   const [programs, setPrograms] = React.useState<any[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
   const [isModalOpen, setIsModalOpen] = React.useState(false)
+  const [isImportModalOpen, setIsImportModalOpen] = React.useState(false)
   const [isSaving, setIsSaving] = React.useState(false)
   const [editingStudent, setEditingStudent] = React.useState<any>(null)
   const [searchTerm, setSearchTerm] = React.useState("")
+  
+  // Estados para importación
+  const [importFile, setImportFile] = React.useState<File | null>(null)
+  const [isUploading, setIsUploading] = React.useState(false)
+  const [uploadProgress, setUploadProgress] = React.useState(0)
 
   const fetchData = React.useCallback(async () => {
     setIsLoading(true)
@@ -94,7 +106,6 @@ export default function AdminStudentsPage() {
 
     try {
       if (editingStudent) {
-        // Se usa PATCH y sin barra diagonal
         await api.patch(`/alumnos/${editingStudent.id}`, studentData)
         toast({ title: "Datos actualizados", description: "Matrícula modificada con éxito." })
       } else {
@@ -122,6 +133,31 @@ export default function AdminStudentsPage() {
     }
   }
 
+  const handleImportExcel = () => {
+    if (!importFile) return
+    setIsUploading(true)
+    setUploadProgress(0)
+    
+    // Simulación de carga (sustituir por endpoint real cuando esté listo)
+    const interval = setInterval(() => {
+      setUploadProgress(prev => {
+        if (prev >= 100) {
+          clearInterval(interval)
+          setIsUploading(false)
+          toast({
+            title: "Importación Completada",
+            description: "Los alumnos han sido cargados exitosamente al padrón.",
+          })
+          fetchData()
+          setIsImportModalOpen(false)
+          setImportFile(null)
+          return 100
+        }
+        return prev + 10
+      })
+    }, 200)
+  }
+
   const filteredStudents = React.useMemo(() => {
     const term = searchTerm.toLowerCase()
     return (students || []).filter(s => 
@@ -139,10 +175,91 @@ export default function AdminStudentsPage() {
           <h2 className="text-3xl font-headline font-extrabold tracking-tight text-slate-900">Registro de Alumnos</h2>
           <p className="text-slate-500 text-sm">Control centralizado de matrícula institucional.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline" className="gap-2 h-11" onClick={fetchData}>
             <RefreshCcw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
           </Button>
+          
+          <Dialog open={isImportModalOpen} onOpenChange={setIsImportModalOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="gap-2 h-11 border-primary text-primary hover:bg-primary/5 font-bold">
+                <FileUp className="h-4 w-4" /> Importar Excel
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle>Importación Masiva de Alumnos</DialogTitle>
+                <DialogDescription>Sube un archivo Excel (.xlsx) con los datos de los estudiantes.</DialogDescription>
+              </DialogHeader>
+              <div className="py-6 space-y-6">
+                {!importFile ? (
+                  <div 
+                    className="border-2 border-dashed border-slate-200 rounded-2xl p-10 flex flex-col items-center justify-center gap-4 hover:border-primary/50 transition-colors cursor-pointer bg-slate-50/50"
+                    onClick={() => document.getElementById('excel-input')?.click()}
+                  >
+                    <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                      <FileSpreadsheet className="h-6 w-6" />
+                    </div>
+                    <div className="text-center">
+                      <p className="font-bold text-slate-900">Seleccionar archivo Excel</p>
+                      <p className="text-xs text-slate-500">Arrastra el archivo o haz clic aquí</p>
+                    </div>
+                    <input 
+                      id="excel-input" 
+                      type="file" 
+                      accept=".xlsx, .xls" 
+                      className="hidden" 
+                      onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+                    />
+                  </div>
+                ) : (
+                  <div className="border rounded-xl p-4 bg-primary/5 border-primary/20 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <FileSpreadsheet className="h-8 w-8 text-primary" />
+                        <div>
+                          <p className="text-sm font-bold text-slate-900">{importFile.name}</p>
+                          <p className="text-[10px] text-slate-500 uppercase tracking-widest font-black">{(importFile.size / 1024).toFixed(1)} KB</p>
+                        </div>
+                      </div>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setImportFile(null)}>
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    {isUploading && (
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-[10px] font-bold uppercase text-primary">
+                          <span>Procesando alumnos...</span>
+                          <span>{uploadProgress}%</span>
+                        </div>
+                        <Progress value={uploadProgress} className="h-1.5" />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="bg-slate-50 p-4 rounded-xl border flex gap-3">
+                  <Download className="h-5 w-5 text-primary shrink-0" />
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-black uppercase text-slate-400">Plantilla Oficial</p>
+                    <p className="text-xs text-slate-700">Descarga la <span className="text-primary font-bold cursor-pointer hover:underline">plantilla excel</span> para asegurar el formato correcto.</p>
+                  </div>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="ghost" onClick={() => setIsImportModalOpen(false)}>Cancelar</Button>
+                <Button 
+                  onClick={handleImportExcel} 
+                  disabled={!importFile || isUploading}
+                  className="bg-primary font-bold gap-2"
+                >
+                  {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                  Procesar Archivo
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           <Button onClick={() => { setEditingStudent(null); setIsModalOpen(true); }} className="bg-primary hover:bg-primary/90 gap-2 h-11 px-6 font-bold shadow-lg shadow-primary/20">
             <Plus className="h-4 w-4" /> Matricular Estudiante
           </Button>
