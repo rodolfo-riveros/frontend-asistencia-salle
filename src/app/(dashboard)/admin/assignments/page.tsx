@@ -57,14 +57,11 @@ export default function AcademicAssignmentsPage() {
   const [isModalOpen, setIsModalOpen] = React.useState(false)
   const [searchTerm, setSearchTerm] = React.useState("")
   const [selectedPeriodId, setSelectedPeriodId] = React.useState<string>("all")
-  const [error, setError] = React.useState<string | null>(null)
 
   const fetchData = React.useCallback(async () => {
     setIsLoading(true)
-    setError(null)
     
     try {
-      // 1. Cargar datos maestros de forma independiente para que los selectores siempre funcionen
       const [instData, courseData, periodData] = await Promise.all([
         api.get<any[]>('/docentes/').catch(() => []),
         api.get<any[]>('/unidades/').catch(() => []),
@@ -80,14 +77,12 @@ export default function AcademicAssignmentsPage() {
         if (active) setSelectedPeriodId(active.id)
       }
 
-      // 2. Intentar cargar las asignaciones actuales
       const periodParam = selectedPeriodId !== "all" ? `?periodo_id=${selectedPeriodId}` : ""
       const asgData = await api.get<any[]>(`/asignaciones/${periodParam}`)
       setAssignments(Array.isArray(asgData) ? asgData : [])
 
     } catch (err: any) {
       console.error("Error al cargar asignaciones:", err.message)
-      // No bloqueamos toda la pantalla, solo notificamos que el listado falló
     } finally {
       setIsLoading(false)
     }
@@ -101,14 +96,14 @@ export default function AcademicAssignmentsPage() {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
     
-    // Volvemos a periodo_id ya que el backend espera un UUID y no un string corto
+    // El backend espera 'periodo_academicos' según el error 422
     const payload = {
       docente_id: formData.get("docente_id") as string,
       unidad_id: formData.get("unidad_id") as string,
-      periodo_id: formData.get("periodo_id") as string,
+      periodo_academicos: formData.get("periodo_id") as string,
     }
 
-    if (!payload.docente_id || !payload.unidad_id || !payload.periodo_id) {
+    if (!payload.docente_id || !payload.unidad_id || !payload.periodo_academicos) {
       toast({ variant: "destructive", title: "Campos incompletos", description: "Debes seleccionar todos los campos." })
       return
     }
