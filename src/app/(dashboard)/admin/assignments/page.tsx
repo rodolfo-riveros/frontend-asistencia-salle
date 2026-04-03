@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -9,7 +10,8 @@ import {
   Link2,
   AlertCircle,
   Loader2,
-  RefreshCcw
+  RefreshCcw,
+  CalendarDays
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -43,6 +45,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "@/hooks/use-toast"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { api } from "@/lib/api"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 export default function AcademicAssignmentsPage() {
   const [assignments, setAssignments] = React.useState<any[]>([])
@@ -53,32 +56,36 @@ export default function AcademicAssignmentsPage() {
   const [isModalOpen, setIsModalOpen] = React.useState(false)
   const [searchTerm, setSearchTerm] = React.useState("")
   const [selectedPeriodId, setSelectedPeriodId] = React.useState<string>("all")
+  const [errorSync, setErrorSync] = React.useState<string | null>(null)
 
   const fetchData = React.useCallback(async () => {
     setIsLoading(true)
+    setErrorSync(null)
     try {
-      const periodQuery = selectedPeriodId !== "all" ? `?periodo_id=${selectedPeriodId}` : ""
+      const periodParam = selectedPeriodId !== "all" ? `?periodo_id=${selectedPeriodId}` : ""
+      
       const [asgData, instData, courseData, periodData] = await Promise.all([
-        api.get<any[]>(`/asignaciones/${periodQuery}`),
+        api.get<any[]>(`/asignaciones/${periodParam}`),
         api.get<any[]>('/docentes/'),
         api.get<any[]>('/unidades/'),
         api.get<any[]>('/periodos/')
       ])
       
-      setAssignments(asgData)
-      setInstructors(instData)
-      setCourses(courseData)
-      setPeriods(periodData)
+      setAssignments(Array.isArray(asgData) ? asgData : [])
+      setInstructors(Array.isArray(instData) ? instData : [])
+      setCourses(Array.isArray(courseData) ? courseData : [])
+      setPeriods(Array.isArray(periodData) ? periodData : [])
       
-      if (selectedPeriodId === "all" && periodData.length > 0) {
+      if (selectedPeriodId === "all" && Array.isArray(periodData) && periodData.length > 0) {
         const active = periodData.find((p: any) => p.es_activo)
         if (active) setSelectedPeriodId(active.id)
       }
     } catch (err: any) {
+      setErrorSync(err.message)
       toast({ 
         variant: "destructive", 
-        title: "Error de Sincronización", 
-        description: err.message
+        title: "Error de Servidor (500)", 
+        description: "El backend reporta un error de base de datos. Revisa el nombre de las columnas en tu código Python."
       })
     } finally {
       setIsLoading(false)
@@ -97,6 +104,11 @@ export default function AcademicAssignmentsPage() {
       docente_id: formData.get("docente_id") as string,
       unidad_id: formData.get("unidad_id") as string,
       periodo_id: formData.get("periodo_id") as string,
+    }
+
+    if (!payload.docente_id || !payload.unidad_id || !payload.periodo_id) {
+      toast({ variant: "destructive", title: "Campos incompletos", description: "Debes seleccionar todos los campos." })
+      return
     }
 
     try {
@@ -218,6 +230,21 @@ export default function AcademicAssignmentsPage() {
         </div>
       </div>
 
+      {errorSync && (
+        <Alert variant="destructive" className="bg-red-50 border-red-200 text-red-800">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error en el Servidor (Backend)</AlertTitle>
+          <AlertDescription className="text-xs mt-2 space-y-2">
+            <p>Tu código Python está intentando acceder a una columna que no existe.</p>
+            <div className="bg-black/5 p-2 rounded font-mono text-[10px]">
+              {errorSync}
+            </div>
+            <p className="font-bold">Solución sugerida para tu Backend:</p>
+            <p>En tu archivo CRUD de asignaciones, cambia <code className="bg-red-100 px-1">periodo_academico</code> por <code className="bg-green-100 px-1">periodos_academicos</code> en el método <code className="italic">.select()</code>.</p>
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="relative mb-4">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
         <Input 
@@ -253,7 +280,7 @@ export default function AcademicAssignmentsPage() {
                         <div className="flex items-center gap-3">
                           <Avatar className="h-9 w-9 border shadow-sm">
                             <AvatarFallback className="bg-primary/5 text-primary font-bold text-xs">
-                              {asg.docente_nombre?.[0]}
+                              {asg.docente_nombre?.[0] || 'D'}
                             </AvatarFallback>
                           </Avatar>
                           <span className="font-bold text-slate-900 text-sm">{asg.docente_nombre}</span>
@@ -295,8 +322,8 @@ export default function AcademicAssignmentsPage() {
                   <TableRow>
                     <TableCell colSpan={4} className="h-48 text-center text-slate-400">
                       <div className="flex flex-col items-center gap-3">
-                        <AlertCircle className="h-10 w-10 opacity-10" />
-                        <p className="font-bold text-slate-900 uppercase text-xs tracking-widest">Sin resultados</p>
+                        <CalendarDays className="h-10 w-10 opacity-10" />
+                        <p className="font-bold text-slate-900 uppercase text-xs tracking-widest">Sin asignaciones</p>
                       </div>
                     </TableCell>
                   </TableRow>
