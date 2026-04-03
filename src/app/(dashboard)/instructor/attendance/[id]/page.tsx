@@ -12,13 +12,16 @@ import {
   Clock,
   MessageSquareQuote,
   Loader2,
-  RefreshCcw
+  RefreshCcw,
+  PieChart as PieIcon,
+  BarChart3,
+  AlertTriangle
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Label } from "@/components/ui/label"
 import { toast } from "@/hooks/use-toast"
@@ -26,6 +29,20 @@ import { aiAttendanceInsights, type AttendanceInsightsOutput } from "@/ai/flows/
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import { api } from "@/lib/api"
 import { getInitials } from "@/lib/utils"
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+  Cell as BarCell
+} from "recharts"
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 
 const STATUS_MAP: Record<string, string> = {
   'Presente': 'P',
@@ -41,6 +58,13 @@ const REVERSE_MAP: Record<string, string> = {
   'J': 'Justificado'
 }
 
+const COLORS = {
+  Presente: '#10b981', // Emerald 500
+  Falta: '#ef4444',    // Red 500
+  Tarde: '#f59e0b',    // Amber 500
+  Justificado: '#3b82f6' // Blue 500
+}
+
 export default function AttendancePage() {
   const params = useParams()
   const searchParams = useSearchParams()
@@ -53,7 +77,6 @@ export default function AttendancePage() {
   const [isSyncing, setIsSyncing] = React.useState(false)
   const [searchTerm, setSearchTerm] = React.useState("")
   
-  // Fecha sincronizada con Lima, Perú (America/Lima)
   const [date, setDate] = React.useState(() => {
     return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Lima' });
   })
@@ -65,30 +88,25 @@ export default function AttendancePage() {
     if (!params.id || !date || studentList.length === 0) return
     setIsSyncing(true)
     try {
-      // Consultamos el reporte de la unidad filtrado por la fecha actual
+      // Intentamos cargar la asistencia guardada para este día
+      // Nota: Si falla el endpoint v_asistencias_completas, es posible que el backend requiera 'unidad' en lugar de 'unidad_id'
       const existing = await api.get<any[]>(`/asistencias/reporte/unidad/${params.id}?fecha_inicio=${date}&fecha_fin=${date}`)
       
       const mapped: Record<string, string | null> = {}
       studentList.forEach(s => mapped[s.id] = null)
 
-      if (existing && existing.length > 0) {
+      if (existing && Array.isArray(existing)) {
         existing.forEach(reg => {
-          // El backend puede devolver alumno_id, id_alumno o estar en una vista donde es 'alumno' (pero necesitamos el UUID)
-          // Buscamos el ID del alumno comparando el DNI si el ID no viene directo
-          const idAlumno = reg.alumno_id || reg.id_alumno;
-          
-          if (idAlumno) {
+          // Robustez: intentamos varios nombres de campos de ID de alumno
+          const idAlumno = reg.alumno_id || reg.id_alumno || reg.id_estudiante;
+          if (idAlumno && mapped[idAlumno] === null) {
             mapped[idAlumno] = REVERSE_MAP[reg.estado] || reg.estado
           } else if (reg.dni) {
-            // Fallback: buscar por DNI en la lista de alumnos cargada
             const student = studentList.find(s => s.dni === reg.dni);
-            if (student) {
-              mapped[student.id] = REVERSE_MAP[reg.estado] || reg.estado
-            }
+            if (student) mapped[student.id] = REVERSE_MAP[reg.estado] || reg.estado
           }
         })
       }
-      
       setAttendance(mapped)
     } catch (err) {
       console.error("Error al cargar asistencia previa:", err)
@@ -118,7 +136,6 @@ export default function AttendancePage() {
     fetchStudents()
   }, [fetchStudents])
 
-  // Recargar asistencia al cambiar la fecha
   React.useEffect(() => {
     if (students.length > 0) {
       fetchExistingAttendance(students)
@@ -144,7 +161,7 @@ export default function AttendancePage() {
     }
     
     if (!periodoId) {
-      return toast({ variant: "destructive", title: "Periodo no identificado", description: "Vuelve al panel principal y reintenta." })
+      return toast({ variant: "destructive", title: "Periodo no identificado", description: "Vuelve al panel principal e intenta de nuevo." })
     }
 
     const payload = {
@@ -159,7 +176,7 @@ export default function AttendancePage() {
 
     try {
       await api.post('/asistencias/pase-lista', payload)
-      toast({ title: "¡Asistencia Guardada!", description: "Los registros se sincronizaron con éxito." })
+      toast({ title: "¡Asistencia Guardada!", description: "Sincronización exitosa con la base de datos." })
       router.push('/instructor')
     } catch (err: any) {
       toast({ variant: "destructive", title: "Error al guardar", description: err.message })
@@ -169,25 +186,62 @@ export default function AttendancePage() {
   const runAnalysis = async () => {
     setIsAnalyzing(true)
     try {
-      const history = await api.get<any[]>(`/asistencias/reporte/resumen/${params.id}`)
-      const records = history.map(h => ({
-        studentId: h.alumno_id,
-        studentName: h.alumno,
-        courseUnitId: params.id as string,
-        courseUnitName: "UD",
-        date: "Histórico",
-        status: h.faltas > 2 ? "Falta" : "Presente"
-      }))
-      const result = await aiAttendanceInsights({ attendanceRecords: records as any })
+      // Obtenemos historial extendido para que la IA tenga contexto de tardanzas
+      const history = await api.get<any[]>(`/asistencias/reporte/unidad/${params.id}`)
+      
+      const records = history.map(h => {
+        // Mapeamos el ID del alumno si viene como UUID o lo buscamos
+        return {
+          studentId: h.alumno_id || h.id_alumno || "id",
+          studentName: h.alumno,
+          courseUnitId: params.id as string,
+          courseUnitName: "Unidad Didáctica",
+          date: h.fecha,
+          status: REVERSE_MAP[h.estado] || h.estado
+        }
+      })
+
+      const result = await aiAttendanceInsights({ 
+        attendanceRecords: records as any,
+        analysisContext: "Analizar específicamente tardanzas frecuentes como alerta pedagógica."
+      })
       setAiResult(result)
+      toast({ title: "Análisis IA Completado" })
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Error de IA", description: "No hay datos históricos suficientes." })
+      console.error(e)
+      toast({ variant: "destructive", title: "Error de IA", description: "No hay registros históricos suficientes." })
     } finally {
       setIsAnalyzing(false)
     }
   }
 
   const filteredStudents = students.filter(s => s.nombre.toLowerCase().includes(searchTerm.toLowerCase()))
+
+  // Datos para los gráficos
+  const statsData = React.useMemo(() => {
+    const counts = { Presente: 0, Falta: 0, Tarde: 0, Justificado: 0 }
+    Object.values(attendance).forEach(val => {
+      if (val && counts.hasOwnProperty(val)) {
+        counts[val as keyof typeof counts]++
+      }
+    })
+    
+    const total = Object.values(attendance).filter(v => v !== null).length
+    
+    return [
+      { name: 'Presente', value: counts.Presente, color: COLORS.Presente },
+      { name: 'Falta', value: counts.Falta, color: COLORS.Falta },
+      { name: 'Tarde', value: counts.Tarde, color: COLORS.Tarde },
+      { name: 'Justificado', value: counts.Justificado, color: COLORS.Justificado }
+    ].filter(d => d.value > 0 || total === 0)
+  }, [attendance])
+
+  const chartConfig = {
+    Presente: { label: "Presente", color: COLORS.Presente },
+    Falta: { label: "Falta", color: COLORS.Falta },
+    Tarde: { label: "Tarde", color: COLORS.Tarde },
+    Justificado: { label: "Justificado", color: COLORS.Justificado },
+  }
 
   return (
     <div className="space-y-6 md:space-y-8 pb-10">
@@ -201,7 +255,7 @@ export default function AttendancePage() {
             <h2 className="text-3xl md:text-4xl font-headline font-black tracking-tighter text-slate-900 leading-tight">Control de Asistencia</h2>
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-xl border shadow-sm">
-                <Label className="text-[9px] font-black uppercase text-slate-400">Día de Clase:</Label>
+                <Label className="text-[9px] font-black uppercase text-slate-400">Fecha de Sesión:</Label>
                 <input 
                   type="date" 
                   value={date} 
@@ -212,7 +266,7 @@ export default function AttendancePage() {
               {isSyncing && (
                 <div className="flex items-center gap-2 text-primary/60 text-xs font-bold animate-pulse">
                   <RefreshCcw className="h-3 w-3 animate-spin" />
-                  Sincronizando registros...
+                  Sincronizando...
                 </div>
               )}
             </div>
@@ -221,7 +275,7 @@ export default function AttendancePage() {
           <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
             <Button variant="outline" className="flex-1 lg:flex-none h-12 px-6 gap-2 text-accent font-bold border-accent/20 hover:bg-accent/5" onClick={runAnalysis} disabled={isAnalyzing}>
               <Sparkles className={`h-5 w-5 ${isAnalyzing ? 'animate-spin' : ''}`} />
-              Análisis IA
+              Diagnóstico IA
             </Button>
             <Button className="flex-1 lg:flex-none h-12 px-8 gap-2 font-black shadow-lg shadow-primary/20" onClick={handleSave}>
               <Save className="h-5 w-5" /> Guardar Pase de Lista
@@ -230,40 +284,40 @@ export default function AttendancePage() {
         </div>
       </div>
 
-      <Card className="border-none shadow-xl bg-white overflow-hidden">
-        {isLoading ? (
-          <div className="h-96 flex flex-col items-center justify-center text-slate-400 gap-3">
-            <Loader2 className="h-12 w-12 animate-spin text-primary" />
-            <p className="font-bold text-lg">Cargando nómina de alumnos...</p>
-          </div>
-        ) : (
-          <>
-            <div className="p-4 md:p-6 bg-slate-50/80 border-b flex flex-col md:flex-row items-center justify-between gap-6">
-              <div className="flex flex-wrap gap-2 w-full md:w-auto">
-                <Button variant="outline" size="sm" className="h-10 px-4 border-green-200 bg-white text-green-700 font-black text-[10px] hover:bg-green-50" onClick={() => handleMassive('Presente')}>P a Todos</Button>
-                <Button variant="outline" size="sm" className="h-10 px-4 border-amber-200 bg-white text-amber-700 font-black text-[10px] hover:bg-amber-50" onClick={() => handleMassive('Tarde')}>T a Todos</Button>
-                <Button variant="outline" size="sm" className="h-10 px-4 border-red-200 bg-white text-red-700 font-black text-[10px] hover:bg-red-50" onClick={() => handleMassive('Falta')}>F a Todos</Button>
-                <Button variant="outline" size="sm" className="h-10 px-4 border-blue-200 bg-white text-blue-700 font-black text-[10px] hover:bg-blue-50" onClick={() => handleMassive('Justificado')}>J a Todos</Button>
-              </div>
-              <div className="relative w-full md:w-80">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                <Input 
-                  placeholder="Buscar alumno por nombre..." 
-                  className="pl-10 h-11 bg-white border-none rounded-xl text-sm shadow-sm focus:ring-1 focus:ring-primary"
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                />
-              </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-2 border-none shadow-xl bg-white overflow-hidden">
+          <div className="p-4 md:p-6 bg-slate-50/80 border-b flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="flex flex-wrap gap-2 w-full md:w-auto">
+              <Button variant="outline" size="sm" className="h-10 px-4 border-green-200 bg-white text-green-700 font-black text-[10px] hover:bg-green-50" onClick={() => handleMassive('Presente')}>P a Todos</Button>
+              <Button variant="outline" size="sm" className="h-10 px-4 border-amber-200 bg-white text-amber-700 font-black text-[10px] hover:bg-amber-50" onClick={() => handleMassive('Tarde')}>T a Todos</Button>
+              <Button variant="outline" size="sm" className="h-10 px-4 border-red-200 bg-white text-red-700 font-black text-[10px] hover:bg-red-50" onClick={() => handleMassive('Falta')}>F a Todos</Button>
+              <Button variant="outline" size="sm" className="h-10 px-4 border-blue-200 bg-white text-blue-700 font-black text-[10px] hover:bg-blue-50" onClick={() => handleMassive('Justificado')}>J a Todos</Button>
             </div>
-            <CardContent className="p-0">
+            <div className="relative w-full md:w-80">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Input 
+                placeholder="Buscar por nombre..." 
+                className="pl-10 h-11 bg-white border-none rounded-xl text-sm shadow-sm"
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+              />
+            </div>
+          </div>
+          <CardContent className="p-0">
+            {isLoading ? (
+              <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-3">
+                <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                <p className="font-bold">Cargando alumnos...</p>
+              </div>
+            ) : (
               <ScrollArea className="w-full">
                 <Table>
                   <TableHeader className="bg-slate-50/50">
                     <TableRow className="border-none">
-                      <TableHead className="w-[80px] pl-8"></TableHead>
-                      <TableHead className="font-black text-[10px] uppercase tracking-widest text-slate-400 py-4">Apellidos y Nombres</TableHead>
-                      <TableHead className="text-center font-black text-[10px] uppercase tracking-widest text-slate-400">Estado Actual</TableHead>
-                      <TableHead className="text-right pr-8 font-black text-[10px] uppercase tracking-widest text-slate-400">Acciones</TableHead>
+                      <TableHead className="w-[80px] pl-8 py-4">Estudiante</TableHead>
+                      <TableHead className="font-black text-[10px] uppercase tracking-widest text-slate-400">Apellidos y Nombres</TableHead>
+                      <TableHead className="text-center font-black text-[10px] uppercase tracking-widest text-slate-400">Estado</TableHead>
+                      <TableHead className="text-right pr-8 font-black text-[10px] uppercase tracking-widest text-slate-400">Acción</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -272,20 +326,18 @@ export default function AttendancePage() {
                         <TableRow key={s.id} className="hover:bg-slate-50/30 transition-colors border-slate-50 group">
                           <TableCell className="pl-8 py-4">
                             <Avatar className="h-11 w-11 border-2 border-white shadow-sm ring-2 ring-slate-100 group-hover:ring-primary/20 transition-all">
-                              <AvatarFallback className="bg-primary/5 text-primary font-black text-xs">
+                              <AvatarFallback className="bg-primary/5 text-primary font-black text-xs uppercase">
                                 {getInitials(s.nombre)}
                               </AvatarFallback>
                             </Avatar>
                           </TableCell>
                           <TableCell>
                             <div className="font-bold text-sm text-slate-900 uppercase tracking-tight">{s.nombre}</div>
-                            <div className="text-[10px] text-slate-400 font-mono flex items-center gap-1">
-                              DNI: <span className="font-bold">{s.dni}</span>
-                            </div>
+                            <div className="text-[10px] text-slate-400 font-mono">DNI: {s.dni}</div>
                           </TableCell>
                           <TableCell className="text-center">
                             {attendance[s.id] ? (
-                              <Badge className={`uppercase text-[9px] font-black tracking-widest px-3 py-1 shadow-sm border-none ${
+                              <Badge className={`uppercase text-[9px] font-black tracking-widest px-3 py-1 border-none ${
                                 attendance[s.id] === 'Presente' ? 'bg-green-100 text-green-700' : 
                                 attendance[s.id] === 'Falta' ? 'bg-red-100 text-red-700' : 
                                 attendance[s.id] === 'Tarde' ? 'bg-amber-100 text-amber-700' : 
@@ -294,11 +346,11 @@ export default function AttendancePage() {
                                 {attendance[s.id]}
                               </Badge>
                             ) : (
-                              <Badge variant="outline" className="border-dashed text-slate-300 text-[9px] uppercase font-bold bg-transparent">Sin Marcar</Badge>
+                              <Badge variant="outline" className="border-dashed text-slate-300 text-[9px] uppercase font-bold">Pendiente</Badge>
                             )}
                           </TableCell>
                           <TableCell className="text-right pr-8">
-                            <div className="flex justify-end gap-2">
+                            <div className="flex justify-end gap-1.5">
                               <ActionBtn icon={UserCheck} label="P" active={attendance[s.id] === 'Presente'} color="green" onClick={() => handleStatus(s.id, 'Presente')} />
                               <ActionBtn icon={Clock} label="T" active={attendance[s.id] === 'Tarde'} color="amber" onClick={() => handleStatus(s.id, 'Tarde')} />
                               <ActionBtn icon={UserX} label="F" active={attendance[s.id] === 'Falta'} color="red" onClick={() => handleStatus(s.id, 'Falta')} />
@@ -310,7 +362,7 @@ export default function AttendancePage() {
                     ) : (
                       <TableRow>
                         <TableCell colSpan={4} className="h-48 text-center text-slate-300">
-                          No se encontraron alumnos registrados.
+                          Sin alumnos registrados.
                         </TableCell>
                       </TableRow>
                     )}
@@ -318,53 +370,137 @@ export default function AttendancePage() {
                 </Table>
                 <ScrollBar orientation="horizontal" />
               </ScrollArea>
+            )}
+          </CardContent>
+        </Card>
+
+        <div className="space-y-6">
+          <Card className="border-none shadow-xl bg-white">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg font-black flex items-center gap-2">
+                <PieIcon className="h-5 w-5 text-primary" /> Distribución
+              </CardTitle>
+              <CardDescription className="text-xs">Estado de la sesión actual</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[200px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={statsData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={80}
+                      paddingAngle={5}
+                      dataKey="value"
+                    >
+                      {statsData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip content={<ChartTooltipContent />} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="grid grid-cols-2 gap-2 mt-4">
+                {statsData.map((item, i) => (
+                  <div key={i} className="flex items-center gap-2 text-[10px] font-bold">
+                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+                    <span className="text-slate-500 uppercase">{item.name}: {item.value}</span>
+                  </div>
+                ))}
+              </div>
             </CardContent>
-          </>
-        )}
-      </Card>
+          </Card>
+
+          <Card className="border-none shadow-xl bg-white">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg font-black flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-indigo-500" /> Comparativa
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[180px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={statsData}>
+                    <XAxis dataKey="name" hide />
+                    <YAxis hide />
+                    <Tooltip content={<ChartTooltipContent />} />
+                    <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                      {statsData.map((entry, index) => (
+                        <BarCell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
 
       {aiResult && (
         <Card className="border-none shadow-2xl bg-slate-900 text-white p-8 animate-in fade-in slide-in-from-bottom-4">
-          <div className="flex items-center gap-3 mb-6">
-            <Sparkles className="h-6 w-6 text-yellow-400" />
-            <h3 className="text-xl font-black uppercase tracking-tighter">Reporte de Inteligencia Académica</h3>
+          <div className="flex items-center gap-3 mb-8">
+            <div className="p-2 bg-yellow-400/10 rounded-lg">
+              <Sparkles className="h-6 w-6 text-yellow-400" />
+            </div>
+            <h3 className="text-2xl font-black uppercase tracking-tighter italic">Diagnóstico de Inteligencia Académica</h3>
           </div>
-          <div className="grid md:grid-cols-2 gap-10">
-            <div className="space-y-6">
-              <div>
-                <Label className="text-[10px] font-black uppercase text-blue-400 tracking-widest">Resumen General</Label>
-                <p className="mt-2 text-blue-50/80 leading-relaxed">{aiResult.summary}</p>
+          
+          <div className="grid lg:grid-cols-2 gap-10">
+            <div className="space-y-8">
+              <div className="space-y-3">
+                <Label className="text-[10px] font-black uppercase text-blue-400 tracking-widest">Resumen de Situación</Label>
+                <p className="text-blue-50/90 leading-relaxed font-medium">{aiResult.summary}</p>
               </div>
+
               <div className="space-y-4">
-                <Label className="text-[10px] font-black uppercase text-red-400 tracking-widest">Alumnos en Riesgo (30%+ Inasistencias)</Label>
+                <div className="flex items-center gap-2">
+                  <UserX className="h-5 w-5 text-red-500" />
+                  <Label className="text-[10px] font-black uppercase text-red-400 tracking-widest">Alerta: Riesgo de Deserción (>= 30% Faltas)</Label>
+                </div>
                 {aiResult.atRiskStudents.length > 0 ? aiResult.atRiskStudents.map((st, i) => (
-                  <div key={i} className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between">
+                  <div key={i} className="bg-red-500/5 border border-red-500/20 p-4 rounded-xl flex items-center justify-between">
                     <div>
-                      <p className="font-bold text-sm">{st.name}</p>
-                      <p className="text-xs text-slate-400 mt-1">{st.reason}</p>
+                      <p className="font-bold text-sm text-red-50">{st.name}</p>
+                      <p className="text-xs text-red-200/60 mt-1">{st.reason}</p>
                     </div>
-                    <Badge variant="destructive" className="font-black">{st.absencePercentage}%</Badge>
+                    <Badge className="bg-red-500 text-white font-black">{st.absencePercentage}%</Badge>
                   </div>
-                )) : <p className="text-xs text-emerald-400">No se detectaron alumnos en riesgo crítico.</p>}
+                )) : <p className="text-xs text-emerald-400 flex items-center gap-2"><UserCheck className="h-4 w-4"/> Sin alumnos en riesgo crítico.</p>}
               </div>
             </div>
-            <div className="space-y-6">
+
+            <div className="space-y-8">
               <div className="space-y-4">
-                <Label className="text-[10px] font-black uppercase text-blue-400 tracking-widest">Tendencias Identificadas</Label>
-                <div className="grid gap-2">
-                  {aiResult.trends.map((t, i) => (
-                    <div key={i} className="flex gap-3 text-sm text-blue-50/70 italic">
-                      <span className="text-primary">•</span> {t}
-                    </div>
-                  ))}
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-amber-500" />
+                  <Label className="text-[10px] font-black uppercase text-amber-400 tracking-widest">Advertencia Temprana: Tardanzas Frecuentes</Label>
                 </div>
+                <p className="text-xs text-slate-400 mb-4 italic">Intervención recomendada: Hablar personalmente con el alumno para entender causas externas.</p>
+                {aiResult.warningStudents && aiResult.warningStudents.length > 0 ? aiResult.warningStudents.map((st, i) => (
+                  <div key={i} className="bg-amber-500/5 border border-amber-500/20 p-4 rounded-xl space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="font-bold text-sm text-amber-50">{st.name}</p>
+                      <Badge variant="outline" className="text-amber-500 border-amber-500/40 text-[10px]">{st.tardyCount} Tardanzas</Badge>
+                    </div>
+                    <p className="text-xs text-amber-100/70">{st.reason}</p>
+                    <div className="p-3 bg-white/5 rounded-lg border border-white/10">
+                      <p className="text-[10px] font-black uppercase text-amber-400 mb-1">Sugerencia:</p>
+                      <p className="text-[11px] text-white/80">{st.suggestion}</p>
+                    </div>
+                  </div>
+                )) : <p className="text-xs text-emerald-400">No se detectaron patrones de tardanza preocupantes.</p>}
               </div>
-              <div className="p-5 bg-white/10 rounded-2xl border border-white/20">
-                <Label className="text-[10px] font-black uppercase text-emerald-400 tracking-widest">Recomendaciones Pedagógicas</Label>
-                <ul className="mt-4 space-y-3 text-sm">
+
+              <div className="p-6 bg-white/5 rounded-2xl border border-white/10 space-y-4">
+                <Label className="text-[10px] font-black uppercase text-emerald-400 tracking-widest">Recomendaciones Estratégicas</Label>
+                <ul className="space-y-3">
                   {aiResult.recommendations.map((r, i) => (
-                    <li key={i} className="flex gap-2">
-                      <span className="font-black text-emerald-500">✓</span>
+                    <li key={i} className="flex gap-3 text-sm text-blue-50/80">
+                      <span className="font-black text-emerald-500 shrink-0">✓</span>
                       {r}
                     </li>
                   ))}
@@ -390,7 +526,7 @@ function ActionBtn({ icon: Icon, active, color, onClick }: any) {
       size="icon" 
       variant="outline" 
       onClick={onClick} 
-      className={`h-10 w-10 rounded-full transition-all border-slate-100 shrink-0 ${themes[color]}`}
+      className={`h-9 w-9 rounded-full transition-all border-slate-100 shrink-0 ${themes[color]}`}
     >
       <Icon className="h-4 w-4" />
     </Button>

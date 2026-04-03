@@ -1,8 +1,8 @@
 'use server';
 /**
- * @fileOverview An AI-powered tool to analyze historical attendance data and predict desertion risk.
+ * @fileOverview An AI-powered tool to analyze historical attendance data and predict desertion or tardiness risks.
  *
- * - aiAttendanceInsights - A function that analyzes attendance data to generate summaries, identify trends, and highlight at-risk students.
+ * - aiAttendanceInsights - A function that analyzes attendance data to generate summaries, identify trends, and highlight at-risk or warning students.
  * - AttendanceInsightsInput - The input type for the aiAttendanceInsights function.
  * - AttendanceInsightsOutput - The return type for the aiAttendanceInsights function.
  */
@@ -32,6 +32,12 @@ const AttendanceInsightsOutputSchema = z.object({
     absencePercentage: z.number().describe('Calculated absence percentage.'),
     reason: z.string().describe('Brief reason why they are at risk (e.g., "Frequent absences on Mondays").'),
   })).describe('List of students with 30% or more absences or showing high desertion risk.'),
+  warningStudents: z.array(z.object({
+    name: z.string().describe('Full name of the student.'),
+    tardyCount: z.number().describe('Number of tardies identified.'),
+    reason: z.string().describe('Brief reason for the warning (e.g., "Always arrives 15 minutes late").'),
+    suggestion: z.string().describe('Pedagogical suggestion for the teacher to talk to the student.'),
+  })).describe('List of students with frequent tardiness (early warning signs).'),
   trends: z.array(z.string()).describe('List of identified attendance trends.'),
   recommendations: z.array(z.string()).describe('Actionable recommendations for the instructor.'),
 });
@@ -42,7 +48,7 @@ const attendanceInsightsPrompt = ai.definePrompt({
   input: { schema: AttendanceInsightsInputSchema },
   output: { schema: AttendanceInsightsOutputSchema },
   prompt: `Eres un analista experto en retención estudiantil para el IES LA SALLE URUBAMBA. 
-Tu misión es identificar alumnos en riesgo de deserción basándote en la regla del 30% de inasistencias.
+Tu misión es identificar alumnos en riesgo de deserción (basándote en faltas) y alumnos con patrones de tardanza (advertencia temprana).
 
 Analiza los siguientes registros históricos de asistencia:
 {{#each attendanceRecords}}
@@ -54,11 +60,11 @@ Contexto adicional: {{{analysisContext}}}
 {{/if}}
 
 INSTRUCCIONES CRÍTICAS:
-1. Calcula el porcentaje de inasistencias (Falta) sobre el total de sesiones registradas para cada alumno.
-2. Si un alumno tiene el 30% o más de inasistencias, inclúyelo obligatoriamente en la lista de 'atRiskStudents'.
-3. Identifica patrones como inasistencias consecutivas o días específicos de falta.
+1. DESERCIÓN: Calcula el % de 'Falta' sobre el total. Si es >= 30%, inclúyelo en 'atRiskStudents'.
+2. ADVERTENCIA TEMPRANA (TARDANZAS): Identifica alumnos con 2 o más estados 'Tarde'. Inclúyelos en 'warningStudents'. Explica por qué es una señal de alerta y qué decirle al alumno.
+3. Identifica patrones como inasistencias o tardanzas consecutivas o en días específicos.
 4. Genera todas las descripciones, nombres y recomendaciones en ESPAÑOL.
-5. Sé preciso con los nombres y proporciona recomendaciones pedagógicas para evitar la deserción.
+5. Sé preciso con los nombres y proporciona recomendaciones pedagógicas reales.
 
 La salida debe ser un objeto JSON que siga estrictamente el esquema definido.`,
 });
