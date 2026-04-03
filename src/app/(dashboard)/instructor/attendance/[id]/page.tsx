@@ -62,6 +62,7 @@ export default function AttendancePage() {
     const words = name.trim().toUpperCase().split(/\s+/)
     if (words.length >= 2) {
       // Tomamos la primera letra del primer nombre y la primera letra del primer apellido
+      // Útil para nombres como "Juan Pérez García" -> "JP"
       return (words[0][0] + words[1][0])
     }
     return words[0].substring(0, 2)
@@ -132,11 +133,10 @@ export default function AttendancePage() {
       })
       router.push('/instructor')
     } catch (err: any) {
-      // Mostramos el mensaje de error real del backend (FastAPI/Supabase)
       toast({ 
         variant: "destructive", 
         title: "Error al guardar", 
-        description: err.message || "Ocurrió un error inesperado en el servidor."
+        description: err.message || "Ocurrió un error inesperado en el servidor. Verifica el periodo_id en el backend."
       })
     }
   }
