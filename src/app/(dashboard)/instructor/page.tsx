@@ -7,11 +7,13 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { BookOpen, Users, Clock, ArrowRight, FileSpreadsheet, Loader2, AlertCircle, Calendar, CheckCircle2, CircleDashed } from "lucide-react"
+import { BookOpen, Users, Clock, ArrowRight, FileSpreadsheet, FileText, Loader2, AlertCircle, Calendar, CheckCircle2, CircleDashed } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
 import { supabase } from "@/lib/supabase"
 import * as XLSX from 'xlsx'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
 export default function InstructorDashboard() {
   const [asignaciones, setAsignaciones] = React.useState<any[]>([])
@@ -19,6 +21,7 @@ export default function InstructorDashboard() {
   const [isLoading, setIsLoading] = React.useState(true)
   const [selectedPeriodId, setSelectedPeriodId] = React.useState<string>("")
   const [isExporting, setIsExporting] = React.useState<string | null>(null)
+  const [isExportingPdf, setIsExportingPdf] = React.useState<string | null>(null)
   const [userName, setUserName] = React.useState("USUARIO DOCENTE")
   const [attendanceStatus, setAttendanceStatus] = React.useState<Record<string, boolean>>({})
 
@@ -44,7 +47,6 @@ export default function InstructorDashboard() {
         const data = await api.get<any[]>(`/me/asignaciones/?periodo_id=${currentId}`)
         setAsignaciones(data)
         
-        // Verificar estado de asistencia para hoy (UTC-5)
         const today = new Date(new Date().getTime() - (5 * 60 * 60 * 1000)).toISOString().split('T')[0];
         const statusMap: Record<string, boolean> = {};
         
@@ -76,22 +78,15 @@ export default function InstructorDashboard() {
     fetchData()
   }, [fetchData])
 
-  const handleExport = async (asg: any) => {
+  const handleExportExcel = async (asg: any) => {
     setIsExporting(asg.id)
-    toast({
-      title: "Generando Matriz Profesional",
-      description: "Construyendo reporte académico de asistencia...",
-    })
-
     try {
       const [reportData, alumnos] = await Promise.all([
         api.get<any[]>(`/asistencias/reporte/unidad/${asg.unidad_id}`).catch(() => []),
         api.get<any[]>(`/me/unidades/${asg.unidad_id}/alumnos`).catch(() => [])
       ])
 
-      if (!alumnos || alumnos.length === 0) {
-        throw new Error("No hay alumnos matriculados para generar el reporte.")
-      }
+      if (!alumnos || alumnos.length === 0) throw new Error("No hay alumnos matriculados.")
 
       const uniqueDates = Array.from(new Set(reportData.map(r => r.fecha))).sort()
       const matrix: Record<string, Record<string, string>> = {}
@@ -106,7 +101,6 @@ export default function InstructorDashboard() {
       const rows: any[] = []
       const periodName = periods.find(p => p.id === selectedPeriodId)?.nombre || "N/A"
 
-      // --- ESTRUCTURA DE EXCEL PROFESIONAL ---
       rows.push(["INSTITUTO DE EDUCACIÓN SUPERIOR LA SALLE - URUBAMBA"])
       rows.push(["REGISTRO OFICIAL DE ASISTENCIA ACADÉMICA"])
       rows.push([])
@@ -116,7 +110,6 @@ export default function InstructorDashboard() {
       rows.push(["DOCENTE RESPONSABLE:", userName, "", "FECHA REPORTE:", new Date().toLocaleDateString()])
       rows.push([])
 
-      // Cabecera de la tabla
       const headerRow = ['N°', 'APELLIDOS Y NOMBRES']
       uniqueDates.forEach(d => {
         const [_, month, day] = d.split('-')
@@ -125,50 +118,114 @@ export default function InstructorDashboard() {
       headerRow.push('TOTAL FALTAS', '% INASISTENCIA')
       rows.push(headerRow)
 
-      // Cuerpo de la tabla
       alumnos.sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach((alumno, index) => {
-        const studentRow: any[] = [
-          (index + 1).toString().padStart(2, '0'),
-          alumno.nombre.toUpperCase()
-        ]
-
+        const studentRow: any[] = [(index + 1).toString().padStart(2, '0'), alumno.nombre.toUpperCase()]
         let absences = 0
         uniqueDates.forEach(date => {
           const status = matrix[alumno.id]?.[date] || "-"
           studentRow.push(status)
           if (status === 'F') absences++
         })
-
         const totalSessions = uniqueDates.length
         const pct = totalSessions > 0 ? ((absences / totalSessions) * 100).toFixed(1) : "0"
-
-        studentRow.push(absences)
-        studentRow.push(`${pct}%`)
+        studentRow.push(absences, `${pct}%`)
         rows.push(studentRow)
       })
 
       const wb = XLSX.utils.book_new()
       const ws = XLSX.utils.aoa_to_sheet(rows)
-
-      // Configuración de anchos de columna
-      const wscols = [
-        { wch: 4 },   // N°
-        { wch: 45 },  // Nombres
-        ...uniqueDates.map(() => ({ wch: 6 })), // Fechas
-        { wch: 15 },  // Total Faltas
-        { wch: 15 }   // % Inasistencia
-      ]
-      ws['!cols'] = wscols
-
+      ws['!cols'] = [{ wch: 4 }, { wch: 45 }, ...uniqueDates.map(() => ({ wch: 6 })), { wch: 15 }, { wch: 15 }]
       XLSX.utils.book_append_sheet(wb, ws, "Asistencia")
-      const fileName = `MATRIZ_${asg.unidad_nombre.replace(/\s+/g, '_')}_${periodName}.xlsx`
-      XLSX.writeFile(wb, fileName)
-
-      toast({ title: "Reporte Exportado", description: "La matriz está lista para impresión." })
+      XLSX.writeFile(wb, `MATRIZ_${asg.unidad_nombre.replace(/\s+/g, '_')}.xlsx`)
+      toast({ title: "Excel Exportado" })
     } catch (err: any) {
       toast({ variant: "destructive", title: "Error", description: err.message })
     } finally {
       setIsExporting(null)
+    }
+  }
+
+  const handleExportPdf = async (asg: any) => {
+    setIsExportingPdf(asg.id)
+    try {
+      const [reportData, alumnos] = await Promise.all([
+        api.get<any[]>(`/asistencias/reporte/unidad/${asg.unidad_id}`).catch(() => []),
+        api.get<any[]>(`/me/unidades/${asg.unidad_id}/alumnos`).catch(() => [])
+      ])
+
+      if (!alumnos || alumnos.length === 0) throw new Error("No hay alumnos matriculados.")
+
+      const uniqueDates = Array.from(new Set(reportData.map(r => r.fecha))).sort()
+      const matrix: Record<string, Record<string, string>> = {}
+      reportData.forEach(reg => {
+        const idAlumno = reg.alumno_id || reg.id_alumno;
+        if (idAlumno) {
+          if (!matrix[idAlumno]) matrix[idAlumno] = {}
+          matrix[idAlumno][reg.fecha] = reg.estado
+        }
+      })
+
+      const doc = new jsPDF('l', 'mm', 'a4')
+      const periodName = periods.find(p => p.id === selectedPeriodId)?.nombre || "N/A"
+
+      // Cabecera Institucional
+      doc.setFontSize(16)
+      doc.setTextColor(0, 51, 102)
+      doc.text("INSTITUTO DE EDUCACIÓN SUPERIOR LA SALLE - URUBAMBA", 14, 15)
+      
+      doc.setFontSize(12)
+      doc.setTextColor(100)
+      doc.text("MATRIZ DE CONTROL DE ASISTENCIA ACADÉMICA", 14, 22)
+      
+      doc.setFontSize(9)
+      doc.setTextColor(0)
+      doc.text(`PROGRAMA: ${asg.programa_nombre.toUpperCase()}`, 14, 32)
+      doc.text(`UNIDAD DIDÁCTICA: ${asg.unidad_nombre.toUpperCase()}`, 14, 37)
+      doc.text(`DOCENTE: ${userName}`, 14, 42)
+      
+      doc.text(`PERIODO: ${periodName}`, 220, 32)
+      doc.text(`SEMESTRE: ${asg.semestre}`, 220, 37)
+      doc.text(`FECHA REPORTE: ${new Date().toLocaleDateString()}`, 220, 42)
+
+      // Preparar Datos Tabla
+      const headers = ['N°', 'APELLIDOS Y NOMBRES']
+      uniqueDates.forEach(d => {
+        const [_, month, day] = d.split('-')
+        headers.push(`${day}/${month}`)
+      })
+      headers.push('FALTAS', '%')
+
+      const body = alumnos.sort((a, b) => a.nombre.localeCompare(b.nombre)).map((alumno, index) => {
+        const row = [(index + 1).toString().padStart(2, '0'), alumno.nombre.toUpperCase()]
+        let absences = 0
+        uniqueDates.forEach(date => {
+          const status = matrix[alumno.id]?.[date] || "-"
+          row.push(status)
+          if (status === 'F') absences++
+        })
+        const totalSessions = uniqueDates.length
+        const pct = totalSessions > 0 ? ((absences / totalSessions) * 100).toFixed(1) : "0"
+        row.push(absences, `${pct}%`)
+        return row
+      })
+
+      autoTable(doc, {
+        head: [headers],
+        body: body,
+        startY: 50,
+        styles: { fontSize: 7, cellPadding: 1.5, halign: 'center' },
+        headStyles: { fillStyle: 'f', fillColor: [0, 51, 102], textColor: 255, fontStyle: 'bold' },
+        columnStyles: { 1: { halign: 'left', fontStyle: 'bold', cellWidth: 60 } },
+        alternateRowStyles: { fillColor: [245, 245, 245] },
+        theme: 'grid'
+      })
+
+      doc.save(`MATRIZ_${asg.unidad_nombre.replace(/\s+/g, '_')}.pdf`)
+      toast({ title: "PDF Generado con éxito" })
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Error", description: err.message })
+    } finally {
+      setIsExportingPdf(null)
     }
   }
 
@@ -257,20 +314,32 @@ export default function InstructorDashboard() {
                   </div>
                 </div>
               </CardContent>
-              <CardFooter className="bg-slate-50/50 p-6 gap-3 mt-4">
+              <CardFooter className="bg-slate-50/50 p-6 gap-2 mt-4">
                 <Button asChild className="flex-1 h-14 font-black shadow-lg shadow-primary/20">
                   <Link href={`/instructor/attendance/${asg.unidad_id}?periodo_id=${selectedPeriodId}`}>
                     Pasar Lista <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
                 </Button>
-                <Button 
-                  variant="outline" 
-                  className="h-14 w-14 p-0 border-slate-200"
-                  disabled={isExporting === asg.id}
-                  onClick={() => handleExport(asg)}
-                >
-                  {isExporting === asg.id ? <Loader2 className="h-6 w-6 animate-spin" /> : <FileSpreadsheet className="h-6 w-6" />}
-                </Button>
+                <div className="flex gap-1.5">
+                  <Button 
+                    variant="outline" 
+                    className="h-14 w-11 p-0 border-slate-200 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                    disabled={isExporting === asg.id}
+                    onClick={() => handleExportExcel(asg)}
+                    title="Exportar Excel"
+                  >
+                    {isExporting === asg.id ? <Loader2 className="h-5 w-5 animate-spin" /> : <FileSpreadsheet className="h-5 w-5" />}
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="h-14 w-11 p-0 border-slate-200 text-red-600 hover:text-red-700 hover:bg-red-50"
+                    disabled={isExportingPdf === asg.id}
+                    onClick={() => handleExportPdf(asg)}
+                    title="Exportar PDF"
+                  >
+                    {isExportingPdf === asg.id ? <Loader2 className="h-5 w-5 animate-spin" /> : <FileText className="h-5 w-5" />}
+                  </Button>
+                </div>
               </CardFooter>
             </Card>
           ))}
