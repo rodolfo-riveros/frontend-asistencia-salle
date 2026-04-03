@@ -145,7 +145,7 @@ export default function InstructorDashboard() {
               </CardContent>
               <CardFooter className="bg-slate-50/50 p-6 gap-3">
                 <Button asChild className="flex-1 h-14 font-black text-sm shadow-lg shadow-primary/20">
-                  <Link href={`/instructor/attendance/${asg.unidad_id}?periodo_id=${asg.periodo_id}`}>
+                  <Link href={`/instructor/attendance/${asg.unidad_id}?periodo_id=${asg.periodo_id || selectedPeriodId}`}>
                     Pasar Lista <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
                 </Button>

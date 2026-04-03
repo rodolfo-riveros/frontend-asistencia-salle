@@ -55,6 +55,7 @@ export default function AttendancePage() {
     if (!name) return "ST"
     const words = name.trim().split(/\s+/)
     if (words.length >= 2) {
+      // Tomamos la primera letra de las dos primeras palabras (Nombres/Apellidos)
       return (words[0][0] + words[1][0]).toUpperCase()
     }
     return words[0].substring(0, 2).toUpperCase()
