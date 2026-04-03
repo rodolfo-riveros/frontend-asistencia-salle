@@ -42,7 +42,7 @@ export default function InstructorDashboard() {
       toast({ 
         variant: "destructive", 
         title: "Error de Sincronización", 
-        description: "No se pudo conectar con el servidor para obtener tu carga académica." 
+        description: "No se pudo conectar con el servidor." 
       })
     } finally {
       setIsLoading(false)
@@ -57,11 +57,12 @@ export default function InstructorDashboard() {
     setIsExporting(asg.id)
     toast({
       title: "Generando Reporte",
-      description: `Procesando matriz de asistencia para ${asg.unidad_nombre}...`,
+      description: `Procesando matriz de asistencia profesional para ${asg.unidad_nombre}...`,
     })
 
     try {
-      // 1. Obtener datos: Reporte completo de asistencia y lista de alumnos matriculados
+      // 1. Obtener datos necesarios
+      // Nota: El backend usa .eq("unidad", unidad_id) segun el error previo
       const [reportData, alumnos] = await Promise.all([
         api.get<any[]>(`/asistencias/reporte/unidad/${asg.unidad_id}`),
         api.get<any[]>(`/me/unidades/${asg.unidad_id}/alumnos`)
@@ -71,87 +72,91 @@ export default function InstructorDashboard() {
         throw new Error("No hay alumnos matriculados para generar el reporte.")
       }
 
-      // 2. Procesar fechas únicas del periodo
+      // 2. Procesar fechas únicas del periodo y pivotar datos
       const uniqueDates = Array.from(new Set(reportData.map(r => r.fecha))).sort()
-      
-      // 3. Crear matriz de datos: Alumno -> { fecha: estado }
       const matrix: Record<string, Record<string, string>> = {}
       reportData.forEach(reg => {
         if (!matrix[reg.alumno_id]) matrix[reg.alumno_id] = {}
         matrix[reg.alumno_id][reg.fecha] = reg.estado
       })
 
-      // 4. Construir filas del Excel
+      // 3. Construir filas para el Excel (AOA - Array of Arrays)
       const rows: any[] = []
-      const periodName = periods.find(p => p.id === selectedPeriodId)?.nombre || "SIN PERIODO"
+      const periodName = periods.find(p => p.id === selectedPeriodId)?.nombre || "N/A"
 
-      // Cabecera institucional (Filas 1 y 2)
-      rows.push([`CONTROL DE ASISTENCIA - ${asg.unidad_nombre.toUpperCase()} (${asg.semestre})`])
-      rows.push([`PROGRAMA: ${asg.programa_nombre.toUpperCase()} | PERIODO: ${periodName}`])
-      rows.push([]) // Fila vacía de separación
+      // --- CABECERA INSTITUCIONAL ---
+      rows.push(["INSTITUTO DE EDUCACIÓN SUPERIOR LA SALLE - URUBAMBA"])
+      rows.push([`SISTEMA DE CONTROL DE ASISTENCIA Y RENDIMIENTO ACADÉMICO`])
+      rows.push([]) // Espacio
+      rows.push([`UNIDAD DIDÁCTICA:`, asg.unidad_nombre.toUpperCase(), "", `PROGRAMA:`, asg.programa_nombre.toUpperCase()])
+      rows.push([`DOCENTE:`, "USUARIO DOCENTE", "", `SEMESTRE:`, asg.semestre, "", `PERIODO:`, periodName])
+      rows.push([]) // Espacio
 
-      // Encabezados de tabla
+      // --- ENCABEZADOS DE LA TABLA ---
       const headerRow = ['N°', 'APELLIDOS Y NOMBRES']
       uniqueDates.forEach(d => {
-        const dateObj = new Date(d)
-        // Formato DD/MM
-        headerRow.push(`${dateObj.getUTCDate()}/${dateObj.getUTCMonth() + 1}`)
+        const [year, month, day] = d.split('-')
+        headerRow.push(`${day}/${month}`)
       })
-      headerRow.push('TOTAL FALTAS', '% INASISTENCIA')
+      headerRow.push('FALTAS', '% INAS.')
       rows.push(headerRow)
 
-      // Cuerpo de la tabla (Alumnos)
+      // --- CUERPO DE LA TABLA (ALUMNOS) ---
       alumnos.sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach((alumno, index) => {
         const studentRow: any[] = [
           (index + 1).toString().padStart(2, '0'),
           alumno.nombre.toUpperCase()
         ]
 
-        let faltasCount = 0
+        let absences = 0
         uniqueDates.forEach(date => {
           const status = matrix[alumno.id]?.[date] || "-"
           studentRow.push(status)
-          if (status === 'F') faltasCount++
+          if (status === 'F') absences++
         })
 
-        const totalSesiones = uniqueDates.length
-        const pctInasistencia = totalSesiones > 0 ? ((faltasCount / totalSesiones) * 100).toFixed(0) : "0"
+        const totalSessions = uniqueDates.length
+        const pct = totalSessions > 0 ? ((absences / totalSessions) * 100).toFixed(0) : "0"
 
-        studentRow.push(faltasCount)
-        studentRow.push(`${pctInasistencia}%`)
+        studentRow.push(absences)
+        studentRow.push(`${pct}%`)
         rows.push(studentRow)
       })
 
-      // 5. Crear el libro y aplicar estilos básicos (merge y anchos)
+      // 4. Crear el libro de trabajo (Workbook)
       const wb = XLSX.utils.book_new()
       const ws = XLSX.utils.aoa_to_sheet(rows)
 
-      // Configurar anchos de columna
+      // --- CONFIGURACIÓN DE ESTILOS Y ESTRUCTURA ---
+      
+      // Anchos de columna
       const wscols = [
-        { wch: 5 },   // N°
+        { wch: 4 },   // N°
         { wch: 45 },  // Nombres
-        ...uniqueDates.map(() => ({ wch: 6 })), // Columnas de fechas
-        { wch: 12 },  // Total Faltas
-        { wch: 15 }   // % Inasistencia
+        ...uniqueDates.map(() => ({ wch: 6 })), // Fechas
+        { wch: 10 },  // Faltas
+        { wch: 10 }   // %
       ]
       ws['!cols'] = wscols
 
-      // Combinar celdas del título principal
+      // Combinación de celdas para los títulos
       ws['!merges'] = [
-        { s: { r: 0, c: 0 }, e: { r: 0, c: headerRow.length - 1 } },
-        { s: { r: 1, c: 0 }, e: { r: 1, c: headerRow.length - 1 } }
+        { s: { r: 0, c: 0 }, e: { r: 0, c: headerRow.length - 1 } }, // Titulo 1
+        { s: { r: 1, c: 0 }, e: { r: 1, c: headerRow.length - 1 } }, // Titulo 2
+        { s: { r: 3, c: 1 }, e: { r: 3, c: 2 } }, // Unidad Nombre
+        { s: { r: 3, c: 4 }, e: { r: 3, c: 6 } }, // Programa Nombre
       ]
 
-      XLSX.utils.book_append_sheet(wb, ws, "Reporte Asistencia")
+      XLSX.utils.book_append_sheet(wb, ws, "Matriz_Asistencia")
 
-      // 6. Descargar archivo
-      const fileName = `Reporte_${asg.unidad_nombre.replace(/\s+/g, '_')}_${periodName}.xlsx`
+      // 5. Descargar archivo
+      const fileName = `Matriz_${asg.unidad_nombre.replace(/\s+/g, '_')}_${periodName}.xlsx`
       XLSX.writeFile(wb, fileName)
 
-      toast({ title: "Exportación exitosa", description: "El archivo Excel ha sido generado." })
+      toast({ title: "Reporte generado", description: "La matriz de asistencia se descargó con éxito." })
     } catch (err: any) {
       console.error(err)
-      toast({ variant: "destructive", title: "Error al exportar", description: err.message || "No se pudo generar el Excel." })
+      toast({ variant: "destructive", title: "Error al exportar", description: err.message })
     } finally {
       setIsExporting(null)
     }
@@ -180,15 +185,11 @@ export default function InstructorDashboard() {
                   <SelectValue placeholder="Seleccione Ciclo" />
                 </SelectTrigger>
                 <SelectContent>
-                  {periods.length > 0 ? (
-                    periods.map(p => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.nombre} {p.es_activo && "(Activo)"}
-                      </SelectItem>
-                    ))
-                  ) : (
-                    <SelectItem value="none" disabled>No hay periodos creados</SelectItem>
-                  )}
+                  {periods.map(p => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.nombre} {p.es_activo && "(Activo)"}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -265,10 +266,10 @@ export default function InstructorDashboard() {
           <AlertCircle className="h-12 w-12 opacity-10" />
           <div className="space-y-1">
             <p className="font-bold text-lg text-slate-900">Sin carga académica</p>
-            <p className="text-sm">No se encontraron unidades asignadas para el periodo seleccionado.</p>
+            <p className="text-sm">No se encontraron unidades para este periodo.</p>
           </div>
-          <Button variant="outline" className="mt-4 font-bold h-11 px-8" onClick={fetchData}>
-            Actualizar Lista
+          <Button variant="outline" className="mt-4 font-bold" onClick={fetchData}>
+            Actualizar
           </Button>
         </Card>
       )}

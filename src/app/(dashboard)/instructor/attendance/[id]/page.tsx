@@ -13,8 +13,7 @@ import {
   Clock,
   MessageSquareQuote,
   Loader2,
-  RefreshCcw,
-  CheckCircle2
+  RefreshCcw
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -36,7 +35,7 @@ const STATUS_MAP: Record<string, string> = {
   'Justificado': 'J'
 }
 
-const REVERSE_STATUS_MAP: Record<string, string> = {
+const REVERSE_MAP: Record<string, string> = {
   'P': 'Presente',
   'F': 'Falta',
   'T': 'Tarde',
@@ -49,14 +48,12 @@ export default function AttendancePage() {
   const router = useRouter()
   
   const periodoId = searchParams.get('periodo_id')
-  
   const [students, setStudents] = React.useState<any[]>([])
   const [attendance, setAttendance] = React.useState<Record<string, string | null>>({})
   const [isLoading, setIsLoading] = React.useState(true)
   const [isSyncing, setIsSyncing] = React.useState(false)
   const [searchTerm, setSearchTerm] = React.useState("")
   
-  // Fecha ajustada a la zona horaria de Perú (Lima)
   const [date, setDate] = React.useState(() => {
     return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Lima' });
   })
@@ -68,35 +65,23 @@ export default function AttendancePage() {
     if (!params.id || !date) return
     setIsSyncing(true)
     try {
-      // Intentamos obtener los registros de ese día
+      // Nota: El backend usa "unidad" segun el error reportado
       const existing = await api.get<any[]>(`/asistencias/reporte/unidad/${params.id}?fecha_inicio=${date}&fecha_fin=${date}`)
       
-      if (existing && Array.isArray(existing) && existing.length > 0) {
+      if (existing && existing.length > 0) {
         const mapped: Record<string, string> = {}
         existing.forEach(reg => {
-          // Importante: La vista v_asistencias_completas usa 'alumno_id'
-          const aid = reg.alumno_id;
-          if (aid) {
-            mapped[aid] = REVERSE_STATUS_MAP[reg.estado] || reg.estado
+          if (reg.alumno_id) {
+            mapped[reg.alumno_id] = REVERSE_MAP[reg.estado] || reg.estado
           }
         })
         
         setAttendance(prev => {
           const newState = { ...prev }
-          // Actualizamos los estados que encontramos en la DB
           Object.keys(mapped).forEach(key => {
             newState[key] = mapped[key]
           })
           return newState
-        })
-      } else {
-        // Si no hay registros para ese día, limpiamos el mapa localmente
-        setAttendance(prev => {
-          const reset: Record<string, string | null> = {}
-          Object.keys(prev).forEach(key => {
-            reset[key] = null
-          })
-          return reset
         })
       }
     } catch (err) {
@@ -111,17 +96,15 @@ export default function AttendancePage() {
     try {
       const data = await api.get<any[]>(`/me/unidades/${params.id}/alumnos`)
       setStudents(data)
-      // Inicializamos el mapa de asistencia con null para todos los alumnos cargados
       const initialMap = Object.fromEntries(data.map(s => [s.id, null]))
       setAttendance(initialMap)
       
-      // Una vez tenemos los alumnos, cargamos la asistencia grabada
       await fetchExistingAttendance()
     } catch (err: any) {
       toast({ 
         variant: "destructive", 
         title: "Error", 
-        description: "No se pudo cargar la lista de alumnos." 
+        description: "No se pudo cargar la lista." 
       })
     } finally {
       setIsLoading(false)
@@ -132,7 +115,7 @@ export default function AttendancePage() {
     fetchStudents()
   }, [fetchStudents])
 
-  // Recargar asistencia si cambia la fecha manualmente
+  // Recargar si cambia la fecha
   React.useEffect(() => {
     if (!isLoading && students.length > 0) {
       fetchExistingAttendance()
@@ -147,29 +130,18 @@ export default function AttendancePage() {
       newAttendance[s.id] = status
     })
     setAttendance(newAttendance)
-    toast({ 
-      title: "Marcado Masivo", 
-      description: `Todos marcados como: ${status}`,
-    })
+    toast({ title: "Marcado Masivo", description: `${status} a todos.` })
   }
 
   const handleSave = async () => {
     const records = Object.entries(attendance).filter(([_, estado]) => estado !== null);
     
     if (records.length === 0) {
-      return toast({ 
-        variant: "destructive", 
-        title: "Pase vacío", 
-        description: "No has marcado la asistencia de ningún alumno." 
-      })
+      return toast({ variant: "destructive", title: "Lista vacía" })
     }
     
     if (!periodoId) {
-      return toast({ 
-        variant: "destructive", 
-        title: "Error de Periodo", 
-        description: "No se encontró el ID del ciclo académico." 
-      })
+      return toast({ variant: "destructive", title: "Error", description: "Falta ID de periodo." })
     }
 
     const payload = {
@@ -184,17 +156,10 @@ export default function AttendancePage() {
 
     try {
       await api.post('/asistencias/pase-lista', payload)
-      toast({ 
-        title: "¡Guardado exitoso!", 
-        description: `La asistencia se registró correctamente.`,
-      })
+      toast({ title: "¡Guardado!", description: "La asistencia se registró correctamente." })
       router.push('/instructor')
     } catch (err: any) {
-      toast({ 
-        variant: "destructive", 
-        title: "Error al guardar", 
-        description: err.message || "Error interno del servidor."
-      })
+      toast({ variant: "destructive", title: "Error", description: err.message })
     }
   }
 
@@ -206,14 +171,11 @@ export default function AttendancePage() {
         studentId: h.alumno_id,
         studentName: h.alumno,
         courseUnitId: params.id as string,
-        courseUnitName: "Unidad Didáctica",
-        date: "Análisis Histórico",
-        status: h.faltas > 3 ? "Falta" : "Presente"
+        courseUnitName: "UD",
+        date: "Histórico",
+        status: h.faltas > 2 ? "Falta" : "Presente"
       }))
-      const result = await aiAttendanceInsights({ 
-        attendanceRecords: records as any, 
-        analysisContext: `Unidad Didáctica ID: ${params.id}` 
-      })
+      const result = await aiAttendanceInsights({ attendanceRecords: records as any })
       setAiResult(result)
     } catch (e: any) {
       toast({ variant: "destructive", title: "Error de IA", description: "No hay datos suficientes." })
@@ -227,7 +189,7 @@ export default function AttendancePage() {
   return (
     <div className="space-y-6 md:space-y-8 pb-10">
       <div className="space-y-4">
-        <Button variant="ghost" onClick={() => router.back()} className="h-10 hover:bg-slate-200 -ml-2 text-primary font-bold">
+        <Button variant="ghost" onClick={() => router.back()} className="h-10 text-primary font-bold">
           <ArrowLeft className="mr-2 h-4 w-4" /> Volver al Panel
         </Button>
         
@@ -235,10 +197,7 @@ export default function AttendancePage() {
           <div className="space-y-3 w-full lg:w-auto">
             <h2 className="text-3xl md:text-4xl font-headline font-black tracking-tighter text-slate-900 leading-tight">Pase de Lista</h2>
             <div className="flex flex-wrap items-center gap-3">
-              <Badge variant="outline" className="font-black bg-primary/5 text-primary border-primary/20 px-4 py-1.5 uppercase text-[10px]">
-                UD: {params.id.toString().substring(0,8)}
-              </Badge>
-              <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-xl border border-slate-100 shadow-sm">
+              <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-xl border shadow-sm">
                 <Label className="text-[9px] font-black uppercase text-slate-400">Fecha:</Label>
                 <input 
                   type="date" 
@@ -251,12 +210,12 @@ export default function AttendancePage() {
             </div>
           </div>
           
-          <div className="flex flex-wrap items-center gap-2 md:gap-3 w-full lg:w-auto">
-            <Button variant="outline" className="flex-1 lg:flex-none h-12 px-6 gap-2 text-accent border-accent/20 font-bold text-sm" onClick={runAnalysis} disabled={isAnalyzing}>
+          <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+            <Button variant="outline" className="flex-1 lg:flex-none h-12 px-6 gap-2 text-accent font-bold" onClick={runAnalysis} disabled={isAnalyzing}>
               <Sparkles className={`h-5 w-5 ${isAnalyzing ? 'animate-spin' : ''}`} />
               Análisis IA
             </Button>
-            <Button className="flex-1 lg:flex-none h-12 px-8 gap-2 font-black shadow-lg shadow-primary/20 text-sm" onClick={handleSave}>
+            <Button className="flex-1 lg:flex-none h-12 px-8 gap-2 font-black shadow-lg shadow-primary/20" onClick={handleSave}>
               <Save className="h-5 w-5" /> Guardar Cambios
             </Button>
           </div>
@@ -267,16 +226,16 @@ export default function AttendancePage() {
         {isLoading ? (
           <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-3">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="text-sm font-medium">Cargando alumnos...</p>
+            <p className="text-sm font-medium">Cargando...</p>
           </div>
         ) : (
           <>
             <div className="p-4 md:p-6 bg-slate-50/50 border-b flex flex-col md:flex-row items-center justify-between gap-6">
               <div className="flex flex-wrap gap-2 w-full md:w-auto">
-                <Button variant="outline" size="sm" className="h-10 border-green-200 text-green-700 hover:bg-green-50 font-black text-[10px] px-4" onClick={() => handleMassive('Presente')}>P a Todos</Button>
-                <Button variant="outline" size="sm" className="h-10 border-amber-200 text-amber-700 hover:bg-amber-50 font-black text-[10px] px-4" onClick={() => handleMassive('Tarde')}>T a Todos</Button>
-                <Button variant="outline" size="sm" className="h-10 border-red-200 text-red-700 hover:bg-red-50 font-black text-[10px] px-4" onClick={() => handleMassive('Falta')}>F a Todos</Button>
-                <Button variant="outline" size="sm" className="h-10 border-blue-200 text-blue-700 hover:bg-blue-50 font-black text-[10px] px-4" onClick={() => handleMassive('Justificado')}>J a Todos</Button>
+                <Button variant="outline" size="sm" className="h-10 border-green-200 text-green-700 font-black text-[10px]" onClick={() => handleMassive('Presente')}>P a Todos</Button>
+                <Button variant="outline" size="sm" className="h-10 border-amber-200 text-amber-700 font-black text-[10px]" onClick={() => handleMassive('Tarde')}>T a Todos</Button>
+                <Button variant="outline" size="sm" className="h-10 border-red-200 text-red-700 font-black text-[10px]" onClick={() => handleMassive('Falta')}>F a Todos</Button>
+                <Button variant="outline" size="sm" className="h-10 border-blue-200 text-blue-700 font-black text-[10px]" onClick={() => handleMassive('Justificado')}>J a Todos</Button>
               </div>
               <div className="relative w-full md:w-80">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -300,7 +259,7 @@ export default function AttendancePage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredStudents.length > 0 ? filteredStudents.map((s) => (
+                    {filteredStudents.map((s) => (
                       <TableRow key={s.id} className="hover:bg-slate-50/30 transition-colors border-slate-50">
                         <TableCell className="pl-8 py-4">
                           <Avatar className="h-11 w-11 border-2 border-white shadow-sm ring-2 ring-slate-100">
@@ -314,14 +273,14 @@ export default function AttendancePage() {
                           <div className="text-[10px] text-slate-400 font-mono">DNI: {s.dni}</div>
                         </TableCell>
                         <TableCell className="text-center">
-                          {!attendance[s.id] ? (
-                            <Badge variant="outline" className="border-dashed text-slate-300 text-[9px] uppercase font-bold">Pendiente</Badge>
-                          ) : (
+                          {attendance[s.id] ? (
                             <Badge className={`uppercase text-[9px] font-black tracking-widest px-3 py-1 ${
                               attendance[s.id] === 'Presente' ? 'bg-green-100 text-green-700' : attendance[s.id] === 'Falta' ? 'bg-red-100 text-red-700' : attendance[s.id] === 'Tarde' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
                             }`}>
                               {attendance[s.id]}
                             </Badge>
+                          ) : (
+                            <Badge variant="outline" className="border-dashed text-slate-300 text-[9px] uppercase font-bold">Pendiente</Badge>
                           )}
                         </TableCell>
                         <TableCell className="text-right pr-8">
@@ -333,13 +292,7 @@ export default function AttendancePage() {
                           </div>
                         </TableCell>
                       </TableRow>
-                    )) : (
-                      <TableRow>
-                        <TableCell colSpan={4} className="h-32 text-center text-slate-400 italic">
-                          No hay alumnos registrados
-                        </TableCell>
-                      </TableRow>
-                    )}
+                    ))}
                   </TableBody>
                 </Table>
                 <ScrollBar orientation="horizontal" />
@@ -364,10 +317,9 @@ function ActionBtn({ icon: Icon, active, color, onClick, label }: any) {
       size="icon" 
       variant="outline" 
       onClick={onClick} 
-      className={`h-10 w-10 rounded-full transition-all border-slate-100 shrink-0 relative group ${themes[color]}`}
+      className={`h-10 w-10 rounded-full transition-all border-slate-100 shrink-0 ${themes[color]}`}
     >
       <Icon className="h-4 w-4" />
-      {!active && <span className="absolute -top-1 -right-1 bg-white text-[8px] font-black border rounded px-1 opacity-0 group-hover:opacity-100">{label}</span>}
     </Button>
   )
 }
