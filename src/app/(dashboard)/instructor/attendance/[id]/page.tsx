@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -27,8 +26,8 @@ import { toast } from "@/hooks/use-toast"
 import { aiAttendanceInsights, type AttendanceInsightsOutput } from "@/ai/flows/ai-attendance-insights"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import { api } from "@/lib/api"
+import { getInitials } from "@/lib/utils"
 
-// Mapeo de estados para el backend
 const STATUS_MAP: Record<string, string> = {
   'Presente': 'P',
   'Falta': 'F',
@@ -41,7 +40,6 @@ export default function AttendancePage() {
   const searchParams = useSearchParams()
   const router = useRouter()
   
-  // Capturar el periodo_id de la URL
   const periodoId = searchParams.get('periodo_id')
   
   const [students, setStudents] = React.useState<any[]>([])
@@ -49,7 +47,7 @@ export default function AttendancePage() {
   const [isLoading, setIsLoading] = React.useState(true)
   const [searchTerm, setSearchTerm] = React.useState("")
   
-  // Ajuste de fecha a zona horaria de Perú (Lima)
+  // Fecha ajustada a Perú (Lima)
   const [date, setDate] = React.useState(() => {
     return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Lima' });
   })
@@ -57,23 +55,11 @@ export default function AttendancePage() {
   const [isAnalyzing, setIsAnalyzing] = React.useState(false)
   const [aiResult, setAiResult] = React.useState<AttendanceInsightsOutput | null>(null)
 
-  const getInitials = (name: string) => {
-    if (!name) return "ST"
-    const words = name.trim().toUpperCase().split(/\s+/)
-    if (words.length >= 2) {
-      // Tomamos la primera letra del primer nombre y la primera letra del primer apellido
-      // Útil para nombres como "Juan Pérez García" -> "JP"
-      return (words[0][0] + words[1][0])
-    }
-    return words[0].substring(0, 2)
-  }
-
   const fetchStudents = React.useCallback(async () => {
     setIsLoading(true)
     try {
       const data = await api.get<any[]>(`/me/unidades/${params.id}/alumnos`)
       setStudents(data)
-      // Inicializar asistencia como null para obligar a marcar
       setAttendance(Object.fromEntries(data.map(s => [s.id, null])))
     } catch (err: any) {
       toast({ 
@@ -136,7 +122,7 @@ export default function AttendancePage() {
       toast({ 
         variant: "destructive", 
         title: "Error al guardar", 
-        description: err.message || "Ocurrió un error inesperado en el servidor. Verifica el periodo_id en el backend."
+        description: err.message || "Ocurrió un error en el servidor."
       })
     }
   }
@@ -205,33 +191,6 @@ export default function AttendancePage() {
         </div>
       </div>
 
-      {aiResult && (
-        <Card className="border-none shadow-2xl bg-slate-900 text-white overflow-hidden animate-in fade-in slide-in-from-top-4 duration-500">
-          <CardHeader className="bg-white/5 p-4 md:p-6 border-b border-white/10 flex flex-row items-center justify-between">
-            <div className="flex items-center gap-3">
-              <AlertTriangle className="h-5 w-5 md:h-6 md:w-6 text-red-400" />
-              <CardTitle className="text-lg md:text-xl font-bold">Diagnóstico de Deserción</CardTitle>
-            </div>
-            <Button variant="ghost" size="sm" onClick={() => setAiResult(null)} className="text-white h-8 w-8 p-0">×</Button>
-          </CardHeader>
-          <CardContent className="p-6 md:p-8 space-y-8">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {aiResult.atRiskStudents.length > 0 ? aiResult.atRiskStudents.map((s, i) => (
-                <div key={i} className="bg-white/5 p-4 rounded-xl border border-white/10 space-y-2">
-                  <div className="flex justify-between font-bold text-sm md:text-base">
-                    <span className="truncate">{s.name}</span>
-                    <Badge className="bg-red-500/80 text-[10px] md:text-xs ml-2">{s.absencePercentage}%</Badge>
-                  </div>
-                  <p className="text-[10px] md:text-xs text-blue-200/60 leading-relaxed">{s.reason}</p>
-                </div>
-              )) : (
-                <p className="text-blue-200/60 text-sm">No se detectaron alumnos en riesgo crítico.</p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       <Card className="border-none shadow-xl bg-white overflow-hidden">
         {isLoading ? (
           <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-3">
@@ -244,9 +203,8 @@ export default function AttendancePage() {
               <div className="flex flex-wrap gap-2 w-full md:w-auto">
                 <Button variant="outline" className="flex-1 md:flex-none h-9 md:h-10 border-green-200 text-green-700 hover:bg-green-50 font-bold text-[10px] md:text-xs px-2" onClick={() => handleMassive('Presente')}>P a Todos</Button>
                 <Button variant="outline" className="flex-1 md:flex-none h-9 md:h-10 border-red-200 text-red-700 hover:bg-red-50 font-bold text-[10px] md:text-xs px-2" onClick={() => handleMassive('Falta')}>F a Todos</Button>
-                <Button variant="outline" className="flex-1 md:flex-none h-9 md:h-10 border-amber-200 text-amber-700 hover:bg-amber-50 font-bold text-[10px] md:text-xs px-2" onClick={() => handleMassive('Tarde')}>T a Todos</Button>
               </div>
-              <div className="relative w-full md:w-72 lg:w-96">
+              <div className="relative w-full md:w-72">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <Input 
                   placeholder="Filtrar por nombre..." 
@@ -261,39 +219,39 @@ export default function AttendancePage() {
                 <Table>
                   <TableHeader className="bg-slate-50/50">
                     <TableRow className="border-none">
-                      <TableHead className="w-[60px] md:w-[80px] pl-4 md:pl-8"></TableHead>
-                      <TableHead className="font-black text-[9px] md:text-[10px] uppercase tracking-widest text-slate-400">Alumno</TableHead>
-                      <TableHead className="text-center font-black text-[9px] md:text-[10px] uppercase tracking-widest text-slate-400">Estado</TableHead>
-                      <TableHead className="text-right pr-4 md:pr-8 font-black text-[9px] md:text-[10px] uppercase tracking-widest text-slate-400">Acción</TableHead>
+                      <TableHead className="w-[80px] pl-8"></TableHead>
+                      <TableHead className="font-black text-[10px] uppercase tracking-widest text-slate-400">Alumno</TableHead>
+                      <TableHead className="text-center font-black text-[10px] uppercase tracking-widest text-slate-400">Estado</TableHead>
+                      <TableHead className="text-right pr-8 font-black text-[10px] uppercase tracking-widest text-slate-400">Acción</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {students.filter(s => s.nombre.toLowerCase().includes(searchTerm.toLowerCase())).map((s) => (
                       <TableRow key={s.id} className="hover:bg-slate-50/30 transition-colors border-slate-50">
-                        <TableCell className="pl-4 md:pl-8 py-3 md:py-4">
-                          <Avatar className="h-8 w-8 md:h-10 md:w-10 border-2 border-white shadow-sm ring-2 ring-slate-100">
-                            <AvatarFallback className="bg-primary/5 text-primary font-black text-[10px] md:text-xs">
+                        <TableCell className="pl-8 py-4">
+                          <Avatar className="h-10 w-10 border-2 border-white shadow-sm ring-2 ring-slate-100">
+                            <AvatarFallback className="bg-primary/5 text-primary font-black text-xs">
                               {getInitials(s.nombre)}
                             </AvatarFallback>
                           </Avatar>
                         </TableCell>
                         <TableCell>
-                          <div className="font-bold text-xs md:text-sm text-slate-900">{s.nombre}</div>
-                          <div className="text-[8px] md:text-[10px] text-slate-400 font-mono uppercase tracking-tighter">DNI: {s.dni}</div>
+                          <div className="font-bold text-sm text-slate-900">{s.nombre}</div>
+                          <div className="text-[10px] text-slate-400 font-mono uppercase tracking-tighter">DNI: {s.dni}</div>
                         </TableCell>
                         <TableCell className="text-center">
                           {!attendance[s.id] ? (
-                            <Badge variant="outline" className="border-dashed text-slate-300 text-[8px] md:text-[10px] px-1 md:px-2 py-0 uppercase">Pendiente</Badge>
+                            <Badge variant="outline" className="border-dashed text-slate-300 text-[10px] uppercase">Pendiente</Badge>
                           ) : (
-                            <Badge className={`uppercase text-[8px] md:text-[9px] font-black tracking-widest px-1.5 md:px-2 ${
+                            <Badge className={`uppercase text-[9px] font-black tracking-widest px-2 ${
                               attendance[s.id] === 'Presente' ? 'bg-green-100 text-green-700' : attendance[s.id] === 'Falta' ? 'bg-red-100 text-red-700' : attendance[s.id] === 'Tarde' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
                             }`}>
                               {attendance[s.id]}
                             </Badge>
                           )}
                         </TableCell>
-                        <TableCell className="text-right pr-4 md:pr-8">
-                          <div className="flex justify-end gap-1 md:gap-2">
+                        <TableCell className="text-right pr-8">
+                          <div className="flex justify-end gap-2">
                             <ActionBtn icon={UserCheck} active={attendance[s.id] === 'Presente'} color="green" onClick={() => handleStatus(s.id, 'Presente')} />
                             <ActionBtn icon={Clock} active={attendance[s.id] === 'Tarde'} color="amber" onClick={() => handleStatus(s.id, 'Tarde')} />
                             <ActionBtn icon={UserX} active={attendance[s.id] === 'Falta'} color="red" onClick={() => handleStatus(s.id, 'Falta')} />
@@ -322,8 +280,8 @@ function ActionBtn({ icon: Icon, active, color, onClick }: any) {
     blue: active ? "bg-blue-600 text-white" : "hover:bg-blue-50 text-slate-400 hover:text-blue-600",
   }
   return (
-    <Button size="icon" variant="outline" onClick={onClick} className={`h-8 w-8 md:h-10 md:w-10 rounded-full transition-all border-slate-100 shrink-0 ${themes[color]}`}>
-      <Icon className="h-3.5 w-3.5 md:h-4 md:w-4" />
+    <Button size="icon" variant="outline" onClick={onClick} className={`h-10 w-10 rounded-full transition-all border-slate-100 shrink-0 ${themes[color]}`}>
+      <Icon className="h-4 w-4" />
     </Button>
   )
 }
