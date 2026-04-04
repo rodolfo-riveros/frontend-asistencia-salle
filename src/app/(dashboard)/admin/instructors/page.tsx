@@ -34,6 +34,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -59,6 +69,10 @@ export default function AdminInstructorsPage() {
   const [editingInstructor, setEditingInstructor] = React.useState<any>(null)
   const [searchTerm, setSearchTerm] = React.useState("")
   
+  const [isDeleteDialogOpen, setIsDeletingDialogOpen] = React.useState(false)
+  const [instructorToDelete, setInstructorToDelete] = React.useState<any>(null)
+  const [isDeletingLoading, setIsDeletingLoading] = React.useState(false)
+
   // Pagination State
   const [currentPage, setCurrentPage] = React.useState(1)
   const itemsPerPage = 10
@@ -146,14 +160,19 @@ export default function AdminInstructorsPage() {
     }
   }
 
-  const handleDelete = async (id: string) => {
-    if(!confirm("¿Desea eliminar este perfil docente?")) return
+  const confirmDelete = async () => {
+    if (!instructorToDelete) return
+    setIsDeletingLoading(true)
     try {
-      await api.delete(`/docentes/${id}`)
+      await api.delete(`/docentes/${instructorToDelete.id}`)
       toast({ title: "Perfil eliminado" })
       fetchData()
+      setIsDeletingDialogOpen(false)
     } catch (err: any) {
       toast({ variant: "destructive", title: "Error", description: err.message })
+    } finally {
+      setIsDeletingLoading(false)
+      setInstructorToDelete(null)
     }
   }
 
@@ -321,7 +340,7 @@ export default function AdminInstructorsPage() {
                               <DropdownMenuItem className="gap-2" onClick={() => { setEditingInstructor(docente); setIsModalOpen(true); }}>
                                 <Edit2 className="h-3.5 w-3.5" /> Editar Perfil
                               </DropdownMenuItem>
-                              <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(docente.id)}>
+                              <DropdownMenuItem className="gap-2 text-destructive" onClick={() => { setInstructorToDelete(docente); setIsDeletingDialogOpen(true); }}>
                                 <Trash2 className="h-3.5 w-3.5" /> Eliminar Registro
                               </DropdownMenuItem>
                             </DropdownMenuContent>
@@ -374,6 +393,30 @@ export default function AdminInstructorsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Modal */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeletingDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Está seguro de eliminar al docente?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción eliminará definitivamente el perfil de <strong>{instructorToDelete?.nombre}</strong>.
+              Se recomienda solo eliminar perfiles que no tengan carga académica histórica.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingLoading}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={(e) => { e.preventDefault(); confirmDelete(); }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isDeletingLoading}
+            >
+              {isDeletingLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
+              Eliminar Perfil
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

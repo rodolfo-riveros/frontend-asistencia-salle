@@ -37,6 +37,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -66,6 +76,10 @@ export default function AdminStudentsPage() {
   const [editingStudent, setEditingStudent] = React.useState<any>(null)
   const [searchTerm, setSearchTerm] = React.useState("")
   
+  const [isDeleteDialogOpen, setIsDeletingDialogOpen] = React.useState(false)
+  const [studentToDelete, setStudentToDelete] = React.useState<any>(null)
+  const [isDeletingLoading, setIsDeletingLoading] = React.useState(false)
+
   const [importFile, setImportFile] = React.useState<File | null>(null)
   const [isUploading, setIsUploading] = React.useState(false)
   const [uploadProgress, setUploadProgress] = React.useState(0)
@@ -127,14 +141,19 @@ export default function AdminStudentsPage() {
     }
   }
 
-  const handleDelete = async (id: string) => {
-    if(!confirm("¿Desea retirar a este estudiante de la matrícula?")) return
+  const confirmDelete = async () => {
+    if (!studentToDelete) return
+    setIsDeletingLoading(true)
     try {
-      await api.delete(`/alumnos/${id}`)
+      await api.delete(`/alumnos/${studentToDelete.id}`)
       toast({ title: "Alumno retirado" })
       fetchData()
+      setIsDeletingDialogOpen(false)
     } catch (err: any) {
       toast({ variant: "destructive", title: "Error al eliminar", description: err.message })
+    } finally {
+      setIsDeletingLoading(false)
+      setStudentToDelete(null)
     }
   }
 
@@ -152,7 +171,6 @@ export default function AdminStudentsPage() {
       referenceData.push({ CODIGO: "SIS", PROGRAMA_DE_ESTUDIO: "Desarrollo de Sistemas (Ejemplo)" })
     }
 
-    const wsRef = XLSX.utils.book_new()
     const workbook = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(workbook, wsData, "Datos_Alumnos")
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(referenceData), "Codigos_Programas")
@@ -380,7 +398,7 @@ export default function AdminStudentsPage() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => { setEditingStudent(student); setIsModalOpen(true); }}>Editar</DropdownMenuItem>
-                            <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(student.id)}>Eliminar</DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive" onClick={() => { setStudentToDelete(student); setIsDeletingDialogOpen(true); }}>Eliminar</DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -474,6 +492,30 @@ export default function AdminStudentsPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Modal */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeletingDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Retirar alumno de la matrícula?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción eliminará definitivamente a <strong>{studentToDelete?.nombre}</strong> del padrón institucional.
+              Se perderá todo el historial de asistencia asociado a este estudiante.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingLoading}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={(e) => { e.preventDefault(); confirmDelete(); }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isDeletingLoading}
+            >
+              {isDeletingLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
+              Eliminar Alumno
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

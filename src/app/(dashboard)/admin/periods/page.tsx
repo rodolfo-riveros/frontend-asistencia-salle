@@ -43,6 +43,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { toast } from "@/hooks/use-toast"
@@ -52,7 +62,9 @@ export default function AdminPeriodsPage() {
   const [periods, setPeriods] = React.useState<any[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
   const [isModalOpen, setIsModalOpen] = React.useState(false)
-  const [isDeletingId, setIsDeletingId] = React.useState<string | null>(null)
+  const [isDeleteDialogOpen, setIsDeletingDialogOpen] = React.useState(false)
+  const [periodToDelete, setPeriodToDelete] = React.useState<any>(null)
+  const [isDeletingLoading, setIsDeletingLoading] = React.useState(false)
   const [searchTerm, setSearchTerm] = React.useState("")
   
   // Pagination State
@@ -97,16 +109,15 @@ export default function AdminPeriodsPage() {
     }
   }
 
-  const handleDelete = async (id: string) => {
-    if(!id) return
-    const confirmDelete = window.confirm("¿Desea eliminar este periodo?")
-    if(!confirmDelete) return
+  const confirmDelete = async () => {
+    if (!periodToDelete) return
     
-    setIsDeletingId(id)
+    setIsDeletingLoading(true)
     try {
-      await api.delete(`/periodos/${id}`)
+      await api.delete(`/periodos/${periodToDelete.id}`)
       toast({ title: "Periodo eliminado" })
-      setPeriods(prev => prev.filter(p => p.id !== id))
+      setPeriods(prev => prev.filter(p => p.id !== periodToDelete.id))
+      setIsDeletingDialogOpen(false)
     } catch (err: any) {
       toast({ 
         variant: "destructive", 
@@ -114,7 +125,8 @@ export default function AdminPeriodsPage() {
         description: err.message || "El periodo podría tener datos vinculados."
       })
     } finally {
-      setIsDeletingId(null)
+      setIsDeletingLoading(false)
+      setPeriodToDelete(null)
     }
   }
 
@@ -240,73 +252,93 @@ export default function AdminPeriodsPage() {
                           {p.id}
                         </TableCell>
                         <TableCell className="pr-6 text-right">
-                          {isDeletingId === p.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin text-primary ml-auto" />
-                          ) : (
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
-                                  <MoreVertical className="h-4 w-4 text-slate-400" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-40">
-                                <DropdownMenuItem 
-                                  className="gap-2 text-destructive focus:text-destructive focus:bg-red-50 cursor-pointer" 
-                                  onClick={() => handleDelete(p.id)}
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" /> Eliminar Ciclo
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
+                                <MoreVertical className="h-4 w-4 text-slate-400" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-40">
+                              <DropdownMenuItem 
+                                className="gap-2 text-destructive focus:text-destructive focus:bg-red-50 cursor-pointer" 
+                                onClick={() => { setPeriodToDelete(p); setIsDeletingDialogOpen(true); }}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" /> Eliminar Ciclo
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
-                        )}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={4} className="h-48 text-center text-slate-400">
+                        <div className="flex flex-col items-center gap-3">
+                          <AlertCircle className="h-10 w-10 opacity-10" />
+                          <p className="font-bold text-slate-900 uppercase text-xs tracking-widest">No hay periodos registrados</p>
+                        </div>
                       </TableCell>
                     </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={4} className="h-48 text-center text-slate-400">
-                      <div className="flex flex-col items-center gap-3">
-                        <AlertCircle className="h-10 w-10 opacity-10" />
-                        <p className="font-bold text-slate-900 uppercase text-xs tracking-widest">No hay periodos registrados</p>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+                  )}
+                </TableBody>
+              </Table>
 
-            {/* Pagination Controls */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between px-6 py-4 bg-slate-50/30 border-t">
-                <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                  Página {currentPage} de {totalPages} ({filteredPeriods.length} registros)
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between px-6 py-4 bg-slate-50/30 border-t">
+                  <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                    Página {currentPage} de {totalPages} ({filteredPeriods.length} registros)
+                  </div>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                      className="h-8 w-8 p-0"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                      className="h-8 w-8 p-0"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                    disabled={currentPage === 1}
-                    className="h-8 w-8 p-0"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                    disabled={currentPage === totalPages}
-                    className="h-8 w-8 p-0"
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            )}
+              )}
             </>
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Modal */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeletingDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Está absolutamente seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción eliminará el periodo académico <strong>{periodToDelete?.nombre}</strong>. 
+              Si existen registros vinculados a este ciclo, la operación podría fallar por integridad de datos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingLoading}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={(e) => { e.preventDefault(); confirmDelete(); }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isDeletingLoading}
+            >
+              {isDeletingLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
+              Eliminar Periodo
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

@@ -41,6 +41,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "@/hooks/use-toast"
@@ -57,6 +67,10 @@ export default function AcademicAssignmentsPage() {
   const [searchTerm, setSearchTerm] = React.useState("")
   const [selectedPeriodFilter, setSelectedPeriodFilter] = React.useState<string>("all")
   
+  const [isDeleteDialogOpen, setIsDeletingDialogOpen] = React.useState(false)
+  const [assignmentToDelete, setAssignmentToDelete] = React.useState<any>(null)
+  const [isDeletingLoading, setIsDeletingLoading] = React.useState(false)
+
   // Pagination State
   const [currentPage, setCurrentPage] = React.useState(1)
   const itemsPerPage = 10
@@ -120,14 +134,19 @@ export default function AcademicAssignmentsPage() {
     }
   }
 
-  const handleDelete = async (id: string) => {
-    if(!confirm("¿Desea eliminar esta carga académica?")) return
+  const confirmDelete = async () => {
+    if (!assignmentToDelete) return
+    setIsDeletingLoading(true)
     try {
-      await api.delete(`/asignaciones/${id}`)
+      await api.delete(`/asignaciones/${assignmentToDelete.id}`)
       toast({ title: "Asignación retirada" })
       fetchData()
+      setIsDeletingDialogOpen(false)
     } catch (err: any) {
       toast({ variant: "destructive", title: "Error", description: err.message })
+    } finally {
+      setIsDeletingLoading(false)
+      setAssignmentToDelete(null)
     }
   }
 
@@ -319,7 +338,7 @@ export default function AcademicAssignmentsPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-40">
-                              <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(asg.id)}>
+                              <DropdownMenuItem className="gap-2 text-destructive" onClick={() => { setAssignmentToDelete(asg); setIsDeletingDialogOpen(true); }}>
                                 <Trash2 className="h-3.5 w-3.5" /> Eliminar
                               </DropdownMenuItem>
                             </DropdownMenuContent>
@@ -372,6 +391,30 @@ export default function AcademicAssignmentsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Modal */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeletingDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Retirar carga académica?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción desvinculará al docente <strong>{assignmentToDelete?.docente_nombre}</strong> de la unidad didáctica <strong>{assignmentToDelete?.unidad_nombre}</strong>.
+              El historial de asistencia podría verse afectado.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingLoading}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={(e) => { e.preventDefault(); confirmDelete(); }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isDeletingLoading}
+            >
+              {isDeletingLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
+              Retirar Asignación
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

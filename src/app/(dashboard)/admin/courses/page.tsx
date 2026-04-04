@@ -50,6 +50,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Label } from "@/components/ui/label"
 import { toast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
@@ -63,6 +73,10 @@ export default function AdminCoursesPage() {
   const [editingCourse, setEditingCourse] = React.useState<any>(null)
   const [searchTerm, setSearchTerm] = React.useState("")
   
+  const [isDeleteDialogOpen, setIsDeletingDialogOpen] = React.useState(false)
+  const [courseToDelete, setCourseToDelete] = React.useState<any>(null)
+  const [isDeletingLoading, setIsDeletingLoading] = React.useState(false)
+
   // Pagination State
   const [currentPage, setCurrentPage] = React.useState(1)
   const itemsPerPage = 10
@@ -120,14 +134,19 @@ export default function AdminCoursesPage() {
     }
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("¿Está seguro de eliminar esta unidad?")) return
+  const confirmDelete = async () => {
+    if (!courseToDelete) return
+    setIsDeletingLoading(true)
     try {
-      await api.delete(`/unidades/${id}`)
+      await api.delete(`/unidades/${courseToDelete.id}`)
       toast({ title: "Unidad Eliminada", description: "El curso fue retirado del sistema." })
       fetchData()
+      setIsDeletingDialogOpen(false)
     } catch (err: any) {
       toast({ variant: "destructive", title: "Error al eliminar", description: err.message })
+    } finally {
+      setIsDeletingLoading(false)
+      setCourseToDelete(null)
     }
   }
 
@@ -286,7 +305,7 @@ export default function AdminCoursesPage() {
                               <DropdownMenuItem className="gap-2" onClick={() => { setEditingCourse(course); setIsModalOpen(true); }}>
                                 <Edit2 className="h-3.5 w-3.5" /> Editar Datos
                               </DropdownMenuItem>
-                              <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive" onClick={() => handleDelete(course.id)}>
+                              <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive" onClick={() => { setCourseToDelete(course); setIsDeletingDialogOpen(true); }}>
                                 <Trash2 className="h-3.5 w-3.5" /> Eliminar Unidad
                               </DropdownMenuItem>
                             </DropdownMenuContent>
@@ -344,6 +363,30 @@ export default function AdminCoursesPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Modal */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeletingDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Está seguro de eliminar el curso?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción eliminará definitivamente la unidad didáctica <strong>{courseToDelete?.nombre}</strong>.
+              Esto afectará la carga académica de los docentes vinculados.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingLoading}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={(e) => { e.preventDefault(); confirmDelete(); }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isDeletingLoading}
+            >
+              {isDeletingLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
+              Eliminar Curso
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
