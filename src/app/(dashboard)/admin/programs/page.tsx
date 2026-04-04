@@ -138,9 +138,13 @@ export default function AdminProgramsPage() {
       const code = (p.codigo || "").toLowerCase()
       return name.includes(term) || code.includes(term)
     })
-    setCurrentPage(1) // Reset to page 1 on filter
     return result
   }, [programs, searchTerm])
+
+  // Reset page on search
+  React.useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm])
 
   // Pagination Logic
   const totalPages = Math.ceil(filteredPrograms.length / itemsPerPage)

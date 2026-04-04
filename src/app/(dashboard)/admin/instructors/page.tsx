@@ -163,9 +163,13 @@ export default function AdminInstructorsPage() {
       i.nombre.toLowerCase().includes(term) || 
       i.especialidad?.toLowerCase().includes(term)
     )
-    setCurrentPage(1) // Reset to page 1 on filter
     return result
   }, [instructors, searchTerm])
+
+  // Pagination Reset
+  React.useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm])
 
   // Pagination Logic
   const totalPages = Math.ceil(filteredInstructors.length / itemsPerPage)

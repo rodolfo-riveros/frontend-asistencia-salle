@@ -137,9 +137,13 @@ export default function AdminCoursesPage() {
       c.programa_nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       c.semestre?.toLowerCase().includes(searchTerm.toLowerCase())
     )
-    setCurrentPage(1) // Reset to page 1 on filter
     return result
   }, [courses, searchTerm])
+
+  // Pagination Reset
+  React.useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm])
 
   // Pagination Logic
   const totalPages = Math.ceil(filteredCourses.length / itemsPerPage)

@@ -123,9 +123,13 @@ export default function AdminPeriodsPage() {
     const result = (periods || []).filter(p => 
       p.nombre?.toLowerCase().includes(term)
     )
-    setCurrentPage(1) // Reset to page 1 on filter
     return result
   }, [periods, searchTerm])
+
+  // Reset page when filtering
+  React.useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm])
 
   // Pagination Logic
   const totalPages = Math.ceil(filteredPeriods.length / itemsPerPage)

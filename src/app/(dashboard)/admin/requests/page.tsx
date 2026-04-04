@@ -97,9 +97,13 @@ export default function AccessRequestsPage() {
       `${r.firstname} ${r.lastname}`.toLowerCase().includes(searchTerm.toLowerCase()) || 
       r.dni.includes(searchTerm)
     )
-    setCurrentPage(1) // Reset to page 1 on filter
     return result
   }, [requests, searchTerm])
+
+  // Pagination Reset
+  React.useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm])
 
   // Pagination Logic
   const totalPages = Math.ceil(filteredRequests.length / itemsPerPage)

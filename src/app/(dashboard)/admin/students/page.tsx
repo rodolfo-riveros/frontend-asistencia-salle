@@ -235,9 +235,13 @@ export default function AdminStudentsPage() {
       s.dni.includes(term) ||
       (s.programa_nombre || "").toLowerCase().includes(term)
     )
-    setCurrentPage(1) // Reset to page 1 on filter
     return result
   }, [students, searchTerm])
+
+  // Pagination Reset
+  React.useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm])
 
   // Pagination Logic
   const totalPages = Math.ceil(filteredStudents.length / itemsPerPage)

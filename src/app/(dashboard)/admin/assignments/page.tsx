@@ -147,9 +147,13 @@ export default function AcademicAssignmentsPage() {
 
       return matchesSearch && matchesPeriod
     })
-    setCurrentPage(1) // Reset to page 1 on filter
     return result
   }, [assignments, searchTerm, selectedPeriodFilter, periods])
+
+  // Pagination Reset
+  React.useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, selectedPeriodFilter])
 
   // Pagination Logic
   const totalPages = Math.ceil(filteredAssignments.length / itemsPerPage)
