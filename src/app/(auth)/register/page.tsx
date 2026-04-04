@@ -9,17 +9,16 @@ import { GraduationCap, Mail, User, CreditCard, BookOpen, ArrowLeft, ShieldCheck
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
 import { api } from '@/lib/api';
+
+const LOGO_URL = "https://ieslasalle.edu.pe/wp-content/uploads/2025/12/LA_SALLE_ESTRELLA_ROJA.png";
 
 export default function RegisterPage() {
   const router = useRouter();
   const [currentYear, setCurrentYear] = React.useState<number | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
-
-  const sjbImage = PlaceHolderImages.find(img => img.id === 'sjb-avatar')?.imageUrl || "https://picsum.photos/seed/sjb/200/200";
 
   React.useEffect(() => {
     setCurrentYear(new Date().getFullYear());
@@ -37,10 +36,9 @@ export default function RegisterPage() {
     const program = formData.get('program') as string;
 
     try {
-      // 1. Registro en Supabase Auth
       const { data, error } = await supabase.auth.signUp({
         email,
-        password: dni, // El DNI será su contraseña inicial
+        password: dni,
         options: {
           data: {
             firstname,
@@ -54,8 +52,6 @@ export default function RegisterPage() {
       if (error) throw error;
       if (!data.user) throw new Error("No se pudo crear la cuenta de usuario.");
 
-      // 2. Sincronización con FastAPI (Tabla public.docentes)
-      // Es vital llamar al backend para que el docente aparezca en las listas
       await api.post('/docentes/', {
         id: data.user.id,
         nombre: `${firstname} ${lastname}`.trim(),
@@ -89,8 +85,14 @@ export default function RegisterPage() {
             
             <div className="z-10">
               <div className="flex items-center gap-3 mb-12">
-                <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center shadow-lg text-primary">
-                  <GraduationCap className="w-8 h-8" />
+                <div className="w-16 h-16 bg-slate-950 rounded-xl flex items-center justify-center shadow-lg border border-white/10 p-2">
+                  <Image 
+                    src={LOGO_URL}
+                    alt="Logo La Salle"
+                    width={50}
+                    height={50}
+                    className="object-contain"
+                  />
                 </div>
                 <h1 className="font-headline font-extrabold text-2xl tracking-tight uppercase">IES La Salle Urubamba</h1>
               </div>
@@ -114,10 +116,9 @@ export default function RegisterPage() {
                     <Image 
                       alt="San Juan" 
                       className="object-cover" 
-                      src={sjbImage}
+                      src="https://imagenes.catholic.net/imagenes_db/fe2534_juan_bautista_salle-x200.jpg"
                       fill
                       sizes="40px"
-                      data-ai-hint="San Juan"
                     />
                   </div>
                   <div>
@@ -131,8 +132,10 @@ export default function RegisterPage() {
           </div>
 
           <div className="p-8 md:p-12 flex flex-col justify-center bg-white">
-            <div className="md:hidden flex items-center gap-2 mb-8">
-              <GraduationCap className="text-primary w-6 h-6" />
+            <div className="md:hidden flex items-center gap-3 mb-8">
+              <div className="w-12 h-12 bg-slate-950 rounded-lg flex items-center justify-center p-1.5">
+                <Image src={LOGO_URL} alt="Logo" width={32} height={32} />
+              </div>
               <span className="font-headline font-bold text-xl text-primary">La Salle Urubamba</span>
             </div>
             

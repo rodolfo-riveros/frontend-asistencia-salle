@@ -53,7 +53,8 @@ export default function AttendancePage() {
       studentList.forEach(s => mapped[s.id] = null)
       if (existing && Array.isArray(existing)) {
         existing.forEach(reg => {
-          const idAlumno = reg.alumno_id || reg.id_alumno;
+          // Flexible mapping for student ID based on multiple possible API key names
+          const idAlumno = reg.alumno_id || reg.id_alumno || reg.id_estudiante || reg.id;
           if (idAlumno && mapped[idAlumno] !== undefined) {
             mapped[idAlumno] = REVERSE_MAP[reg.estado] || reg.estado
           }
@@ -61,7 +62,7 @@ export default function AttendancePage() {
       }
       setAttendance(mapped)
     } catch (err) {
-      console.error(err)
+      console.error("Error al cargar asistencia previa:", err)
     } finally {
       setIsSyncing(false)
     }
@@ -82,6 +83,13 @@ export default function AttendancePage() {
 
   React.useEffect(() => { fetchStudents() }, [fetchStudents])
 
+  // Re-fetch existing attendance whenever the date changes
+  React.useEffect(() => {
+    if (students.length > 0) {
+      fetchExistingAttendance(students)
+    }
+  }, [date, students, fetchExistingAttendance])
+
   const handleStatus = (id: string, status: string) => setAttendance(p => ({ ...p, [id]: status }))
   const handleMassive = (status: string) => {
     const next = { ...attendance }; students.forEach(s => next[s.id] = status); setAttendance(next)
@@ -101,10 +109,10 @@ export default function AttendancePage() {
 
     try {
       await api.post('/asistencias/pase-lista', payload)
-      toast({ title: "¡Éxito!", description: "La asistencia se ha sincronizado correctamente." })
+      toast({ title: "¡Éxito!", description: "La asistencia se ha guardado correctamente." })
       router.push('/instructor')
     } catch (err: any) { 
-      toast({ variant: "destructive", title: "Error de Sincronización", description: err.message }) 
+      toast({ variant: "destructive", title: "Error al guardar", description: err.message }) 
     }
   }
 
@@ -144,7 +152,6 @@ export default function AttendancePage() {
 
   return (
     <div className="space-y-10 pb-24">
-      {/* HEADER MODULAR */}
       <HeaderSection 
         date={date} 
         setDate={setDate} 
@@ -156,7 +163,6 @@ export default function AttendancePage() {
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* TABLA MODULAR */}
         <div className="lg:col-span-2">
           <AttendanceTable 
             isLoading={isLoading} 
@@ -169,19 +175,16 @@ export default function AttendancePage() {
           />
         </div>
 
-        {/* ESTADÍSTICAS MODULARES */}
         <div className="space-y-8">
           <StatsPanel statsData={statsData} />
         </div>
       </div>
 
-      {/* RESULTADOS IA MODULAR */}
       {aiResult && <AiInsightsPanel aiResult={aiResult} />}
     </div>
   )
 }
 
-/* --- SUBCOMPONENTE: HEADER --- */
 function HeaderSection({ date, setDate, isSyncing, onBack, onRunAi, isAnalyzing, onSave }: any) {
   return (
     <div className="space-y-8">
@@ -209,7 +212,7 @@ function HeaderSection({ date, setDate, isSyncing, onBack, onRunAi, isAnalyzing,
             <Sparkles className={`h-5 w-5 ${isAnalyzing ? 'animate-spin' : ''}`} /> Diagnóstico IA
           </Button>
           <Button className="flex-1 h-14 px-10 gap-3 font-black uppercase tracking-widest text-[11px] shadow-xl shadow-primary/20 bg-primary hover:bg-primary/90" onClick={onSave}>
-            <Save className="h-5 w-5" /> Sincronizar Cambios
+            <Save className="h-5 w-5" /> Guardar Asistencia
           </Button>
         </div>
       </div>
@@ -217,7 +220,6 @@ function HeaderSection({ date, setDate, isSyncing, onBack, onRunAi, isAnalyzing,
   )
 }
 
-/* --- SUBCOMPONENTE: TABLA --- */
 function AttendanceTable({ isLoading, filteredStudents, attendance, onStatusChange, onMassiveMark, searchTerm, setSearchTerm }: any) {
   return (
     <Card className="border-none shadow-2xl overflow-hidden bg-white rounded-3xl">
@@ -295,7 +297,6 @@ function AttendanceTable({ isLoading, filteredStudents, attendance, onStatusChan
   )
 }
 
-/* --- SUBCOMPONENTE: ESTADÍSTICAS --- */
 function StatsPanel({ statsData }: any) {
   return (
     <div className="space-y-8">
@@ -359,7 +360,6 @@ function StatsPanel({ statsData }: any) {
   )
 }
 
-/* --- SUBCOMPONENTE: IA INSIGHTS --- */
 function AiInsightsPanel({ aiResult }: any) {
   return (
     <Card className="border-none shadow-2xl bg-slate-900 text-white p-10 rounded-[3rem] animate-in fade-in slide-in-from-bottom-8 duration-700">
@@ -383,7 +383,7 @@ function AiInsightsPanel({ aiResult }: any) {
           <div className="space-y-6">
             <div className="flex items-center gap-3">
               <UserX className="h-6 w-6 text-red-500" />
-              <Label className="text-[11px] font-black uppercase text-red-400 tracking-[0.2em]">Alerta: Riesgo de Deserción ({"≥"} 30% Faltas)</Label>
+              <Label className="text-[11px] font-black uppercase text-red-400 tracking-[0.2em]">Alerta: Riesgo de Deserción ({'≥'} 30% Faltas)</Label>
             </div>
             {aiResult.atRiskStudents.length > 0 ? (
               <div className="grid gap-3">

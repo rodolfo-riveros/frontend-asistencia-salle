@@ -14,6 +14,8 @@ import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
+const LOGO_URL = "https://ieslasalle.edu.pe/wp-content/uploads/2025/12/LA_SALLE_ESTRELLA_ROJA.png";
+
 export default function LoginPage() {
   const router = useRouter();
   const [showPassword, setShowPassword] = React.useState(false);
@@ -21,12 +23,9 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
 
-  const sjbImage = PlaceHolderImages.find(img => img.id === 'sjb-avatar')?.imageUrl || "https://picsum.photos/seed/sjb/200/200";
-
   React.useEffect(() => {
     setCurrentYear(new Date().getFullYear());
     
-    // Verificamos si ya hay una sesión activa al cargar
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
@@ -87,8 +86,14 @@ export default function LoginPage() {
             
             <div className="z-10">
               <div className="flex items-center gap-3 mb-12">
-                <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center shadow-lg text-primary">
-                  <GraduationCap className="w-8 h-8" />
+                <div className="w-16 h-16 bg-slate-950 rounded-xl flex items-center justify-center shadow-lg border border-white/10 p-2">
+                  <Image 
+                    src={LOGO_URL}
+                    alt="Logo La Salle"
+                    width={50}
+                    height={50}
+                    className="object-contain"
+                  />
                 </div>
                 <h1 className="font-headline font-extrabold text-2xl tracking-tight uppercase">La Salle Urubamba</h1>
               </div>
@@ -112,10 +117,9 @@ export default function LoginPage() {
                     <Image 
                       alt="San Juan" 
                       className="object-cover" 
-                      src={sjbImage}
+                      src="https://imagenes.catholic.net/imagenes_db/fe2534_juan_bautista_salle-x200.jpg"
                       fill
                       sizes="40px"
-                      data-ai-hint="San Juan"
                     />
                   </div>
                   <div>
@@ -129,8 +133,10 @@ export default function LoginPage() {
           </div>
 
           <div className="p-8 md:p-16 flex flex-col justify-center bg-white">
-            <div className="md:hidden flex items-center gap-2 mb-10">
-              <GraduationCap className="text-primary w-6 h-6" />
+            <div className="md:hidden flex items-center gap-3 mb-10">
+              <div className="w-12 h-12 bg-slate-950 rounded-lg flex items-center justify-center p-1.5">
+                <Image src={LOGO_URL} alt="Logo" width={32} height={32} />
+              </div>
               <span className="font-headline font-bold text-xl text-primary">La Salle Urubamba</span>
             </div>
 

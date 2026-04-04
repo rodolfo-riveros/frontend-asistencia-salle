@@ -3,6 +3,7 @@
 
 import * as React from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
 import { LayoutDashboard, Users, GraduationCap, BookOpen, UserRound, ClipboardList, Search, LogOut, Loader2, CalendarDays } from "lucide-react"
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
@@ -11,6 +12,8 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { supabase } from "@/lib/supabase"
 import { api } from "@/lib/api"
+
+const LOGO_URL = "https://ieslasalle.edu.pe/wp-content/uploads/2025/12/LA_SALLE_ESTRELLA_ROJA.png";
 
 const ADMIN_NAV = [
   { name: "Panel", href: "/admin", icon: LayoutDashboard },
@@ -72,8 +75,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return (
       <SidebarProvider>
         <Sidebar collapsible="icon" className="border-r-0 shadow-2xl">
-          <SidebarHeader className="h-20 flex items-center justify-center border-b border-white/10 px-6">
-            <Link href="/admin" className="flex items-center gap-3"><GraduationCap className="h-6 w-6 text-white" /><span className="font-extrabold text-xl text-white uppercase tracking-tighter">La Salle</span></Link>
+          <SidebarHeader className="h-24 flex items-center justify-center border-b border-white/10 px-6">
+            <Link href="/admin" className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-slate-950 rounded-xl flex items-center justify-center p-2 shadow-lg border border-white/10 shrink-0">
+                <Image src={LOGO_URL} alt="Logo" width={40} height={40} className="object-contain" />
+              </div>
+              <span className="font-extrabold text-xl text-white uppercase tracking-tighter group-data-[collapsible=icon]:hidden">La Salle</span>
+            </Link>
           </SidebarHeader>
           <SidebarContent className="py-6">
             <SidebarGroup><SidebarMenu className="gap-2 px-3">{ADMIN_NAV.map((it) => (<SidebarMenuItem key={it.name}><SidebarMenuButton asChild isActive={pathname === it.href} className={`py-6 px-4 rounded-xl ${pathname === it.href ? 'bg-white/15 text-white' : 'text-white/70 hover:bg-white/5'}`}><Link href={it.href} className="flex items-center gap-3"><it.icon className="h-5 w-5" /><span>{it.name}</span></Link></SidebarMenuButton></SidebarMenuItem>))}</SidebarMenu></SidebarGroup>
@@ -92,9 +100,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-screen bg-[#f8f9fa] flex flex-col">
       <header className="h-20 bg-primary sticky top-0 z-50 px-4 md:px-10 lg:px-20 flex items-center justify-between shadow-lg">
-        <Link href="/instructor" className="flex items-center gap-3 group">
-          <div className="bg-white p-1.5 rounded-lg shadow-lg group-hover:scale-110 transition-transform"><GraduationCap className="h-6 w-6 text-primary" /></div>
-          <span className="font-extrabold text-xl text-white uppercase tracking-tight">La Salle Urubamba</span>
+        <Link href="/instructor" className="flex items-center gap-4 group">
+          <div className="bg-slate-950 p-2 rounded-xl shadow-lg group-hover:scale-110 transition-transform w-12 h-12 flex items-center justify-center border border-white/10">
+            <Image src={LOGO_URL} alt="Logo La Salle" width={32} height={32} className="object-contain" />
+          </div>
+          <span className="font-extrabold text-xl text-white uppercase tracking-tight hidden sm:inline-block">La Salle Urubamba</span>
         </Link>
         <div className="flex items-center gap-6">
           <div className="hidden sm:flex items-center gap-3">
