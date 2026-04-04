@@ -3,7 +3,6 @@
 
 import * as React from "react"
 import Link from "next/link"
-import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
 import { LayoutDashboard, Users, GraduationCap, BookOpen, UserRound, ClipboardList, Search, LogOut, Loader2, CalendarDays } from "lucide-react"
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
@@ -12,8 +11,6 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { supabase } from "@/lib/supabase"
 import { api } from "@/lib/api"
-
-const LOGO_URL = "https://ieslasalle.edu.pe/wp-content/uploads/2025/12/LA_SALLE_ESTRELLA_ROJA.png";
 
 const ADMIN_NAV = [
   { name: "Panel", href: "/admin", icon: LayoutDashboard },
@@ -77,8 +74,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <Sidebar collapsible="icon" className="border-r-0 shadow-2xl">
           <SidebarHeader className="h-24 flex items-center justify-center border-b border-white/10 px-6">
             <Link href="/admin" className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-slate-950 rounded-xl flex items-center justify-center p-2 shadow-lg border border-white/10 shrink-0">
-                <Image src={LOGO_URL} alt="Logo" width={40} height={40} className="object-contain" />
+              <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center shadow-lg border border-white/10 shrink-0">
+                <GraduationCap className="h-7 w-7 text-white" />
               </div>
               <span className="font-extrabold text-xl text-white uppercase tracking-tighter group-data-[collapsible=icon]:hidden">La Salle</span>
             </Link>
@@ -99,16 +96,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-screen bg-[#f8f9fa] flex flex-col">
-      <header className="h-20 bg-primary sticky top-0 z-50 px-4 md:px-10 lg:px-20 flex items-center justify-between shadow-lg">
+      <header className="h-20 bg-primary sticky top-0 z-50 px-4 md:px-10 lg:px-20 flex items-center justify-between shadow-lg text-white">
         <Link href="/instructor" className="flex items-center gap-4 group">
-          <div className="bg-slate-950 p-2 rounded-xl shadow-lg group-hover:scale-110 transition-transform w-12 h-12 flex items-center justify-center border border-white/10">
-            <Image src={LOGO_URL} alt="Logo La Salle" width={32} height={32} className="object-contain" />
+          <div className="bg-white/20 p-2 rounded-xl shadow-lg group-hover:scale-110 transition-transform w-12 h-12 flex items-center justify-center border border-white/10">
+            <GraduationCap className="h-7 w-7 text-white" />
           </div>
-          <span className="font-extrabold text-xl text-white uppercase tracking-tight hidden sm:inline-block">La Salle Urubamba</span>
+          <span className="font-extrabold text-xl uppercase tracking-tight hidden sm:inline-block">La Salle Urubamba</span>
         </Link>
         <div className="flex items-center gap-6">
           <div className="hidden sm:flex items-center gap-3">
-            <div className="text-right flex flex-col"><span className="text-sm font-black text-white leading-tight">{userData?.name}</span><span className="text-[10px] text-white/80 font-bold uppercase tracking-widest">{userData?.isTransversal ? "Docente Transversal" : "Docente de Especialidad"}</span></div>
+            <div className="text-right flex flex-col"><span className="text-sm font-black leading-tight">{userData?.name}</span><span className="text-[10px] text-white/80 font-bold uppercase tracking-widest">{userData?.isTransversal ? "Docente Transversal" : "Docente de Especialidad"}</span></div>
             <Avatar className="h-10 w-10 border-2 border-white/20"><AvatarFallback className="bg-white/10 text-white font-bold">{userData?.initials}</AvatarFallback></Avatar>
           </div>
           <Button variant="ghost" size="icon" className="rounded-full h-11 w-11 text-white/70 hover:text-white hover:bg-white/10" onClick={handleLogout}><LogOut className="h-5 w-5" /></Button>

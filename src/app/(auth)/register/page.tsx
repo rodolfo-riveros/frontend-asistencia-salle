@@ -3,7 +3,6 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { GraduationCap, Mail, User, CreditCard, BookOpen, ArrowLeft, ShieldCheck, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,8 +11,6 @@ import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
 import { api } from '@/lib/api';
-
-const LOGO_URL = "https://ieslasalle.edu.pe/wp-content/uploads/2025/12/LA_SALLE_ESTRELLA_ROJA.png";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -85,14 +82,8 @@ export default function RegisterPage() {
             
             <div className="z-10">
               <div className="flex items-center gap-3 mb-12">
-                <div className="w-16 h-16 bg-slate-950 rounded-xl flex items-center justify-center shadow-lg border border-white/10 p-2">
-                  <Image 
-                    src={LOGO_URL}
-                    alt="Logo La Salle"
-                    width={50}
-                    height={50}
-                    className="object-contain"
-                  />
+                <div className="w-16 h-16 bg-white/20 rounded-xl flex items-center justify-center shadow-lg border border-white/10">
+                  <GraduationCap className="h-10 w-10 text-white" />
                 </div>
                 <h1 className="font-headline font-extrabold text-2xl tracking-tight uppercase">IES La Salle Urubamba</h1>
               </div>
@@ -113,12 +104,10 @@ export default function RegisterPage() {
                 </p>
                 <div className="mt-4 flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-blue-800 overflow-hidden border border-white/20 relative">
-                    <Image 
+                    <img 
                       alt="San Juan" 
-                      className="object-cover" 
+                      className="object-cover w-full h-full" 
                       src="https://imagenes.catholic.net/imagenes_db/fe2534_juan_bautista_salle-x200.jpg"
-                      fill
-                      sizes="40px"
                     />
                   </div>
                   <div>
@@ -133,8 +122,8 @@ export default function RegisterPage() {
 
           <div className="p-8 md:p-12 flex flex-col justify-center bg-white">
             <div className="md:hidden flex items-center gap-3 mb-8">
-              <div className="w-12 h-12 bg-slate-950 rounded-lg flex items-center justify-center p-1.5">
-                <Image src={LOGO_URL} alt="Logo" width={32} height={32} />
+              <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center">
+                <GraduationCap className="h-7 w-7 text-white" />
               </div>
               <span className="font-headline font-bold text-xl text-primary">La Salle Urubamba</span>
             </div>

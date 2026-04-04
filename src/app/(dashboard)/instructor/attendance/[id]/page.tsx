@@ -5,7 +5,7 @@ import * as React from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { 
   ArrowLeft, Search, Save, Sparkles, UserCheck, UserX, Clock, MessageSquareQuote, 
-  Loader2, RefreshCcw, PieChart as PieIcon, BarChart3, AlertTriangle, CheckCircle2, CircleDashed
+  Loader2, RefreshCcw, PieChart as PieIcon, BarChart3, AlertTriangle
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -38,7 +38,6 @@ export default function AttendancePage() {
   const [searchTerm, setSearchTerm] = React.useState("")
   const [date, setDate] = React.useState(() => {
     const now = new Date();
-    // Ajuste a Lima UTC-5
     return new Date(now.getTime() - (5 * 60 * 60 * 1000)).toISOString().split('T')[0];
   })
   const [isAnalyzing, setIsAnalyzing] = React.useState(false)
@@ -48,13 +47,15 @@ export default function AttendancePage() {
     if (!params.id || !date || studentList.length === 0) return
     setIsSyncing(true)
     try {
+      // Consultamos el reporte de la unidad para la fecha específica
       const existing = await api.get<any[]>(`/asistencias/reporte/unidad/${params.id}?fecha_inicio=${date}&fecha_fin=${date}`)
       const mapped: Record<string, string | null> = {}
       studentList.forEach(s => mapped[s.id] = null)
+      
       if (existing && Array.isArray(existing)) {
         existing.forEach(reg => {
-          // Flexible mapping for student ID based on multiple possible API key names
-          const idAlumno = reg.alumno_id || reg.id_alumno || reg.id_estudiante || reg.id;
+          // El backend ahora devuelve alumno_id según la solución aplicada
+          const idAlumno = reg.alumno_id || reg.id_alumno;
           if (idAlumno && mapped[idAlumno] !== undefined) {
             mapped[idAlumno] = REVERSE_MAP[reg.estado] || reg.estado
           }
@@ -83,7 +84,6 @@ export default function AttendancePage() {
 
   React.useEffect(() => { fetchStudents() }, [fetchStudents])
 
-  // Re-fetch existing attendance whenever the date changes
   React.useEffect(() => {
     if (students.length > 0) {
       fetchExistingAttendance(students)
@@ -225,9 +225,9 @@ function AttendanceTable({ isLoading, filteredStudents, attendance, onStatusChan
     <Card className="border-none shadow-2xl overflow-hidden bg-white rounded-3xl">
       <div className="p-8 bg-slate-50/80 border-b flex flex-col md:flex-row items-center justify-between gap-8">
         <div className="flex flex-wrap gap-3">
-          <Button variant="outline" size="sm" className="h-10 px-4 border-green-200 text-green-700 font-black text-[10px] uppercase tracking-widest" onClick={() => onMassiveMark('Presente')}>P TODOS</Button>
-          <Button variant="outline" size="sm" className="h-10 px-4 border-amber-200 text-amber-700 font-black text-[10px] uppercase tracking-widest" onClick={() => onMassiveMark('Tarde')}>T TODOS</Button>
-          <Button variant="outline" size="sm" className="h-10 px-4 border-red-200 text-red-700 font-black text-[10px] uppercase tracking-widest" onClick={() => onMassiveMark('Falta')}>F TODOS</Button>
+          <Button variant="outline" size="sm" className="h-10 px-4 border-green-200 text-green-700 font-black text-[10px] uppercase tracking-widest" onClick={() => handleMassive('Presente')}>P TODOS</Button>
+          <Button variant="outline" size="sm" className="h-10 px-4 border-amber-200 text-amber-700 font-black text-[10px] uppercase tracking-widest" onClick={() => handleMassive('Tarde')}>T TODOS</Button>
+          <Button variant="outline" size="sm" className="h-10 px-4 border-red-200 text-red-700 font-black text-[10px] uppercase tracking-widest" onClick={() => handleMassive('Falta')}>F TODOS</Button>
         </div>
         <div className="relative w-full md:w-80">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
