@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/table"
 import { Label } from "@/components/ui/label"
 import { toast } from "@/hooks/use-toast"
 import { aiAttendanceInsights, type AttendanceInsightsOutput } from "@/ai/flows/ai-attendance-insights"
@@ -50,12 +50,14 @@ export default function AttendancePage() {
       // Consultamos el reporte de la unidad para la fecha específica
       const existing = await api.get<any[]>(`/asistencias/reporte/unidad/${params.id}?fecha_inicio=${date}&fecha_fin=${date}`)
       const mapped: Record<string, string | null> = {}
+      
+      // Inicializar con null para todos los estudiantes actuales
       studentList.forEach(s => mapped[s.id] = null)
       
+      // Aplicar registros existentes usando alumno_id (confirmado que el backend lo envía)
       if (existing && Array.isArray(existing)) {
         existing.forEach(reg => {
-          // El backend ahora devuelve alumno_id según la solución aplicada
-          const idAlumno = reg.alumno_id || reg.id_alumno;
+          const idAlumno = reg.alumno_id;
           if (idAlumno && mapped[idAlumno] !== undefined) {
             mapped[idAlumno] = REVERSE_MAP[reg.estado] || reg.estado
           }
@@ -84,6 +86,7 @@ export default function AttendancePage() {
 
   React.useEffect(() => { fetchStudents() }, [fetchStudents])
 
+  // Recargar asistencia cuando cambia la fecha
   React.useEffect(() => {
     if (students.length > 0) {
       fetchExistingAttendance(students)
@@ -121,7 +124,7 @@ export default function AttendancePage() {
     try {
       const history = await api.get<any[]>(`/asistencias/reporte/unidad/${params.id}`)
       const records = (history || []).map(h => ({
-        studentId: h.alumno_id || h.id_alumno,
+        studentId: h.alumno_id,
         studentName: h.alumno,
         courseUnitId: params.id as string,
         courseUnitName: "Unidad Didáctica",
@@ -383,7 +386,7 @@ function AiInsightsPanel({ aiResult }: any) {
           <div className="space-y-6">
             <div className="flex items-center gap-3">
               <UserX className="h-6 w-6 text-red-500" />
-              <Label className="text-[11px] font-black uppercase text-red-400 tracking-[0.2em]">Alerta: Riesgo de Deserción ({'≥'} 30% Faltas)</Label>
+              <Label className="text-[11px] font-black uppercase text-red-400 tracking-[0.2em]">Alerta: Riesgo de Deserción (≥ 30% Faltas)</Label>
             </div>
             {aiResult.atRiskStudents.length > 0 ? (
               <div className="grid gap-3">
