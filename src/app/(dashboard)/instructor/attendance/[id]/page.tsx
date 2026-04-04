@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -56,13 +55,17 @@ export default function AttendancePage() {
       
       if (existing && Array.isArray(existing)) {
         existing.forEach(reg => {
-          // El backend ahora devuelve alumno_id según tu corrección
-          const idAlumno = reg.alumno_id || reg.id_alumno;
+          // El backend devuelve 'alumno_id' directamente en el objeto raíz
+          const idAlumno = reg.alumno_id
+          
           if (idAlumno && mapped[idAlumno] !== undefined) {
-            mapped[idAlumno] = REVERSE_MAP[reg.estado] || reg.estado
+            // El estado viene como 'P', 'F', 'T', 'J' desde el backend
+            const estadoTexto = REVERSE_MAP[reg.estado] || reg.estado
+            mapped[idAlumno] = estadoTexto
           }
         })
       }
+      
       setAttendance(mapped)
     } catch (err) {
       console.error("Error al cargar asistencia previa:", err)
@@ -121,7 +124,8 @@ export default function AttendancePage() {
     try {
       await api.post('/asistencias/pase-lista', payload)
       toast({ title: "¡Éxito!", description: "La asistencia se ha guardado correctamente." })
-      router.push('/instructor')
+      // Recargar la asistencia después de guardar
+      await fetchExistingAttendance(students)
     } catch (err: any) { 
       toast({ variant: "destructive", title: "Error al guardar", description: err.message }) 
     }
