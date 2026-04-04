@@ -10,7 +10,9 @@ import {
   Link2,
   Loader2,
   RefreshCcw,
-  CalendarDays
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -54,6 +56,10 @@ export default function AcademicAssignmentsPage() {
   const [isModalOpen, setIsModalOpen] = React.useState(false)
   const [searchTerm, setSearchTerm] = React.useState("")
   const [selectedPeriodFilter, setSelectedPeriodFilter] = React.useState<string>("all")
+  
+  // Pagination State
+  const [currentPage, setCurrentPage] = React.useState(1)
+  const itemsPerPage = 10
 
   const fetchData = React.useCallback(async () => {
     setIsLoading(true)
@@ -125,18 +131,14 @@ export default function AcademicAssignmentsPage() {
     }
   }
 
-  // Función para obtener el nombre legible del periodo a partir de su ID
   const getPeriodName = (periodoId: string, periodoOriginal: string) => {
-    if (periodoOriginal && periodoOriginal.length < 20 && !periodoOriginal.includes('-')) {
-       // Si ya es un nombre corto, lo usamos
-    }
     const period = periods.find(p => p.id === periodoId);
     return period ? period.nombre : (periodoOriginal || 'N/A');
   }
 
   const filteredAssignments = React.useMemo(() => {
     const term = searchTerm.toLowerCase()
-    return (assignments || []).filter(asg => {
+    const result = (assignments || []).filter(asg => {
       const matchesSearch = (asg.docente_nombre || "").toLowerCase().includes(term) || 
                            (asg.unidad_nombre || "").toLowerCase().includes(term)
       
@@ -145,7 +147,16 @@ export default function AcademicAssignmentsPage() {
 
       return matchesSearch && matchesPeriod
     })
+    setCurrentPage(1) // Reset to page 1 on filter
+    return result
   }, [assignments, searchTerm, selectedPeriodFilter, periods])
+
+  // Pagination Logic
+  const totalPages = Math.ceil(filteredAssignments.length / itemsPerPage)
+  const paginatedAssignments = filteredAssignments.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  )
 
   return (
     <div className="space-y-6">
@@ -156,7 +167,7 @@ export default function AcademicAssignmentsPage() {
           <div className="flex items-center gap-3 mt-3">
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Filtrar Ciclo:</span>
             <Select value={selectedPeriodFilter} onValueChange={setSelectedPeriodFilter}>
-              <SelectTrigger className="h-8 w-[180px] bg-white border-none shadow-sm font-bold text-xs">
+              <SelectTrigger className="h-8 w-[180px] bg-white border-none shadow-sm font-bold text-xs text-slate-900">
                 <SelectValue placeholder="Seleccione Ciclo" />
               </SelectTrigger>
               <SelectContent>
@@ -256,73 +267,104 @@ export default function AcademicAssignmentsPage() {
               <p className="text-sm font-medium">Cargando asignaciones...</p>
             </div>
           ) : (
-            <Table>
-              <TableHeader className="bg-slate-50/50">
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest pl-6">Responsable</TableHead>
-                  <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest">Unidad Didáctica</TableHead>
-                  <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest text-center">Periodo</TableHead>
-                  <TableHead className="w-[80px] pr-6 text-right"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredAssignments.length > 0 ? (
-                  filteredAssignments.map((asg) => (
-                    <TableRow key={asg.id} className="group hover:bg-slate-50/50 transition-colors">
-                      <TableCell className="pl-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-9 w-9 border shadow-sm">
-                            <AvatarFallback className="bg-primary/5 text-primary font-bold text-xs">
-                              {asg.docente_nombre?.[0] || 'D'}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="font-bold text-slate-900 text-sm">{asg.docente_nombre}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded bg-primary/5 flex items-center justify-center text-primary shrink-0">
-                            <BookOpen className="h-4 w-4" />
+            <>
+              <Table>
+                <TableHeader className="bg-slate-50/50">
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest pl-6">Responsable</TableHead>
+                    <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest">Unidad Didáctica</TableHead>
+                    <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest text-center">Periodo</TableHead>
+                    <TableHead className="w-[80px] pr-6 text-right"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginatedAssignments.length > 0 ? (
+                    paginatedAssignments.map((asg) => (
+                      <TableRow key={asg.id} className="group hover:bg-slate-50/50 transition-colors">
+                        <TableCell className="pl-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-9 w-9 border shadow-sm">
+                              <AvatarFallback className="bg-primary/5 text-primary font-bold text-xs text-slate-900">
+                                {asg.docente_nombre?.[0] || 'D'}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="font-bold text-slate-900 text-sm">{asg.docente_nombre}</span>
                           </div>
-                          <div className="flex flex-col">
-                            <span className="font-semibold text-slate-700 text-sm">{asg.unidad_nombre}</span>
-                            <span className="text-[10px] text-slate-400 uppercase">{asg.programa_nombre} - Sem {asg.semestre}</span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded bg-primary/5 flex items-center justify-center text-primary shrink-0">
+                              <BookOpen className="h-4 w-4" />
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="font-semibold text-slate-700 text-sm">{asg.unidad_nombre}</span>
+                              <span className="text-[10px] text-slate-400 uppercase">{asg.programa_nombre} - Sem {asg.semestre}</span>
+                            </div>
                           </div>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant="outline" className="border-primary/20 text-primary font-black text-[10px] bg-primary/5">
+                            {getPeriodName(asg.periodo_id, asg.periodo_academicos || asg.periodo_academico)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="pr-6 text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="rounded-full h-8 w-8">
+                                <MoreVertical className="h-4 w-4 text-slate-400" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-40">
+                              <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(asg.id)}>
+                                <Trash2 className="h-3.5 w-3.5" /> Eliminar
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={4} className="h-48 text-center text-slate-400">
+                        <div className="flex flex-col items-center gap-3">
+                          <CalendarDays className="h-10 w-10 opacity-10" />
+                          <p className="font-bold text-slate-900 uppercase text-xs tracking-widest">Sin asignaciones registradas</p>
                         </div>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Badge variant="outline" className="border-primary/20 text-primary font-black text-[10px] bg-primary/5">
-                          {getPeriodName(asg.periodo_id, asg.periodo_academicos || asg.periodo_academico)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="pr-6 text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="rounded-full h-8 w-8">
-                              <MoreVertical className="h-4 w-4 text-slate-400" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-40">
-                            <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(asg.id)}>
-                              <Trash2 className="h-3.5 w-3.5" /> Eliminar
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={4} className="h-48 text-center text-slate-400">
-                      <div className="flex flex-col items-center gap-3">
-                        <CalendarDays className="h-10 w-10 opacity-10" />
-                        <p className="font-bold text-slate-900 uppercase text-xs tracking-widest">Sin asignaciones registradas</p>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+                  )}
+                </TableBody>
+              </Table>
+              
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between px-6 py-4 bg-slate-50/30 border-t">
+                  <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                    Página {currentPage} de {totalPages} ({filteredAssignments.length} registros)
+                  </div>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                      className="h-8 w-8 p-0"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                      className="h-8 w-8 p-0"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>

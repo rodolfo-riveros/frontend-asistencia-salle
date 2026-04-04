@@ -10,10 +10,11 @@ import {
   Trash2, 
   BookOpen,
   GraduationCap,
-  AlertCircle,
   Loader2,
   Layers,
-  RefreshCcw
+  RefreshCcw,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -61,11 +62,14 @@ export default function AdminCoursesPage() {
   const [isSaving, setIsSaving] = React.useState(false)
   const [editingCourse, setEditingCourse] = React.useState<any>(null)
   const [searchTerm, setSearchTerm] = React.useState("")
+  
+  // Pagination State
+  const [currentPage, setCurrentPage] = React.useState(1)
+  const itemsPerPage = 10
 
   const fetchData = React.useCallback(async () => {
     setIsLoading(true)
     try {
-      // Sincronizado con list_unidades (GET /api/v1/unidades/)
       const [coursesData, programsData] = await Promise.all([
         api.get<any[]>('/unidades/'),
         api.get<any[]>('/programas/')
@@ -92,7 +96,6 @@ export default function AdminCoursesPage() {
     setIsSaving(true)
     const formData = new FormData(e.currentTarget)
     
-    // Payload alineado con UnidadCreate de tu backend
     const courseData = {
       nombre: formData.get("nombre") as string,
       programa_id: formData.get("programa_id") as string,
@@ -101,11 +104,9 @@ export default function AdminCoursesPage() {
 
     try {
       if (editingCourse) {
-        // PATCH /api/v1/unidades/{id}
         await api.patch(`/unidades/${editingCourse.id}`, courseData)
         toast({ title: "Unidad Actualizada", description: "Los cambios se guardaron con éxito." })
       } else {
-        // POST /api/v1/unidades/
         await api.post('/unidades/', courseData)
         toast({ title: "Unidad Creada", description: "El curso ha sido registrado exitosamente." })
       }
@@ -122,7 +123,6 @@ export default function AdminCoursesPage() {
   const handleDelete = async (id: string) => {
     if (!confirm("¿Está seguro de eliminar esta unidad?")) return
     try {
-      // DELETE /api/v1/unidades/{id}
       await api.delete(`/unidades/${id}`)
       toast({ title: "Unidad Eliminada", description: "El curso fue retirado del sistema." })
       fetchData()
@@ -132,12 +132,21 @@ export default function AdminCoursesPage() {
   }
 
   const filteredCourses = React.useMemo(() => {
-    return (courses || []).filter(c => 
+    const result = (courses || []).filter(c => 
       c.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || 
       c.programa_nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       c.semestre?.toLowerCase().includes(searchTerm.toLowerCase())
     )
+    setCurrentPage(1) // Reset to page 1 on filter
+    return result
   }, [courses, searchTerm])
+
+  // Pagination Logic
+  const totalPages = Math.ceil(filteredCourses.length / itemsPerPage)
+  const paginatedCourses = filteredCourses.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  )
 
   return (
     <div className="space-y-6">
@@ -154,7 +163,7 @@ export default function AdminCoursesPage() {
           </Button>
           <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if(!open) setEditingCourse(null); }}>
             <DialogTrigger asChild>
-              <Button className="bg-primary hover:bg-primary/90 gap-2 shadow-lg shadow-primary/20 h-11 px-6 font-bold">
+              <Button className="bg-primary hover:bg-primary/90 gap-2 shadow-lg shadow-primary/20 h-11 px-6 font-bold text-white">
                 <Plus className="h-4 w-4" /> Nueva Unidad
               </Button>
             </DialogTrigger>
@@ -198,7 +207,7 @@ export default function AdminCoursesPage() {
                 </div>
                 <DialogFooter>
                   <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
-                  <Button type="submit" className="bg-primary font-bold" disabled={isSaving}>
+                  <Button type="submit" className="bg-primary font-bold text-white" disabled={isSaving}>
                     {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Guardar Unidad"}
                   </Button>
                 </DialogFooter>
@@ -226,77 +235,108 @@ export default function AdminCoursesPage() {
               <p className="text-sm font-medium italic">Sincronizando con el servidor...</p>
             </div>
           ) : (
-            <Table>
-              <TableHeader className="bg-slate-50/50">
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest pl-6">Unidad Didáctica</TableHead>
-                  <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest">Programa Profesional</TableHead>
-                  <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest text-center">Ciclo</TableHead>
-                  <TableHead className="w-[100px] pr-6 text-right">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredCourses.length > 0 ? (
-                  filteredCourses.map((course) => (
-                    <TableRow key={course.id} className="group hover:bg-slate-50/50 transition-colors">
-                      <TableCell className="font-bold text-slate-700 pl-6">
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-xl bg-primary/5 flex items-center justify-center text-primary shrink-0 transition-colors group-hover:bg-primary group-hover:text-white">
-                            <BookOpen className="h-4 w-4" />
+            <>
+              <Table>
+                <TableHeader className="bg-slate-50/50">
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest pl-6">Unidad Didáctica</TableHead>
+                    <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest">Programa Profesional</TableHead>
+                    <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest text-center">Ciclo</TableHead>
+                    <TableHead className="w-[100px] pr-6 text-right">Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginatedCourses.length > 0 ? (
+                    paginatedCourses.map((course) => (
+                      <TableRow key={course.id} className="group hover:bg-slate-50/50 transition-colors">
+                        <TableCell className="font-bold text-slate-700 pl-6">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-primary/5 flex items-center justify-center text-primary shrink-0 transition-colors group-hover:bg-primary group-hover:text-white">
+                              <BookOpen className="h-4 w-4" />
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-sm">{course.nombre}</span>
+                              <span className="text-[10px] text-slate-400 font-mono">ID: {course.id.substring(0, 8)}...</span>
+                            </div>
                           </div>
-                          <div className="flex flex-col">
-                            <span className="text-sm">{course.nombre}</span>
-                            <span className="text-[10px] text-slate-400 font-mono">ID: {course.id.substring(0, 8)}...</span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2 text-slate-500 text-sm">
+                            <GraduationCap className="h-3.5 w-3.5 text-primary/40" /> 
+                            {course.programa_nombre || 'Sin programa asignado'}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant="outline" className="border-slate-100 text-slate-500 font-bold px-3 py-0.5 bg-slate-50/50">
+                            Sem {course.semestre}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="pr-6 text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="rounded-full">
+                                <MoreVertical className="h-4 w-4 text-slate-400" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-40">
+                              <DropdownMenuItem className="gap-2" onClick={() => { setEditingCourse(course); setIsModalOpen(true); }}>
+                                <Edit2 className="h-3.5 w-3.5" /> Editar Datos
+                              </DropdownMenuItem>
+                              <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive" onClick={() => handleDelete(course.id)}>
+                                <Trash2 className="h-3.5 w-3.5" /> Eliminar Unidad
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={4} className="h-48 text-center text-slate-400">
+                        <div className="flex flex-col items-center gap-3">
+                          <div className="p-4 bg-slate-50 rounded-full">
+                            <Layers className="h-8 w-8 opacity-20" />
+                          </div>
+                          <div className="space-y-1">
+                            <p className="font-bold text-slate-900">Sin unidades registradas</p>
+                            <p className="text-sm">No se encontraron cursos que coincidan con la búsqueda.</p>
                           </div>
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2 text-slate-500 text-sm">
-                          <GraduationCap className="h-3.5 w-3.5 text-primary/40" /> 
-                          {course.programa_nombre || 'Sin programa asignado'}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Badge variant="outline" className="border-slate-100 text-slate-500 font-bold px-3 py-0.5 bg-slate-50/50">
-                          Sem {course.semestre}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="pr-6 text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="rounded-full">
-                              <MoreVertical className="h-4 w-4 text-slate-400" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-40">
-                            <DropdownMenuItem className="gap-2" onClick={() => { setEditingCourse(course); setIsModalOpen(true); }}>
-                              <Edit2 className="h-3.5 w-3.5" /> Editar Datos
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive" onClick={() => handleDelete(course.id)}>
-                              <Trash2 className="h-3.5 w-3.5" /> Eliminar Unidad
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={4} className="h-48 text-center text-slate-400">
-                      <div className="flex flex-col items-center gap-3">
-                        <div className="p-4 bg-slate-50 rounded-full">
-                          <Layers className="h-8 w-8 opacity-20" />
-                        </div>
-                        <div className="space-y-1">
-                          <p className="font-bold text-slate-900">Sin unidades registradas</p>
-                          <p className="text-sm">No se encontraron cursos que coincidan con la búsqueda.</p>
-                        </div>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+                  )}
+                </TableBody>
+              </Table>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between px-6 py-4 bg-slate-50/30 border-t">
+                  <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                    Página {currentPage} de {totalPages} ({filteredCourses.length} registros)
+                  </div>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                      className="h-8 w-8 p-0"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                      className="h-8 w-8 p-0"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>

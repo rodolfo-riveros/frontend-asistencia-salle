@@ -13,7 +13,9 @@ import {
   CheckCircle2,
   XCircle,
   UserPlus,
-  RefreshCcw
+  RefreshCcw,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -56,12 +58,15 @@ export default function AdminInstructorsPage() {
   const [isSaving, setIsSaving] = React.useState(false)
   const [editingInstructor, setEditingInstructor] = React.useState<any>(null)
   const [searchTerm, setSearchTerm] = React.useState("")
+  
+  // Pagination State
+  const [currentPage, setCurrentPage] = React.useState(1)
+  const itemsPerPage = 10
 
   const fetchData = React.useCallback(async () => {
     setIsLoading(true)
     try {
       const data = await api.get<any[]>('/docentes/')
-      console.log("[DEBUG] Docentes recibidos:", data)
       setInstructors(Array.isArray(data) ? data : [])
     } catch (err: any) {
       console.error("[ERROR] Fallo al listar docentes:", err)
@@ -99,7 +104,6 @@ export default function AdminInstructorsPage() {
         })
         toast({ title: "Perfil actualizado", description: "Los datos se guardaron correctamente." })
       } else {
-        // 1. Crear usuario en Supabase Auth usando el cliente administrativo (Silencioso)
         const { data: authData, error: authError } = await supabaseAdminTask.auth.signUp({
           email,
           password: dni,
@@ -116,7 +120,6 @@ export default function AdminInstructorsPage() {
         if (authError) throw authError
         if (!authData.user) throw new Error("No se pudo crear el usuario en Supabase Auth.")
 
-        // 2. Crear perfil en la tabla 'docentes' mediante FastAPI
         await api.post('/docentes/', {
           id: authData.user.id,
           nombre,
@@ -156,11 +159,20 @@ export default function AdminInstructorsPage() {
 
   const filteredInstructors = React.useMemo(() => {
     const term = searchTerm.toLowerCase()
-    return (instructors || []).filter(i => 
+    const result = (instructors || []).filter(i => 
       i.nombre.toLowerCase().includes(term) || 
       i.especialidad?.toLowerCase().includes(term)
     )
+    setCurrentPage(1) // Reset to page 1 on filter
+    return result
   }, [instructors, searchTerm])
+
+  // Pagination Logic
+  const totalPages = Math.ceil(filteredInstructors.length / itemsPerPage)
+  const paginatedInstructors = filteredInstructors.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  )
 
   return (
     <div className="space-y-6">
@@ -177,7 +189,7 @@ export default function AdminInstructorsPage() {
           </Button>
           <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if(!open) setEditingInstructor(null); }}>
             <DialogTrigger asChild>
-              <Button className="bg-primary hover:bg-primary/90 gap-2 shadow-lg shadow-primary/20 h-11 px-6 font-bold">
+              <Button className="bg-primary hover:bg-primary/90 gap-2 shadow-lg shadow-primary/20 h-11 px-6 font-bold text-white">
                 <UserPlus className="h-4 w-4" /> Registrar Nuevo Docente
               </Button>
             </DialogTrigger>
@@ -221,7 +233,7 @@ export default function AdminInstructorsPage() {
                 </div>
                 <DialogFooter>
                   <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
-                  <Button type="submit" className="bg-primary font-bold min-w-[120px]" disabled={isSaving}>
+                  <Button type="submit" className="bg-primary font-bold min-w-[120px] text-white" disabled={isSaving}>
                     {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : editingInstructor ? "Actualizar" : "Registrar"}
                   </Button>
                 </DialogFooter>
@@ -249,81 +261,112 @@ export default function AdminInstructorsPage() {
               <p className="text-sm font-medium">Sincronizando con el servidor...</p>
             </div>
           ) : (
-            <Table>
-              <TableHeader className="bg-slate-50/50">
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest pl-6">Docente</TableHead>
-                  <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest">Especialidad</TableHead>
-                  <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest text-center">Tipo</TableHead>
-                  <TableHead className="w-[80px] pr-6 text-right"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredInstructors.length > 0 ? (
-                  filteredInstructors.map((docente) => (
-                    <TableRow key={docente.id} className="group hover:bg-slate-50/50 transition-colors">
-                      <TableCell className="pl-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-10 w-10 border-2 border-white shadow-sm">
-                            <AvatarFallback className="bg-primary/5 text-primary font-bold">
-                              {docente.nombre[0]}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex flex-col">
-                            <span className="font-bold text-slate-900 text-sm">{docente.nombre}</span>
-                            <span className="text-[10px] text-slate-400 font-mono italic">ID: {docente.id.substring(0, 8)}...</span>
+            <>
+              <Table>
+                <TableHeader className="bg-slate-50/50">
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest pl-6">Docente</TableHead>
+                    <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest">Especialidad</TableHead>
+                    <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest text-center">Tipo</TableHead>
+                    <TableHead className="w-[80px] pr-6 text-right"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginatedInstructors.length > 0 ? (
+                    paginatedInstructors.map((docente) => (
+                      <TableRow key={docente.id} className="group hover:bg-slate-50/50 transition-colors">
+                        <TableCell className="pl-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-10 w-10 border-2 border-white shadow-sm">
+                              <AvatarFallback className="bg-primary/5 text-primary font-bold text-slate-900">
+                                {docente.nombre[0]}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex flex-col">
+                              <span className="font-bold text-slate-900 text-sm">{docente.nombre}</span>
+                              <span className="text-[10px] text-slate-400 font-mono italic">ID: {docente.id.substring(0, 8)}...</span>
+                            </div>
                           </div>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-xs font-semibold text-slate-600">
+                            {docente.especialidad || 'No definida'}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {docente.es_transversal ? (
+                            <div className="flex flex-col items-center gap-1">
+                              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                              <span className="text-[9px] font-bold text-emerald-600 uppercase">Transversal</span>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col items-center gap-1">
+                              <XCircle className="h-4 w-4 text-slate-200" />
+                              <span className="text-[9px] font-bold text-slate-400 uppercase">Carrera</span>
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell className="pr-6 text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="rounded-full">
+                                <MoreVertical className="h-4 w-4 text-slate-400" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                              <DropdownMenuItem className="gap-2" onClick={() => { setEditingInstructor(docente); setIsModalOpen(true); }}>
+                                <Edit2 className="h-3.5 w-3.5" /> Editar Perfil
+                              </DropdownMenuItem>
+                              <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(docente.id)}>
+                                <Trash2 className="h-3.5 w-3.5" /> Eliminar Registro
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={4} className="h-48 text-center text-slate-400">
+                        <div className="flex flex-col items-center gap-3">
+                          <AlertCircle className="h-10 w-10 opacity-10" />
+                          <p className="font-bold text-slate-900">No se encontraron docentes registrados</p>
                         </div>
                       </TableCell>
-                      <TableCell>
-                        <span className="text-xs font-semibold text-slate-600">
-                          {docente.especialidad || 'No definida'}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {docente.es_transversal ? (
-                          <div className="flex flex-col items-center gap-1">
-                            <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                            <span className="text-[9px] font-bold text-emerald-600 uppercase">Transversal</span>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col items-center gap-1">
-                            <XCircle className="h-4 w-4 text-slate-200" />
-                            <span className="text-[9px] font-bold text-slate-400 uppercase">Carrera</span>
-                          </div>
-                        )}
-                      </TableCell>
-                      <TableCell className="pr-6 text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="rounded-full">
-                              <MoreVertical className="h-4 w-4 text-slate-400" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-48">
-                            <DropdownMenuItem className="gap-2" onClick={() => { setEditingInstructor(docente); setIsModalOpen(true); }}>
-                              <Edit2 className="h-3.5 w-3.5" /> Editar Perfil
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(docente.id)}>
-                              <Trash2 className="h-3.5 w-3.5" /> Eliminar Registro
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
                     </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={4} className="h-48 text-center text-slate-400">
-                      <div className="flex flex-col items-center gap-3">
-                        <AlertCircle className="h-10 w-10 opacity-10" />
-                        <p className="font-bold text-slate-900">No se encontraron docentes registrados</p>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+                  )}
+                </TableBody>
+              </Table>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between px-6 py-4 bg-slate-50/30 border-t">
+                  <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                    Página {currentPage} de {totalPages} ({filteredInstructors.length} registros)
+                  </div>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                      className="h-8 w-8 p-0"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                      className="h-8 w-8 p-0"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>

@@ -12,7 +12,9 @@ import {
   Calendar,
   CheckCircle2,
   AlertCircle,
-  MoreVertical
+  MoreVertical,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -68,6 +70,10 @@ const initialRequests = [
 export default function AccessRequestsPage() {
   const [requests, setRequests] = React.useState(initialRequests)
   const [searchTerm, setSearchTerm] = React.useState("")
+  
+  // Pagination State
+  const [currentPage, setCurrentPage] = React.useState(1)
+  const itemsPerPage = 10
 
   const handleApprove = (id: string) => {
     setRequests(prev => prev.filter(r => r.id !== id))
@@ -86,9 +92,20 @@ export default function AccessRequestsPage() {
     })
   }
 
-  const filteredRequests = requests.filter(r => 
-    `${r.firstname} ${r.lastname}`.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    r.dni.includes(searchTerm)
+  const filteredRequests = React.useMemo(() => {
+    const result = requests.filter(r => 
+      `${r.firstname} ${r.lastname}`.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      r.dni.includes(searchTerm)
+    )
+    setCurrentPage(1) // Reset to page 1 on filter
+    return result
+  }, [requests, searchTerm])
+
+  // Pagination Logic
+  const totalPages = Math.ceil(filteredRequests.length / itemsPerPage)
+  const paginatedRequests = filteredRequests.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
   )
 
   return (
@@ -128,13 +145,13 @@ export default function AccessRequestsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredRequests.length > 0 ? (
-                filteredRequests.map((req) => (
+              {paginatedRequests.length > 0 ? (
+                paginatedRequests.map((req) => (
                   <TableRow key={req.id} className="group hover:bg-slate-50/50 transition-colors">
                     <TableCell className="pl-6">
                       <Avatar className="h-10 w-10 border-2 border-white shadow-sm">
                         <AvatarImage src={`https://picsum.photos/seed/${req.id}/200/200`} />
-                        <AvatarFallback>{req.firstname[0]}</AvatarFallback>
+                        <AvatarFallback className="bg-primary/5 text-primary font-bold text-slate-900">{req.firstname[0]}</AvatarFallback>
                       </Avatar>
                     </TableCell>
                     <TableCell>
@@ -218,6 +235,35 @@ export default function AccessRequestsPage() {
               )}
             </TableBody>
           </Table>
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-6 py-4 bg-slate-50/30 border-t">
+              <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                Página {currentPage} de {totalPages} ({filteredRequests.length} registros)
+              </div>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                  className="h-8 w-8 p-0"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                  className="h-8 w-8 p-0"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

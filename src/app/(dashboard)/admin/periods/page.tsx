@@ -12,7 +12,9 @@ import {
   Loader2,
   CheckCircle2,
   XCircle,
-  RefreshCcw
+  RefreshCcw,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -52,6 +54,10 @@ export default function AdminPeriodsPage() {
   const [isModalOpen, setIsModalOpen] = React.useState(false)
   const [isDeletingId, setIsDeletingId] = React.useState<string | null>(null)
   const [searchTerm, setSearchTerm] = React.useState("")
+  
+  // Pagination State
+  const [currentPage, setCurrentPage] = React.useState(1)
+  const itemsPerPage = 10
 
   const fetchPeriods = React.useCallback(async () => {
     setIsLoading(true)
@@ -114,10 +120,19 @@ export default function AdminPeriodsPage() {
 
   const filteredPeriods = React.useMemo(() => {
     const term = searchTerm.toLowerCase()
-    return (periods || []).filter(p => 
+    const result = (periods || []).filter(p => 
       p.nombre?.toLowerCase().includes(term)
     )
+    setCurrentPage(1) // Reset to page 1 on filter
+    return result
   }, [periods, searchTerm])
+
+  // Pagination Logic
+  const totalPages = Math.ceil(filteredPeriods.length / itemsPerPage)
+  const paginatedPeriods = filteredPeriods.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  )
 
   return (
     <div className="space-y-6">
@@ -135,7 +150,7 @@ export default function AdminPeriodsPage() {
           </Button>
           <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-primary hover:bg-primary/90 gap-2 shadow-lg shadow-primary/20 h-11 px-6 font-bold">
+              <Button className="bg-primary hover:bg-primary/90 gap-2 shadow-lg shadow-primary/20 h-11 px-6 font-bold text-white">
                 <Plus className="h-4 w-4" /> Nuevo Ciclo
               </Button>
             </DialogTrigger>
@@ -160,7 +175,7 @@ export default function AdminPeriodsPage() {
                 </div>
                 <DialogFooter>
                   <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
-                  <Button type="submit" className="bg-primary font-bold">Guardar</Button>
+                  <Button type="submit" className="bg-primary font-bold text-white">Guardar</Button>
                 </DialogFooter>
               </form>
             </DialogContent>
@@ -186,55 +201,56 @@ export default function AdminPeriodsPage() {
               <p className="text-sm font-medium italic">Sincronizando con FastAPI...</p>
             </div>
           ) : (
-            <Table>
-              <TableHeader className="bg-slate-50/50">
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest pl-6">Nombre del Periodo</TableHead>
-                  <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest text-center">Estado</TableHead>
-                  <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest">Identificador</TableHead>
-                  <TableHead className="w-[80px] pr-6 text-right"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredPeriods.length > 0 ? (
-                  filteredPeriods.map((p) => (
-                    <TableRow key={p.id} className="group hover:bg-slate-50/50 transition-colors">
-                      <TableCell className="font-bold text-slate-700 pl-6">
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-primary" />
-                          {p.nombre}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {p.es_activo ? (
-                          <Badge className="bg-emerald-100 text-emerald-700 border-none font-black uppercase text-[9px] tracking-widest gap-1">
-                            <CheckCircle2 className="h-3 w-3" /> Activo
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-slate-300 border-slate-100 uppercase text-[9px] tracking-widest gap-1">
-                            <XCircle className="h-3 w-3" /> Inactivo
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="font-mono text-[10px] text-slate-400">
-                        {p.id}
-                      </TableCell>
-                      <TableCell className="pr-6 text-right">
-                        {isDeletingId === p.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin text-primary ml-auto" />
-                        ) : (
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
-                                <MoreVertical className="h-4 w-4 text-slate-400" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-40">
-                              <DropdownMenuItem 
-                                className="gap-2 text-destructive focus:text-destructive focus:bg-red-50 cursor-pointer" 
-                                onClick={() => handleDelete(p.id)}
-                              >
-                                <Trash2 className="h-3.5 w-3.5" /> Eliminar Ciclo
+            <>
+              <Table>
+                <TableHeader className="bg-slate-50/50">
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest pl-6">Nombre del Periodo</TableHead>
+                    <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest text-center">Estado</TableHead>
+                    <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest">Identificador</TableHead>
+                    <TableHead className="w-[80px] pr-6 text-right"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginatedPeriods.length > 0 ? (
+                    paginatedPeriods.map((p) => (
+                      <TableRow key={p.id} className="group hover:bg-slate-50/50 transition-colors">
+                        <TableCell className="font-bold text-slate-700 pl-6">
+                          <div className="flex items-center gap-2">
+                            <Calendar className="h-4 w-4 text-primary" />
+                            {p.nombre}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {p.es_activo ? (
+                            <Badge className="bg-emerald-100 text-emerald-700 border-none font-black uppercase text-[9px] tracking-widest gap-1">
+                              <CheckCircle2 className="h-3 w-3" /> Activo
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-slate-300 border-slate-100 uppercase text-[9px] tracking-widest gap-1">
+                              <XCircle className="h-3 w-3" /> Inactivo
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="font-mono text-[10px] text-slate-400">
+                          {p.id}
+                        </TableCell>
+                        <TableCell className="pr-6 text-right">
+                          {isDeletingId === p.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin text-primary ml-auto" />
+                          ) : (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
+                                  <MoreVertical className="h-4 w-4 text-slate-400" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-40">
+                                <DropdownMenuItem 
+                                  className="gap-2 text-destructive focus:text-destructive focus:bg-red-50 cursor-pointer" 
+                                  onClick={() => handleDelete(p.id)}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" /> Eliminar Ciclo
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -254,6 +270,36 @@ export default function AdminPeriodsPage() {
                 )}
               </TableBody>
             </Table>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-6 py-4 bg-slate-50/30 border-t">
+                <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                  Página {currentPage} de {totalPages} ({filteredPeriods.length} registros)
+                </div>
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                    className="h-8 w-8 p-0"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                    className="h-8 w-8 p-0"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+            </>
           )}
         </CardContent>
       </Card>

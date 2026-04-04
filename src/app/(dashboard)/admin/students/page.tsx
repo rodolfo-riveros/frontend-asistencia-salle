@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -8,16 +9,16 @@ import {
   Edit2, 
   Trash2, 
   GraduationCap,
-  AlertCircle,
   Loader2,
   Fingerprint,
   RefreshCcw,
-  ArrowRightLeft,
   FileUp,
   FileSpreadsheet,
   Download,
   CheckCircle2,
   X,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -68,6 +69,10 @@ export default function AdminStudentsPage() {
   const [importFile, setImportFile] = React.useState<File | null>(null)
   const [isUploading, setIsUploading] = React.useState(false)
   const [uploadProgress, setUploadProgress] = React.useState(0)
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = React.useState(1)
+  const itemsPerPage = 10
 
   const fetchData = React.useCallback(async () => {
     setIsLoading(true)
@@ -147,10 +152,10 @@ export default function AdminStudentsPage() {
       referenceData.push({ CODIGO: "SIS", PROGRAMA_DE_ESTUDIO: "Desarrollo de Sistemas (Ejemplo)" })
     }
 
-    const wsRef = XLSX.utils.json_to_sheet(referenceData)
+    const wsRef = XLSX.utils.book_new()
     const workbook = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(workbook, wsData, "Datos_Alumnos")
-    XLSX.utils.book_append_sheet(workbook, wsRef, "Codigos_Programas")
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(referenceData), "Codigos_Programas")
     XLSX.writeFile(workbook, "plantilla_importacion_salle.xlsx")
     
     toast({ 
@@ -225,12 +230,21 @@ export default function AdminStudentsPage() {
 
   const filteredStudents = React.useMemo(() => {
     const term = searchTerm.toLowerCase()
-    return (students || []).filter(s => 
+    const result = (students || []).filter(s => 
       s.nombre.toLowerCase().includes(term) || 
       s.dni.includes(term) ||
       (s.programa_nombre || "").toLowerCase().includes(term)
     )
+    setCurrentPage(1) // Reset to page 1 on filter
+    return result
   }, [students, searchTerm])
+
+  // Pagination Logic
+  const totalPages = Math.ceil(filteredStudents.length / itemsPerPage)
+  const paginatedStudents = filteredStudents.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  )
 
   return (
     <div className="space-y-6">
@@ -284,7 +298,7 @@ export default function AdminStudentsPage() {
               </div>
               <DialogFooter>
                 <Button variant="ghost" onClick={() => setIsImportModalOpen(false)} disabled={isUploading}>Cancelar</Button>
-                <Button onClick={handleImportExcel} disabled={!importFile || isUploading} className="bg-primary font-bold">
+                <Button onClick={handleImportExcel} disabled={!importFile || isUploading} className="bg-primary font-bold text-white">
                   {isUploading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
                   Confirmar Importación
                 </Button>
@@ -292,7 +306,7 @@ export default function AdminStudentsPage() {
             </DialogContent>
           </Dialog>
 
-          <Button onClick={() => { setEditingStudent(null); setIsModalOpen(true); }} className="bg-primary font-bold gap-2 h-11 px-6 shadow-lg shadow-primary/20">
+          <Button onClick={() => { setEditingStudent(null); setIsModalOpen(true); }} className="bg-primary font-bold gap-2 h-11 px-6 shadow-lg shadow-primary/20 text-white">
             <Plus className="h-4 w-4" /> Nuevo Alumno
           </Button>
         </div>
@@ -316,59 +330,90 @@ export default function AdminStudentsPage() {
               <p className="text-sm font-medium">Cargando...</p>
             </div>
           ) : (
-            <Table>
-              <TableHeader className="bg-slate-50/50">
-                <TableRow>
-                  <TableHead className="w-[80px] pl-8"></TableHead>
-                  <TableHead className="font-bold text-[10px] uppercase tracking-widest text-slate-400">Estudiante</TableHead>
-                  <TableHead className="font-bold text-[10px] uppercase tracking-widest text-slate-400">Carrera Profesional</TableHead>
-                  <TableHead className="font-bold text-[10px] uppercase tracking-widest text-center text-slate-400">Ciclo</TableHead>
-                  <TableHead className="w-[80px] pr-8 text-right"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredStudents.map((student) => (
-                  <TableRow key={student.id} className="hover:bg-slate-50/50 transition-colors">
-                    <TableCell className="pl-8 py-3">
-                      <Avatar className="h-10 w-10 border-2 border-white shadow-sm">
-                        <AvatarFallback className="bg-primary/5 text-primary font-bold text-xs">
-                          {getInitials(student.nombre)}
-                        </AvatarFallback>
-                      </Avatar>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <span className="font-bold text-slate-900 text-sm">{student.nombre}</span>
-                        <span className="text-[10px] text-slate-400 flex items-center gap-1 font-mono">
-                          <Fingerprint className="h-3 w-3" /> {student.dni}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1.5 text-slate-600 text-xs font-medium">
-                        <GraduationCap className="h-3.5 w-3.5 text-primary/40" /> {student.programa_nombre || 'No asignado'}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge className="bg-slate-100 text-slate-600 border-none font-black text-[10px] uppercase">Sem {student.semestre}</Badge>
-                    </TableCell>
-                    <TableCell className="pr-8 text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="rounded-full">
-                            <MoreVertical className="h-4 w-4 text-slate-400" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => { setEditingStudent(student); setIsModalOpen(true); }}>Editar</DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(student.id)}>Eliminar</DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
+            <>
+              <Table>
+                <TableHeader className="bg-slate-50/50">
+                  <TableRow>
+                    <TableHead className="w-[80px] pl-8"></TableHead>
+                    <TableHead className="font-bold text-[10px] uppercase tracking-widest text-slate-400">Estudiante</TableHead>
+                    <TableHead className="font-bold text-[10px] uppercase tracking-widest text-slate-400">Carrera Profesional</TableHead>
+                    <TableHead className="font-bold text-[10px] uppercase tracking-widest text-center text-slate-400">Ciclo</TableHead>
+                    <TableHead className="w-[80px] pr-8 text-right"></TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {paginatedStudents.map((student) => (
+                    <TableRow key={student.id} className="hover:bg-slate-50/50 transition-colors">
+                      <TableCell className="pl-8 py-3">
+                        <Avatar className="h-10 w-10 border-2 border-white shadow-sm">
+                          <AvatarFallback className="bg-primary/5 text-primary font-bold text-xs">
+                            {getInitials(student.nombre)}
+                          </AvatarFallback>
+                        </Avatar>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col">
+                          <span className="font-bold text-slate-900 text-sm">{student.nombre}</span>
+                          <span className="text-[10px] text-slate-400 flex items-center gap-1 font-mono">
+                            <Fingerprint className="h-3 w-3" /> {student.dni}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1.5 text-slate-600 text-xs font-medium">
+                          <GraduationCap className="h-3.5 w-3.5 text-primary/40" /> {student.programa_nombre || 'No asignado'}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge className="bg-slate-100 text-slate-600 border-none font-black text-[10px] uppercase">Sem {student.semestre}</Badge>
+                      </TableCell>
+                      <TableCell className="pr-8 text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="rounded-full">
+                              <MoreVertical className="h-4 w-4 text-slate-400" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => { setEditingStudent(student); setIsModalOpen(true); }}>Editar</DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(student.id)}>Eliminar</DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between px-8 py-4 bg-slate-50/30 border-t">
+                  <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                    Página {currentPage} de {totalPages} ({filteredStudents.length} registros)
+                  </div>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                      className="h-8 w-8 p-0"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                      className="h-8 w-8 p-0"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
@@ -418,7 +463,7 @@ export default function AdminStudentsPage() {
             </div>
             <DialogFooter>
               <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
-              <Button type="submit" className="bg-primary font-bold" disabled={isSaving}>
+              <Button type="submit" className="bg-primary font-bold text-white" disabled={isSaving}>
                 {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Guardar Registro"}
               </Button>
             </DialogFooter>

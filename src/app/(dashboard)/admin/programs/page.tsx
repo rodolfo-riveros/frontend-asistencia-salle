@@ -13,7 +13,9 @@ import {
   Loader2,
   Hash,
   RefreshCcw,
-  Layers
+  Layers,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -52,6 +54,10 @@ export default function AdminProgramsPage() {
   const [isSaving, setIsSaving] = React.useState(false)
   const [editingProgram, setEditingProgram] = React.useState<any>(null)
   const [searchTerm, setSearchTerm] = React.useState("")
+  
+  // Pagination State
+  const [currentPage, setCurrentPage] = React.useState(1)
+  const itemsPerPage = 10
 
   const fetchPrograms = React.useCallback(async () => {
     setIsLoading(true)
@@ -79,7 +85,6 @@ export default function AdminProgramsPage() {
     const formData = new FormData(e.currentTarget)
     const nombre = (formData.get("nombre") as string).trim()
     
-    // Generación automática de código compatible con el backend (MAYÚSCULAS y _)
     const cleanName = nombre.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]/g, '_').toUpperCase().substring(0, 5)
     const generatedCode = editingProgram?.codigo || `PRG_${cleanName}_${Math.floor(Math.random() * 9000 + 1000)}`
 
@@ -127,13 +132,22 @@ export default function AdminProgramsPage() {
 
   const filteredPrograms = React.useMemo(() => {
     const term = searchTerm.toLowerCase()
-    return (programs || []).filter(p => {
+    const result = (programs || []).filter(p => {
       if (!p) return false
       const name = (p.nombre || "").toLowerCase()
       const code = (p.codigo || "").toLowerCase()
       return name.includes(term) || code.includes(term)
     })
+    setCurrentPage(1) // Reset to page 1 on filter
+    return result
   }, [programs, searchTerm])
+
+  // Pagination Logic
+  const totalPages = Math.ceil(filteredPrograms.length / itemsPerPage)
+  const paginatedPrograms = filteredPrograms.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  )
 
   return (
     <div className="space-y-6">
@@ -151,7 +165,7 @@ export default function AdminProgramsPage() {
           </Button>
           <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if(!open) setEditingProgram(null); }}>
             <DialogTrigger asChild>
-              <Button className="bg-primary hover:bg-primary/90 gap-2 shadow-lg shadow-primary/20 h-11 px-6 font-bold">
+              <Button className="bg-primary hover:bg-primary/90 gap-2 shadow-lg shadow-primary/20 h-11 px-6 font-bold text-white">
                 <Plus className="h-4 w-4" /> Nuevo Programa
               </Button>
             </DialogTrigger>
@@ -177,7 +191,7 @@ export default function AdminProgramsPage() {
                 </div>
                 <DialogFooter>
                   <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
-                  <Button type="submit" className="bg-primary font-bold" disabled={isSaving}>
+                  <Button type="submit" className="bg-primary font-bold text-white" disabled={isSaving}>
                     {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Guardar Programa"}
                   </Button>
                 </DialogFooter>
@@ -204,53 +218,84 @@ export default function AdminProgramsPage() {
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
               <p className="text-sm font-medium italic">Sincronizando programas...</p>
             </div>
-          ) : filteredPrograms.length > 0 ? (
-            <Table>
-              <TableHeader className="bg-slate-50/50">
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="w-[150px] font-bold text-slate-400 uppercase text-[10px] tracking-widest pl-6">Código</TableHead>
-                  <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest">Carrera Profesional</TableHead>
-                  <TableHead className="w-[100px] pr-6 text-right">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredPrograms.map((program) => (
-                  <TableRow key={program.id} className="group hover:bg-slate-50/50 transition-colors">
-                    <TableCell className="font-mono text-[11px] text-slate-500 pl-6">
-                      <div className="flex items-center gap-1.5">
-                        <Hash className="h-3 w-3 text-primary/40" /> 
-                        <span className="font-bold text-slate-700">{program.codigo}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="font-bold text-slate-700">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-primary/5 flex items-center justify-center text-primary shrink-0 transition-colors group-hover:bg-primary group-hover:text-white">
-                          <GraduationCap className="h-4 w-4" />
-                        </div>
-                        {program.nombre}
-                      </div>
-                    </TableCell>
-                    <TableCell className="pr-6 text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
-                            <MoreVertical className="h-4 w-4 text-slate-400" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-40">
-                          <DropdownMenuItem className="gap-2" onClick={() => { setEditingProgram(program); setIsModalOpen(true); }}>
-                            <Edit2 className="h-3.5 w-3.5" /> Editar Nombre
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive" onClick={() => handleDelete(program.id)}>
-                            <Trash2 className="h-3.5 w-3.5" /> Eliminar Carrera
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
+          ) : paginatedPrograms.length > 0 ? (
+            <>
+              <Table>
+                <TableHeader className="bg-slate-50/50">
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="w-[150px] font-bold text-slate-400 uppercase text-[10px] tracking-widest pl-6">Código</TableHead>
+                    <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest">Carrera Profesional</TableHead>
+                    <TableHead className="w-[100px] pr-6 text-right">Acciones</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {paginatedPrograms.map((program) => (
+                    <TableRow key={program.id} className="group hover:bg-slate-50/50 transition-colors">
+                      <TableCell className="font-mono text-[11px] text-slate-500 pl-6">
+                        <div className="flex items-center gap-1.5">
+                          <Hash className="h-3 w-3 text-primary/40" /> 
+                          <span className="font-bold text-slate-700">{program.codigo}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-bold text-slate-700">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-primary/5 flex items-center justify-center text-primary shrink-0 transition-colors group-hover:bg-primary group-hover:text-white">
+                            <GraduationCap className="h-4 w-4" />
+                          </div>
+                          {program.nombre}
+                        </div>
+                      </TableCell>
+                      <TableCell className="pr-6 text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
+                              <MoreVertical className="h-4 w-4 text-slate-400" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-40">
+                            <DropdownMenuItem className="gap-2" onClick={() => { setEditingProgram(program); setIsModalOpen(true); }}>
+                              <Edit2 className="h-3.5 w-3.5" /> Editar Nombre
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive" onClick={() => handleDelete(program.id)}>
+                              <Trash2 className="h-3.5 w-3.5" /> Eliminar Carrera
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between px-6 py-4 bg-slate-50/30 border-t">
+                  <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                    Página {currentPage} de {totalPages} ({filteredPrograms.length} registros)
+                  </div>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                      className="h-8 w-8 p-0"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                      className="h-8 w-8 p-0"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
           ) : (
             <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-3">
               <div className="p-4 bg-slate-50 rounded-full">
