@@ -4,7 +4,7 @@ import * as React from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { 
   ArrowLeft, Search, Save, Sparkles, UserCheck, UserX, Clock, MessageSquareQuote, 
-  Loader2, RefreshCcw, PieChart as PieIcon, BarChart3, AlertTriangle
+  Loader2, RefreshCcw, PieChart as PieIcon, BarChart3, AlertTriangle, CheckCircle2
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -41,14 +41,29 @@ export default function AttendancePage() {
   })
   const [isAnalyzing, setIsAnalyzing] = React.useState(false)
   const [aiResult, setAiResult] = React.useState<AttendanceInsightsOutput | null>(null)
+  const [availableDates, setAvailableDates] = React.useState<string[]>([])
 
-  const fetchExistingAttendance = React.useCallback(async (studentList: any[]) => {
-    if (!params.id || !date || studentList.length === 0) return
+  const fetchAvailableDates = React.useCallback(async () => {
+    if (!params.id) return
+    try {
+      const allRecords = await api.get<any[]>(`/asistencias/reporte/unidad/${params.id}`)
+      const dates = [...new Set(allRecords.map(r => r.fecha))].sort().reverse()
+      setAvailableDates(dates)
+    } catch (err) {
+      console.error("Error fetching dates:", err)
+    }
+  }, [params.id])
+
+  const fetchExistingAttendance = React.useCallback(async (studentList: any[], selectedDate?: string) => {
+    const queryDate = selectedDate || date
+    if (!params.id || !queryDate || studentList.length === 0) return
+    
     setIsSyncing(true)
     try {
-      const existing = await api.get<any[]>(`/asistencias/reporte/unidad/${params.id}?fecha_inicio=${date}&fecha_fin=${date}`)
-      const mapped: Record<string, string | null> = {}
+      console.log(`🔍 Buscando asistencia para fecha: ${queryDate}`)
+      const existing = await api.get<any[]>(`/asistencias/reporte/unidad/${params.id}?fecha_inicio=${queryDate}&fecha_fin=${queryDate}`)
       
+      const mapped: Record<string, string | null> = {}
       studentList.forEach(s => mapped[s.id] = null)
       
       if (existing && Array.isArray(existing)) {
@@ -73,13 +88,14 @@ export default function AttendancePage() {
     try {
       const data = await api.get<any[]>(`/me/unidades/${params.id}/alumnos`)
       setStudents(data)
-      await fetchExistingAttendance(data)
+      await fetchAvailableDates()
+      await fetchExistingAttendance(data, date)
     } catch (err: any) {
       toast({ variant: "destructive", title: "Error", description: "Fallo al cargar la lista de alumnos." })
     } finally {
       setIsLoading(false)
     }
-  }, [params.id, fetchExistingAttendance])
+  }, [params.id, fetchExistingAttendance, fetchAvailableDates, date])
 
   React.useEffect(() => { 
     fetchStudents() 
@@ -87,7 +103,7 @@ export default function AttendancePage() {
 
   React.useEffect(() => {
     if (students.length > 0) {
-      fetchExistingAttendance(students)
+      fetchExistingAttendance(students, date)
     }
   }, [date, students, fetchExistingAttendance])
 
@@ -117,7 +133,8 @@ export default function AttendancePage() {
     try {
       await api.post('/asistencias/pase-lista', payload)
       toast({ title: "¡Éxito!", description: "La asistencia se ha guardado correctamente." })
-      await fetchExistingAttendance(students)
+      await fetchExistingAttendance(students, date)
+      await fetchAvailableDates()
     } catch (err: any) { 
       toast({ variant: "destructive", title: "Error al guardar", description: err.message }) 
     }
@@ -156,6 +173,7 @@ export default function AttendancePage() {
   }, [attendance])
 
   const filtered = students.filter(s => s.nombre.toLowerCase().includes(searchTerm.toLowerCase()))
+  const hasRecordsForCurrentDate = availableDates.includes(date)
 
   return (
     <div className="space-y-10 pb-24">
@@ -166,7 +184,9 @@ export default function AttendancePage() {
         onBack={() => router.back()} 
         onRunAi={runAnalysis} 
         isAnalyzing={isAnalyzing} 
-        onSave={handleSave} 
+        onSave={handleSave}
+        hasRecords={hasRecordsForCurrentDate}
+        availableDates={availableDates}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -192,7 +212,7 @@ export default function AttendancePage() {
   )
 }
 
-function HeaderSection({ date, setDate, isSyncing, onBack, onRunAi, isAnalyzing, onSave }: any) {
+function HeaderSection({ date, setDate, isSyncing, onBack, onRunAi, isAnalyzing, onSave, hasRecords, availableDates }: any) {
   return (
     <div className="space-y-8">
       <Button variant="ghost" onClick={onBack} className="h-10 text-primary font-bold hover:bg-primary/5">
@@ -203,15 +223,29 @@ function HeaderSection({ date, setDate, isSyncing, onBack, onRunAi, isAnalyzing,
           <h2 className="text-4xl md:text-6xl font-headline font-black tracking-tighter text-slate-900 leading-tight">
             Pase de Lista
           </h2>
-          <div className="flex items-center gap-4 bg-white px-6 py-3 rounded-2xl border shadow-sm w-fit">
-            <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">FECHA ACADÉMICA:</Label>
-            <input 
-              type="date" 
-              value={date} 
-              onChange={e => setDate(e.target.value)} 
-              className="bg-transparent border-none font-black text-slate-900 text-sm outline-none cursor-pointer" 
-            />
-            {isSyncing && <RefreshCcw className="h-4 w-4 animate-spin text-primary" />}
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-4 bg-white px-6 py-3 rounded-2xl border shadow-sm w-fit">
+              <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">FECHA ACADÉMICA:</Label>
+              <input 
+                type="date" 
+                value={date} 
+                onChange={e => setDate(e.target.value)} 
+                className="bg-transparent border-none font-black text-slate-900 text-sm outline-none cursor-pointer" 
+              />
+              {isSyncing && <RefreshCcw className="h-4 w-4 animate-spin text-primary" />}
+            </div>
+            {availableDates.length > 0 && !hasRecords && (
+              <div className="text-[10px] text-amber-600 bg-amber-50 px-4 py-2 rounded-xl flex items-center gap-2 font-bold uppercase tracking-widest">
+                <AlertTriangle className="h-3 w-3" />
+                Sin registros hoy. Fechas con datos: {availableDates.slice(0, 3).join(", ")}
+              </div>
+            )}
+            {hasRecords && (
+              <div className="text-[10px] text-emerald-600 bg-emerald-50 px-4 py-2 rounded-xl flex items-center gap-2 font-bold uppercase tracking-widest">
+                <CheckCircle2 className="h-3 w-3" />
+                Asistencia recuperada para esta fecha
+              </div>
+            )}
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-4 w-full lg:w-auto">

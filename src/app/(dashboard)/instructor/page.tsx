@@ -6,7 +6,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { BookOpen, Users, Clock, ArrowRight, FileSpreadsheet, FileText, Loader2, AlertCircle, Calendar, CheckCircle2, CircleDashed, TrendingUp } from "lucide-react"
+import { BookOpen, Users, Clock, ArrowRight, FileSpreadsheet, FileText, Loader2, AlertCircle, Calendar, CheckCircle2, CircleDashed, TrendingUp, Award } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
 import { supabase } from "@/lib/supabase"
@@ -116,6 +116,7 @@ export default function InstructorDashboard() {
 
       const periodName = periods.find(p => p.id === selectedPeriodId)?.nombre || "N/A"
       
+      // Estructura de filas para Excel Profesional
       const rows: any[] = []
       rows.push(["INSTITUTO DE EDUCACIÓN SUPERIOR LA SALLE - URUBAMBA"])
       rows.push(["REPORTE OFICIAL DE ASISTENCIA ACADÉMICA"])
@@ -131,36 +132,75 @@ export default function InstructorDashboard() {
         const [_, month, day] = d.split('-')
         headerRow.push(`${day}/${month}`)
       })
-      headerRow.push('FALTAS', '% INASIST.')
+      headerRow.push('TOTAL FALTAS', '% INASISTENCIA')
       rows.push(headerRow)
 
+      const studentData: any[] = []
       alumnos.sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach((alumno, index) => {
-        const studentRow: any[] = [(index + 1).toString().padStart(2, '0'), alumno.nombre.toUpperCase(), alumno.dni || 'S/D']
         let absences = 0
+        const attendanceByDate: any[] = []
+        
         uniqueDates.forEach(date => {
           const status = matrix[alumno.id]?.[date] || "-"
-          studentRow.push(status)
+          attendanceByDate.push(status)
           if (status === 'F') absences++
         })
+
         const totalSessions = uniqueDates.length
         const pct = totalSessions > 0 ? ((absences / totalSessions) * 100).toFixed(1) : "0"
-        studentRow.push(absences, `${pct}%`)
+
+        const studentRow: any[] = [
+          (index + 1).toString().padStart(2, '0'),
+          alumno.nombre.toUpperCase(),
+          alumno.dni || 'S/D',
+          ...attendanceByDate,
+          absences,
+          `${pct}%`
+        ]
         rows.push(studentRow)
+        studentData.push({ ...alumno, attendanceByDate, absences, pct })
       })
 
       const wb = XLSX.utils.book_new()
       const ws = XLSX.utils.aoa_to_sheet(rows)
-      
+
+      // Configuración de anchos de columna
       const wscols = [
         { wch: 5 }, { wch: 45 }, { wch: 12 },
         ...uniqueDates.map(() => ({ wch: 8 })), 
-        { wch: 10 }, { wch: 12 }
+        { wch: 15 }, { wch: 15 }
       ]
       ws['!cols'] = wscols
 
+      // Segunda hoja: Resumen Individual
+      const summaryRows: any[] = [
+        ["RESUMEN INDIVIDUAL DE ASISTENCIA"],
+        [],
+        ["N°", "ALUMNO", "DNI", "FALTAS", "% ASISTENCIA", "ESTADO"]
+      ]
+
+      studentData.forEach((student, idx) => {
+        let estado = "APROBADO"
+        if (parseFloat(student.pct) > 30) estado = "DESAPROBADO"
+        else if (parseFloat(student.pct) > 15) estado = "OBSERVADO"
+        
+        summaryRows.push([
+          idx + 1,
+          student.nombre.toUpperCase(),
+          student.dni,
+          student.absences,
+          `${student.pct}%`,
+          estado
+        ])
+      })
+
+      const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows)
+      
       XLSX.utils.book_append_sheet(wb, ws, "Matriz de Asistencia")
+      XLSX.utils.book_append_sheet(wb, wsSummary, "Resumen Individual")
+
       XLSX.writeFile(wb, `REPORTE_ASISTENCIA_${asg.unidad_nombre.replace(/\s+/g, '_')}.xlsx`)
-      toast({ title: "Reporte Exportado" })
+      toast({ title: "Reporte Excel Exportado" })
     } catch (err: any) {
       toast({ variant: "destructive", title: "Error", description: err.message })
     } finally {
