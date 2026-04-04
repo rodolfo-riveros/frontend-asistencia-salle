@@ -47,14 +47,17 @@ export default function AttendancePage() {
     if (!params.id || !date || studentList.length === 0) return
     setIsSyncing(true)
     try {
+      // Usamos el endpoint de reporte filtrado por fecha para obtener la asistencia del día
       const existing = await api.get<any[]>(`/asistencias/reporte/unidad/${params.id}?fecha_inicio=${date}&fecha_fin=${date}`)
       const mapped: Record<string, string | null> = {}
       
+      // Inicializamos todos en null
       studentList.forEach(s => mapped[s.id] = null)
       
       if (existing && Array.isArray(existing)) {
         existing.forEach(reg => {
-          const idAlumno = reg.alumno_id;
+          // El backend ahora devuelve alumno_id según tu corrección
+          const idAlumno = reg.alumno_id || reg.id_alumno;
           if (idAlumno && mapped[idAlumno] !== undefined) {
             mapped[idAlumno] = REVERSE_MAP[reg.estado] || reg.estado
           }
@@ -81,8 +84,11 @@ export default function AttendancePage() {
     }
   }, [params.id, fetchExistingAttendance])
 
-  React.useEffect(() => { fetchStudents() }, [fetchStudents])
+  React.useEffect(() => { 
+    fetchStudents() 
+  }, [fetchStudents])
 
+  // Refrescamos asistencia si cambia la fecha manualmente
   React.useEffect(() => {
     if (students.length > 0) {
       fetchExistingAttendance(students)
@@ -90,8 +96,11 @@ export default function AttendancePage() {
   }, [date, students, fetchExistingAttendance])
 
   const handleStatus = (id: string, status: string) => setAttendance(p => ({ ...p, [id]: status }))
+  
   const handleMassive = (status: string) => {
-    const next = { ...attendance }; students.forEach(s => next[s.id] = status); setAttendance(next)
+    const next = { ...attendance }; 
+    students.forEach(s => next[s.id] = status); 
+    setAttendance(next)
     toast({ title: "Marcado Grupal", description: `Se ha marcado a todos como ${status}.` })
   }
 
@@ -103,7 +112,10 @@ export default function AttendancePage() {
       unidad_id: params.id as string, 
       periodo_id: periodoId, 
       fecha: date,
-      registros: records.map(([id, st]) => ({ alumno_id: id, estado: STATUS_MAP[st as string] || st }))
+      registros: records.map(([id, st]) => ({ 
+        alumno_id: id, 
+        estado: STATUS_MAP[st as string] || st 
+      }))
     }
 
     try {

@@ -85,7 +85,7 @@ export default function RegisterPage() {
                 <div className="w-16 h-16 bg-white/20 rounded-xl flex items-center justify-center shadow-lg border border-white/10">
                   <GraduationCap className="h-10 w-10 text-white" />
                 </div>
-                <h1 className="font-headline font-extrabold text-2xl tracking-tight uppercase">IES La Salle Urubamba</h1>
+                <h1 className="font-headline font-extrabold text-2xl tracking-tight uppercase">La Salle Urubamba</h1>
               </div>
               <div className="space-y-6">
                 <h2 className="font-headline text-4xl font-bold leading-tight max-w-sm">
