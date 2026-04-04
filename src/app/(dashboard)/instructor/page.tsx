@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -7,7 +6,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { BookOpen, Users, Clock, ArrowRight, FileSpreadsheet, FileText, Loader2, AlertCircle, Calendar, CheckCircle2, CircleDashed } from "lucide-react"
+import { BookOpen, Users, Clock, ArrowRight, FileSpreadsheet, FileText, Loader2, AlertCircle, Calendar, CheckCircle2, CircleDashed, TrendingUp } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
 import { supabase } from "@/lib/supabase"
@@ -78,15 +77,32 @@ export default function InstructorDashboard() {
     fetchData()
   }, [fetchData])
 
+  const getEstadoColor = (estado: string): string => {
+    switch(estado) {
+      case 'P': return '22c55e'; // Verde
+      case 'T': return 'eab308'; // Amarillo
+      case 'J': return '3b82f6'; // Azul
+      case 'F': return 'ef4444'; // Rojo
+      default: return '94a3b8'; // Gris
+    }
+  }
+
   const handleExportExcel = async (asg: any) => {
     setIsExporting(asg.id)
+    toast({
+      title: "Generando Matriz Profesional",
+      description: "Construyendo reporte académico de asistencia...",
+    })
+
     try {
       const [reportData, alumnos] = await Promise.all([
         api.get<any[]>(`/asistencias/reporte/unidad/${asg.unidad_id}`).catch(() => []),
         api.get<any[]>(`/me/unidades/${asg.unidad_id}/alumnos`).catch(() => [])
       ])
 
-      if (!alumnos || alumnos.length === 0) throw new Error("No hay alumnos matriculados.")
+      if (!alumnos || alumnos.length === 0) {
+        throw new Error("No hay alumnos matriculados para generar el reporte.")
+      }
 
       const uniqueDates = Array.from(new Set(reportData.map(r => r.fecha))).sort()
       const matrix: Record<string, Record<string, string>> = {}
@@ -98,19 +114,19 @@ export default function InstructorDashboard() {
         }
       })
 
-      const rows: any[] = []
       const periodName = periods.find(p => p.id === selectedPeriodId)?.nombre || "N/A"
-
-      // CABECERA INSTITUCIONAL ESTILIZADA (Estructura)
+      
+      const rows: any[] = []
       rows.push(["INSTITUTO DE EDUCACIÓN SUPERIOR LA SALLE - URUBAMBA"])
-      rows.push(["CONTROL ACADÉMICO DE ASISTENCIA - MATRIZ OFICIAL"])
+      rows.push(["REPORTE OFICIAL DE ASISTENCIA ACADÉMICA"])
       rows.push([])
-      rows.push(["PROGRAMA:", asg.programa_nombre.toUpperCase(), "", "PERIODO:", periodName])
+      rows.push(["DATOS DE LA UNIDAD DIDÁCTICA"])
+      rows.push(["PROGRAMA PROFESIONAL:", asg.programa_nombre.toUpperCase(), "", "PERIODO ACADÉMICO:", periodName])
       rows.push(["UNIDAD DIDÁCTICA:", asg.unidad_nombre.toUpperCase(), "", "SEMESTRE:", asg.semestre])
-      rows.push(["DOCENTE RESPONSABLE:", userName, "", "FECHA REPORTE:", new Date().toLocaleDateString()])
+      rows.push(["DOCENTE RESPONSABLE:", userName, "", "FECHA DE EMISIÓN:", new Date().toLocaleDateString('es-PE')])
       rows.push([])
-
-      const headerRow = ['N°', 'APELLIDOS Y NOMBRES']
+      
+      const headerRow = ['N°', 'APELLIDOS Y NOMBRES', 'DNI']
       uniqueDates.forEach(d => {
         const [_, month, day] = d.split('-')
         headerRow.push(`${day}/${month}`)
@@ -119,7 +135,7 @@ export default function InstructorDashboard() {
       rows.push(headerRow)
 
       alumnos.sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach((alumno, index) => {
-        const studentRow: any[] = [(index + 1).toString().padStart(2, '0'), alumno.nombre.toUpperCase()]
+        const studentRow: any[] = [(index + 1).toString().padStart(2, '0'), alumno.nombre.toUpperCase(), alumno.dni || 'S/D']
         let absences = 0
         uniqueDates.forEach(date => {
           const status = matrix[alumno.id]?.[date] || "-"
@@ -135,19 +151,16 @@ export default function InstructorDashboard() {
       const wb = XLSX.utils.book_new()
       const ws = XLSX.utils.aoa_to_sheet(rows)
       
-      // Ajuste de anchos para que se vea profesional
       const wscols = [
-        { wch: 5 }, 
-        { wch: 50 }, 
+        { wch: 5 }, { wch: 45 }, { wch: 12 },
         ...uniqueDates.map(() => ({ wch: 8 })), 
-        { wch: 10 }, 
-        { wch: 12 }
+        { wch: 10 }, { wch: 12 }
       ]
       ws['!cols'] = wscols
 
-      XLSX.utils.book_append_sheet(wb, ws, "Asistencia")
-      XLSX.writeFile(wb, `MATRIZ_${asg.unidad_nombre.replace(/\s+/g, '_')}.xlsx`)
-      toast({ title: "Excel Generado Profesional" })
+      XLSX.utils.book_append_sheet(wb, ws, "Matriz de Asistencia")
+      XLSX.writeFile(wb, `REPORTE_ASISTENCIA_${asg.unidad_nombre.replace(/\s+/g, '_')}.xlsx`)
+      toast({ title: "Reporte Exportado" })
     } catch (err: any) {
       toast({ variant: "destructive", title: "Error", description: err.message })
     } finally {
@@ -157,6 +170,11 @@ export default function InstructorDashboard() {
 
   const handleExportPdf = async (asg: any) => {
     setIsExportingPdf(asg.id)
+    toast({
+      title: "Generando PDF Profesional",
+      description: "Construyendo reporte académico...",
+    })
+
     try {
       const [reportData, alumnos] = await Promise.all([
         api.get<any[]>(`/asistencias/reporte/unidad/${asg.unidad_id}`).catch(() => []),
@@ -178,26 +196,24 @@ export default function InstructorDashboard() {
       const doc = new jsPDF('l', 'mm', 'a4')
       const periodName = periods.find(p => p.id === selectedPeriodId)?.nombre || "N/A"
 
-      // Cabecera Institucional PDF
-      doc.setFontSize(14)
-      doc.setTextColor(34, 97, 203) // Azul Salle
+      doc.setFontSize(16)
+      doc.setTextColor(0, 51, 102)
       doc.text("INSTITUTO DE EDUCACIÓN SUPERIOR LA SALLE - URUBAMBA", 14, 15)
       
-      doc.setFontSize(10)
+      doc.setFontSize(12)
       doc.setTextColor(100)
-      doc.text("REGISTRO DE CONTROL DE ASISTENCIA ACADÉMICA", 14, 22)
+      doc.text("MATRIZ DE CONTROL DE ASISTENCIA ACADÉMICA", 14, 22)
       
-      doc.setFontSize(8)
+      doc.setFontSize(9)
       doc.setTextColor(0)
       doc.text(`PROGRAMA: ${asg.programa_nombre.toUpperCase()}`, 14, 32)
       doc.text(`UNIDAD DIDÁCTICA: ${asg.unidad_nombre.toUpperCase()}`, 14, 37)
       doc.text(`DOCENTE: ${userName}`, 14, 42)
       
-      doc.text(`PERIODO: ${periodName}`, 240, 32)
-      doc.text(`SEMESTRE: ${asg.semestre}`, 240, 37)
-      doc.text(`REPORTE: ${new Date().toLocaleDateString()}`, 240, 42)
+      doc.text(`PERIODO: ${periodName}`, 220, 32)
+      doc.text(`SEMESTRE: ${asg.semestre}`, 220, 37)
+      doc.text(`FECHA REPORTE: ${new Date().toLocaleDateString()}`, 220, 42)
 
-      // Tabla de Datos
       const headers = ['N°', 'APELLIDOS Y NOMBRES']
       uniqueDates.forEach(d => {
         const [_, month, day] = d.split('-')
@@ -223,14 +239,14 @@ export default function InstructorDashboard() {
         head: [headers],
         body: body,
         startY: 50,
-        styles: { fontSize: 7, halign: 'center' },
-        headStyles: { fillColor: [34, 97, 203], textColor: 255, fontStyle: 'bold' },
-        columnStyles: { 1: { halign: 'left', fontStyle: 'bold', cellWidth: 50 } },
-        alternateRowStyles: { fillColor: [245, 247, 251] },
+        styles: { fontSize: 7, cellPadding: 1.5, halign: 'center' },
+        headStyles: { fillColor: [0, 51, 102], textColor: 255, fontStyle: 'bold' },
+        columnStyles: { 1: { halign: 'left', fontStyle: 'bold', cellWidth: 60 } },
+        alternateRowStyles: { fillColor: [245, 245, 245] },
         theme: 'grid'
       })
 
-      doc.save(`REPORTE_${asg.unidad_nombre.replace(/\s+/g, '_')}.pdf`)
+      doc.save(`MATRIZ_${asg.unidad_nombre.replace(/\s+/g, '_')}.pdf`)
       toast({ title: "PDF Generado con éxito" })
     } catch (err: any) {
       toast({ variant: "destructive", title: "Error", description: err.message })
@@ -254,7 +270,7 @@ export default function InstructorDashboard() {
         
         <div className="bg-white p-4 rounded-2xl border shadow-sm flex items-center gap-4">
           <div className="flex flex-col">
-            <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Filtro por Periodo</span>
+            <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Periodo Actual</span>
             <Select value={selectedPeriodId} onValueChange={setSelectedPeriodId}>
               <SelectTrigger className="h-9 w-[220px] border-none bg-slate-50 font-bold text-slate-900">
                 <Calendar className="h-4 w-4 mr-2 text-primary" />
@@ -273,7 +289,7 @@ export default function InstructorDashboard() {
       {isLoading ? (
         <div className="h-96 flex flex-col items-center justify-center text-slate-400 gap-4">
           <Loader2 className="h-12 w-12 animate-spin text-primary" />
-          <p className="font-bold uppercase text-xs tracking-widest">Sincronizando con La Salle...</p>
+          <p className="font-bold uppercase text-xs tracking-widest">Sincronizando...</p>
         </div>
       ) : asignaciones.length > 0 ? (
         <div className="grid gap-6 md:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
@@ -304,15 +320,15 @@ export default function InstructorDashboard() {
                     <Users className="h-4 w-4 text-primary" />
                     <div className="flex flex-col">
                       <span className="text-[8px] font-black text-slate-400 uppercase">Ciclo</span>
-                      <span className="text-xs font-bold text-slate-700">Semestre {asg.semestre}</span>
+                      <span className="text-xs font-bold text-slate-700">Sem {asg.semestre}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100">
                     <div className="flex flex-col flex-1">
-                      <span className="text-[8px] font-black text-slate-400 uppercase">Estado Hoy</span>
+                      <span className="text-[8px] font-black text-slate-400 uppercase">Hoy</span>
                       {attendanceStatus[asg.unidad_id] ? (
                         <span className="text-[9px] font-bold text-emerald-600 flex items-center gap-1">
-                          <CheckCircle2 className="h-3 w-3" /> LISTA TOMADA
+                          <CheckCircle2 className="h-3 w-3" /> TOMADA
                         </span>
                       ) : (
                         <span className="text-[9px] font-bold text-amber-600 flex items-center gap-1">
@@ -357,7 +373,7 @@ export default function InstructorDashboard() {
         <Card className="p-20 text-center border-dashed border-2 text-slate-400 bg-white rounded-3xl">
           <AlertCircle className="h-12 w-12 opacity-10 mx-auto mb-4" />
           <p className="font-bold text-lg text-slate-900">Sin carga académica registrada</p>
-          <p className="text-sm">Si eres nuevo, contacta con secretaría académica para tu asignación de cursos.</p>
+          <p className="text-sm">Contacta con administración para tu asignación de cursos.</p>
         </Card>
       )}
     </div>

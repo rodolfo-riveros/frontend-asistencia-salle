@@ -46,26 +46,20 @@ export default function AttendancePage() {
     if (!params.id || !date || studentList.length === 0) return
     setIsSyncing(true)
     try {
-      // Usamos el endpoint de reporte filtrado por fecha para obtener la asistencia del día
       const existing = await api.get<any[]>(`/asistencias/reporte/unidad/${params.id}?fecha_inicio=${date}&fecha_fin=${date}`)
       const mapped: Record<string, string | null> = {}
       
-      // Inicializamos todos en null
       studentList.forEach(s => mapped[s.id] = null)
       
       if (existing && Array.isArray(existing)) {
         existing.forEach(reg => {
-          // El backend devuelve 'alumno_id' directamente en el objeto raíz
           const idAlumno = reg.alumno_id
-          
           if (idAlumno && mapped[idAlumno] !== undefined) {
-            // El estado viene como 'P', 'F', 'T', 'J' desde el backend
             const estadoTexto = REVERSE_MAP[reg.estado] || reg.estado
             mapped[idAlumno] = estadoTexto
           }
         })
       }
-      
       setAttendance(mapped)
     } catch (err) {
       console.error("Error al cargar asistencia previa:", err)
@@ -91,7 +85,6 @@ export default function AttendancePage() {
     fetchStudents() 
   }, [fetchStudents])
 
-  // Refrescamos asistencia si cambia la fecha manualmente
   React.useEffect(() => {
     if (students.length > 0) {
       fetchExistingAttendance(students)
@@ -124,7 +117,6 @@ export default function AttendancePage() {
     try {
       await api.post('/asistencias/pase-lista', payload)
       toast({ title: "¡Éxito!", description: "La asistencia se ha guardado correctamente." })
-      // Recargar la asistencia después de guardar
       await fetchExistingAttendance(students)
     } catch (err: any) { 
       toast({ variant: "destructive", title: "Error al guardar", description: err.message }) 
