@@ -1,27 +1,59 @@
+
 "use client"
 
 import * as React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { GraduationCap, Mail, User, CreditCard, BookOpen, ArrowLeft, ShieldCheck, Loader2 } from 'lucide-react';
+import { GraduationCap, Mail, User, CreditCard, BookOpen, ArrowLeft, ShieldCheck, Loader2, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
 import { api } from '@/lib/api';
+
+// Programas institucionales por defecto (Fallback si la API falla o está protegida)
+const FALLBACK_PROGRAMS = [
+  { id: "1", nombre: "Desarrollo de Sistemas de Información" },
+  { id: "2", nombre: "Contabilidad" },
+  { id: "3", nombre: "Guía Oficial de Turismo" },
+  { id: "4", nombre: "Producción Agropecuaria" },
+  { id: "5", nombre: "Enfermería Técnica" }
+];
 
 export default function RegisterPage() {
   const router = useRouter();
   const [currentYear, setCurrentYear] = React.useState<number | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
+  const [programs, setPrograms] = React.useState<any[]>([]);
+  const [isLoadingPrograms, setIsLoadingPrograms] = React.useState(true);
 
   React.useEffect(() => {
     setCurrentYear(new Date().getFullYear());
+    
+    // Intentar cargar programas de la base de datos
+    const fetchPrograms = async () => {
+      try {
+        const data = await api.get<any[]>('/programas/');
+        if (Array.isArray(data) && data.length > 0) {
+          setPrograms(data);
+        } else {
+          setPrograms(FALLBACK_PROGRAMS);
+        }
+      } catch (error) {
+        console.log("Usando programas de respaldo (API protegida o inaccesible)");
+        setPrograms(FALLBACK_PROGRAMS);
+      } finally {
+        setIsLoadingPrograms(false);
+      }
+    };
+    fetchPrograms();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoading) return;
     setIsLoading(true);
 
     const formData = new FormData(e.currentTarget as HTMLFormElement);
@@ -29,12 +61,15 @@ export default function RegisterPage() {
     const firstname = formData.get('firstname') as string;
     const lastname = formData.get('lastname') as string;
     const dni = formData.get('dni') as string;
-    const program = formData.get('program') as string;
+    const programId = formData.get('program_id') as string;
+    
+    const selectedProgram = programs.find(p => p.id === programId)?.nombre || programId;
 
     try {
-      const { data, error } = await supabase.auth.signUp({
+      // 1. Crear usuario en Supabase Auth
+      const { data, error: authError } = await supabase.auth.signUp({
         email,
-        password: dni,
+        password: dni, // El DNI es la contraseña inicial
         options: {
           data: {
             firstname,
@@ -45,26 +80,31 @@ export default function RegisterPage() {
         }
       });
 
-      if (error) throw error;
+      if (authError) throw authError;
       if (!data.user) throw new Error("No se pudo crear la cuenta de usuario.");
 
+      // 2. Registrar automáticamente en la tabla de docentes
+      // Nota: Usamos el ID del usuario recién creado
       await api.post('/docentes/', {
         id: data.user.id,
-        nombre: `${firstname} ${lastname}`.trim(),
-        especialidad: program,
+        nombre: `${lastname}, ${firstname}`.trim().toUpperCase(),
+        especialidad: selectedProgram,
         es_transversal: false
       });
 
       toast({
         title: "Registro exitoso",
-        description: "Su cuenta ha sido creada. Ahora puede ingresar con su correo y DNI.",
+        description: "Su cuenta docente ha sido creada. Ingresando al sistema...",
       });
-      router.push('/');
+
+      // Redirigir al panel de instructor
+      router.push('/instructor');
     } catch (error: any) {
+      console.error("Error en registro:", error);
       toast({
         variant: "destructive",
         title: "Error al registrar",
-        description: error.message || "No se pudo procesar la solicitud.",
+        description: error.message || "No se pudo procesar la solicitud. Verifique los datos.",
       });
     } finally {
       setIsLoading(false);
@@ -128,8 +168,8 @@ export default function RegisterPage() {
             </div>
             
             <div className="mb-8">
-              <h3 className="font-headline text-2xl font-bold text-slate-900 mb-2">Registro de Cuenta</h3>
-              <p className="text-slate-500 text-sm">Complete sus datos para registrar su cuenta docente.</p>
+              <h3 className="font-headline text-2xl font-bold text-slate-900 mb-2">Registro de Docente</h3>
+              <p className="text-slate-500 text-sm">Crea tu cuenta institucional para acceder al sistema.</p>
             </div>
 
             <form className="space-y-4" onSubmit={handleSubmit}>
@@ -157,34 +197,48 @@ export default function RegisterPage() {
 
               <div className="grid grid-cols-1 gap-4">
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-bold uppercase tracking-widest text-slate-400" htmlFor="dni">DNI (Servirá como contraseña inicial)</Label>
+                  <Label className="text-[10px] font-bold uppercase tracking-widest text-slate-400" htmlFor="dni">DNI (Será su contraseña inicial)</Label>
                   <div className="relative group">
                     <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-primary" />
-                    <Input className="bg-slate-50 border-none pl-11 py-5" id="dni" name="dni" placeholder="8 dígitos" required maxLength={8} />
+                    <Input className="bg-slate-50 border-none pl-11 py-5" id="dni" name="dni" placeholder="8 dígitos" required maxLength={8} pattern="[0-9]{8}" />
                   </div>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label className="text-[10px] font-bold uppercase tracking-widest text-slate-400" htmlFor="program">Programa de Estudio</Label>
+                <Label className="text-[10px] font-bold uppercase tracking-widest text-slate-400" htmlFor="program_id">Programa de Estudio</Label>
                 <div className="relative group">
-                  <BookOpen className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-primary" />
-                  <Input className="bg-slate-50 border-none pl-11 py-5" id="program" name="program" placeholder="Ej. Desarrollo de Sistemas" required />
+                  <BookOpen className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 z-10" />
+                  <Select name="program_id" required>
+                    <SelectTrigger className="bg-slate-50 border-none pl-11 py-6 focus:ring-1 focus:ring-primary h-auto">
+                      <SelectValue placeholder={isLoadingPrograms ? "Cargando programas..." : "Selecciona tu programa"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {programs.map((prog) => (
+                        <SelectItem key={prog.id} value={prog.id}>{prog.nombre}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
               <Button 
                 type="submit" 
                 disabled={isLoading}
-                className="w-full py-6 bg-primary hover:bg-primary/90 text-white font-bold rounded-lg shadow-lg shadow-primary/20 transition-all"
+                className="w-full py-6 bg-primary hover:bg-primary/90 text-white font-bold rounded-lg shadow-lg shadow-primary/20 transition-all mt-4"
               >
-                {isLoading ? <Loader2 className="animate-spin h-5 w-5" /> : "Registrarse como Docente"}
+                {isLoading ? (
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="animate-spin h-5 w-5" />
+                    <span>Procesando...</span>
+                  </div>
+                ) : "Registrarse como Docente"}
               </Button>
 
               <div className="text-center pt-2">
                 <Button variant="link" className="text-slate-500 hover:text-primary text-sm font-medium" asChild>
                   <Link href="/" className="flex items-center gap-2">
-                    <ArrowLeft className="w-4 h-4" /> Volver al login
+                    <ArrowLeft className="w-4 h-4" /> Volver al inicio
                   </Link>
                 </Button>
               </div>
@@ -193,7 +247,7 @@ export default function RegisterPage() {
             <div className="mt-6 pt-4 border-t border-slate-100 text-center flex items-center justify-center gap-2">
               <ShieldCheck className="w-4 h-4 text-slate-400" />
               <p className="text-[10px] text-slate-400 uppercase tracking-widest font-medium">
-                Acceso Protegido - IES LA SALLE URUBAMBA
+                Portal de Gestión Académica - IES LA SALLE URUBAMBA
               </p>
             </div>
           </div>
