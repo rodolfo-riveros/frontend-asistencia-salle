@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -378,7 +379,7 @@ export default function AcademicGradebookPage() {
             <div className="bg-primary p-8 text-white shrink-0">
               <DialogTitle className="text-2xl font-black uppercase tracking-tight">Configuración Técnica</DialogTitle>
               <DialogDescription className="text-blue-100/80 font-bold uppercase text-[10px] tracking-[0.2em] mt-1">
-                {setupStep === 0 ? "Paso 1: Fundamentación Curricular" : setupStep === 1 ? "Paso 2: Tipo de Evaluación" : "Paso 3: Definición de Criterios"}
+                {setupStep === 0 ? "Paso 1: Indicador de Logro" : setupStep === 1 ? "Paso 2: Tipo de Evaluación" : "Paso 3: Definición de Criterios"}
               </DialogDescription>
             </div>
 
@@ -386,7 +387,6 @@ export default function AcademicGradebookPage() {
               <div className="p-10 bg-white">
                 {setupStep === 0 && (
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    {/* Columna Izquierda: Formulario */}
                     <div className="space-y-6">
                       <div className="flex items-center gap-4 mb-4">
                         <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
@@ -401,7 +401,9 @@ export default function AcademicGradebookPage() {
                       <div className="bg-slate-50/50 p-6 rounded-[2rem] border-2 border-slate-100 space-y-6">
                         <div className="grid grid-cols-2 gap-4 items-start">
                           <div className="space-y-2">
-                            <Label className="font-black text-slate-400 text-[9px] uppercase tracking-[0.2em] h-5 flex items-center">Código ILC</Label>
+                            <div className="h-5 flex items-center">
+                              <Label className="font-black text-slate-400 text-[9px] uppercase tracking-[0.2em]">Código ILC</Label>
+                            </div>
                             <Input 
                               value={newIndicatorCode} 
                               onChange={e => setNewIndicatorCode(e.target.value.toUpperCase())} 
@@ -410,9 +412,10 @@ export default function AcademicGradebookPage() {
                             />
                           </div>
                           <div className="space-y-2">
-                            <Label className="font-black text-slate-400 text-[9px] uppercase tracking-[0.2em] h-5 flex items-center gap-2">
-                              <Percent className="h-3 w-3" /> Peso (%)
-                            </Label>
+                            <div className="h-5 flex items-center gap-2">
+                              <Percent className="h-3 w-3 text-slate-400" />
+                              <Label className="font-black text-slate-400 text-[9px] uppercase tracking-[0.2em]">Peso (%)</Label>
+                            </div>
                             <Input 
                               type="number"
                               value={newIndicatorWeight || ""} 
@@ -424,7 +427,9 @@ export default function AcademicGradebookPage() {
                         </div>
                         
                         <div className="space-y-2">
-                          <Label className="font-black text-slate-400 text-[9px] uppercase tracking-[0.2em] h-5 flex items-center">Descripción de la Capacidad</Label>
+                          <div className="h-5 flex items-center">
+                            <Label className="font-black text-slate-400 text-[9px] uppercase tracking-[0.2em]">Descripción de la Capacidad</Label>
+                          </div>
                           <Textarea 
                             value={newIndicatorDescription} 
                             onChange={e => setNewIndicatorDescription(e.target.value)} 
@@ -435,7 +440,6 @@ export default function AcademicGradebookPage() {
                       </div>
                     </div>
 
-                    {/* Columna Derecha: Biblioteca */}
                     <div className="space-y-6">
                       <div className="flex items-center gap-4 mb-4">
                         <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600">
@@ -481,28 +485,14 @@ export default function AcademicGradebookPage() {
 
                 {setupStep === 1 && (
                   <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
-                    <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-                      <div className="space-y-1">
-                        <Label className="font-black text-xs uppercase text-primary tracking-widest flex items-center gap-2">
-                          <div className="h-2 w-2 rounded-full bg-primary" /> 2. Selección del Instrumento
-                        </Label>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest ml-4">Configura el método y el peso dentro del indicador</p>
-                      </div>
-                      
-                      <div className="flex gap-4">
-                        <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleAiScan} />
-                        <Button 
-                          onClick={() => fileInputRef.current?.click()} 
-                          disabled={isScanning}
-                          className="bg-accent hover:bg-accent/90 text-white font-black uppercase text-[10px] tracking-widest gap-2 h-12 rounded-2xl shadow-lg shadow-accent/20 px-8 transition-all hover:scale-105"
-                        >
-                          {isScanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                          Digitalizar con IA
-                        </Button>
-                      </div>
+                    <div className="space-y-1">
+                      <Label className="font-black text-xs uppercase text-primary tracking-widest flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-primary" /> 2. Selección del Instrumento
+                      </Label>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest ml-4">Configura el método y el peso dentro del indicador</p>
                     </div>
 
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                       {[
                         { id: 'manual', label: 'Nota Directa', icon: FileText },
                         { id: 'cotejo', label: 'Lista / Test', icon: LayoutList },
@@ -513,7 +503,12 @@ export default function AcademicGradebookPage() {
                         <Button 
                           key={t.id}
                           variant="outline" 
-                          className={`h-auto py-6 flex-col gap-2 rounded-2xl border-2 transition-all ${newColType === t.id ? 'border-primary bg-primary/5' : 'hover:border-slate-200'}`}
+                          disabled={isScanning}
+                          className={cn(
+                            "h-auto py-6 flex-col gap-2 rounded-2xl border-2 transition-all",
+                            newColType === t.id ? 'border-primary bg-primary/5' : 'hover:border-slate-200',
+                            isScanning && "opacity-50 grayscale"
+                          )}
                           onClick={() => {
                             setNewColType(t.id as ColumnType)
                             if (t.id === 'cotejo' && editorCriteria.length === 0) setEditorCriteria([{ id: '1', description: '', points: 2 }])
@@ -526,22 +521,47 @@ export default function AcademicGradebookPage() {
                           <span className="font-black text-[9px] uppercase tracking-tighter">{t.label}</span>
                         </Button>
                       ))}
+                      
+                      <div className="relative">
+                        <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleAiScan} />
+                        <Button 
+                          variant="outline"
+                          onClick={() => fileInputRef.current?.click()} 
+                          disabled={isScanning}
+                          className={cn(
+                            "h-full w-full py-6 flex-col gap-2 rounded-2xl border-2 transition-all border-dashed border-accent hover:bg-accent/5",
+                            isScanning && "bg-accent/5 ring-2 ring-accent ring-offset-2"
+                          )}
+                        >
+                          {isScanning ? (
+                            <Loader2 className="h-6 w-6 animate-spin text-accent" />
+                          ) : (
+                            <Sparkles className="h-6 w-6 text-accent" />
+                          )}
+                          <span className="font-black text-[9px] uppercase tracking-tighter text-accent">Digitalizar con IA</span>
+                        </Button>
+                      </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6 pt-4 border-t border-slate-50">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6 pt-4 border-t border-slate-50 items-end">
                       <div className="md:col-span-2 space-y-3">
-                        <Label className="font-black text-[11px] uppercase text-primary tracking-widest">Nombre de la Actividad</Label>
+                        <div className="h-5 flex items-center">
+                          <Label className="font-black text-[11px] uppercase text-primary tracking-widest">Nombre de la Actividad</Label>
+                        </div>
                         <Input value={newColName} onChange={e => setNewColName(e.target.value)} placeholder="Ej. Práctica Calificada 01" className="h-14 rounded-xl text-lg font-bold border-2" />
                       </div>
                       <div className="space-y-3">
-                        <Label className="font-black text-[11px] uppercase text-indigo-600 tracking-widest flex items-center gap-2">
-                          <Percent className="h-3 w-3" /> Peso en {newIndicatorCode || "Indicador"}
-                        </Label>
+                        <div className="h-5 flex items-center gap-2">
+                          <Percent className="h-3 w-3 text-indigo-600" />
+                          <Label className="font-black text-[11px] uppercase text-indigo-600 tracking-widest">Peso en {newIndicatorCode || "Indicador"}</Label>
+                        </div>
                         <Input type="number" value={newInstrumentWeight || ""} onChange={e => setNewInstrumentWeight(parseInt(e.target.value) || 0)} placeholder="Ej: 40" className="h-14 rounded-xl text-center text-lg font-black text-indigo-600 border-2" />
                       </div>
                       {newColType === 'manual' && (
                         <div className="space-y-3 animate-in fade-in zoom-in-95">
-                          <Label className="font-black text-[11px] uppercase text-primary tracking-widest">Puntaje Máximo</Label>
+                          <div className="h-5 flex items-center">
+                            <Label className="font-black text-[11px] uppercase text-primary tracking-widest">Puntaje Máximo</Label>
+                          </div>
                           <Input type="number" value={newMaxPoints} onChange={e => setNewMaxPoints(parseInt(e.target.value) || 20)} className="h-14 rounded-xl text-center text-lg font-black text-primary border-2" />
                         </div>
                       )}
@@ -665,7 +685,7 @@ export default function AcademicGradebookPage() {
               <Button variant="ghost" onClick={() => setSetupStep(p => Math.max(0, p - 1))} disabled={setupStep === 0} className="font-black text-[10px] uppercase h-11 px-8 rounded-xl border-2">Anterior</Button>
               <div className="flex gap-3">
                 {setupStep < 2 ? (
-                  <Button className="bg-primary px-10 h-11 font-black text-[10px] uppercase rounded-xl text-white" onClick={() => setSetupStep(p => p + 1)} disabled={(setupStep === 0 && (!newIndicatorCode || !newIndicatorDescription)) || (setupStep === 1 && !newColName)}>Siguiente Paso</Button>
+                  <Button className="bg-primary px-10 h-11 font-black text-[10px] uppercase rounded-xl text-white" onClick={() => setSetupStep(p => p + 1)} disabled={(setupStep === 0 && (!newIndicatorCode || !newIndicatorDescription)) || (setupStep === 1 && !newColName) || isScanning}>Siguiente Paso</Button>
                 ) : (
                   <Button className="bg-primary px-12 h-11 font-black text-[10px] uppercase rounded-xl text-white" onClick={addColumn}>Finalizar</Button>
                 )}
