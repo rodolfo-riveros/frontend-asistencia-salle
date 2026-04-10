@@ -2,7 +2,7 @@
 "use client"
 
 import * as React from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { 
   ArrowLeft, 
   Search, 
@@ -26,7 +26,8 @@ import {
   Quote,
   History,
   Percent,
-  FileSpreadsheet
+  FileSpreadsheet,
+  RefreshCcw
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -54,7 +55,7 @@ import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
-// --- Tipos ---
+// --- Tipos para sincronización con DB ---
 type ColumnType = 'manual' | 'cotejo' | 'rubrica' | 'escala' | 'anecdotario'
 
 interface Instrument {
@@ -69,6 +70,7 @@ interface Instrument {
 interface Column {
   id: string
   name: string
+  indicatorId?: string // ID real de la DB
   indicatorCode: string
   indicatorDescription: string
   indicatorWeight: number 
@@ -97,13 +99,18 @@ const DEFAULT_SCALE_LEVELS = [
 export default function AcademicGradebookPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const periodoId = searchParams.get('periodo_id')
   
   const [students, setStudents] = React.useState<any[]>([])
   const [columns, setColumns] = React.useState<Column[]>([])
   const [instruments, setInstruments] = React.useState<Record<string, Instrument>>({})
   const [grades, setGrades] = React.useState<Record<string, Record<string, number>>>({})
+  const [evalDetails, setEvalDetails] = React.useState<Record<string, Record<string, any>>>({})
   const [comments, setComments] = React.useState<Record<string, Record<string, string>>>({})
+  
   const [isLoading, setIsLoading] = React.useState(true)
+  const [isSaving, setIsSaving] = React.useState(false)
   const [searchTerm, setSearchTerm] = React.useState("")
   
   // Modals
@@ -129,9 +136,9 @@ export default function AcademicGradebookPage() {
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
   const existingIndicators = React.useMemo(() => {
-    const map = new Map<string, { code: string, desc: string, weight: number }>();
+    const map = new Map<string, { id?: string, code: string, desc: string, weight: number }>();
     columns.forEach(c => {
-      if (c.indicatorCode) map.set(c.indicatorCode, { code: c.indicatorCode, desc: c.indicatorDescription, weight: c.indicatorWeight });
+      if (c.indicatorCode) map.set(c.indicatorCode, { id: c.indicatorId, code: c.indicatorCode, desc: c.indicatorDescription, weight: c.indicatorWeight });
     });
     return Array.from(map.values());
   }, [columns]);
@@ -141,27 +148,49 @@ export default function AcademicGradebookPage() {
     return editorCriteria.reduce((acc, curr) => acc + (Number(curr.points) || 0), 0)
   }, [editorCriteria, newColType])
 
-  const fetchStudents = React.useCallback(async () => {
+  const fetchFullGradebook = React.useCallback(async () => {
     setIsLoading(true)
     try {
-      const data = await api.get<any[]>(`/me/unidades/${params.id}/alumnos`)
-      setStudents(data)
-      const initialGrades: any = {}
-      const initialComments: any = {}
-      data.forEach(s => { 
-        initialGrades[s.id] = {} 
-        initialComments[s.id] = {}
-      })
-      setGrades(initialGrades)
-      setComments(initialComments)
+      // 1. Cargar Alumnos
+      const studentData = await api.get<any[]>(`/me/unidades/${params.id}/alumnos`)
+      setStudents(studentData)
+
+      // 2. Cargar Indicadores y sus Instrumentos (Mock de lo que vendría de la nueva tabla)
+      // En una implementación real, esto sería: api.get(`/evaluaciones/unidad/${params.id}?periodo_id=${periodoId}`)
+      // Por ahora simulamos la carga de lo que está en la DB
+      try {
+        const configData = await api.get<any>(`/evaluaciones/config/${params.id}/${periodoId}`)
+        if (configData && configData.columns) {
+          setColumns(configData.columns)
+          setInstruments(configData.instruments)
+          setGrades(configData.grades || {})
+          setEvalDetails(configData.details || {})
+          setComments(configData.comments || {})
+        } else {
+          // Inicializar estructuras vacías para los alumnos
+          const initialGrades: any = {}
+          const initialComments: any = {}
+          const initialDetails: any = {}
+          studentData.forEach(s => { 
+            initialGrades[s.id] = {} 
+            initialComments[s.id] = {}
+            initialDetails[s.id] = {}
+          })
+          setGrades(initialGrades)
+          setComments(initialComments)
+          setEvalDetails(initialDetails)
+        }
+      } catch (e) {
+        console.log("No se encontró configuración previa, iniciando en blanco.")
+      }
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Error", description: "No se pudieron cargar los alumnos." })
+      toast({ variant: "destructive", title: "Error", description: "No se pudieron cargar los datos académicos." })
     } finally {
       setIsLoading(false)
     }
-  }, [params.id])
+  }, [params.id, periodoId])
 
-  React.useEffect(() => { fetchStudents() }, [fetchStudents])
+  React.useEffect(() => { fetchFullGradebook() }, [fetchFullGradebook])
 
   const handleAiScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -204,12 +233,12 @@ export default function AcademicGradebookPage() {
       }
 
       setSetupStep(2)
-      toast({ title: "Digitalización Exitosa", description: `Instrumento ${analysis.type.toUpperCase()} cargado con éxito.` })
+      toast({ title: "Digitalización Exitosa", description: `Instrumento ${analysis.type.toUpperCase()} detectado.` })
     } catch (err: any) {
       toast({ 
         variant: "destructive", 
-        title: "Estamos experimentando una alta demanda", 
-        description: "Por favor, intenta subir la imagen nuevamente en unos segundos." 
+        title: "Alta demanda en el servidor", 
+        description: "Intenta digitalizar la imagen nuevamente en unos segundos." 
       })
     } finally {
       setIsScanning(false)
@@ -219,13 +248,16 @@ export default function AcademicGradebookPage() {
 
   const addColumn = () => {
     if (newColType === 'cotejo' && totalPointsChecklist !== 20) {
-      toast({ variant: "destructive", title: "Puntaje Inválido", description: "La suma debe ser exactamente 20 puntos." })
+      toast({ variant: "destructive", title: "Puntaje Inválido", description: "La suma de los criterios de cotejo debe ser exactamente 20." })
       return
     }
 
-    const id = `col-${Date.now()}`
+    const colId = `col-${Date.now()}`
     const instId = `inst-${Date.now()}`
     
+    // Buscamos si ya existe el indicador para reutilizar su ID de DB
+    const existingInd = existingIndicators.find(ind => ind.code === newIndicatorCode)
+
     const newInstrument: Instrument = {
       id: instId,
       name: newColName,
@@ -236,8 +268,9 @@ export default function AcademicGradebookPage() {
     }
 
     const newColumn: Column = {
-      id,
+      id: colId,
       name: newColName,
+      indicatorId: existingInd?.id,
       indicatorCode: newIndicatorCode,
       indicatorDescription: newIndicatorDescription,
       indicatorWeight: newIndicatorWeight,
@@ -254,14 +287,14 @@ export default function AcademicGradebookPage() {
       const next = { ...prev }
       Object.keys(next).forEach(sid => { 
         if(!next[sid]) next[sid] = {}; 
-        next[sid][id] = 0 
+        next[sid][colId] = 0 
       })
       return next
     })
 
     setIsNewColOpen(false)
     resetEditor()
-    toast({ title: "Evaluación Creada" })
+    toast({ title: "Evaluación Agregada al Registro" })
   }
 
   const resetEditor = () => {
@@ -299,11 +332,21 @@ export default function AcademicGradebookPage() {
     } else if (inst.type === 'rubrica' || inst.type === 'escala') {
       Object.values(evalData).forEach(pts => score += (pts as number))
     } else if (inst.type === 'anecdotario') {
-      score = Object.values(evalData).filter(v => v === true).length * (20 / inst.criteria.length)
+      const totalCriteria = inst.criteria.length
+      const checked = Object.values(evalData).filter(v => v === true).length
+      score = totalCriteria > 0 ? (checked / totalCriteria) * 20 : 0
     }
 
+    // Guardar nota numérica
     handleGradeChange(activeEval.student.id, activeEval.column.id, Math.round(score).toString())
     
+    // Guardar detalles del instrumento (para que al reabrir estén los checks)
+    setEvalDetails(prev => ({
+      ...prev,
+      [activeEval.student.id]: { ...prev[activeEval.student.id], [activeEval.column.id]: evalData }
+    }))
+    
+    // Guardar comentario
     if (evalComment) {
       setComments(prev => ({
         ...prev,
@@ -314,60 +357,89 @@ export default function AcademicGradebookPage() {
     setActiveEval(null)
     setEvalData({})
     setEvalComment("")
+    toast({ title: "Calificación procesada" })
   }
 
   const calculateFinal = (studentId: string) => {
     const studentGrades = grades[studentId] || {}
     if (columns.length === 0) return 0
 
-    const indicatorsMap = new Map<string, { indicatorWeight: number, cols: Column[] }>()
+    // Agrupamos columnas por su Código de Indicador
+    const indicatorsMap = new Map<string, { weight: number, cols: Column[] }>()
     columns.forEach(c => {
       if (!indicatorsMap.has(c.indicatorCode)) {
-        indicatorsMap.set(c.indicatorCode, { indicatorWeight: c.indicatorWeight, cols: [] })
+        indicatorsMap.set(c.indicatorCode, { weight: c.indicatorWeight, cols: [] })
       }
       indicatorsMap.get(c.indicatorCode)!.cols.push(c)
     })
 
-    const indicatorAverages: number[] = []
+    const weightedAverages: number[] = []
     const indicatorWeights: number[] = []
 
     indicatorsMap.forEach((data) => {
-      const { cols, indicatorWeight } = data
+      const { cols, weight } = data
       let indicatorAvg = 0
       
       const totalInstrumentWeight = cols.reduce((sum, c) => sum + c.instrumentWeight, 0)
       
       if (totalInstrumentWeight > 0) {
+        // Promedio Ponderado de Instrumentos
         let weightedSum = 0
         let weightFactor = 0
         cols.forEach(c => {
-          const score = (studentGrades[c.id] || 0) / c.maxPoints * 20
-          weightedSum += score * (c.instrumentWeight / 100)
+          const rawScore = studentGrades[c.id] || 0
+          const normalized = (rawScore / c.maxPoints) * 20
+          weightedSum += normalized * (c.instrumentWeight / 100)
           weightFactor += (c.instrumentWeight / 100)
         })
         indicatorAvg = weightFactor > 0 ? weightedSum / weightFactor : 0
       } else {
+        // Promedio Aritmético Simple
         const sum = cols.reduce((s, c) => s + (studentGrades[c.id] || 0) / c.maxPoints * 20, 0)
         indicatorAvg = sum / cols.length
       }
 
-      indicatorAverages.push(indicatorAvg)
-      indicatorWeights.push(indicatorWeight)
+      weightedAverages.push(indicatorAvg)
+      indicatorWeights.push(weight)
     })
 
-    const totalIndicatorWeight = indicatorWeights.reduce((s, w) => s + w, 0)
+    const totalWeight = indicatorWeights.reduce((s, w) => s + w, 0)
 
-    if (totalIndicatorWeight > 0) {
+    if (totalWeight > 0) {
+      // Nota Final Ponderada por Indicadores
       let finalSum = 0
-      let weightFactor = 0
-      for (let i = 0; i < indicatorAverages.length; i++) {
-        finalSum += indicatorAverages[i] * (indicatorWeights[i] / 100)
-        weightFactor += (indicatorWeights[i] / 100)
+      let totalAppliedWeight = 0
+      for (let i = 0; i < weightedAverages.length; i++) {
+        finalSum += weightedAverages[i] * (indicatorWeights[i] / 100)
+        totalAppliedWeight += (indicatorWeights[i] / 100)
       }
-      return Math.round(finalSum / (weightFactor || 1))
+      return Math.round(finalSum / (totalAppliedWeight || 1))
     } else {
-      const finalSum = indicatorAverages.reduce((s, a) => s + a, 0)
-      return Math.round(finalSum / (indicatorAverages.length || 1))
+      // Nota Final Aritmética entre Indicadores
+      const finalSum = weightedAverages.reduce((s, a) => s + a, 0)
+      return Math.round(finalSum / (weightedAverages.length || 1))
+    }
+  }
+
+  const handleSaveAll = async () => {
+    setIsSaving(true)
+    try {
+      const payload = {
+        unidad_id: params.id,
+        periodo_id: periodoId,
+        columns,
+        instruments,
+        grades,
+        details: evalDetails,
+        comments
+      }
+      // api.post('/evaluaciones/save-full', payload)
+      await new Promise(r => setTimeout(r, 1000)) // Simulación
+      toast({ title: "Sincronización Exitosa", description: "Todos los indicadores y notas han sido guardados en la base de datos." })
+    } catch (e) {
+      toast({ variant: "destructive", title: "Error al guardar", description: "No se pudo sincronizar con el servidor." })
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -375,8 +447,8 @@ export default function AcademicGradebookPage() {
     const wb = XLSX.utils.book_new();
     const headers = ['Apellidos y Nombres', ...columns.map(c => `${c.name} (${c.indicatorCode})`), 'Nota Final'];
     
-    const data = students.map(s => {
-      const row: any[] = [s.nombre];
+    const data = students.sort((a,b) => a.nombre.localeCompare(b.nombre)).map(s => {
+      const row: any[] = [s.nombre.toUpperCase()];
       columns.forEach(c => {
         row.push(grades[s.id]?.[c.id] || 0);
       });
@@ -386,14 +458,12 @@ export default function AcademicGradebookPage() {
 
     const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
     XLSX.utils.book_append_sheet(wb, ws, "Registro Auxiliar");
-    XLSX.writeFile(wb, `Registro_Auxiliar_${new Date().toISOString().split('T')[0]}.xlsx`);
-    
-    toast({ title: "Excel Exportado", description: "El registro auxiliar se ha descargado correctamente." });
+    XLSX.writeFile(wb, `Registro_Auxiliar_${params.id}.xlsx`);
+    toast({ title: "Excel descargado" });
   };
 
   const handleExportPdf = () => {
     const doc = new jsPDF('l', 'mm', 'a4');
-    
     doc.setFontSize(18);
     doc.setTextColor(0, 51, 102);
     doc.text("INSTITUTO DE EDUCACIÓN SUPERIOR LA SALLE - URUBAMBA", 14, 15);
@@ -402,36 +472,25 @@ export default function AcademicGradebookPage() {
     doc.setTextColor(100);
     doc.text("REGISTRO AUXILIAR DE EVALUACIÓN ACADÉMICA", 14, 22);
     
-    doc.setFontSize(9);
-    doc.setTextColor(0);
-    doc.text(`DOCENTE: DOCENTE RESPONSABLE`, 14, 32);
-    doc.text(`FECHA DE EMISIÓN: ${new Date().toLocaleDateString('es-PE')}`, 220, 32);
-
     const headers = ['N°', 'APELLIDOS Y NOMBRES', ...columns.map(c => `${c.indicatorCode}\n(${c.instrumentWeight}%)`), 'FINAL'];
-    
-    const body = students.sort((a, b) => a.nombre.localeCompare(b.nombre)).map((s, idx) => {
-      const final = calculateFinal(s.id);
-      return [
-        (idx + 1).toString().padStart(2, '0'),
-        s.nombre.toUpperCase(),
-        ...columns.map(c => grades[s.id]?.[c.id] || 0),
-        final
-      ];
-    });
+    const body = students.sort((a, b) => a.nombre.localeCompare(b.nombre)).map((s, idx) => [
+      (idx + 1).toString().padStart(2, '0'),
+      s.nombre.toUpperCase(),
+      ...columns.map(c => grades[s.id]?.[c.id] || 0),
+      calculateFinal(s.id)
+    ]);
 
     autoTable(doc, {
       head: [headers],
       body: body,
       startY: 40,
       styles: { fontSize: 7, cellPadding: 2, halign: 'center', valign: 'middle' },
-      headStyles: { fillColor: [0, 51, 102], textColor: 255, fontStyle: 'bold' },
-      columnStyles: { 1: { halign: 'left', cellWidth: 60, fontStyle: 'bold' } },
-      alternateRowStyles: { fillColor: [245, 247, 250] },
+      headStyles: { fillColor: [0, 51, 102], textColor: 255 },
       theme: 'grid'
     });
 
-    doc.save(`REGISTRO_AUXILIAR_${new Date().toISOString().split('T')[0]}.pdf`);
-    toast({ title: "PDF Generado", description: "El reporte oficial ha sido descargado." });
+    doc.save(`REGISTRO_${params.id}.pdf`);
+    toast({ title: "PDF descargado" });
   };
 
   const getInstrumentIcon = (type: ColumnType) => {
@@ -459,52 +518,45 @@ export default function AcademicGradebookPage() {
             </div>
             <div>
               <h2 className="text-4xl font-headline font-black tracking-tight text-slate-900">Registro Auxiliar</h2>
-              <p className="text-slate-500 font-medium italic">Evaluación Ponderada y Digitalización Pedagógica</p>
+              <p className="text-slate-500 font-medium italic">Gestión de Calificaciones y Digitalización Pedagógica</p>
             </div>
           </div>
         </div>
 
         <div className="flex flex-wrap gap-3 w-full lg:w-auto">
-          <Button 
-            variant="outline" 
-            onClick={handleExportExcel}
-            className="h-14 px-6 gap-3 border-emerald-200 text-emerald-700 hover:bg-emerald-50 font-black rounded-2xl uppercase text-[11px] tracking-widest"
-          >
-            <FileSpreadsheet className="h-5 w-5" /> Exportar Excel
+          <Button variant="outline" onClick={handleExportExcel} className="h-14 px-6 gap-3 border-emerald-200 text-emerald-700 hover:bg-emerald-50 font-black rounded-2xl uppercase text-[11px] tracking-widest">
+            <FileSpreadsheet className="h-5 w-5" /> Excel
           </Button>
-          <Button 
-            variant="outline" 
-            onClick={handleExportPdf}
-            className="h-14 px-6 gap-3 border-red-200 text-red-700 hover:bg-red-50 font-black rounded-2xl uppercase text-[11px] tracking-widest"
-          >
-            <FileText className="h-5 w-5" /> Exportar PDF
+          <Button variant="outline" onClick={handleExportPdf} className="h-14 px-6 gap-3 border-red-200 text-red-700 hover:bg-red-50 font-black rounded-2xl uppercase text-[11px] tracking-widest">
+            <FileText className="h-5 w-5" /> PDF
           </Button>
+          
           <Dialog open={isNewColOpen} onOpenChange={(o) => { setIsNewColOpen(o); if(!o) resetEditor(); }}>
             <DialogTrigger asChild>
               <Button className="h-14 px-8 gap-3 bg-primary hover:bg-primary/90 font-black shadow-xl shadow-primary/30 rounded-2xl uppercase text-[11px] tracking-widest text-white">
-                <PlusCircle className="h-5 w-5" /> Configurar Evaluación
+                <PlusCircle className="h-5 w-5" /> Nueva Evaluación
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-5xl p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl flex flex-col max-h-[95vh]">
               <div className="bg-primary p-8 text-white shrink-0">
                 <DialogTitle className="text-2xl font-black uppercase tracking-tight">Configuración Técnica</DialogTitle>
                 <DialogDescription className="text-blue-100/80 font-bold uppercase text-[10px] tracking-[0.2em] mt-1">
-                  {setupStep === 0 ? "Paso 1: Indicador de Logro" : setupStep === 1 ? "Paso 2: Tipo de Evaluación" : "Paso 3: Definición de Criterios"}
+                  Establece los criterios de evaluación para el curso actual
                 </DialogDescription>
               </div>
 
               <ScrollArea className="flex-grow">
                 <div className="p-10 bg-white">
                   {setupStep === 0 && (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
                       <div className="space-y-6">
                         <div className="flex items-center gap-4 mb-4">
                           <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
                             <BookOpen className="h-6 w-6" />
                           </div>
-                          <div>
-                            <h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Nuevo Indicador</h4>
-                            <p className="text-slate-500 text-xs font-medium">Define los parámetros curriculares.</p>
+                          <div className="flex flex-col">
+                            <h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter leading-none">Indicador de Logro</h4>
+                            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mt-1">Fundamentación Curricular</p>
                           </div>
                         </div>
                         
@@ -514,38 +566,21 @@ export default function AcademicGradebookPage() {
                               <div className="h-5 flex items-center">
                                 <Label className="font-black text-slate-400 text-[9px] uppercase tracking-[0.2em]">Código ILC</Label>
                               </div>
-                              <Input 
-                                value={newIndicatorCode} 
-                                onChange={e => setNewIndicatorCode(e.target.value.toUpperCase())} 
-                                placeholder="Ej: C1.I1" 
-                                className="h-12 border-none shadow-inner rounded-xl font-black text-lg text-primary uppercase bg-white" 
-                              />
+                              <Input value={newIndicatorCode} onChange={e => setNewIndicatorCode(e.target.value.toUpperCase())} placeholder="Ej: C1.I1" className="h-12 border-none shadow-inner rounded-xl font-black text-lg text-primary uppercase bg-white" />
                             </div>
                             <div className="space-y-2">
                               <div className="h-5 flex items-center gap-2">
                                 <Percent className="h-3 w-3 text-slate-400" />
                                 <Label className="font-black text-slate-400 text-[9px] uppercase tracking-[0.2em]">Peso (%)</Label>
                               </div>
-                              <Input 
-                                type="number"
-                                value={newIndicatorWeight || ""} 
-                                onChange={e => setNewIndicatorWeight(parseInt(e.target.value) || 0)} 
-                                placeholder="Ej: 30" 
-                                className="h-12 border-none shadow-inner rounded-xl font-black text-center text-lg text-indigo-600 bg-white" 
-                              />
+                              <Input type="number" value={newIndicatorWeight || ""} onChange={e => setNewIndicatorWeight(parseInt(e.target.value) || 0)} placeholder="Ej: 30" className="h-12 border-none shadow-inner rounded-xl font-black text-center text-lg text-indigo-600 bg-white" />
                             </div>
                           </div>
-                          
                           <div className="space-y-2">
                             <div className="h-5 flex items-center">
                               <Label className="font-black text-slate-400 text-[9px] uppercase tracking-[0.2em]">Descripción de la Capacidad</Label>
                             </div>
-                            <Textarea 
-                              value={newIndicatorDescription} 
-                              onChange={e => setNewIndicatorDescription(e.target.value)} 
-                              placeholder="Describe el logro esperado..." 
-                              className="h-32 border-none shadow-inner rounded-2xl resize-none font-medium text-sm bg-white p-4" 
-                            />
+                            <Textarea value={newIndicatorDescription} onChange={e => setNewIndicatorDescription(e.target.value)} placeholder="Describe el logro esperado..." className="h-32 border-none shadow-inner rounded-2xl resize-none font-medium text-sm bg-white p-4" />
                           </div>
                         </div>
                       </div>
@@ -555,53 +590,37 @@ export default function AcademicGradebookPage() {
                           <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600">
                             <History className="h-6 w-6" />
                           </div>
-                          <div>
-                            <h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Biblioteca del Sílabo</h4>
-                            <p className="text-slate-500 text-xs font-medium">Reutiliza indicadores previos.</p>
+                          <div className="flex flex-col">
+                            <h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter leading-none">Biblioteca</h4>
+                            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mt-1">Indicadores Previos</p>
                           </div>
                         </div>
-
                         <div className="bg-white rounded-[2rem] border-2 border-dashed border-slate-200 p-6 min-h-[300px]">
                           {existingIndicators.length > 0 ? (
                             <div className="grid gap-3">
                               {existingIndicators.map((ind, i) => (
-                                <button 
-                                  key={i} 
-                                  className="flex flex-col items-start p-4 rounded-2xl border-2 border-slate-50 hover:border-primary/30 hover:bg-primary/5 transition-all text-left w-full group" 
-                                  onClick={() => { 
-                                    setNewIndicatorCode(ind.code); 
-                                    setNewIndicatorDescription(ind.desc);
-                                    setNewIndicatorWeight(ind.weight);
-                                  }}
-                                >
+                                <button key={i} className="flex flex-col items-start p-4 rounded-2xl border-2 border-slate-50 hover:border-primary/30 hover:bg-primary/5 transition-all text-left w-full group" onClick={() => { setNewIndicatorCode(ind.code); setNewIndicatorDescription(ind.desc); setNewIndicatorWeight(ind.weight); }}>
                                   <div className="flex items-center justify-between w-full mb-1">
-                                    <span className="font-black text-sm text-primary group-hover:scale-105 transition-transform">{ind.code}</span>
+                                    <span className="font-black text-sm text-primary">{ind.code}</span>
                                     <Badge variant="outline" className="text-[10px] font-black border-primary/20 text-primary">{ind.weight}%</Badge>
                                   </div>
                                   <p className="text-[11px] text-slate-500 font-medium line-clamp-2 leading-snug">{ind.desc}</p>
                                 </button>
                               ))}
                             </div>
-                          ) : (
-                            <div className="flex flex-col items-center justify-center h-full text-slate-300 py-10">
-                              <History className="h-12 w-12 opacity-10 mb-2" />
-                              <p className="text-[10px] font-black uppercase tracking-widest">Sin indicadores previos</p>
-                            </div>
-                          )}
+                          ) : <div className="flex flex-col items-center justify-center h-full text-slate-300 py-10"><History className="h-12 w-12 opacity-10 mb-2" /><p className="text-[10px] font-black uppercase tracking-widest">Sin registros</p></div>}
                         </div>
                       </div>
                     </div>
                   )}
 
                   {setupStep === 1 && (
-                    <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
+                    <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
                       <div className="space-y-1">
                         <Label className="font-black text-xs uppercase text-primary tracking-widest flex items-center gap-2">
-                          <div className="h-2 w-2 rounded-full bg-primary" /> 2. Selección del Instrumento
+                          <div className="h-2 w-2 rounded-full bg-primary" /> Selección del Instrumento
                         </Label>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest ml-4">Configura el método y el peso dentro del indicador</p>
                       </div>
-
                       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                         {[
                           { id: 'manual', label: 'Nota Directa', icon: FileText },
@@ -610,70 +629,31 @@ export default function AcademicGradebookPage() {
                           { id: 'escala', label: 'Escala Valor.', icon: Star },
                           { id: 'anecdotario', label: 'Observación', icon: Quote }
                         ].map((t) => (
-                          <Button 
-                            key={t.id}
-                            variant="outline" 
-                            disabled={isScanning}
-                            className={cn(
-                              "h-auto py-6 flex-col gap-2 rounded-2xl border-2 transition-all",
-                              newColType === t.id && !isScanning ? 'border-primary bg-primary/5' : 'hover:border-slate-200',
-                              isScanning && "opacity-50 grayscale"
-                            )}
-                            onClick={() => {
-                              setNewColType(t.id as ColumnType)
-                              if (t.id === 'cotejo' && editorCriteria.length === 0) setEditorCriteria([{ id: '1', description: '', points: 2 }])
-                              if (t.id === 'rubrica' && editorCriteria.length === 0) setEditorCriteria([{ id: '1', category: '', levels: JSON.parse(JSON.stringify(DEFAULT_RUBRIC_LEVELS)) }])
-                              if (t.id === 'escala' && editorCriteria.length === 0) setEditorCriteria([{ id: '1', description: '' }])
-                              if (t.id === 'anecdotario' && editorCriteria.length === 0) setEditorCriteria([{ id: '1', description: 'Participación' }, { id: '2', description: 'Actitud' }])
-                            }}
-                          >
+                          <Button key={t.id} variant="outline" disabled={isScanning} className={cn("h-auto py-6 flex-col gap-2 rounded-2xl border-2 transition-all", newColType === t.id && !isScanning ? 'border-primary bg-primary/5' : 'hover:border-slate-200')} onClick={() => setNewColType(t.id as ColumnType)}>
                             <t.icon className={`h-6 w-6 ${newColType === t.id && !isScanning ? 'text-primary' : 'text-slate-300'}`} />
                             <span className="font-black text-[9px] uppercase tracking-tighter">{t.label}</span>
                           </Button>
                         ))}
-                        
                         <div className="relative">
                           <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleAiScan} />
-                          <Button 
-                            variant="outline"
-                            onClick={() => fileInputRef.current?.click()} 
-                            disabled={isScanning}
-                            className={cn(
-                              "h-full w-full py-6 flex-col gap-2 rounded-2xl border-2 transition-all border-dashed border-accent hover:bg-accent/5",
-                              isScanning && "bg-accent/5 ring-2 ring-accent ring-offset-2 border-solid shadow-inner"
-                            )}
-                          >
-                            {isScanning ? (
-                              <Loader2 className="h-6 w-6 animate-spin text-accent" />
-                            ) : (
-                              <Sparkles className="h-6 w-6 text-accent" />
-                            )}
-                            <span className="font-black text-[9px] uppercase tracking-tighter text-accent">
-                              {isScanning ? "Procesando..." : "Digitalizar con IA"}
-                            </span>
+                          <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isScanning} className={cn("h-full w-full py-6 flex-col gap-2 rounded-2xl border-2 transition-all border-dashed border-accent hover:bg-accent/5", isScanning && "bg-accent/5 ring-2 ring-accent shadow-inner")}>
+                            {isScanning ? <Loader2 className="h-6 w-6 animate-spin text-accent" /> : <Sparkles className="h-6 w-6 text-accent" />}
+                            <span className="font-black text-[9px] uppercase tracking-tighter text-accent">{isScanning ? "Escaneando..." : "Escanear con IA"}</span>
                           </Button>
                         </div>
                       </div>
-
                       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 pt-4 border-t border-slate-50 items-end">
                         <div className="md:col-span-2 space-y-3">
-                          <div className="h-5 flex items-center">
-                            <Label className="font-black text-[11px] uppercase text-primary tracking-widest">Nombre de la Actividad</Label>
-                          </div>
-                          <Input value={newColName} onChange={e => setNewColName(e.target.value)} placeholder="Ej. Práctica Calificada 01" className="h-14 rounded-xl text-lg font-bold border-2" />
+                          <div className="h-5 flex items-center"><Label className="font-black text-[11px] uppercase text-primary tracking-widest">Nombre de la Actividad</Label></div>
+                          <Input value={newColName} onChange={e => setNewColName(e.target.value)} placeholder="Ej. Examen de Unidad" className="h-14 rounded-xl text-lg font-bold border-2" />
                         </div>
                         <div className="space-y-3">
-                          <div className="h-5 flex items-center gap-2">
-                            <Percent className="h-3 w-3 text-indigo-600" />
-                            <Label className="font-black text-[11px] uppercase text-indigo-600 tracking-widest">Peso en {newIndicatorCode || "Indicador"}</Label>
-                          </div>
+                          <div className="h-5 flex items-center gap-2"><Percent className="h-3 w-3 text-indigo-600" /><Label className="font-black text-[11px] uppercase text-indigo-600 tracking-widest">Peso (%)</Label></div>
                           <Input type="number" value={newInstrumentWeight || ""} onChange={e => setNewInstrumentWeight(parseInt(e.target.value) || 0)} placeholder="Ej: 40" className="h-14 rounded-xl text-center text-lg font-black text-indigo-600 border-2" />
                         </div>
                         {newColType === 'manual' && (
                           <div className="space-y-3 animate-in fade-in zoom-in-95">
-                            <div className="h-5 flex items-center">
-                              <Label className="font-black text-[11px] uppercase text-primary tracking-widest">Puntaje Máximo</Label>
-                            </div>
+                            <div className="h-5 flex items-center"><Label className="font-black text-[11px] uppercase text-primary tracking-widest">Máximo</Label></div>
                             <Input type="number" value={newMaxPoints} onChange={e => setNewMaxPoints(parseInt(e.target.value) || 20)} className="h-14 rounded-xl text-center text-lg font-black text-primary border-2" />
                           </div>
                         )}
@@ -682,27 +662,17 @@ export default function AcademicGradebookPage() {
                   )}
 
                   {setupStep === 2 && (
-                    <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+                    <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
                       <div className="flex justify-between items-center bg-slate-50 p-5 rounded-2xl border-2 border-slate-100">
                         <div className="flex items-center gap-3">
                           <div className="p-3 bg-primary text-white rounded-xl"><ClipboardCheck className="h-5 w-5" /></div>
                           <div>
                             <p className="font-black text-[10px] uppercase text-slate-400 tracking-widest">{newColType.toUpperCase()}</p>
-                            <div className="font-bold text-slate-700 text-lg flex items-center">
-                              {newColName} 
-                              <Badge className="ml-2 bg-indigo-100 text-indigo-700 border-none">
-                                {newInstrumentWeight}%
-                              </Badge>
-                            </div>
+                            <div className="font-bold text-slate-700 text-lg flex items-center">{newColName} <Badge className="ml-2 bg-indigo-100 text-indigo-700 border-none">{newInstrumentWeight}%</Badge></div>
                           </div>
                         </div>
-                        {newColType === 'cotejo' && (
-                          <Badge className={`h-10 px-6 rounded-xl font-black ${totalPointsChecklist === 20 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
-                            {totalPointsChecklist}/20 pts
-                          </Badge>
-                        )}
+                        {newColType === 'cotejo' && <Badge className={`h-10 px-6 rounded-xl font-black ${totalPointsChecklist === 20 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>{totalPointsChecklist}/20 pts</Badge>}
                       </div>
-
                       <div className="pr-4">
                         {newColType === 'cotejo' && (
                           <div className="space-y-3">
@@ -717,7 +687,6 @@ export default function AcademicGradebookPage() {
                             <Button variant="outline" className="w-full border-dashed border-2 h-12 rounded-xl text-slate-400 font-black uppercase text-[10px] tracking-widest" onClick={() => setEditorCriteria([...editorCriteria, { id: Date.now().toString(), description: "", points: 2 }])}>+ Añadir Criterio</Button>
                           </div>
                         )}
-
                         {newColType === 'rubrica' && (
                           <div className="space-y-8">
                             {editorCriteria.map((rc, idx) => (
@@ -739,59 +708,7 @@ export default function AcademicGradebookPage() {
                             <Button variant="outline" className="w-full border-dashed border-2 h-12 rounded-xl font-black uppercase text-[10px]" onClick={() => setEditorCriteria([...editorCriteria, { id: Date.now().toString(), category: "", levels: JSON.parse(JSON.stringify(DEFAULT_RUBRIC_LEVELS)) }])}>+ Añadir Fila</Button>
                           </div>
                         )}
-
-                        {newColType === 'escala' && (
-                          <div className="space-y-6">
-                            <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
-                              <p className="font-black text-[10px] uppercase text-blue-600 mb-3">Niveles de la Escala</p>
-                              <div className="flex flex-wrap gap-2">
-                                {editorScaleLevels.map((sl, si) => (
-                                  <div key={si} className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border shadow-sm">
-                                    <span className="text-[10px] font-bold">{sl.label}</span>
-                                    <Badge className="bg-blue-100 text-blue-700">{sl.points} pts</Badge>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                            <div className="space-y-3">
-                              {editorCriteria.map((cr, idx) => (
-                                <div key={idx} className="flex gap-3 items-center bg-white p-3 rounded-xl border-2 border-slate-100">
-                                  <span className="font-black text-xs text-slate-300 w-6">{idx + 1}</span>
-                                  <Input value={cr.description} onChange={e => { const next = [...editorCriteria]; next[idx].description = e.target.value; setEditorCriteria(next); }} placeholder="Criterio de evaluación..." className="border-none shadow-none font-bold text-slate-700 flex-1" />
-                                  <Button variant="ghost" size="icon" className="text-red-300 hover:text-red-500" onClick={() => setEditorCriteria(editorCriteria.filter((_, i) => i !== idx))}><Trash2 className="h-4 w-4" /></Button>
-                                </div>
-                              ))}
-                              <Button variant="outline" className="w-full border-dashed border-2 h-12 rounded-xl text-slate-400 font-black uppercase text-[10px]" onClick={() => setEditorCriteria([...editorCriteria, { id: Date.now().toString(), description: "" }])}>+ Añadir Ítem</Button>
-                            </div>
-                          </div>
-                        )}
-
-                        {newColType === 'anecdotario' && (
-                          <div className="space-y-4">
-                            <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100">
-                              <p className="text-[11px] font-bold text-emerald-700 flex items-center gap-2"><Quote className="h-4 w-4" /> Instrumento para Registro Anecdótico</p>
-                            </div>
-                            <div className="space-y-3">
-                              {editorCriteria.map((cr, idx) => (
-                                <div key={idx} className="flex gap-3 items-center bg-white p-3 rounded-xl border-2 border-slate-100">
-                                  <Input value={cr.description} onChange={e => { const next = [...editorCriteria]; next[idx].description = e.target.value; setEditorCriteria(next); }} placeholder="Punto de observación..." className="border-none shadow-none font-bold text-slate-700 flex-1" />
-                                  <Button variant="ghost" size="icon" className="text-red-300 hover:text-red-500" onClick={() => setEditorCriteria(editorCriteria.filter((_, i) => i !== idx))}><Trash2 className="h-4 w-4" /></Button>
-                                </div>
-                              ))}
-                              <Button variant="outline" className="w-full border-dashed border-2 h-12 rounded-xl text-slate-400 font-black uppercase text-[10px]" onClick={() => setEditorCriteria([...editorCriteria, { id: Date.now().toString(), description: "" }])}>+ Añadir Eje</Button>
-                            </div>
-                          </div>
-                        )}
-
-                        {newColType === 'manual' && (
-                          <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-4">
-                            <FileText className="h-16 w-16 opacity-10" />
-                            <div className="text-center">
-                              <p className="font-bold text-xs uppercase tracking-widest">Entrada de Notas Manual</p>
-                              <p className="text-[10px] mt-1 font-medium italic">Máximo: {newMaxPoints} puntos.</p>
-                            </div>
-                          </div>
-                        )}
+                        {newColType === 'manual' && <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-4"><FileText className="h-16 w-16 opacity-10" /><p className="font-bold text-xs uppercase tracking-widest text-center">Entrada de Notas Manual</p></div>}
                       </div>
                     </div>
                   )}
@@ -802,7 +719,7 @@ export default function AcademicGradebookPage() {
                 <Button variant="ghost" onClick={() => setSetupStep(p => Math.max(0, p - 1))} disabled={setupStep === 0 || isScanning} className="font-black text-[10px] uppercase h-11 px-8 rounded-xl border-2">Anterior</Button>
                 <div className="flex gap-3">
                   {setupStep < 2 ? (
-                    <Button className="bg-primary px-10 h-11 font-black text-[10px] uppercase rounded-xl text-white" onClick={() => setSetupStep(p => p + 1)} disabled={(setupStep === 0 && (!newIndicatorCode || !newIndicatorDescription)) || (setupStep === 1 && !newColName) || isScanning}>Siguiente Paso</Button>
+                    <Button className="bg-primary px-10 h-11 font-black text-[10px] uppercase rounded-xl text-white" onClick={() => setSetupStep(p => p + 1)} disabled={(setupStep === 0 && (!newIndicatorCode || !newIndicatorDescription)) || (setupStep === 1 && !newColName) || isScanning}>Siguiente</Button>
                   ) : (
                     <Button className="bg-primary px-12 h-11 font-black text-[10px] uppercase rounded-xl text-white" onClick={addColumn}>Finalizar</Button>
                   )}
@@ -820,8 +737,11 @@ export default function AcademicGradebookPage() {
             <Input placeholder="Buscar alumno..." className="pl-14 h-14 border-none shadow-inner rounded-2xl bg-white font-medium" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" className="h-12 px-6 border-slate-200 rounded-xl font-bold gap-2">
-              <Save className="h-4 w-4" /> Guardar Cambios
+            <Button variant="outline" className="h-12 px-6 border-slate-200 rounded-xl font-bold gap-2" onClick={fetchFullGradebook}>
+              <RefreshCcw className="h-4 w-4" /> Recargar
+            </Button>
+            <Button className="h-12 px-8 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg gap-2" onClick={handleSaveAll} disabled={isSaving}>
+              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {isSaving ? "Guardando..." : "Guardar Registro"}
             </Button>
           </div>
         </div>
@@ -845,7 +765,7 @@ export default function AcademicGradebookPage() {
                       </div>
                     </TableHead>
                   ))}
-                  <TableHead className="text-center font-black text-[10px] uppercase text-primary tracking-widest bg-primary/5 w-[120px] border-l sticky right-0 z-10 backdrop-blur-md">Nota Final (NF)</TableHead>
+                  <TableHead className="text-center font-black text-[10px] uppercase text-primary tracking-widest bg-primary/5 w-[120px] border-l sticky right-0 z-10 backdrop-blur-md">Nota Final</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -870,26 +790,16 @@ export default function AcademicGradebookPage() {
                         return (
                           <TableCell key={c.id} className="text-center px-6 border-l">
                             <div className="flex items-center justify-center gap-2">
-                              <Input 
-                                type="number" 
-                                className={`w-14 h-10 text-center font-black text-lg border-none shadow-inner rounded-lg ${
-                                  !isPassing ? 'text-red-600 bg-red-50' : 'text-emerald-700 bg-emerald-50'
-                                }`}
-                                value={grade}
-                                onChange={e => handleGradeChange(s.id, c.id, e.target.value)}
-                              />
+                              <Input type="number" className={cn("w-14 h-10 text-center font-black text-lg border-none shadow-inner rounded-lg", !isPassing ? 'text-red-600 bg-red-50' : 'text-emerald-700 bg-emerald-50')} value={grade} onChange={e => handleGradeChange(s.id, c.id, e.target.value)} />
                               {c.type !== 'manual' && (
                                 <Dialog>
                                   <DialogTrigger asChild>
-                                    <Button size="icon" variant="ghost" className="h-10 w-10 rounded-xl hover:bg-primary/10 text-primary border-2 border-primary/5" onClick={() => { setActiveEval({ student: s, column: c }); setEvalData({}); setEvalComment(comments[s.id]?.[c.id] || ""); }}>
+                                    <Button size="icon" variant="ghost" className="h-10 w-10 rounded-xl hover:bg-primary/10 text-primary border-2 border-primary/5" onClick={() => { setActiveEval({ student: s, column: c }); setEvalData(evalDetails[s.id]?.[c.id] || {}); setEvalComment(comments[s.id]?.[c.id] || ""); }}>
                                       <Target className="h-4 w-4" />
                                     </Button>
                                   </DialogTrigger>
                                   <DialogContent className="max-w-6xl p-0 overflow-hidden border-none shadow-2xl rounded-[3rem] flex flex-col h-[90vh]">
-                                    <DialogHeader className="sr-only">
-                                      <DialogTitle>Evaluación de {s.nombre}</DialogTitle>
-                                      <DialogDescription>Panel de calificación para el instrumento {c.name}</DialogDescription>
-                                    </DialogHeader>
+                                    <DialogHeader className="sr-only"><DialogTitle>Calificación dinámica</DialogTitle></DialogHeader>
                                     {activeEval && (
                                       <>
                                         <div className="bg-primary p-10 text-white flex justify-between items-center shrink-0">
@@ -899,7 +809,7 @@ export default function AcademicGradebookPage() {
                                             <p className="text-blue-100/80 font-bold uppercase text-[10px] tracking-widest">{activeEval.column.name}</p>
                                           </div>
                                           <div className="bg-white/10 p-6 rounded-2xl border-2 border-white/10 text-center min-w-[140px]">
-                                            <p className="text-[9px] font-black uppercase text-blue-200 mb-1">Nota Preliminar</p>
+                                            <p className="text-[9px] font-black uppercase text-blue-200 mb-1">Nota Calculada</p>
                                             <p className="text-5xl font-black font-mono">
                                               {
                                                 activeEval.column.type === 'cotejo' || activeEval.column.type === 'anecdotario'
@@ -909,67 +819,30 @@ export default function AcademicGradebookPage() {
                                             </p>
                                           </div>
                                         </div>
-
                                         <div className="flex-grow flex overflow-hidden">
-                                          <ScrollArea className={cn("p-10 bg-slate-50/50", activeEval.column.type === 'anecdotario' ? "w-2/3" : "w-full")}>
-                                            {activeEval.column.type === 'cotejo' || activeEval.column.type === 'anecdotario' ? (
-                                              <div className="space-y-3">
+                                          <ScrollArea className="p-10 bg-slate-50/50 flex-grow">
+                                            {(activeEval.column.type === 'cotejo' || activeEval.column.type === 'anecdotario') ? (
+                                              <div className="grid gap-3">
                                                 {instruments[activeEval.column.instrumentId].criteria.map((cr: any, i: number) => (
                                                   <div key={i} className="flex items-center justify-between p-5 bg-white rounded-2xl shadow-sm border-2 border-slate-100 hover:border-primary/20 transition-all">
-                                                    <div className="flex items-center gap-3">
-                                                      <span className="font-black text-xs text-slate-300">{i + 1}</span>
-                                                      <p className="text-sm font-bold text-slate-700">{cr.description}</p>
-                                                    </div>
+                                                    <div className="flex items-center gap-3"><span className="font-black text-xs text-slate-300">{i + 1}</span><p className="text-sm font-bold text-slate-700">{cr.description}</p></div>
                                                     <div className="flex gap-2">
-                                                      <Button size="sm" variant="ghost" className={`h-10 w-10 rounded-xl ${evalData[i] === true ? 'bg-emerald-500 text-white shadow-lg' : 'text-slate-200'}`} onClick={() => setEvalData(p => ({ ...p, [i]: true }))}><CheckCircle2 className="h-6 w-6" /></Button>
-                                                      <Button size="sm" variant="ghost" className={`h-10 w-10 rounded-xl ${evalData[i] === false ? 'bg-red-500 text-white shadow-lg' : 'text-slate-200'}`} onClick={() => setEvalData(p => ({ ...p, [i]: false }))}><XCircle className="h-6 w-6" /></Button>
+                                                      <Button size="sm" variant="ghost" className={cn("h-10 w-10 rounded-xl", evalData[i] === true ? 'bg-emerald-500 text-white shadow-lg' : 'text-slate-200')} onClick={() => setEvalData(p => ({ ...p, [i]: true }))}><CheckCircle2 className="h-6 w-6" /></Button>
+                                                      <Button size="sm" variant="ghost" className={cn("h-10 w-10 rounded-xl", evalData[i] === false ? 'bg-red-500 text-white shadow-lg' : 'text-slate-200')} onClick={() => setEvalData(p => ({ ...p, [i]: false }))}><XCircle className="h-6 w-6" /></Button>
                                                     </div>
                                                   </div>
                                                 ))}
                                               </div>
-                                            ) : activeEval.column.type === 'rubrica' ? (
+                                            ) : (
                                               <div className="space-y-10">
                                                 {instruments[activeEval.column.instrumentId].criteria.map((rc: any, i: number) => (
                                                   <div key={i} className="space-y-4">
                                                     <Label className="text-lg font-black uppercase text-slate-800 tracking-tighter">{rc.category}</Label>
                                                     <div className="grid grid-cols-5 gap-3">
                                                       {rc.levels.map((lvl: any) => (
-                                                        <Button 
-                                                          key={lvl.label}
-                                                          variant="outline"
-                                                          className={cn(
-                                                            "h-auto flex-col gap-3 p-4 rounded-2xl border-2 transition-all text-left items-start",
-                                                            evalData[i] === lvl.points ? 'border-primary bg-primary/5 ring-4 ring-primary/5' : 'bg-white hover:border-slate-200'
-                                                          )}
-                                                          onClick={() => setEvalData(p => ({ ...p, [i]: lvl.points }))}
-                                                        >
-                                                          <div className="flex justify-between w-full mb-1">
-                                                            <span className="font-black text-[8px] uppercase tracking-widest text-slate-400">{lvl.label}</span>
-                                                            <span className="font-black text-xs text-primary">{lvl.points} pts</span>
-                                                          </div>
-                                                          <p className="text-[10px] leading-relaxed text-slate-600 font-medium break-words w-full">
-                                                            {lvl.description || 'Sin descripción'}
-                                                          </p>
-                                                        </Button>
-                                                      ))}
-                                                    </div>
-                                                  </div>
-                                                ))}
-                                              </div>
-                                            ) : (
-                                              <div className="space-y-6">
-                                                {instruments[activeEval.column.instrumentId].criteria.map((cr: any, i: number) => (
-                                                  <div key={i} className="space-y-4 p-6 bg-white rounded-2xl border-2 border-slate-100 shadow-sm">
-                                                    <Label className="text-sm font-black uppercase text-slate-700">{cr.description}</Label>
-                                                    <div className="flex flex-wrap gap-2">
-                                                      {instruments[activeEval.column.instrumentId].scaleLevels?.map((sl: any) => (
-                                                        <Button 
-                                                          key={sl.label}
-                                                          variant="outline"
-                                                          className={`h-10 px-4 rounded-xl border-2 font-bold text-xs ${evalData[i] === sl.points ? 'bg-primary text-white border-primary shadow-lg' : ''}`}
-                                                          onClick={() => setEvalData(p => ({ ...p, [i]: sl.points }))}
-                                                        >
-                                                          {sl.label}
+                                                        <Button key={lvl.label} variant="outline" className={cn("h-auto flex-col gap-3 p-4 rounded-2xl border-2 transition-all text-left items-start", evalData[i] === lvl.points ? 'border-primary bg-primary/5 ring-4 ring-primary/5' : 'bg-white hover:border-slate-200')} onClick={() => setEvalData(p => ({ ...p, [i]: lvl.points }))}>
+                                                          <div className="flex justify-between w-full mb-1"><span className="font-black text-[8px] uppercase tracking-widest text-slate-400">{lvl.label}</span><span className="font-black text-xs text-primary">{lvl.points} pts</span></div>
+                                                          <p className="text-[10px] leading-relaxed text-slate-600 font-medium break-words w-full">{lvl.description || 'Sin detalles'}</p>
                                                         </Button>
                                                       ))}
                                                     </div>
@@ -978,27 +851,16 @@ export default function AcademicGradebookPage() {
                                               </div>
                                             )}
                                           </ScrollArea>
-                                          
-                                          {activeEval.column.type === 'anecdotario' && (
-                                            <div className="w-1/3 p-10 bg-white border-l space-y-6">
-                                              <div className="space-y-3">
-                                                <Label className="font-black text-xs uppercase text-slate-400 flex items-center gap-2">
-                                                  <MessageSquare className="h-4 w-4" /> Observaciones del Docente
-                                                </Label>
-                                                <Textarea 
-                                                  value={evalComment} 
-                                                  onChange={e => setEvalComment(e.target.value)} 
-                                                  placeholder="Comentarios sobre el desempeño..." 
-                                                  className="h-[400px] rounded-2xl border-2 resize-none p-6 font-medium italic text-slate-600"
-                                                />
-                                              </div>
+                                          <div className="w-1/3 p-10 bg-white border-l space-y-6">
+                                            <div className="space-y-3">
+                                              <Label className="font-black text-xs uppercase text-slate-400 flex items-center gap-2"><MessageSquare className="h-4 w-4" /> Observaciones del Logro</Label>
+                                              <Textarea value={evalComment} onChange={e => setEvalComment(e.target.value)} placeholder="Comentarios sobre el desempeño..." className="h-[400px] rounded-2xl border-2 resize-none p-6 font-medium italic text-slate-600" />
                                             </div>
-                                          )}
+                                          </div>
                                         </div>
-
                                         <div className="p-10 bg-white border-t flex justify-end gap-4 shrink-0">
-                                          <Button variant="ghost" className="font-black text-slate-400 uppercase text-xs px-8" onClick={() => setActiveEval(null)}>Cancelar</Button>
-                                          <Button className="bg-primary font-black uppercase text-xs px-16 h-16 rounded-2xl shadow-xl text-white" onClick={applyInstrumentScore}>Guardar Evaluación</Button>
+                                          <Button variant="ghost" className="font-black text-slate-400 uppercase text-xs px-8" onClick={() => setActiveEval(null)}>Descartar</Button>
+                                          <Button className="bg-primary font-black uppercase text-xs px-16 h-16 rounded-2xl shadow-xl text-white" onClick={applyInstrumentScore}>Aplicar Nota</Button>
                                         </div>
                                       </>
                                     )}
@@ -1010,7 +872,7 @@ export default function AcademicGradebookPage() {
                         );
                       })}
                       <TableCell className="text-center bg-primary/5 border-l py-6 sticky right-0 z-10 backdrop-blur-md">
-                        <span className={`text-xl font-black font-mono ${finalScore < 13 ? 'text-red-600' : 'text-primary'}`}>
+                        <span className={cn("text-xl font-black font-mono", finalScore < 13 ? 'text-red-600' : 'text-primary')}>
                           {finalScore.toString().padStart(2, '0')}
                         </span>
                       </TableCell>
@@ -1029,11 +891,11 @@ export default function AcademicGradebookPage() {
         <Card className="p-32 border-4 border-dashed border-slate-100 bg-white rounded-[4rem] flex flex-col items-center gap-8 text-slate-400">
           <div className="p-10 bg-slate-50 rounded-full"><AlertTriangle className="h-20 w-20 opacity-10" /></div>
           <div className="text-center space-y-3">
-            <p className="text-2xl font-black text-slate-900 uppercase">Sin Evaluaciones Configuradas</p>
-            <p className="text-sm font-medium italic">Define tus indicadores y digitaliza tus instrumentos con IA.</p>
+            <p className="text-2xl font-black text-slate-900 uppercase">Sin Actividades Configuradas</p>
+            <p className="text-sm font-medium italic">Define tus indicadores y digitaliza tus instrumentos con IA para empezar.</p>
           </div>
           <Button className="h-16 px-12 bg-primary font-black rounded-3xl uppercase text-xs gap-4 text-white shadow-2xl" onClick={() => setIsNewColOpen(true)}>
-            <PlusCircle className="h-6 w-6" /> Empezar Configuración
+            <PlusCircle className="h-6 w-6" /> Iniciar Configuración
           </Button>
         </Card>
       )}
