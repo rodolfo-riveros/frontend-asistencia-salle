@@ -30,15 +30,15 @@ const AnalyzeInstrumentInputSchema = z.object({
 export type AnalyzeInstrumentInput = z.infer<typeof AnalyzeInstrumentInputSchema>;
 
 const AnalyzeInstrumentOutputSchema = z.object({
-  type: z.enum(['cotejo', 'rubrica', 'escala', 'anecdotario']).describe('Identified instrument type. Maps to UI capabilities.'),
+  type: z.enum(['cotejo', 'rubrica', 'escala', 'anecdotario']).describe('Identified instrument type.'),
   name: z.string().describe('Suggested name for the evaluation activity.'),
-  description: z.string().describe('Pedagogical intent or context of the instrument.'),
-  checklistCriteria: z.array(ChecklistItemSchema).optional().describe('Extracted criteria if it is a checklist, test or questionnaire.'),
-  rubricDimensions: z.array(RubricDimensionSchema).optional().describe('Extracted dimensions if it is a rubric or complex rating scale.'),
+  description: z.string().describe('Pedagogical intent or context.'),
+  checklistCriteria: z.array(ChecklistItemSchema).optional().describe('Criteria for checklist/test.'),
+  rubricDimensions: z.array(RubricDimensionSchema).optional().describe('Dimensions for rubric.'),
   scaleLevels: z.array(z.object({
     label: z.string(),
     points: z.number()
-  })).optional().describe('Shared levels if it is a uniform rating scale (Escala de Valoración).'),
+  })).optional().describe('Levels for rating scale.'),
 });
 export type AnalyzeInstrumentOutput = z.infer<typeof AnalyzeInstrumentOutputSchema>;
 
@@ -47,22 +47,27 @@ const analyzeInstrumentPrompt = ai.definePrompt({
   input: { schema: AnalyzeInstrumentInputSchema },
   output: { schema: AnalyzeInstrumentOutputSchema },
   prompt: `Eres un Consultor Pedagógico Senior para el IES LA SALLE URUBAMBA. 
-Tu misión es digitalizar instrumentos de evaluación a partir de imágenes (incluso si son fotos de papel o pizarras).
+Tu misión es digitalizar instrumentos de evaluación a partir de imágenes.
 
-TIPOS DE INSTRUMENTOS QUE DEBES IDENTIFICAR Y MAPEAR:
-1. LISTA DE COTEJO / TEST / CUESTIONARIO: Mapear a 'cotejo'. Cada pregunta o ítem es un criterio con puntos.
-2. RÚBRICA: Mapear a 'rubrica'. Identifica filas (dimensiones) y columnas (niveles).
-3. ESCALA DE VALORACIÓN: Mapear a 'escala'. Identifica los criterios y los niveles compartidos (ej: 1 al 5 o Nunca a Siempre).
-4. DIARIO DE CAMPO / ANECDOTARIO / GUÍA NARRATIVA: Mapear a 'anecdotario'. Crea criterios de observación cualitativa.
-5. MAPAS MENTALES / CONCEPTUALES / TRABAJOS: Si la imagen es el TRABAJO EN SÍ, genera una RÚBRICA para evaluarlo basándote en estándares académicos.
+ANALIZA LA IMAGEN Y DETECTA:
+1. TIPO DE INSTRUMENTO:
+   - Si es una lista de ítems con SI/NO o puntajes: 'cotejo'.
+   - Si es una tabla con filas (criterios) y columnas (niveles): 'rubrica'.
+   - Si es una lista de criterios con una escala única (ej: 1 al 5): 'escala'.
+   - Si es un formato de observación narrativa: 'anecdotario'.
+
+2. EXTRACCIÓN DE DATOS:
+   - Extrae el NOMBRE de la actividad.
+   - Extrae todos los CRITERIOS o PREGUNTAS.
+   - Si es RÚBRICA: Extrae las dimensiones y descripciones de cada nivel.
+   - Si es COTEJO: Ajusta los puntos de cada criterio para que la SUMA TOTAL SEA EXACTAMENTE 20.
 
 INSTRUCCIONES CRÍTICAS:
-- Extrae el nombre de la actividad.
-- Si es una LISTA/TEST: Asegúrate de que la suma de puntos sea 20.
-- Si es una RÚBRICA: Si faltan descripciones en los niveles, genéralas tú de forma profesional.
-- Toda la salida DEBE estar en ESPAÑOL.
+- Responde siempre en ESPAÑOL.
+- Si la imagen es borrosa o difícil de leer, haz tu mejor esfuerzo por reconstruir criterios pedagógicamente coherentes con el título.
+- Asegúrate de que el objeto JSON sea válido y completo.
 
-Imagen del instrumento: {{media url=photoDataUri}}`,
+Imagen: {{media url=photoDataUri}}`,
 });
 
 const analyzeInstrumentFlow = ai.defineFlow(
@@ -73,7 +78,8 @@ const analyzeInstrumentFlow = ai.defineFlow(
   },
   async (input) => {
     const { output } = await analyzeInstrumentPrompt(input);
-    return output!;
+    if (!output) throw new Error("La IA no pudo procesar la imagen correctamente.");
+    return output;
   }
 );
 

@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -7,8 +6,6 @@ import {
   ArrowLeft, 
   Search, 
   Save, 
-  Plus, 
-  Settings2,
   Target,
   ChevronRight,
   ClipboardCheck,
@@ -18,65 +15,40 @@ import {
   FileText,
   Trash2,
   PlusCircle,
-  Library,
-  Layers,
   AlertTriangle,
-  GripVertical,
   BookOpen,
-  Info,
   Sparkles,
-  Camera,
-  Upload,
   Loader2,
   X,
   MessageSquare,
   Star,
-  Quote
+  Quote,
+  History
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { 
   Dialog, 
   DialogContent, 
-  DialogDescription, 
   DialogFooter, 
   DialogHeader, 
   DialogTitle, 
   DialogTrigger 
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
 import { getInitials, cn } from "@/lib/utils"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
-import { analyzeInstrument, type AnalyzeInstrumentOutput } from "@/ai/flows/analyze-instrument-flow"
+import { analyzeInstrument } from "@/ai/flows/analyze-instrument-flow"
 
 // --- Tipos ---
 type ColumnType = 'manual' | 'cotejo' | 'rubrica' | 'escala' | 'anecdotario'
-
-interface ChecklistCriterion {
-  id: string
-  description: string
-  points: number
-}
-
-interface RubricLevel {
-  label: string
-  points: number
-  description: string
-}
-
-interface RubricDimension {
-  id: string
-  category: string
-  levels: RubricLevel[]
-}
 
 interface Instrument {
   id: string
@@ -97,7 +69,7 @@ interface Column {
   maxPoints: number
 }
 
-const DEFAULT_RUBRIC_LEVELS: RubricLevel[] = [
+const DEFAULT_RUBRIC_LEVELS = [
   { label: 'Excelente', points: 4, description: '' },
   { label: 'Bueno', points: 3, description: '' },
   { label: 'Regular', points: 2, description: '' },
@@ -145,9 +117,12 @@ export default function AcademicGradebookPage() {
   const [isScanning, setIsScanning] = React.useState(false)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
+  // Memoize unique indicators for reuse
   const existingIndicators = React.useMemo(() => {
     const map = new Map<string, string>();
-    columns.forEach(c => map.set(c.indicatorCode, c.indicatorDescription));
+    columns.forEach(c => {
+      if (c.indicatorCode) map.set(c.indicatorCode, c.indicatorDescription);
+    });
     return Array.from(map.entries()).map(([code, desc]) => ({ code, desc }));
   }, [columns]);
 
@@ -183,7 +158,7 @@ export default function AcademicGradebookPage() {
     if (!file) return
 
     setIsScanning(true)
-    toast({ title: "Escaneando Instrumento", description: "La IA está detectando el tipo de instrumento y sus criterios..." })
+    toast({ title: "Iniciando Escaneo IA", description: "Procesando imagen del instrumento..." })
 
     try {
       const reader = new FileReader()
@@ -206,11 +181,13 @@ export default function AcademicGradebookPage() {
         }
 
         setSetupStep(2)
-        toast({ title: "Análisis Exitoso", description: `Se identificó un instrumento de tipo: ${analysis.type.toUpperCase()}` })
+        toast({ title: "Digitalización Exitosa", description: `Instrumento ${analysis.type.toUpperCase()} cargado.` })
       }
+      reader.onerror = () => { throw new Error("Error al leer el archivo."); }
       reader.readAsDataURL(file)
-    } catch (err) {
-      toast({ variant: "destructive", title: "Error de IA", description: "No se pudo procesar la imagen." })
+    } catch (err: any) {
+      console.error(err)
+      toast({ variant: "destructive", title: "Fallo en IA", description: err.message || "No se pudo digitalizar el instrumento." })
     } finally {
       setIsScanning(false)
       if (fileInputRef.current) fileInputRef.current.value = ""
@@ -348,14 +325,12 @@ export default function AcademicGradebookPage() {
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-5xl p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl flex flex-col max-h-[95vh]">
-            <div className="bg-primary p-8 text-white flex justify-between items-end shrink-0">
-              <div>
-                <Badge className="bg-white/20 text-white mb-3 border-none font-bold uppercase tracking-widest">IA ASSESSMENT ENGINE</Badge>
-                <h3 className="text-2xl font-black uppercase tracking-tight">Cargar Instrumento</h3>
-                <p className="text-blue-100/80 font-bold uppercase text-[10px] tracking-[0.2em] mt-1">
-                  {setupStep === 0 ? "Paso 1: Fundamentación Curricular" : setupStep === 1 ? "Paso 2: Tipo de Evaluación" : "Paso 3: Definición de Criterios"}
-                </p>
-              </div>
+            <div className="bg-primary p-8 text-white shrink-0">
+              <Badge className="bg-white/20 text-white mb-3 border-none font-bold uppercase tracking-widest">IA ASSESSMENT ENGINE</Badge>
+              <h3 className="text-2xl font-black uppercase tracking-tight">Cargar Instrumento</h3>
+              <p className="text-blue-100/80 font-bold uppercase text-[10px] tracking-[0.2em] mt-1">
+                {setupStep === 0 ? "Paso 1: Fundamentación Curricular" : setupStep === 1 ? "Paso 2: Tipo de Evaluación" : "Paso 3: Definición de Criterios"}
+              </p>
             </div>
 
             <ScrollArea className="flex-grow">
@@ -369,7 +344,7 @@ export default function AcademicGradebookPage() {
                         </div>
                         <div>
                           <h4 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Indicador de Logro</h4>
-                          <p className="text-slate-500 text-sm font-medium">Vincula esta evaluación a una capacidad de tu sílabo.</p>
+                          <p className="text-slate-500 text-sm font-medium">Define qué competencia o conocimiento estás evaluando.</p>
                         </div>
                       </div>
                       
@@ -380,7 +355,7 @@ export default function AcademicGradebookPage() {
                             value={newIndicatorCode} 
                             onChange={e => setNewIndicatorCode(e.target.value.toUpperCase())} 
                             placeholder="Ej: C1.I1" 
-                            className="h-14 border-none shadow-inner rounded-xl font-black text-xl text-primary uppercase bg-white placeholder:text-slate-200" 
+                            className="h-14 border-none shadow-inner rounded-xl font-black text-xl text-primary uppercase bg-white" 
                           />
                         </div>
                         
@@ -389,27 +364,30 @@ export default function AcademicGradebookPage() {
                           <Textarea 
                             value={newIndicatorDescription} 
                             onChange={e => setNewIndicatorDescription(e.target.value)} 
-                            placeholder="Describe qué competencia o conocimiento técnico estás evaluando..." 
-                            className="h-32 border-none shadow-inner rounded-2xl resize-none font-medium text-base bg-white p-6 placeholder:text-slate-200" 
+                            placeholder="Describe el logro esperado del alumno..." 
+                            className="h-32 border-none shadow-inner rounded-2xl resize-none font-medium text-base bg-white p-6" 
                           />
                         </div>
                       </div>
 
                       {existingIndicators.length > 0 && (
                         <div className="space-y-4 pt-6 border-t border-slate-100">
-                          <Label className="font-black text-[10px] uppercase text-slate-400 tracking-widest block text-center">Usar indicadores de este curso:</Label>
+                          <div className="flex items-center gap-2 justify-center">
+                            <History className="h-4 w-4 text-slate-400" />
+                            <Label className="font-black text-[10px] uppercase text-slate-400 tracking-widest block">Indicadores Usados en este Curso:</Label>
+                          </div>
                           <div className="flex flex-wrap justify-center gap-3">
                             {existingIndicators.map((ind, i) => (
                               <Button 
                                 key={i} 
                                 variant="outline" 
                                 size="sm" 
-                                className="h-auto py-3 px-6 rounded-2xl border-2 hover:border-primary/30 hover:bg-primary/5 group transition-all" 
+                                className="h-auto py-3 px-6 rounded-2xl border-2 hover:border-primary/30 hover:bg-primary/5 transition-all" 
                                 onClick={() => { setNewIndicatorCode(ind.code); setNewIndicatorDescription(ind.desc); }}
                               >
                                 <div className="flex flex-col items-start">
                                   <span className="font-black text-xs text-primary">{ind.code}</span>
-                                  <span className="text-[9px] text-slate-400 font-bold uppercase truncate w-32 group-hover:text-primary/60">{ind.desc}</span>
+                                  <span className="text-[9px] text-slate-400 font-bold uppercase truncate w-32">{ind.desc}</span>
                                 </div>
                               </Button>
                             ))}
@@ -424,11 +402,10 @@ export default function AcademicGradebookPage() {
                   <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
                     <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
                       <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <div className="h-8 w-1 bg-primary rounded-full" />
-                          <Label className="font-black text-xs uppercase text-primary tracking-widest">2. Tipo de Instrumento Pedagógico</Label>
-                        </div>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest ml-3">Selecciona el método de calificación</p>
+                        <Label className="font-black text-xs uppercase text-primary tracking-widest flex items-center gap-2">
+                          <div className="h-2 w-2 rounded-full bg-primary" /> 2. Tipo de Evaluación
+                        </Label>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest ml-4">Selecciona el método o digitaliza uno</p>
                       </div>
                       
                       <div className="flex gap-4">
@@ -436,10 +413,10 @@ export default function AcademicGradebookPage() {
                         <Button 
                           onClick={() => fileInputRef.current?.click()} 
                           disabled={isScanning}
-                          className="bg-accent hover:bg-accent/90 text-white font-black uppercase text-[10px] tracking-widest gap-2 h-12 rounded-2xl shadow-lg shadow-accent/20 px-8 transition-all hover:scale-105 active:scale-95"
+                          className="bg-accent hover:bg-accent/90 text-white font-black uppercase text-[10px] tracking-widest gap-2 h-12 rounded-2xl shadow-lg shadow-accent/20 px-8 transition-all hover:scale-105"
                         >
                           {isScanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                          Escanear con IA
+                          Digitalizar con IA
                         </Button>
                       </div>
                     </div>
@@ -473,7 +450,7 @@ export default function AcademicGradebookPage() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-slate-50">
                       <div className="md:col-span-2 space-y-3">
                         <Label className="font-black text-[11px] uppercase text-primary tracking-widest">Nombre de la Actividad</Label>
-                        <Input value={newColName} onChange={e => setNewColName(e.target.value)} placeholder="Ej. Práctica Calificada de Redes" className="h-14 rounded-xl text-lg font-bold border-2" />
+                        <Input value={newColName} onChange={e => setNewColName(e.target.value)} placeholder="Ej. Tarea Académica 01" className="h-14 rounded-xl text-lg font-bold border-2" />
                       </div>
                       {newColType === 'manual' && (
                         <div className="space-y-3 animate-in fade-in zoom-in-95">
@@ -542,7 +519,7 @@ export default function AcademicGradebookPage() {
                       {newColType === 'escala' && (
                         <div className="space-y-6">
                           <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
-                            <p className="font-black text-[10px] uppercase text-blue-600 mb-3">Definir Niveles de la Escala</p>
+                            <p className="font-black text-[10px] uppercase text-blue-600 mb-3">Niveles de la Escala</p>
                             <div className="flex flex-wrap gap-2">
                               {editorScaleLevels.map((sl, si) => (
                                 <div key={si} className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border shadow-sm">
@@ -568,8 +545,7 @@ export default function AcademicGradebookPage() {
                       {newColType === 'anecdotario' && (
                         <div className="space-y-4">
                           <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100">
-                            <p className="text-[11px] font-bold text-emerald-700 flex items-center gap-2"><Quote className="h-4 w-4" /> Instrumento para Registro Anecdótico / Diario de Campo</p>
-                            <p className="text-[10px] text-emerald-600 mt-1">Define los puntos clave de observación.</p>
+                            <p className="text-[11px] font-bold text-emerald-700 flex items-center gap-2"><Quote className="h-4 w-4" /> Instrumento para Registro Anecdótico</p>
                           </div>
                           <div className="space-y-3">
                             {editorCriteria.map((cr, idx) => (
@@ -578,7 +554,7 @@ export default function AcademicGradebookPage() {
                                 <Button variant="ghost" size="icon" className="text-red-300 hover:text-red-500" onClick={() => setEditorCriteria(editorCriteria.filter((_, i) => i !== idx))}><Trash2 className="h-4 w-4" /></Button>
                               </div>
                             ))}
-                            <Button variant="outline" className="w-full border-dashed border-2 h-12 rounded-xl text-slate-400 font-black uppercase text-[10px]" onClick={() => setEditorCriteria([...editorCriteria, { id: Date.now().toString(), description: "" }])}>+ Añadir Eje de Observación</Button>
+                            <Button variant="outline" className="w-full border-dashed border-2 h-12 rounded-xl text-slate-400 font-black uppercase text-[10px]" onClick={() => setEditorCriteria([...editorCriteria, { id: Date.now().toString(), description: "" }])}>+ Añadir Eje</Button>
                           </div>
                         </div>
                       )}
@@ -587,8 +563,8 @@ export default function AcademicGradebookPage() {
                         <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-4">
                           <FileText className="h-16 w-16 opacity-10" />
                           <div className="text-center">
-                            <p className="font-bold text-xs uppercase tracking-widest">Ingreso de Notas Manual</p>
-                            <p className="text-[10px] mt-1 font-medium italic">Configurado sobre {newMaxPoints} puntos.</p>
+                            <p className="font-bold text-xs uppercase tracking-widest">Entrada de Notas Manual</p>
+                            <p className="text-[10px] mt-1 font-medium italic">Máximo: {newMaxPoints} puntos.</p>
                           </div>
                         </div>
                       )}
@@ -604,7 +580,7 @@ export default function AcademicGradebookPage() {
                 {setupStep < 2 ? (
                   <Button className="bg-primary px-10 h-11 font-black text-[10px] uppercase rounded-xl text-white" onClick={() => setSetupStep(p => p + 1)} disabled={(setupStep === 0 && (!newIndicatorCode || !newIndicatorDescription)) || (setupStep === 1 && !newColName)}>Siguiente Paso</Button>
                 ) : (
-                  <Button className="bg-primary px-12 h-11 font-black text-[10px] uppercase rounded-xl text-white" onClick={addColumn}>Finalizar Configuración</Button>
+                  <Button className="bg-primary px-12 h-11 font-black text-[10px] uppercase rounded-xl text-white" onClick={addColumn}>Finalizar</Button>
                 )}
               </div>
             </div>
@@ -735,7 +711,7 @@ export default function AcademicGradebookPage() {
                                                           <span className="font-black text-xs text-primary">{lvl.points} pts</span>
                                                         </div>
                                                         <p className="text-[10px] leading-relaxed text-slate-600 font-medium break-words w-full">
-                                                          {lvl.description || 'Sin descripción definida'}
+                                                          {lvl.description || 'Sin descripción'}
                                                         </p>
                                                       </Button>
                                                     ))}
@@ -775,7 +751,7 @@ export default function AcademicGradebookPage() {
                                               <Textarea 
                                                 value={evalComment} 
                                                 onChange={e => setEvalComment(e.target.value)} 
-                                                placeholder="Escribe comentarios sobre el desempeño del alumno..." 
+                                                placeholder="Comentarios sobre el desempeño..." 
                                                 className="h-[400px] rounded-2xl border-2 resize-none p-6 font-medium italic text-slate-600"
                                               />
                                             </div>
@@ -785,7 +761,7 @@ export default function AcademicGradebookPage() {
 
                                       <div className="p-10 bg-white border-t flex justify-end gap-4 shrink-0">
                                         <Button variant="ghost" className="font-black text-slate-400 uppercase text-xs px-8" onClick={() => setActiveEval(null)}>Cancelar</Button>
-                                        <Button className="bg-primary font-black uppercase text-xs px-16 h-16 rounded-2xl shadow-xl text-white" onClick={applyInstrumentScore}>Guardar y Vaciar Nota</Button>
+                                        <Button className="bg-primary font-black uppercase text-xs px-16 h-16 rounded-2xl shadow-xl text-white" onClick={applyInstrumentScore}>Guardar Evaluación</Button>
                                       </div>
                                     </>
                                   )}
