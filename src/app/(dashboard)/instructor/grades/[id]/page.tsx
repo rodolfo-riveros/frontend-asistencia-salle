@@ -84,7 +84,7 @@ const DEFAULT_RUBRIC_LEVELS = [
 const DEFAULT_SCALE_LEVELS = [
   { label: 'Excelente (5)', points: 5 },
   { label: 'Bueno (4)', points: 4 },
-  { label: 'Regular (3)', points: 3 },
+  { label: 'Regular (3)', points: 4 },
   { label: 'Deficiente (2)', points: 2 },
   { label: 'Muy Deficiente (1)', points: 1 },
 ]
@@ -400,9 +400,9 @@ export default function AcademicGradebookPage() {
                       </div>
                       
                       <div className="bg-slate-50/50 p-6 rounded-[2rem] border-2 border-slate-100 space-y-6">
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-2 gap-4 items-start">
                           <div className="space-y-2">
-                            <Label className="font-black text-slate-400 text-[9px] uppercase tracking-[0.2em]">Código ILC</Label>
+                            <Label className="font-black text-slate-400 text-[9px] uppercase tracking-[0.2em] h-5 flex items-center">Código ILC</Label>
                             <Input 
                               value={newIndicatorCode} 
                               onChange={e => setNewIndicatorCode(e.target.value.toUpperCase())} 
@@ -411,7 +411,7 @@ export default function AcademicGradebookPage() {
                             />
                           </div>
                           <div className="space-y-2">
-                            <Label className="font-black text-slate-400 text-[9px] uppercase tracking-[0.2em] flex items-center gap-2">
+                            <Label className="font-black text-slate-400 text-[9px] uppercase tracking-[0.2em] h-5 flex items-center gap-2">
                               <Percent className="h-3 w-3" /> Peso (%)
                             </Label>
                             <Input 
@@ -425,7 +425,7 @@ export default function AcademicGradebookPage() {
                         </div>
                         
                         <div className="space-y-2">
-                          <Label className="font-black text-slate-400 text-[9px] uppercase tracking-[0.2em]">Descripción de la Capacidad</Label>
+                          <Label className="font-black text-slate-400 text-[9px] uppercase tracking-[0.2em] h-5 flex items-center">Descripción de la Capacidad</Label>
                           <Textarea 
                             value={newIndicatorDescription} 
                             onChange={e => setNewIndicatorDescription(e.target.value)} 
