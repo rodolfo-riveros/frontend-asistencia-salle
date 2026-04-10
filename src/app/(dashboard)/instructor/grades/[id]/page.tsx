@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -23,7 +24,8 @@ import {
   MessageSquare,
   Star,
   Quote,
-  History
+  History,
+  Percent
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -64,6 +66,8 @@ interface Column {
   name: string
   indicatorCode: string
   indicatorDescription: string
+  indicatorWeight: number // Peso opcional del indicador en la nota final
+  instrumentWeight: number // Peso opcional de la actividad en el indicador
   type: ColumnType
   instrumentId: string
   maxPoints: number
@@ -107,6 +111,8 @@ export default function AcademicGradebookPage() {
   const [setupStep, setSetupStep] = React.useState(0)
   const [newIndicatorCode, setNewIndicatorCode] = React.useState("")
   const [newIndicatorDescription, setNewIndicatorDescription] = React.useState("")
+  const [newIndicatorWeight, setNewIndicatorWeight] = React.useState(0)
+  const [newInstrumentWeight, setNewInstrumentWeight] = React.useState(0)
   const [newColType, setNewColType] = React.useState<ColumnType>('manual')
   const [newColName, setNewColName] = React.useState("")
   const [newMaxPoints, setNewMaxPoints] = React.useState(20)
@@ -119,11 +125,11 @@ export default function AcademicGradebookPage() {
 
   // Memoize unique indicators for reuse
   const existingIndicators = React.useMemo(() => {
-    const map = new Map<string, string>();
+    const map = new Map<string, { code: string, desc: string, weight: number }>();
     columns.forEach(c => {
-      if (c.indicatorCode) map.set(c.indicatorCode, c.indicatorDescription);
+      if (c.indicatorCode) map.set(c.indicatorCode, { code: c.indicatorCode, desc: c.indicatorDescription, weight: c.indicatorWeight });
     });
-    return Array.from(map.entries()).map(([code, desc]) => ({ code, desc }));
+    return Array.from(map.values());
   }, [columns]);
 
   const totalPointsChecklist = React.useMemo(() => {
@@ -217,6 +223,8 @@ export default function AcademicGradebookPage() {
       name: newColName,
       indicatorCode: newIndicatorCode,
       indicatorDescription: newIndicatorDescription,
+      indicatorWeight: newIndicatorWeight,
+      instrumentWeight: newInstrumentWeight,
       type: newColType,
       instrumentId: instId,
       maxPoints: newColType === 'manual' ? newMaxPoints : 20
@@ -240,6 +248,8 @@ export default function AcademicGradebookPage() {
     setSetupStep(0)
     setNewIndicatorCode("")
     setNewIndicatorDescription("")
+    setNewIndicatorWeight(0)
+    setNewInstrumentWeight(0)
     setNewColName("")
     setNewColType('manual')
     setNewMaxPoints(20)
@@ -289,13 +299,59 @@ export default function AcademicGradebookPage() {
   const calculateFinal = (studentId: string) => {
     const studentGrades = grades[studentId] || {}
     if (columns.length === 0) return 0
-    let total = 0
-    columns.forEach(c => { 
-      const val = studentGrades[c.id] || 0
-      const normalized = (val / c.maxPoints) * 20
-      total += normalized * (1 / columns.length) 
+
+    // Agrupar por indicadores para el cálculo de fórmula institucional
+    const indicatorsMap = new Map<string, { totalWeighted: number, totalWeight: number, indicatorWeight: number, cols: Column[] }>()
+    
+    columns.forEach(c => {
+      if (!indicatorsMap.has(c.indicatorCode)) {
+        indicatorsMap.set(c.indicatorCode, { totalWeighted: 0, totalWeight: 0, indicatorWeight: c.indicatorWeight, cols: [] })
+      }
+      indicatorsMap.get(c.indicatorCode)!.cols.push(c)
     })
-    return Math.round(total)
+
+    let finalWeightedSum = 0
+    let totalIndicatorWeights = 0
+
+    Array.from(indicatorsMap.entries()).forEach(([_, data]) => {
+      const { cols, indicatorWeight } = data
+      let indicatorAvg = 0
+      
+      const hasInstrumentWeights = cols.some(c => c.instrumentWeight > 0)
+      
+      if (hasInstrumentWeights) {
+        let weightedSum = 0
+        let sumWeights = 0
+        cols.forEach(c => {
+          const val = (studentGrades[c.id] || 0) / c.maxPoints * 20
+          weightedSum += val * (c.instrumentWeight / 100)
+          sumWeights += (c.instrumentWeight / 100)
+        })
+        indicatorAvg = sumWeights > 0 ? weightedSum / sumWeights : 0
+      } else {
+        let sum = 0
+        cols.forEach(c => {
+          sum += (studentGrades[c.id] || 0) / c.maxPoints * 20
+        })
+        indicatorAvg = sum / cols.length
+      }
+
+      if (indicatorWeight > 0) {
+        finalWeightedSum += indicatorAvg * (indicatorWeight / 100)
+        totalIndicatorWeights += (indicatorWeight / 100)
+      } else {
+        data.totalWeighted = indicatorAvg
+      }
+    })
+
+    if (totalIndicatorWeights > 0) {
+      return Math.round(finalWeightedSum / totalIndicatorWeights)
+    } else {
+      let sum = 0
+      const entries = Array.from(indicatorsMap.values())
+      entries.forEach(e => sum += e.totalWeighted)
+      return Math.round(sum / entries.length)
+    }
   }
 
   const filtered = students.filter(s => s.nombre.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -313,7 +369,7 @@ export default function AcademicGradebookPage() {
             </div>
             <div>
               <h2 className="text-4xl font-headline font-black tracking-tight text-slate-900">Registro Auxiliar IA</h2>
-              <p className="text-slate-500 font-medium italic">Digitalización de Instrumentos Pedagógicos</p>
+              <p className="text-slate-500 font-medium italic">Evaluación Ponderada y Digitalización Pedagógica</p>
             </div>
           </div>
         </div>
@@ -344,19 +400,33 @@ export default function AcademicGradebookPage() {
                         </div>
                         <div>
                           <h4 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Indicador de Logro</h4>
-                          <p className="text-slate-500 text-sm font-medium">Define qué competencia o conocimiento estás evaluando.</p>
+                          <p className="text-slate-500 text-sm font-medium">Define la ponderación institucional para la nota final.</p>
                         </div>
                       </div>
                       
                       <div className="bg-slate-50/50 p-8 rounded-[2rem] border-2 border-slate-100 space-y-8">
-                        <div className="space-y-3">
-                          <Label className="font-black text-slate-400 text-[10px] uppercase tracking-[0.2em]">Código del Indicador</Label>
-                          <Input 
-                            value={newIndicatorCode} 
-                            onChange={e => setNewIndicatorCode(e.target.value.toUpperCase())} 
-                            placeholder="Ej: C1.I1" 
-                            className="h-14 border-none shadow-inner rounded-xl font-black text-xl text-primary uppercase bg-white" 
-                          />
+                        <div className="grid grid-cols-3 gap-6">
+                          <div className="col-span-2 space-y-3">
+                            <Label className="font-black text-slate-400 text-[10px] uppercase tracking-[0.2em]">Código del Indicador</Label>
+                            <Input 
+                              value={newIndicatorCode} 
+                              onChange={e => setNewIndicatorCode(e.target.value.toUpperCase())} 
+                              placeholder="Ej: C1.I1" 
+                              className="h-14 border-none shadow-inner rounded-xl font-black text-xl text-primary uppercase bg-white" 
+                            />
+                          </div>
+                          <div className="space-y-3">
+                            <Label className="font-black text-slate-400 text-[10px] uppercase tracking-[0.2em] flex items-center gap-2">
+                              <Percent className="h-3 w-3" /> Peso Final (%)
+                            </Label>
+                            <Input 
+                              type="number"
+                              value={newIndicatorWeight || ""} 
+                              onChange={e => setNewIndicatorWeight(parseInt(e.target.value) || 0)} 
+                              placeholder="Ej: 30" 
+                              className="h-14 border-none shadow-inner rounded-xl font-black text-center text-xl text-indigo-600 bg-white" 
+                            />
+                          </div>
                         </div>
                         
                         <div className="space-y-3">
@@ -364,7 +434,7 @@ export default function AcademicGradebookPage() {
                           <Textarea 
                             value={newIndicatorDescription} 
                             onChange={e => setNewIndicatorDescription(e.target.value)} 
-                            placeholder="Describe el logro esperado del alumno..." 
+                            placeholder="Describe el logro esperado..." 
                             className="h-32 border-none shadow-inner rounded-2xl resize-none font-medium text-base bg-white p-6" 
                           />
                         </div>
@@ -374,7 +444,7 @@ export default function AcademicGradebookPage() {
                         <div className="space-y-4 pt-6 border-t border-slate-100">
                           <div className="flex items-center gap-2 justify-center">
                             <History className="h-4 w-4 text-slate-400" />
-                            <Label className="font-black text-[10px] uppercase text-slate-400 tracking-widest block">Indicadores Usados en este Curso:</Label>
+                            <Label className="font-black text-[10px] uppercase text-slate-400 tracking-widest block">Reutilizar del Silabo:</Label>
                           </div>
                           <div className="flex flex-wrap justify-center gap-3">
                             {existingIndicators.map((ind, i) => (
@@ -383,10 +453,17 @@ export default function AcademicGradebookPage() {
                                 variant="outline" 
                                 size="sm" 
                                 className="h-auto py-3 px-6 rounded-2xl border-2 hover:border-primary/30 hover:bg-primary/5 transition-all" 
-                                onClick={() => { setNewIndicatorCode(ind.code); setNewIndicatorDescription(ind.desc); }}
+                                onClick={() => { 
+                                  setNewIndicatorCode(ind.code); 
+                                  setNewIndicatorDescription(ind.desc);
+                                  setNewIndicatorWeight(ind.weight);
+                                }}
                               >
                                 <div className="flex flex-col items-start">
-                                  <span className="font-black text-xs text-primary">{ind.code}</span>
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-black text-xs text-primary">{ind.code}</span>
+                                    <Badge variant="outline" className="text-[8px] h-4">{ind.weight}%</Badge>
+                                  </div>
                                   <span className="text-[9px] text-slate-400 font-bold uppercase truncate w-32">{ind.desc}</span>
                                 </div>
                               </Button>
@@ -403,9 +480,9 @@ export default function AcademicGradebookPage() {
                     <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
                       <div className="space-y-1">
                         <Label className="font-black text-xs uppercase text-primary tracking-widest flex items-center gap-2">
-                          <div className="h-2 w-2 rounded-full bg-primary" /> 2. Tipo de Evaluación
+                          <div className="h-2 w-2 rounded-full bg-primary" /> 2. Selección del Instrumento
                         </Label>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest ml-4">Selecciona el método o digitaliza uno</p>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest ml-4">Configura el método y el peso dentro del indicador</p>
                       </div>
                       
                       <div className="flex gap-4">
@@ -447,10 +524,16 @@ export default function AcademicGradebookPage() {
                       ))}
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-slate-50">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6 pt-4 border-t border-slate-50">
                       <div className="md:col-span-2 space-y-3">
                         <Label className="font-black text-[11px] uppercase text-primary tracking-widest">Nombre de la Actividad</Label>
-                        <Input value={newColName} onChange={e => setNewColName(e.target.value)} placeholder="Ej. Tarea Académica 01" className="h-14 rounded-xl text-lg font-bold border-2" />
+                        <Input value={newColName} onChange={e => setNewColName(e.target.value)} placeholder="Ej. Práctica Calificada 01" className="h-14 rounded-xl text-lg font-bold border-2" />
+                      </div>
+                      <div className="space-y-3">
+                        <Label className="font-black text-[11px] uppercase text-indigo-600 tracking-widest flex items-center gap-2">
+                          <Percent className="h-3 w-3" /> Peso en {newIndicatorCode || "Indicador"}
+                        </Label>
+                        <Input type="number" value={newInstrumentWeight || ""} onChange={e => setNewInstrumentWeight(parseInt(e.target.value) || 0)} placeholder="Ej: 40" className="h-14 rounded-xl text-center text-lg font-black text-indigo-600 border-2" />
                       </div>
                       {newColType === 'manual' && (
                         <div className="space-y-3 animate-in fade-in zoom-in-95">
@@ -469,7 +552,7 @@ export default function AcademicGradebookPage() {
                         <div className="p-3 bg-primary text-white rounded-xl"><ClipboardCheck className="h-5 w-5" /></div>
                         <div>
                           <p className="font-black text-[10px] uppercase text-slate-400 tracking-widest">{newColType.toUpperCase()}</p>
-                          <p className="font-bold text-slate-700 text-lg">{newColName}</p>
+                          <p className="font-bold text-slate-700 text-lg">{newColName} <Badge className="ml-2 bg-indigo-100 text-indigo-700 border-none">{newInstrumentWeight}%</Badge></p>
                         </div>
                       </div>
                       {newColType === 'cotejo' && (
@@ -608,13 +691,16 @@ export default function AcademicGradebookPage() {
                   {columns.map(c => (
                     <TableHead key={c.id} className="text-center font-black text-[10px] uppercase text-slate-400 tracking-widest px-6 border-l min-w-[160px]">
                       <div className="flex flex-col items-center gap-1">
-                        <Badge variant="outline" className="border-primary/20 text-primary text-[8px] font-black">{c.indicatorCode}</Badge>
+                        <div className="flex items-center gap-1">
+                          <Badge variant="outline" className="border-primary/20 text-primary text-[8px] font-black">{c.indicatorCode}</Badge>
+                          {c.instrumentWeight > 0 && <Badge className="bg-indigo-50 text-indigo-600 border-none text-[8px]">{c.instrumentWeight}%</Badge>}
+                        </div>
                         <span className="text-slate-900 truncate w-32 font-extrabold">{c.name}</span>
                         <span className="text-[8px] text-slate-400 font-bold">Máx: {c.maxPoints} pts</span>
                       </div>
                     </TableHead>
                   ))}
-                  <TableHead className="text-center font-black text-[10px] uppercase text-primary tracking-widest bg-primary/5 w-[120px] border-l">Promedio</TableHead>
+                  <TableHead className="text-center font-black text-[10px] uppercase text-primary tracking-widest bg-primary/5 w-[120px] border-l">Promedio Final (NF)</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
