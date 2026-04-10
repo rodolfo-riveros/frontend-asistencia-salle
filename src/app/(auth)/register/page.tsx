@@ -4,51 +4,21 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { GraduationCap, Mail, User, CreditCard, BookOpen, ArrowLeft, ShieldCheck, Loader2, ChevronDown } from 'lucide-react';
+import { GraduationCap, Mail, User, CreditCard, BookOpen, ArrowLeft, ShieldCheck, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
 import { api } from '@/lib/api';
-
-// Programas institucionales por defecto (Fallback si la API falla o está protegida)
-const FALLBACK_PROGRAMS = [
-  { id: "1", nombre: "Desarrollo de Sistemas de Información" },
-  { id: "2", nombre: "Contabilidad" },
-  { id: "3", nombre: "Guía Oficial de Turismo" },
-  { id: "4", nombre: "Producción Agropecuaria" },
-  { id: "5", nombre: "Enfermería Técnica" }
-];
 
 export default function RegisterPage() {
   const router = useRouter();
   const [currentYear, setCurrentYear] = React.useState<number | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
-  const [programs, setPrograms] = React.useState<any[]>([]);
-  const [isLoadingPrograms, setIsLoadingPrograms] = React.useState(true);
 
   React.useEffect(() => {
     setCurrentYear(new Date().getFullYear());
-    
-    // Intentar cargar programas de la base de datos
-    const fetchPrograms = async () => {
-      try {
-        const data = await api.get<any[]>('/programas/');
-        if (Array.isArray(data) && data.length > 0) {
-          setPrograms(data);
-        } else {
-          setPrograms(FALLBACK_PROGRAMS);
-        }
-      } catch (error) {
-        console.log("Usando programas de respaldo (API protegida o inaccesible)");
-        setPrograms(FALLBACK_PROGRAMS);
-      } finally {
-        setIsLoadingPrograms(false);
-      }
-    };
-    fetchPrograms();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -61,9 +31,7 @@ export default function RegisterPage() {
     const firstname = formData.get('firstname') as string;
     const lastname = formData.get('lastname') as string;
     const dni = formData.get('dni') as string;
-    const programId = formData.get('program_id') as string;
-    
-    const selectedProgram = programs.find(p => p.id === programId)?.nombre || programId;
+    const especialidad = formData.get('especialidad') as string;
 
     try {
       // 1. Crear usuario en Supabase Auth
@@ -84,11 +52,11 @@ export default function RegisterPage() {
       if (!data.user) throw new Error("No se pudo crear la cuenta de usuario.");
 
       // 2. Registrar automáticamente en la tabla de docentes
-      // Nota: Usamos el ID del usuario recién creado
+      // Nota: Usamos el ID del usuario recién creado para vincular la cuenta
       await api.post('/docentes/', {
         id: data.user.id,
         nombre: `${lastname}, ${firstname}`.trim().toUpperCase(),
-        especialidad: selectedProgram,
+        especialidad: especialidad.trim().toUpperCase(),
         es_transversal: false
       });
 
@@ -206,19 +174,10 @@ export default function RegisterPage() {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-[10px] font-bold uppercase tracking-widest text-slate-400" htmlFor="program_id">Programa de Estudio</Label>
+                <Label className="text-[10px] font-bold uppercase tracking-widest text-slate-400" htmlFor="especialidad">Especialidad / Programa</Label>
                 <div className="relative group">
-                  <BookOpen className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 z-10" />
-                  <Select name="program_id" required>
-                    <SelectTrigger className="bg-slate-50 border-none pl-11 py-6 focus:ring-1 focus:ring-primary h-auto">
-                      <SelectValue placeholder={isLoadingPrograms ? "Cargando programas..." : "Selecciona tu programa"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {programs.map((prog) => (
-                        <SelectItem key={prog.id} value={prog.id}>{prog.nombre}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <BookOpen className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-primary" />
+                  <Input className="bg-slate-50 border-none pl-11 py-5" id="especialidad" name="especialidad" placeholder="Ej. Sistemas, Contabilidad" required />
                 </div>
               </div>
 
