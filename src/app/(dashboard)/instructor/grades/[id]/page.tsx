@@ -66,8 +66,8 @@ interface Column {
   name: string
   indicatorCode: string
   indicatorDescription: string
-  indicatorWeight: number // Peso opcional del indicador en la nota final
-  instrumentWeight: number // Peso opcional de la actividad en el indicador
+  indicatorWeight: number 
+  instrumentWeight: number 
   type: ColumnType
   instrumentId: string
   maxPoints: number
@@ -123,7 +123,6 @@ export default function AcademicGradebookPage() {
   const [isScanning, setIsScanning] = React.useState(false)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
-  // Memoize unique indicators for reuse
   const existingIndicators = React.useMemo(() => {
     const map = new Map<string, { code: string, desc: string, weight: number }>();
     columns.forEach(c => {
@@ -164,8 +163,6 @@ export default function AcademicGradebookPage() {
     if (!file) return
 
     setIsScanning(true)
-    toast({ title: "Iniciando Escaneo IA", description: "Procesando imagen del instrumento..." })
-
     try {
       const reader = new FileReader()
       reader.onload = async () => {
@@ -189,11 +186,9 @@ export default function AcademicGradebookPage() {
         setSetupStep(2)
         toast({ title: "Digitalización Exitosa", description: `Instrumento ${analysis.type.toUpperCase()} cargado.` })
       }
-      reader.onerror = () => { throw new Error("Error al leer el archivo."); }
       reader.readAsDataURL(file)
     } catch (err: any) {
-      console.error(err)
-      toast({ variant: "destructive", title: "Fallo en IA", description: err.message || "No se pudo digitalizar el instrumento." })
+      toast({ variant: "destructive", title: "Fallo en IA", description: "No se pudo procesar la imagen." })
     } finally {
       setIsScanning(false)
       if (fileInputRef.current) fileInputRef.current.value = ""
@@ -300,7 +295,6 @@ export default function AcademicGradebookPage() {
     const studentGrades = grades[studentId] || {}
     if (columns.length === 0) return 0
 
-    // Agrupar por indicadores para el cálculo de fórmula institucional
     const indicatorsMap = new Map<string, { totalWeighted: number, totalWeight: number, indicatorWeight: number, cols: Column[] }>()
     
     columns.forEach(c => {
@@ -383,94 +377,105 @@ export default function AcademicGradebookPage() {
           <DialogContent className="max-w-5xl p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl flex flex-col max-h-[95vh]">
             <div className="bg-primary p-8 text-white shrink-0">
               <Badge className="bg-white/20 text-white mb-3 border-none font-bold uppercase tracking-widest">IA ASSESSMENT ENGINE</Badge>
-              <h3 className="text-2xl font-black uppercase tracking-tight">Cargar Instrumento</h3>
+              <h3 className="text-2xl font-black uppercase tracking-tight">Configuración Técnica</h3>
               <p className="text-blue-100/80 font-bold uppercase text-[10px] tracking-[0.2em] mt-1">
                 {setupStep === 0 ? "Paso 1: Fundamentación Curricular" : setupStep === 1 ? "Paso 2: Tipo de Evaluación" : "Paso 3: Definición de Criterios"}
               </p>
             </div>
 
             <ScrollArea className="flex-grow">
-              <div className="p-10 space-y-8 bg-white">
+              <div className="p-10 bg-white">
                 {setupStep === 0 && (
-                  <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <div className="space-y-6 max-w-3xl mx-auto">
-                      <div className="flex flex-col items-center text-center gap-4 mb-8">
-                        <div className="w-16 h-16 rounded-2xl bg-primary/5 flex items-center justify-center text-primary">
-                          <BookOpen className="h-8 w-8" />
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    {/* Columna Izquierda: Formulario */}
+                    <div className="space-y-6">
+                      <div className="flex items-center gap-4 mb-4">
+                        <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+                          <BookOpen className="h-6 w-6" />
                         </div>
                         <div>
-                          <h4 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Indicador de Logro</h4>
-                          <p className="text-slate-500 text-sm font-medium">Define la ponderación institucional para la nota final.</p>
+                          <h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Nuevo Indicador</h4>
+                          <p className="text-slate-500 text-xs font-medium">Define los parámetros curriculares.</p>
                         </div>
                       </div>
                       
-                      <div className="bg-slate-50/50 p-8 rounded-[2rem] border-2 border-slate-100 space-y-8">
-                        <div className="grid grid-cols-3 gap-6">
-                          <div className="col-span-2 space-y-3">
-                            <Label className="font-black text-slate-400 text-[10px] uppercase tracking-[0.2em]">Código del Indicador</Label>
+                      <div className="bg-slate-50/50 p-6 rounded-[2rem] border-2 border-slate-100 space-y-6">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label className="font-black text-slate-400 text-[9px] uppercase tracking-[0.2em]">Código ILC</Label>
                             <Input 
                               value={newIndicatorCode} 
                               onChange={e => setNewIndicatorCode(e.target.value.toUpperCase())} 
                               placeholder="Ej: C1.I1" 
-                              className="h-14 border-none shadow-inner rounded-xl font-black text-xl text-primary uppercase bg-white" 
+                              className="h-12 border-none shadow-inner rounded-xl font-black text-lg text-primary uppercase bg-white" 
                             />
                           </div>
-                          <div className="space-y-3">
-                            <Label className="font-black text-slate-400 text-[10px] uppercase tracking-[0.2em] flex items-center gap-2">
-                              <Percent className="h-3 w-3" /> Peso Final (%)
+                          <div className="space-y-2">
+                            <Label className="font-black text-slate-400 text-[9px] uppercase tracking-[0.2em] flex items-center gap-2">
+                              <Percent className="h-3 w-3" /> Peso (%)
                             </Label>
                             <Input 
                               type="number"
                               value={newIndicatorWeight || ""} 
                               onChange={e => setNewIndicatorWeight(parseInt(e.target.value) || 0)} 
                               placeholder="Ej: 30" 
-                              className="h-14 border-none shadow-inner rounded-xl font-black text-center text-xl text-indigo-600 bg-white" 
+                              className="h-12 border-none shadow-inner rounded-xl font-black text-center text-lg text-indigo-600 bg-white" 
                             />
                           </div>
                         </div>
                         
-                        <div className="space-y-3">
-                          <Label className="font-black text-slate-400 text-[10px] uppercase tracking-[0.2em]">Descripción de la Capacidad</Label>
+                        <div className="space-y-2">
+                          <Label className="font-black text-slate-400 text-[9px] uppercase tracking-[0.2em]">Descripción de la Capacidad</Label>
                           <Textarea 
                             value={newIndicatorDescription} 
                             onChange={e => setNewIndicatorDescription(e.target.value)} 
                             placeholder="Describe el logro esperado..." 
-                            className="h-32 border-none shadow-inner rounded-2xl resize-none font-medium text-base bg-white p-6" 
+                            className="h-32 border-none shadow-inner rounded-2xl resize-none font-medium text-sm bg-white p-4" 
                           />
                         </div>
                       </div>
+                    </div>
 
-                      {existingIndicators.length > 0 && (
-                        <div className="space-y-4 pt-6 border-t border-slate-100">
-                          <div className="flex items-center gap-2 justify-center">
-                            <History className="h-4 w-4 text-slate-400" />
-                            <Label className="font-black text-[10px] uppercase text-slate-400 tracking-widest block">Reutilizar del Silabo:</Label>
-                          </div>
-                          <div className="flex flex-wrap justify-center gap-3">
+                    {/* Columna Derecha: Biblioteca */}
+                    <div className="space-y-6">
+                      <div className="flex items-center gap-4 mb-4">
+                        <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                          <History className="h-6 w-6" />
+                        </div>
+                        <div>
+                          <h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Biblioteca del Sílabo</h4>
+                          <p className="text-slate-500 text-xs font-medium">Reutiliza indicadores previos.</p>
+                        </div>
+                      </div>
+
+                      <div className="bg-white rounded-[2rem] border-2 border-dashed border-slate-200 p-6 min-h-[300px]">
+                        {existingIndicators.length > 0 ? (
+                          <div className="grid gap-3">
                             {existingIndicators.map((ind, i) => (
-                              <Button 
+                              <button 
                                 key={i} 
-                                variant="outline" 
-                                size="sm" 
-                                className="h-auto py-3 px-6 rounded-2xl border-2 hover:border-primary/30 hover:bg-primary/5 transition-all" 
+                                className="flex flex-col items-start p-4 rounded-2xl border-2 border-slate-50 hover:border-primary/30 hover:bg-primary/5 transition-all text-left w-full group" 
                                 onClick={() => { 
                                   setNewIndicatorCode(ind.code); 
                                   setNewIndicatorDescription(ind.desc);
                                   setNewIndicatorWeight(ind.weight);
                                 }}
                               >
-                                <div className="flex flex-col items-start">
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-black text-xs text-primary">{ind.code}</span>
-                                    <Badge variant="outline" className="text-[8px] h-4">{ind.weight}%</Badge>
-                                  </div>
-                                  <span className="text-[9px] text-slate-400 font-bold uppercase truncate w-32">{ind.desc}</span>
+                                <div className="flex items-center justify-between w-full mb-1">
+                                  <span className="font-black text-sm text-primary group-hover:scale-105 transition-transform">{ind.code}</span>
+                                  <Badge variant="outline" className="text-[10px] font-black border-primary/20 text-primary">{ind.weight}%</Badge>
                                 </div>
-                              </Button>
+                                <p className="text-[11px] text-slate-500 font-medium line-clamp-2 leading-snug">{ind.desc}</p>
+                              </button>
                             ))}
                           </div>
-                        </div>
-                      )}
+                        ) : (
+                          <div className="flex flex-col items-center justify-center h-full text-slate-300 py-10">
+                            <History className="h-12 w-12 opacity-10 mb-2" />
+                            <p className="text-[10px] font-black uppercase tracking-widest">Sin indicadores previos</p>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -700,7 +705,7 @@ export default function AcademicGradebookPage() {
                       </div>
                     </TableHead>
                   ))}
-                  <TableHead className="text-center font-black text-[10px] uppercase text-primary tracking-widest bg-primary/5 w-[120px] border-l">Promedio Final (NF)</TableHead>
+                  <TableHead className="text-center font-black text-[10px] uppercase text-primary tracking-widest bg-primary/5 w-[120px] border-l">Nota Final (NF)</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
