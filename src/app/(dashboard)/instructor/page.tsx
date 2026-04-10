@@ -35,7 +35,7 @@ import { toast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
 import { supabase } from "@/lib/supabase"
 import * as XLSX from 'xlsx'
-import jsPDF from 'jsPDF'
+import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
 export default function InstructorDashboard() {
