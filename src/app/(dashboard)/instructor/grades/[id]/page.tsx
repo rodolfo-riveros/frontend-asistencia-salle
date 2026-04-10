@@ -23,7 +23,12 @@ import {
   AlertTriangle,
   GripVertical,
   BookOpen,
-  Info
+  Info,
+  Sparkles,
+  Camera,
+  Upload,
+  Loader2,
+  X
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -47,6 +52,7 @@ import { toast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
 import { getInitials } from "@/lib/utils"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
+import { analyzeInstrument, type AnalyzeInstrumentOutput } from "@/ai/flows/analyze-instrument-flow"
 
 // --- Tipos ---
 type ColumnType = 'manual' | 'cotejo' | 'rubrica'
@@ -79,8 +85,8 @@ interface Instrument {
 interface Column {
   id: string
   name: string
-  indicatorCode: string // Nuevo: Código manual (ej: C1.I1)
-  indicatorDescription: string // Nuevo: Descripción manual
+  indicatorCode: string
+  indicatorDescription: string
   type: ColumnType
   instrumentId: string
 }
@@ -117,7 +123,10 @@ export default function AcademicGradebookPage() {
   const [newColName, setNewColName] = React.useState("")
   const [editorCriteria, setEditorCriteria] = React.useState<any[]>([])
 
-  // Obtener indicadores únicos ya usados en este curso para sugerencias
+  // AI Scanner State
+  const [isScanning, setIsScanning] = React.useState(false)
+  const fileInputRef = React.useRef<HTMLInputElement>(null)
+
   const existingIndicators = React.useMemo(() => {
     const map = new Map<string, string>();
     columns.forEach(c => map.set(c.indicatorCode, c.indicatorDescription));
@@ -145,6 +154,41 @@ export default function AcademicGradebookPage() {
   }, [params.id])
 
   React.useEffect(() => { fetchStudents() }, [fetchStudents])
+
+  const handleAiScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setIsScanning(true)
+    toast({ title: "Analizando Instrumento", description: "La IA está extrayendo los criterios de la imagen..." })
+
+    try {
+      const reader = new FileReader()
+      reader.onload = async () => {
+        const base64 = reader.result as string
+        const analysis = await analyzeInstrument({ photoDataUri: base64 })
+        
+        // Aplicar resultados
+        setNewColType(analysis.type)
+        setNewColName(analysis.name)
+        
+        if (analysis.type === 'cotejo' && analysis.checklistCriteria) {
+          setEditorCriteria(analysis.checklistCriteria.map(c => ({ id: Math.random().toString(), ...c })))
+        } else if (analysis.type === 'rubrica' && analysis.rubricDimensions) {
+          setEditorCriteria(analysis.rubricDimensions.map(d => ({ id: Math.random().toString(), ...d })))
+        }
+
+        setSetupStep(2) // Ir directo al editor para revisión
+        toast({ title: "Digitalización Completa", description: "Revisa los criterios extraídos por la IA." })
+      }
+      reader.readAsDataURL(file)
+    } catch (err) {
+      toast({ variant: "destructive", title: "Error de IA", description: "No se pudo procesar la imagen." })
+    } finally {
+      setIsScanning(false)
+      if (fileInputRef.current) fileInputRef.current.value = ""
+    }
+  }
 
   const addColumn = () => {
     if (newColType === 'cotejo' && totalPointsChecklist !== 20) {
@@ -262,11 +306,22 @@ export default function AcademicGradebookPage() {
           <DialogContent className="max-w-5xl p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl">
             <div className="bg-primary p-10 text-white flex justify-between items-end">
               <div>
-                <Badge className="bg-white/20 text-white mb-4 border-none font-bold">PASO {setupStep + 1} DE 3</Badge>
+                <Badge className="bg-white/20 text-white mb-4 border-none font-bold uppercase tracking-widest">PASO {setupStep + 1} DE 3</Badge>
                 <h3 className="text-3xl font-black uppercase tracking-tight">Nueva Actividad Evaluable</h3>
                 <p className="text-blue-100/80 font-bold uppercase text-[10px] tracking-[0.2em] mt-2">Configura el indicador y el instrumento</p>
               </div>
-              <Layers className="h-16 w-16 text-white/10" />
+              <div className="flex gap-4">
+                <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleAiScan} />
+                <Button 
+                  onClick={() => fileInputRef.current?.click()} 
+                  disabled={isScanning}
+                  className="bg-accent hover:bg-accent/90 text-white font-black uppercase text-[10px] tracking-widest gap-2 h-12 rounded-xl shadow-lg border-2 border-white/10"
+                >
+                  {isScanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                  Digitalizar con IA
+                </Button>
+                <Layers className="h-12 w-12 text-white/10" />
+              </div>
             </div>
 
             <div className="p-10 space-y-8 bg-white min-h-[500px]">
@@ -442,7 +497,7 @@ export default function AcademicGradebookPage() {
                                     setEditorCriteria(next)
                                   }}
                                   className="font-black uppercase text-sm tracking-widest text-slate-800 bg-transparent border-none p-0 h-auto focus-visible:ring-0"
-                                  placeholder="ESCRIBE EL NOMBRE DE LA DIMENSIÓN / CATEGORÍA (Ej. CLASIFICACIÓN TÉCNICA)"
+                                  placeholder="ESCRIBE EL NOMBRE DE LA DIMENSIÓN / CATEGORÍA"
                                 />
                               </div>
                               <Button variant="ghost" size="icon" className="text-red-300 hover:text-red-500 rounded-xl" onClick={() => setEditorCriteria(editorCriteria.filter((_, i) => i !== idx))}><Trash2 className="h-5 w-5" /></Button>
@@ -763,24 +818,5 @@ export default function AcademicGradebookPage() {
         </Card>
       )}
     </div>
-  )
-}
-
-function ActionBtn({ icon: Icon, active, color, onClick }: any) {
-  const styles: any = {
-    green: active ? "bg-emerald-600 text-white scale-110 shadow-lg shadow-emerald-200" : "text-slate-300 hover:text-emerald-600 hover:bg-emerald-50",
-    amber: active ? "bg-amber-500 text-white scale-110 shadow-lg shadow-amber-200" : "text-slate-300 hover:text-amber-600 hover:bg-amber-50",
-    red: active ? "bg-red-600 text-white scale-110 shadow-lg shadow-red-200" : "text-slate-300 hover:text-red-600 hover:bg-red-50",
-    blue: active ? "bg-blue-600 text-white scale-110 shadow-lg shadow-blue-200" : "text-slate-300 hover:text-blue-600 hover:bg-blue-50",
-  }
-  return (
-    <Button 
-      size="icon" 
-      variant="outline" 
-      onClick={onClick} 
-      className={`h-11 w-11 rounded-2xl border-slate-100 transition-all duration-300 ${styles[color]}`}
-    >
-      <Icon className="h-5 w-5" />
-    </Button>
   )
 }
