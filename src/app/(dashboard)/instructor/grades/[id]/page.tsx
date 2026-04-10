@@ -356,19 +356,6 @@ export default function AcademicGradebookPage() {
                   {setupStep === 0 ? "Paso 1: Fundamentación Curricular" : setupStep === 1 ? "Paso 2: Tipo de Evaluación" : "Paso 3: Definición de Criterios"}
                 </p>
               </div>
-              {setupStep > 0 && (
-                <div className="flex gap-4 animate-in fade-in duration-500">
-                  <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleAiScan} />
-                  <Button 
-                    onClick={() => fileInputRef.current?.click()} 
-                    disabled={isScanning}
-                    className="bg-accent hover:bg-accent/90 text-white font-black uppercase text-[10px] tracking-widest gap-2 h-11 rounded-xl shadow-lg border-2 border-white/10"
-                  >
-                    {isScanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                    Escanear con IA
-                  </Button>
-                </div>
-              )}
             </div>
 
             <ScrollArea className="flex-grow">
@@ -435,38 +422,55 @@ export default function AcademicGradebookPage() {
 
                 {setupStep === 1 && (
                   <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-2">
-                        <div className="h-8 w-1 bg-primary rounded-full" />
-                        <Label className="font-black text-xs uppercase text-primary tracking-widest">2. Tipo de Instrumento Pedagógico</Label>
+                    <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <div className="h-8 w-1 bg-primary rounded-full" />
+                          <Label className="font-black text-xs uppercase text-primary tracking-widest">2. Tipo de Instrumento Pedagógico</Label>
+                        </div>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest ml-3">Selecciona el método de calificación</p>
                       </div>
-                      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                        {[
-                          { id: 'manual', label: 'Nota Directa', icon: FileText },
-                          { id: 'cotejo', label: 'Lista / Test', icon: LayoutList },
-                          { id: 'rubrica', label: 'Rúbrica', icon: Target },
-                          { id: 'escala', label: 'Escala Valor.', icon: Star },
-                          { id: 'anecdotario', label: 'Observación', icon: Quote }
-                        ].map((t) => (
-                          <Button 
-                            key={t.id}
-                            variant="outline" 
-                            className={`h-auto py-6 flex-col gap-2 rounded-2xl border-2 transition-all ${newColType === t.id ? 'border-primary bg-primary/5' : 'hover:border-slate-200'}`}
-                            onClick={() => {
-                              setNewColType(t.id as ColumnType)
-                              if (t.id === 'cotejo' && editorCriteria.length === 0) setEditorCriteria([{ id: '1', description: '', points: 2 }])
-                              if (t.id === 'rubrica' && editorCriteria.length === 0) setEditorCriteria([{ id: '1', category: '', levels: JSON.parse(JSON.stringify(DEFAULT_RUBRIC_LEVELS)) }])
-                              if (t.id === 'escala' && editorCriteria.length === 0) setEditorCriteria([{ id: '1', description: '' }])
-                              if (t.id === 'anecdotario' && editorCriteria.length === 0) setEditorCriteria([{ id: '1', description: 'Participación' }, { id: '2', description: 'Actitud' }])
-                            }}
-                          >
-                            <t.icon className={`h-6 w-6 ${newColType === t.id ? 'text-primary' : 'text-slate-300'}`} />
-                            <span className="font-black text-[9px] uppercase tracking-tighter">{t.label}</span>
-                          </Button>
-                        ))}
+                      
+                      <div className="flex gap-4">
+                        <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleAiScan} />
+                        <Button 
+                          onClick={() => fileInputRef.current?.click()} 
+                          disabled={isScanning}
+                          className="bg-accent hover:bg-accent/90 text-white font-black uppercase text-[10px] tracking-widest gap-2 h-12 rounded-2xl shadow-lg shadow-accent/20 px-8 transition-all hover:scale-105 active:scale-95"
+                        >
+                          {isScanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                          Escanear con IA
+                        </Button>
                       </div>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                      {[
+                        { id: 'manual', label: 'Nota Directa', icon: FileText },
+                        { id: 'cotejo', label: 'Lista / Test', icon: LayoutList },
+                        { id: 'rubrica', label: 'Rúbrica', icon: Target },
+                        { id: 'escala', label: 'Escala Valor.', icon: Star },
+                        { id: 'anecdotario', label: 'Observación', icon: Quote }
+                      ].map((t) => (
+                        <Button 
+                          key={t.id}
+                          variant="outline" 
+                          className={`h-auto py-6 flex-col gap-2 rounded-2xl border-2 transition-all ${newColType === t.id ? 'border-primary bg-primary/5' : 'hover:border-slate-200'}`}
+                          onClick={() => {
+                            setNewColType(t.id as ColumnType)
+                            if (t.id === 'cotejo' && editorCriteria.length === 0) setEditorCriteria([{ id: '1', description: '', points: 2 }])
+                            if (t.id === 'rubrica' && editorCriteria.length === 0) setEditorCriteria([{ id: '1', category: '', levels: JSON.parse(JSON.stringify(DEFAULT_RUBRIC_LEVELS)) }])
+                            if (t.id === 'escala' && editorCriteria.length === 0) setEditorCriteria([{ id: '1', description: '' }])
+                            if (t.id === 'anecdotario' && editorCriteria.length === 0) setEditorCriteria([{ id: '1', description: 'Participación' }, { id: '2', description: 'Actitud' }])
+                          }}
+                        >
+                          <t.icon className={`h-6 w-6 ${newColType === t.id ? 'text-primary' : 'text-slate-300'}`} />
+                          <span className="font-black text-[9px] uppercase tracking-tighter">{t.label}</span>
+                        </Button>
+                      ))}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-slate-50">
                       <div className="md:col-span-2 space-y-3">
                         <Label className="font-black text-[11px] uppercase text-primary tracking-widest">Nombre de la Actividad</Label>
                         <Input value={newColName} onChange={e => setNewColName(e.target.value)} placeholder="Ej. Práctica Calificada de Redes" className="h-14 rounded-xl text-lg font-bold border-2" />
