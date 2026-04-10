@@ -53,7 +53,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
-import { getInitials } from "@/lib/utils"
+import { getInitials, cn } from "@/lib/utils"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import { analyzeInstrument, type AnalyzeInstrumentOutput } from "@/ai/flows/analyze-instrument-flow"
 
@@ -313,7 +313,6 @@ export default function AcademicGradebookPage() {
     const studentGrades = grades[studentId] || {}
     if (columns.length === 0) return 0
     let total = 0
-    // Normalizar todo a base 20 para el promedio final institucional
     columns.forEach(c => { 
       const val = studentGrades[c.id] || 0
       const normalized = (val / c.maxPoints) * 20
@@ -695,7 +694,7 @@ export default function AcademicGradebookPage() {
                                       </div>
 
                                       <div className="flex-grow flex overflow-hidden">
-                                        <ScrollArea className="w-2/3 p-10 bg-slate-50/50">
+                                        <ScrollArea className={cn("p-10 bg-slate-50/50", activeEval.column.type === 'anecdotario' ? "w-2/3" : "w-full")}>
                                           {activeEval.column.type === 'cotejo' || activeEval.column.type === 'anecdotario' ? (
                                             <div className="space-y-3">
                                               {instruments[activeEval.column.instrumentId].criteria.map((cr: any, i: number) => (
@@ -721,16 +720,19 @@ export default function AcademicGradebookPage() {
                                                       <Button 
                                                         key={lvl.label}
                                                         variant="outline"
-                                                        className={`h-auto flex-col gap-3 p-4 rounded-2xl border-2 transition-all text-left items-start ${
+                                                        className={cn(
+                                                          "h-auto flex-col gap-3 p-4 rounded-2xl border-2 transition-all text-left items-start",
                                                           evalData[i] === lvl.points ? 'border-primary bg-primary/5 ring-4 ring-primary/5' : 'bg-white hover:border-slate-200'
-                                                        }`}
+                                                        )}
                                                         onClick={() => setEvalData(p => ({ ...p, [i]: lvl.points }))}
                                                       >
-                                                        <div className="flex justify-between w-full">
-                                                          <span className="font-black text-[8px] uppercase tracking-widest">{lvl.label}</span>
-                                                          <span className="font-black text-xs text-slate-900">{lvl.points} pts</span>
+                                                        <div className="flex justify-between w-full mb-1">
+                                                          <span className="font-black text-[8px] uppercase tracking-widest text-slate-400">{lvl.label}</span>
+                                                          <span className="font-black text-xs text-primary">{lvl.points} pts</span>
                                                         </div>
-                                                        <p className="text-[10px] leading-tight text-slate-500 font-medium h-12 overflow-hidden">{lvl.description || '...'}</p>
+                                                        <p className="text-[10px] leading-relaxed text-slate-600 font-medium break-words w-full">
+                                                          {lvl.description || 'Sin descripción definida'}
+                                                        </p>
                                                       </Button>
                                                     ))}
                                                   </div>
@@ -760,19 +762,21 @@ export default function AcademicGradebookPage() {
                                           )}
                                         </ScrollArea>
                                         
-                                        <div className="w-1/3 p-10 bg-white border-l space-y-6">
-                                          <div className="space-y-3">
-                                            <Label className="font-black text-xs uppercase text-slate-400 flex items-center gap-2">
-                                              <MessageSquare className="h-4 w-4" /> Observaciones del Docente
-                                            </Label>
-                                            <Textarea 
-                                              value={evalComment} 
-                                              onChange={e => setEvalComment(e.target.value)} 
-                                              placeholder="Escribe comentarios sobre el desempeño del alumno..." 
-                                              className="h-[400px] rounded-2xl border-2 resize-none p-6 font-medium italic text-slate-600"
-                                            />
+                                        {activeEval.column.type === 'anecdotario' && (
+                                          <div className="w-1/3 p-10 bg-white border-l space-y-6">
+                                            <div className="space-y-3">
+                                              <Label className="font-black text-xs uppercase text-slate-400 flex items-center gap-2">
+                                                <MessageSquare className="h-4 w-4" /> Observaciones del Docente
+                                              </Label>
+                                              <Textarea 
+                                                value={evalComment} 
+                                                onChange={e => setEvalComment(e.target.value)} 
+                                                placeholder="Escribe comentarios sobre el desempeño del alumno..." 
+                                                className="h-[400px] rounded-2xl border-2 resize-none p-6 font-medium italic text-slate-600"
+                                              />
+                                            </div>
                                           </div>
-                                        </div>
+                                        )}
                                       </div>
 
                                       <div className="p-10 bg-white border-t flex justify-end gap-4 shrink-0">
