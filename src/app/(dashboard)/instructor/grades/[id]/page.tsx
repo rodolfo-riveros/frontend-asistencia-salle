@@ -576,7 +576,12 @@ export default function AcademicGradebookPage() {
                         <div className="p-3 bg-primary text-white rounded-xl"><ClipboardCheck className="h-5 w-5" /></div>
                         <div>
                           <p className="font-black text-[10px] uppercase text-slate-400 tracking-widest">{newColType.toUpperCase()}</p>
-                          <p className="font-bold text-slate-700 text-lg">{newColName} <Badge className="ml-2 bg-indigo-100 text-indigo-700 border-none">{newInstrumentWeight}%</Badge></p>
+                          <div className="font-bold text-slate-700 text-lg flex items-center">
+                            {newColName} 
+                            <Badge className="ml-2 bg-indigo-100 text-indigo-700 border-none">
+                              {newInstrumentWeight}%
+                            </Badge>
+                          </div>
                         </div>
                       </div>
                       {newColType === 'cotejo' && (
@@ -763,13 +768,17 @@ export default function AcademicGradebookPage() {
                                   </Button>
                                 </DialogTrigger>
                                 <DialogContent className="max-w-6xl p-0 overflow-hidden border-none shadow-2xl rounded-[3rem] flex flex-col h-[90vh]">
+                                  <div className="sr-only">
+                                    <DialogTitle>Evaluación de {s.nombre}</DialogTitle>
+                                    <DialogDescription>Panel de calificación para el instrumento {c.name}</DialogDescription>
+                                  </div>
                                   {activeEval && (
                                     <>
                                       <div className="bg-primary p-10 text-white flex justify-between items-center shrink-0">
                                         <div className="space-y-2">
                                           <Badge className="bg-white/20 text-white font-black uppercase text-[10px]">{activeEval.column.type.toUpperCase()}</Badge>
-                                          <DialogTitle className="text-3xl font-black uppercase tracking-tighter">{activeEval.student.nombre}</DialogTitle>
-                                          <DialogDescription className="text-blue-100/80 font-bold uppercase text-[10px] tracking-widest">{activeEval.column.name}</DialogDescription>
+                                          <h3 className="text-3xl font-black uppercase tracking-tighter">{activeEval.student.nombre}</h3>
+                                          <p className="text-blue-100/80 font-bold uppercase text-[10px] tracking-widest">{activeEval.column.name}</p>
                                         </div>
                                         <div className="bg-white/10 p-6 rounded-2xl border-2 border-white/10 text-center min-w-[140px]">
                                           <p className="text-[9px] font-black uppercase text-blue-200 mb-1">Nota Preliminar</p>
