@@ -166,30 +166,44 @@ export default function AcademicGradebookPage() {
     setIsScanning(true)
     try {
       const reader = new FileReader()
-      reader.onload = async () => {
-        const base64 = reader.result as string
-        const analysis = await analyzeInstrument({ photoDataUri: base64 })
-        
-        setNewColType(analysis.type)
-        setNewColName(analysis.name)
-        
-        if (analysis.type === 'cotejo' && analysis.checklistCriteria) {
-          setEditorCriteria(analysis.checklistCriteria.map(c => ({ id: Math.random().toString(), ...c })))
-        } else if (analysis.type === 'rubrica' && analysis.rubricDimensions) {
-          setEditorCriteria(analysis.rubricDimensions.map(d => ({ id: Math.random().toString(), ...d })))
-        } else if (analysis.type === 'escala' && analysis.checklistCriteria) {
-          setEditorCriteria(analysis.checklistCriteria.map(c => ({ id: Math.random().toString(), description: c.description })))
-          if (analysis.scaleLevels) setEditorScaleLevels(analysis.scaleLevels)
-        } else if (analysis.type === 'anecdotario' && analysis.checklistCriteria) {
-          setEditorCriteria(analysis.checklistCriteria.map(c => ({ id: Math.random().toString(), description: c.description })))
+      const analysisPromise = new Promise<any>((resolve, reject) => {
+        reader.onload = async () => {
+          try {
+            const base64 = reader.result as string
+            const analysis = await analyzeInstrument({ photoDataUri: base64 })
+            resolve(analysis)
+          } catch (error) {
+            reject(error)
+          }
         }
+        reader.onerror = () => reject(new Error("Error al leer el archivo."))
+        reader.readAsDataURL(file)
+      })
 
-        setSetupStep(2)
-        toast({ title: "Digitalización Exitosa", description: `Instrumento ${analysis.type.toUpperCase()} cargado.` })
+      const analysis = await analysisPromise
+      
+      setNewColType(analysis.type)
+      setNewColName(analysis.name)
+      
+      if (analysis.type === 'cotejo' && analysis.checklistCriteria) {
+        setEditorCriteria(analysis.checklistCriteria.map((c: any) => ({ id: Math.random().toString(), ...c })))
+      } else if (analysis.type === 'rubrica' && analysis.rubricDimensions) {
+        setEditorCriteria(analysis.rubricDimensions.map((d: any) => ({ id: Math.random().toString(), ...d })))
+      } else if (analysis.type === 'escala' && analysis.checklistCriteria) {
+        setEditorCriteria(analysis.checklistCriteria.map((c: any) => ({ id: Math.random().toString(), description: c.description })))
+        if (analysis.scaleLevels) setEditorScaleLevels(analysis.scaleLevels)
+      } else if (analysis.type === 'anecdotario' && analysis.checklistCriteria) {
+        setEditorCriteria(analysis.checklistCriteria.map((c: any) => ({ id: Math.random().toString(), description: c.description })))
       }
-      reader.readAsDataURL(file)
+
+      setSetupStep(2)
+      toast({ title: "Digitalización Exitosa", description: `Instrumento ${analysis.type.toUpperCase()} cargado correctamente.` })
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Fallo en IA", description: "No se pudo procesar la imagen." })
+      toast({ 
+        variant: "destructive", 
+        title: "Estamos un poco lentos", 
+        description: "El procesamiento está demorando más de lo habitual. Por favor, intenta subir la imagen nuevamente en unos segundos." 
+      })
     } finally {
       setIsScanning(false)
       if (fileInputRef.current) fileInputRef.current.value = ""
@@ -506,7 +520,7 @@ export default function AcademicGradebookPage() {
                           disabled={isScanning}
                           className={cn(
                             "h-auto py-6 flex-col gap-2 rounded-2xl border-2 transition-all",
-                            newColType === t.id ? 'border-primary bg-primary/5' : 'hover:border-slate-200',
+                            newColType === t.id && !isScanning ? 'border-primary bg-primary/5' : 'hover:border-slate-200',
                             isScanning && "opacity-50 grayscale"
                           )}
                           onClick={() => {
@@ -517,7 +531,7 @@ export default function AcademicGradebookPage() {
                             if (t.id === 'anecdotario' && editorCriteria.length === 0) setEditorCriteria([{ id: '1', description: 'Participación' }, { id: '2', description: 'Actitud' }])
                           }}
                         >
-                          <t.icon className={`h-6 w-6 ${newColType === t.id ? 'text-primary' : 'text-slate-300'}`} />
+                          <t.icon className={`h-6 w-6 ${newColType === t.id && !isScanning ? 'text-primary' : 'text-slate-300'}`} />
                           <span className="font-black text-[9px] uppercase tracking-tighter">{t.label}</span>
                         </Button>
                       ))}
@@ -530,7 +544,7 @@ export default function AcademicGradebookPage() {
                           disabled={isScanning}
                           className={cn(
                             "h-full w-full py-6 flex-col gap-2 rounded-2xl border-2 transition-all border-dashed border-accent hover:bg-accent/5",
-                            isScanning && "bg-accent/5 ring-2 ring-accent ring-offset-2"
+                            isScanning && "bg-accent/5 ring-2 ring-accent ring-offset-2 border-solid shadow-inner"
                           )}
                         >
                           {isScanning ? (
@@ -538,7 +552,9 @@ export default function AcademicGradebookPage() {
                           ) : (
                             <Sparkles className="h-6 w-6 text-accent" />
                           )}
-                          <span className="font-black text-[9px] uppercase tracking-tighter text-accent">Digitalizar con IA</span>
+                          <span className="font-black text-[9px] uppercase tracking-tighter text-accent">
+                            {isScanning ? "Procesando..." : "Digitalizar con IA"}
+                          </span>
                         </Button>
                       </div>
                     </div>
@@ -687,7 +703,7 @@ export default function AcademicGradebookPage() {
             </ScrollArea>
 
             <div className="p-8 bg-slate-50 border-t flex justify-between gap-3 items-center shrink-0">
-              <Button variant="ghost" onClick={() => setSetupStep(p => Math.max(0, p - 1))} disabled={setupStep === 0} className="font-black text-[10px] uppercase h-11 px-8 rounded-xl border-2">Anterior</Button>
+              <Button variant="ghost" onClick={() => setSetupStep(p => Math.max(0, p - 1))} disabled={setupStep === 0 || isScanning} className="font-black text-[10px] uppercase h-11 px-8 rounded-xl border-2">Anterior</Button>
               <div className="flex gap-3">
                 {setupStep < 2 ? (
                   <Button className="bg-primary px-10 h-11 font-black text-[10px] uppercase rounded-xl text-white" onClick={() => setSetupStep(p => p + 1)} disabled={(setupStep === 0 && (!newIndicatorCode || !newIndicatorDescription)) || (setupStep === 1 && !newColName) || isScanning}>Siguiente Paso</Button>
@@ -768,10 +784,10 @@ export default function AcademicGradebookPage() {
                                   </Button>
                                 </DialogTrigger>
                                 <DialogContent className="max-w-6xl p-0 overflow-hidden border-none shadow-2xl rounded-[3rem] flex flex-col h-[90vh]">
-                                  <div className="sr-only">
+                                  <DialogHeader className="sr-only">
                                     <DialogTitle>Evaluación de {s.nombre}</DialogTitle>
                                     <DialogDescription>Panel de calificación para el instrumento {c.name}</DialogDescription>
-                                  </div>
+                                  </DialogHeader>
                                   {activeEval && (
                                     <>
                                       <div className="bg-primary p-10 text-white flex justify-between items-center shrink-0">
