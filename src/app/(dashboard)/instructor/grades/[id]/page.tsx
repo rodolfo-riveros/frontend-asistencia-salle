@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -376,7 +375,6 @@ export default function AcademicGradebookPage() {
           </DialogTrigger>
           <DialogContent className="max-w-5xl p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl flex flex-col max-h-[95vh]">
             <div className="bg-primary p-8 text-white shrink-0">
-              <Badge className="bg-white/20 text-white mb-3 border-none font-bold uppercase tracking-widest">IA ASSESSMENT ENGINE</Badge>
               <h3 className="text-2xl font-black uppercase tracking-tight">Configuración Técnica</h3>
               <p className="text-blue-100/80 font-bold uppercase text-[10px] tracking-[0.2em] mt-1">
                 {setupStep === 0 ? "Paso 1: Fundamentación Curricular" : setupStep === 1 ? "Paso 2: Tipo de Evaluación" : "Paso 3: Definición de Criterios"}
