@@ -188,6 +188,9 @@ export default function AcademicGradebookPage() {
       
       setNewColType(analysis.type)
       setNewColName(analysis.name)
+      if (analysis.suggestedWeight) {
+        setNewInstrumentWeight(analysis.suggestedWeight)
+      }
       
       if (analysis.type === 'cotejo' && analysis.checklistCriteria) {
         setEditorCriteria(analysis.checklistCriteria.map((c: any) => ({ id: Math.random().toString(), ...c })))
@@ -201,7 +204,7 @@ export default function AcademicGradebookPage() {
       }
 
       setSetupStep(2)
-      toast({ title: "Digitalización Exitosa", description: `Instrumento ${analysis.type.toUpperCase()} cargado correctamente.` })
+      toast({ title: "Digitalización Exitosa", description: `Instrumento ${analysis.type.toUpperCase()} cargado con éxito.` })
     } catch (err: any) {
       toast({ 
         variant: "destructive", 
@@ -317,7 +320,6 @@ export default function AcademicGradebookPage() {
     const studentGrades = grades[studentId] || {}
     if (columns.length === 0) return 0
 
-    // Agrupar columnas por Indicador
     const indicatorsMap = new Map<string, { indicatorWeight: number, cols: Column[] }>()
     columns.forEach(c => {
       if (!indicatorsMap.has(c.indicatorCode)) {
@@ -336,7 +338,6 @@ export default function AcademicGradebookPage() {
       const totalInstrumentWeight = cols.reduce((sum, c) => sum + c.instrumentWeight, 0)
       
       if (totalInstrumentWeight > 0) {
-        // Cálculo Ponderado de Instrumentos
         let weightedSum = 0
         let weightFactor = 0
         cols.forEach(c => {
@@ -346,7 +347,6 @@ export default function AcademicGradebookPage() {
         })
         indicatorAvg = weightFactor > 0 ? weightedSum / weightFactor : 0
       } else {
-        // Promedio Simple de Instrumentos
         const sum = cols.reduce((s, c) => s + (studentGrades[c.id] || 0) / c.maxPoints * 20, 0)
         indicatorAvg = sum / cols.length
       }
@@ -358,7 +358,6 @@ export default function AcademicGradebookPage() {
     const totalIndicatorWeight = indicatorWeights.reduce((s, w) => s + w, 0)
 
     if (totalIndicatorWeight > 0) {
-      // Cálculo Ponderado de Nota Final (NF)
       let finalSum = 0
       let weightFactor = 0
       for (let i = 0; i < indicatorAverages.length; i++) {
@@ -367,7 +366,6 @@ export default function AcademicGradebookPage() {
       }
       return Math.round(finalSum / (weightFactor || 1))
     } else {
-      // Promedio Simple de Promedios de Indicadores
       const finalSum = indicatorAverages.reduce((s, a) => s + a, 0)
       return Math.round(finalSum / (indicatorAverages.length || 1))
     }
@@ -396,7 +394,6 @@ export default function AcademicGradebookPage() {
   const handleExportPdf = () => {
     const doc = new jsPDF('l', 'mm', 'a4');
     
-    // Encabezado Profesional
     doc.setFontSize(18);
     doc.setTextColor(0, 51, 102);
     doc.text("INSTITUTO DE EDUCACIÓN SUPERIOR LA SALLE - URUBAMBA", 14, 15);

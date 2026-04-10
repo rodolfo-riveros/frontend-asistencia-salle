@@ -33,6 +33,7 @@ const AnalyzeInstrumentOutputSchema = z.object({
   type: z.enum(['cotejo', 'rubrica', 'escala', 'anecdotario']).describe('Identified instrument type.'),
   name: z.string().describe('Suggested name for the evaluation activity.'),
   description: z.string().describe('Pedagogical intent or context.'),
+  suggestedWeight: z.number().optional().describe('Weight percentage (0-100) if found in the document text.'),
   checklistCriteria: z.array(ChecklistItemSchema).optional().describe('Criteria for checklist/test.'),
   rubricDimensions: z.array(RubricDimensionSchema).optional().describe('Dimensions for rubric.'),
   scaleLevels: z.array(z.object({
@@ -61,6 +62,7 @@ ANALIZA LA IMAGEN Y DETECTA:
    - Extrae todos los CRITERIOS o PREGUNTAS.
    - Si es RÚBRICA: Extrae las dimensiones y descripciones de cada nivel.
    - Si es COTEJO: Ajusta los puntos de cada criterio para que la SUMA TOTAL SEA EXACTAMENTE 20.
+   - PESO: Busca si el documento menciona algún porcentaje (ej: "Vale 30%", "Peso: 40"). Si lo encuentras, extráelo como un número en 'suggestedWeight'.
 
 INSTRUCCIONES CRÍTICAS:
 - Responde siempre en ESPAÑOL.
