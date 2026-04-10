@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -6,7 +7,20 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { BookOpen, Users, Clock, ArrowRight, FileSpreadsheet, FileText, Loader2, AlertCircle, Calendar, CheckCircle2, CircleDashed, TrendingUp, Award } from "lucide-react"
+import { 
+  BookOpen, 
+  Users, 
+  ArrowRight, 
+  FileSpreadsheet, 
+  FileText, 
+  Loader2, 
+  AlertCircle, 
+  Calendar, 
+  CheckCircle2, 
+  CircleDashed, 
+  GraduationCap,
+  ClipboardCheck
+} from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
 import { supabase } from "@/lib/supabase"
@@ -77,16 +91,6 @@ export default function InstructorDashboard() {
     fetchData()
   }, [fetchData])
 
-  const getEstadoColor = (estado: string): string => {
-    switch(estado) {
-      case 'P': return '22c55e'; // Verde
-      case 'T': return 'eab308'; // Amarillo
-      case 'J': return '3b82f6'; // Azul
-      case 'F': return 'ef4444'; // Rojo
-      default: return '94a3b8'; // Gris
-    }
-  }
-
   const handleExportExcel = async (asg: any) => {
     setIsExporting(asg.id)
     toast({
@@ -116,7 +120,6 @@ export default function InstructorDashboard() {
 
       const periodName = periods.find(p => p.id === selectedPeriodId)?.nombre || "N/A"
       
-      // Estructura de filas para Excel Profesional
       const rows: any[] = []
       rows.push(["INSTITUTO DE EDUCACIÓN SUPERIOR LA SALLE - URUBAMBA"])
       rows.push(["REPORTE OFICIAL DE ASISTENCIA ACADÉMICA"])
@@ -164,7 +167,6 @@ export default function InstructorDashboard() {
       const wb = XLSX.utils.book_new()
       const ws = XLSX.utils.aoa_to_sheet(rows)
 
-      // Configuración de anchos de columna
       const wscols = [
         { wch: 5 }, { wch: 45 }, { wch: 12 },
         ...uniqueDates.map(() => ({ wch: 8 })), 
@@ -172,7 +174,6 @@ export default function InstructorDashboard() {
       ]
       ws['!cols'] = wscols
 
-      // Segunda hoja: Resumen Individual
       const summaryRows: any[] = [
         ["RESUMEN INDIVIDUAL DE ASISTENCIA"],
         [],
@@ -368,7 +369,7 @@ export default function InstructorDashboard() {
                       <span className="text-[8px] font-black text-slate-400 uppercase">Hoy</span>
                       {attendanceStatus[asg.unidad_id] ? (
                         <span className="text-[9px] font-bold text-emerald-600 flex items-center gap-1">
-                          <CheckCircle2 className="h-3 w-3" /> TOMADA
+                          <CheckCircle2 className="h-3 w-3" /> ASISTENCIA OK
                         </span>
                       ) : (
                         <span className="text-[9px] font-bold text-amber-600 flex items-center gap-1">
@@ -379,30 +380,37 @@ export default function InstructorDashboard() {
                   </div>
                 </div>
               </CardContent>
-              <CardFooter className="bg-slate-50/50 p-6 gap-2 mt-6 border-t">
-                <Button asChild className="flex-1 h-14 font-black shadow-lg shadow-primary/20 bg-primary hover:bg-primary/90 text-white">
-                  <Link href={`/instructor/attendance/${asg.unidad_id}?periodo_id=${selectedPeriodId}`}>
-                    PASAR LISTA <ArrowRight className="ml-2 h-4 w-4" />
-                  </Link>
-                </Button>
-                <div className="flex gap-2">
+              <CardFooter className="bg-slate-50/50 p-6 flex flex-col gap-3 mt-6 border-t">
+                <div className="flex gap-2 w-full">
+                  <Button asChild className="flex-1 h-14 font-black shadow-lg shadow-primary/20 bg-primary hover:bg-primary/90 text-white">
+                    <Link href={`/instructor/attendance/${asg.unidad_id}?periodo_id=${selectedPeriodId}`}>
+                      PASAR LISTA <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline" className="flex-1 h-14 font-black border-primary text-primary hover:bg-primary/5">
+                    <Link href={`/instructor/grades/${asg.unidad_id}?periodo_id=${selectedPeriodId}`}>
+                      <ClipboardCheck className="mr-2 h-4 w-4" /> EVALUAR
+                    </Link>
+                  </Button>
+                </div>
+                <div className="flex gap-2 w-full">
                   <Button 
                     variant="outline" 
-                    className="h-14 w-12 p-0 border-emerald-100 text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
+                    className="flex-1 h-12 gap-2 border-emerald-100 text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all shadow-sm font-bold text-xs"
                     disabled={isExporting === asg.id}
                     onClick={() => handleExportExcel(asg)}
-                    title="Matriz Excel"
                   >
-                    {isExporting === asg.id ? <Loader2 className="h-5 w-5 animate-spin" /> : <FileSpreadsheet className="h-6 w-6" />}
+                    {isExporting === asg.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSpreadsheet className="h-4 w-4" />}
+                    EXCEL MATRIZ
                   </Button>
                   <Button 
                     variant="outline" 
-                    className="h-14 w-12 p-0 border-red-100 text-red-600 hover:bg-red-600 hover:text-white transition-all shadow-sm"
+                    className="flex-1 h-12 gap-2 border-red-100 text-red-600 hover:bg-red-600 hover:text-white transition-all shadow-sm font-bold text-xs"
                     disabled={isExportingPdf === asg.id}
                     onClick={() => handleExportPdf(asg)}
-                    title="Reporte PDF"
                   >
-                    {isExportingPdf === asg.id ? <Loader2 className="h-5 w-5 animate-spin" /> : <FileText className="h-6 w-6" />}
+                    {isExportingPdf === asg.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+                    PDF OFICIAL
                   </Button>
                 </div>
               </CardFooter>
