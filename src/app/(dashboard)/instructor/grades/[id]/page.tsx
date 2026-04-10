@@ -282,15 +282,12 @@ export default function AcademicGradebookPage() {
       })
     } else if (inst.type === 'rubrica' || inst.type === 'escala') {
       Object.values(evalData).forEach(pts => score += (pts as number))
-      // Si es escala, normalizar a 20 si es necesario (ej: si son 4 items de 5 pts cada uno)
     } else if (inst.type === 'anecdotario') {
-      // En anecdotario la nota suele ser manual o basada en cumplimiento
       score = Object.values(evalData).filter(v => v === true).length * (20 / inst.criteria.length)
     }
 
     handleGradeChange(activeEval.student.id, activeEval.column.id, Math.round(score).toString())
     
-    // Guardar comentario
     if (evalComment) {
       setComments(prev => ({
         ...prev,
@@ -342,48 +339,77 @@ export default function AcademicGradebookPage() {
               <div>
                 <Badge className="bg-white/20 text-white mb-4 border-none font-bold uppercase tracking-widest">IA ASSESSMENT ENGINE</Badge>
                 <h3 className="text-3xl font-black uppercase tracking-tight">Cargar Instrumento</h3>
-                <p className="text-blue-100/80 font-bold uppercase text-[10px] tracking-[0.2em] mt-2">Personaliza o Digitaliza con IA</p>
+                <p className="text-blue-100/80 font-bold uppercase text-[10px] tracking-[0.2em] mt-2">
+                  {setupStep === 0 ? "Paso 1: Fundamentación Curricular" : setupStep === 1 ? "Paso 2: Tipo de Evaluación" : "Paso 3: Definición de Criterios"}
+                </p>
               </div>
-              <div className="flex gap-4">
-                <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleAiScan} />
-                <Button 
-                  onClick={() => fileInputRef.current?.click()} 
-                  disabled={isScanning}
-                  className="bg-accent hover:bg-accent/90 text-white font-black uppercase text-[10px] tracking-widest gap-2 h-12 rounded-xl shadow-lg border-2 border-white/10"
-                >
-                  {isScanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                  Escanear con IA
-                </Button>
-              </div>
+              {setupStep > 0 && (
+                <div className="flex gap-4 animate-in fade-in duration-500">
+                  <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleAiScan} />
+                  <Button 
+                    onClick={() => fileInputRef.current?.click()} 
+                    disabled={isScanning}
+                    className="bg-accent hover:bg-accent/90 text-white font-black uppercase text-[10px] tracking-widest gap-2 h-12 rounded-xl shadow-lg border-2 border-white/10"
+                  >
+                    {isScanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                    Escanear con IA
+                  </Button>
+                </div>
+              )}
             </div>
 
             <div className="p-10 space-y-8 bg-white min-h-[500px]">
               {setupStep === 0 && (
-                <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
-                  <div className="space-y-6">
-                    <div className="flex items-center gap-2">
-                      <div className="h-8 w-1 bg-primary rounded-full" />
-                      <Label className="font-black text-xs uppercase text-primary tracking-widest">1. Indicador de Logro</Label>
+                <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  <div className="space-y-6 max-w-3xl mx-auto">
+                    <div className="flex flex-col items-center text-center gap-4 mb-8">
+                      <div className="w-16 h-16 rounded-2xl bg-primary/5 flex items-center justify-center text-primary">
+                        <BookOpen className="h-8 w-8" />
+                      </div>
+                      <div>
+                        <h4 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Indicador de Logro</h4>
+                        <p className="text-slate-500 text-sm font-medium">Vincula esta evaluación a una capacidad de tu sílabo.</p>
+                      </div>
                     </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div className="md:col-span-1 space-y-3">
-                        <Label className="font-bold text-slate-700 text-[11px] uppercase tracking-wider">Código</Label>
-                        <Input value={newIndicatorCode} onChange={e => setNewIndicatorCode(e.target.value.toUpperCase())} placeholder="C1.I1" className="h-12 border-2 rounded-xl font-black text-primary uppercase" />
+                    <div className="bg-slate-50/50 p-8 rounded-[2rem] border-2 border-slate-100 space-y-8">
+                      <div className="space-y-3">
+                        <Label className="font-black text-slate-400 text-[10px] uppercase tracking-[0.2em]">Código del Indicador</Label>
+                        <Input 
+                          value={newIndicatorCode} 
+                          onChange={e => setNewIndicatorCode(e.target.value.toUpperCase())} 
+                          placeholder="Ej: C1.I1" 
+                          className="h-14 border-none shadow-inner rounded-xl font-black text-xl text-primary uppercase bg-white placeholder:text-slate-200" 
+                        />
                       </div>
-                      <div className="md:col-span-2 space-y-3">
-                        <Label className="font-bold text-slate-700 text-[11px] uppercase tracking-wider">Descripción del Indicador</Label>
-                        <Textarea value={newIndicatorDescription} onChange={e => setNewIndicatorDescription(e.target.value)} placeholder="Define qué capacidad evaluarás..." className="h-24 border-2 rounded-xl resize-none font-medium text-sm" />
+                      
+                      <div className="space-y-3">
+                        <Label className="font-black text-slate-400 text-[10px] uppercase tracking-[0.2em]">Descripción de la Capacidad</Label>
+                        <Textarea 
+                          value={newIndicatorDescription} 
+                          onChange={e => setNewIndicatorDescription(e.target.value)} 
+                          placeholder="Describe qué competencia o conocimiento técnico estás evaluando..." 
+                          className="h-32 border-none shadow-inner rounded-2xl resize-none font-medium text-base bg-white p-6 placeholder:text-slate-200" 
+                        />
                       </div>
                     </div>
 
                     {existingIndicators.length > 0 && (
-                      <div className="space-y-4 pt-4 border-t border-slate-100">
-                        <Label className="font-black text-[10px] uppercase text-slate-400 tracking-widest">Usados recientemente:</Label>
-                        <div className="flex flex-wrap gap-2">
+                      <div className="space-y-4 pt-6 border-t border-slate-100">
+                        <Label className="font-black text-[10px] uppercase text-slate-400 tracking-widest block text-center">Usar indicadores de este curso:</Label>
+                        <div className="flex flex-wrap justify-center gap-3">
                           {existingIndicators.map((ind, i) => (
-                            <Button key={i} variant="outline" size="sm" className="h-auto py-2 px-4 rounded-xl border-2 hover:border-primary/30" onClick={() => { setNewIndicatorCode(ind.code); setNewIndicatorDescription(ind.desc); }}>
-                              <span className="font-black text-xs text-primary">{ind.code}</span>
+                            <Button 
+                              key={i} 
+                              variant="outline" 
+                              size="sm" 
+                              className="h-auto py-3 px-6 rounded-2xl border-2 hover:border-primary/30 hover:bg-primary/5 group transition-all" 
+                              onClick={() => { setNewIndicatorCode(ind.code); setNewIndicatorDescription(ind.desc); }}
+                            >
+                              <div className="flex flex-col items-start">
+                                <span className="font-black text-xs text-primary">{ind.code}</span>
+                                <span className="text-[9px] text-slate-400 font-bold uppercase truncate w-32 group-hover:text-primary/60">{ind.desc}</span>
+                              </div>
                             </Button>
                           ))}
                         </div>
@@ -394,7 +420,7 @@ export default function AcademicGradebookPage() {
               )}
 
               {setupStep === 1 && (
-                <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
+                <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
                   <div className="space-y-4">
                     <div className="flex items-center gap-2">
                       <div className="h-8 w-1 bg-primary rounded-full" />
@@ -434,7 +460,7 @@ export default function AcademicGradebookPage() {
               )}
 
               {setupStep === 2 && (
-                <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
+                <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
                   <div className="flex justify-between items-center bg-slate-50 p-5 rounded-2xl border-2 border-slate-100">
                     <div className="flex items-center gap-3">
                       <div className="p-3 bg-primary text-white rounded-xl"><ClipboardCheck className="h-5 w-5" /></div>
@@ -517,7 +543,7 @@ export default function AcademicGradebookPage() {
                       <div className="space-y-4">
                         <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100">
                           <p className="text-[11px] font-bold text-emerald-700 flex items-center gap-2"><Quote className="h-4 w-4" /> Instrumento para Registro Anecdótico / Diario de Campo</p>
-                          <p className="text-[10px] text-emerald-600 mt-1">Define los puntos clave de observación. Al evaluar, el sistema te permitirá escribir una nota narrativa por alumno.</p>
+                          <p className="text-[10px] text-emerald-600 mt-1">Define los puntos clave de observación.</p>
                         </div>
                         <div className="space-y-3">
                           {editorCriteria.map((cr, idx) => (
@@ -711,13 +737,9 @@ export default function AcademicGradebookPage() {
                                           <Textarea 
                                             value={evalComment} 
                                             onChange={e => setEvalComment(e.target.value)} 
-                                            placeholder="Escribe comentarios sobre el desempeño del alumno, fortalezas o debilidades observadas..." 
+                                            placeholder="Escribe comentarios sobre el desempeño del alumno..." 
                                             className="h-[400px] rounded-2xl border-2 resize-none p-6 font-medium italic text-slate-600"
                                           />
-                                        </div>
-                                        <div className="p-4 bg-slate-50 rounded-xl border-2 border-slate-100">
-                                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Importante</p>
-                                          <p className="text-[10px] text-slate-500 leading-relaxed italic">Estas observaciones quedan vinculadas a esta actividad y podrán ser visualizadas en los reportes individuales del alumno.</p>
                                         </div>
                                       </div>
                                     </div>
