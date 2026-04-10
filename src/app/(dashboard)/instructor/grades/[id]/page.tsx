@@ -20,7 +20,8 @@ import {
   PlusCircle,
   Library,
   Layers,
-  AlertTriangle
+  AlertTriangle,
+  GripVertical
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -47,7 +48,7 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 // --- Tipos ---
 type ColumnType = 'manual' | 'cotejo' | 'rubrica'
 
-interface Criterion {
+interface ChecklistCriterion {
   id: string
   description: string
   points: number
@@ -59,7 +60,7 @@ interface RubricLevel {
   description: string
 }
 
-interface RubricCriterion {
+interface RubricDimension {
   id: string
   category: string
   levels: RubricLevel[]
@@ -69,7 +70,7 @@ interface Instrument {
   id: string
   name: string
   type: ColumnType
-  criteria: any[]
+  criteria: any[] // ChecklistCriterion[] o RubricDimension[]
 }
 
 interface Column {
@@ -86,12 +87,12 @@ const INDICATORS = [
   { id: "ILC3", code: "C5.I3", description: "Instala y administra una plataforma web con CMS PrestaShop y el comercio electrónico." }
 ]
 
-const RUBRIC_LEVELS_DEFAULT = [
-  { label: 'Excelente', points: 4, description: 'Logro destacado del criterio.' },
-  { label: 'Bueno', points: 3, description: 'Logro esperado del criterio.' },
-  { label: 'Regular', points: 2, description: 'En proceso de lograr el criterio.' },
-  { label: 'Deficiente', points: 1, description: 'Dificultad para lograr el criterio.' },
-  { label: 'No presenta', points: 0, description: 'Sin evidencia.' },
+const DEFAULT_RUBRIC_LEVELS: RubricLevel[] = [
+  { label: 'Excelente', points: 4, description: '' },
+  { label: 'Bueno', points: 3, description: '' },
+  { label: 'Regular', points: 2, description: '' },
+  { label: 'Deficiente', points: 1, description: '' },
+  { label: 'No presenta', points: 0, description: '' },
 ]
 
 export default function AcademicGradebookPage() {
@@ -141,7 +142,12 @@ export default function AcademicGradebookPage() {
 
   const addColumn = () => {
     if (newColType === 'cotejo' && totalPointsChecklist !== 20) {
-      toast({ variant: "destructive", title: "Puntaje Inválido", description: "La suma de criterios debe ser exactamente 20 puntos." })
+      toast({ variant: "destructive", title: "Puntaje Inválido", description: "La suma de criterios en la lista de cotejo debe ser exactamente 20 puntos." })
+      return
+    }
+
+    if (newColType !== 'manual' && editorCriteria.length === 0) {
+      toast({ variant: "destructive", title: "Sin criterios", description: "Debes añadir al menos un criterio de evaluación." })
       return
     }
 
@@ -174,7 +180,7 @@ export default function AcademicGradebookPage() {
 
     setIsNewColOpen(false)
     resetEditor()
-    toast({ title: "Configuración Exitosa", description: `${newColName} vinculada al indicador.` })
+    toast({ title: "Evaluación Configurada", description: `${newColName} ha sido añadida al registro.` })
   }
 
   const resetEditor = () => {
@@ -241,11 +247,11 @@ export default function AcademicGradebookPage() {
 
         <Dialog open={isNewColOpen} onOpenChange={(o) => { setIsNewColOpen(o); if(!o) resetEditor(); }}>
           <DialogTrigger asChild>
-            <Button className="h-14 px-8 gap-3 bg-primary hover:bg-primary/90 font-black shadow-xl shadow-primary/30 rounded-2xl uppercase text-[11px] tracking-widest">
+            <Button className="h-14 px-8 gap-3 bg-primary hover:bg-primary/90 font-black shadow-xl shadow-primary/30 rounded-2xl uppercase text-[11px] tracking-widest text-white">
               <PlusCircle className="h-5 w-5" /> Configurar Evaluación
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-4xl p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl">
+          <DialogContent className="max-w-5xl p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl">
             <div className="bg-primary p-10 text-white flex justify-between items-end">
               <div>
                 <Badge className="bg-white/20 text-white mb-4 border-none font-bold">PASO {setupStep + 1} DE 3</Badge>
@@ -255,7 +261,7 @@ export default function AcademicGradebookPage() {
               <Layers className="h-16 w-16 text-white/10" />
             </div>
 
-            <div className="p-10 space-y-8 bg-white min-h-[400px]">
+            <div className="p-10 space-y-8 bg-white min-h-[500px]">
               {setupStep === 0 && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
                   <div className="space-y-3">
@@ -284,14 +290,18 @@ export default function AcademicGradebookPage() {
                     <div className="grid grid-cols-3 gap-4">
                       {[
                         { id: 'manual', label: 'Nota Manual', icon: FileText, desc: 'Ingreso directo 0-20' },
-                        { id: 'cotejo', label: 'Lista de Cotejo', icon: LayoutList, desc: 'Checklist Sí/No' },
-                        { id: 'rubrica', label: 'Rúbrica', icon: Target, desc: 'Matriz de niveles' }
+                        { id: 'cotejo', label: 'Lista de Cotejo', icon: LayoutList, desc: 'Checklist Sí/No con pesos' },
+                        { id: 'rubrica', label: 'Rúbrica', icon: Target, desc: 'Matriz de niveles de desempeño' }
                       ].map((t) => (
                         <Button 
                           key={t.id}
                           variant="outline" 
-                          className={`h-auto py-8 flex-col gap-3 rounded-2xl border-2 ${newColType === t.id ? 'border-primary bg-primary/5' : ''}`}
-                          onClick={() => setNewColType(t.id as ColumnType)}
+                          className={`h-auto py-8 flex-col gap-3 rounded-2xl border-2 transition-all ${newColType === t.id ? 'border-primary bg-primary/5 ring-4 ring-primary/5' : 'hover:border-slate-200'}`}
+                          onClick={() => {
+                            setNewColType(t.id as ColumnType)
+                            if (t.id === 'cotejo') setEditorCriteria([{ id: '1', description: '', points: 2 }])
+                            if (t.id === 'rubrica') setEditorCriteria([{ id: '1', category: '', levels: JSON.parse(JSON.stringify(DEFAULT_RUBRIC_LEVELS)) }])
+                          }}
                         >
                           <t.icon className={`h-8 w-8 ${newColType === t.id ? 'text-primary' : 'text-slate-300'}`} />
                           <div className="text-center">
@@ -304,31 +314,37 @@ export default function AcademicGradebookPage() {
                   </div>
                   <div className="space-y-3">
                     <Label className="font-black text-[11px] uppercase text-primary tracking-widest pl-1">Nombre de la Sesión / Actividad</Label>
-                    <Input value={newColName} onChange={e => setNewColName(e.target.value)} placeholder="Ej. Instalación de Moodle en Local" className="h-14 rounded-xl text-lg font-bold" />
+                    <Input value={newColName} onChange={e => setNewColName(e.target.value)} placeholder="Ej. Instalación de Moodle en Local" className="h-14 rounded-xl text-lg font-bold border-2 focus-visible:ring-primary" />
                   </div>
                 </div>
               )}
 
               {setupStep === 2 && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
-                  <div className="flex justify-between items-center bg-slate-50 p-4 rounded-2xl border">
+                  <div className="flex justify-between items-center bg-slate-50 p-5 rounded-2xl border-2 border-slate-100">
                     <div>
                       <p className="font-black text-[10px] uppercase text-slate-400 tracking-widest">Resumen de Configuración</p>
-                      <p className="font-bold text-slate-700">{newColName} ({INDICATORS.find(i => i.id === selectedIndicator)?.code})</p>
+                      <p className="font-bold text-slate-700 text-lg">{newColName} <span className="text-primary ml-2">({INDICATORS.find(i => i.id === selectedIndicator)?.code})</span></p>
                     </div>
                     {newColType === 'cotejo' && (
-                      <div className={`px-4 py-2 rounded-xl font-black text-sm ${totalPointsChecklist === 20 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                      <div className={`px-6 py-3 rounded-2xl font-black text-lg shadow-sm border-2 ${totalPointsChecklist === 20 ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-red-50 text-red-700 border-red-100'}`}>
                         Total: {totalPointsChecklist}/20 pts
                       </div>
                     )}
                   </div>
 
-                  <ScrollArea className="h-[350px] pr-4">
+                  <ScrollArea className="h-[450px] pr-4">
                     {newColType === 'cotejo' && (
-                      <div className="space-y-3">
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-[40px_1fr_100px_40px] gap-4 px-4 py-2 font-black text-[10px] uppercase text-slate-400 tracking-widest">
+                          <span>N°</span>
+                          <span>Descripción del Criterio</span>
+                          <span className="text-center">Peso (Pts)</span>
+                          <span></span>
+                        </div>
                         {editorCriteria.map((cr, idx) => (
-                          <div key={idx} className="flex gap-3 items-center bg-white p-4 rounded-2xl border-2 border-slate-100 group">
-                            <span className="font-black text-xs text-slate-300 w-6">{idx + 1}.</span>
+                          <div key={idx} className="flex gap-4 items-center bg-white p-4 rounded-2xl border-2 border-slate-100 hover:border-primary/20 transition-all group">
+                            <span className="font-black text-sm text-slate-300 w-10 text-center">{idx + 1}</span>
                             <Input 
                               value={cr.description} 
                               onChange={e => {
@@ -336,11 +352,10 @@ export default function AcademicGradebookPage() {
                                 next[idx].description = e.target.value
                                 setEditorCriteria(next)
                               }}
-                              placeholder="Descripción del criterio..." 
-                              className="border-none bg-transparent shadow-none font-medium flex-1"
+                              placeholder="Ej. El alumno instala correctamente el servidor Apache..." 
+                              className="border-none bg-transparent shadow-none font-bold text-slate-700 focus-visible:ring-0 text-base flex-1"
                             />
-                            <div className="flex items-center gap-2 bg-slate-50 px-3 py-1 rounded-xl border">
-                              <span className="text-[9px] font-black text-slate-400">PTS:</span>
+                            <div className="flex items-center gap-2 bg-slate-50 px-4 py-2 rounded-xl border-2 border-slate-100">
                               <input 
                                 type="number" 
                                 value={cr.points} 
@@ -349,41 +364,47 @@ export default function AcademicGradebookPage() {
                                   next[idx].points = parseInt(e.target.value) || 0
                                   setEditorCriteria(next)
                                 }}
-                                className="w-10 bg-transparent text-center font-black text-primary outline-none"
+                                className="w-12 bg-transparent text-center font-black text-primary outline-none text-lg"
                               />
                             </div>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-red-300 hover:text-red-500" onClick={() => setEditorCriteria(editorCriteria.filter((_, i) => i !== idx))}>
-                              <Trash2 className="h-4 w-4" />
+                            <Button variant="ghost" size="icon" className="h-10 w-10 text-red-300 hover:text-red-500 hover:bg-red-50 rounded-xl" onClick={() => setEditorCriteria(editorCriteria.filter((_, i) => i !== idx))}>
+                              <Trash2 className="h-5 w-5" />
                             </Button>
                           </div>
                         ))}
-                        <Button variant="ghost" className="w-full border-2 border-dashed h-12 rounded-2xl text-slate-400 hover:border-primary hover:text-primary font-bold" onClick={() => setEditorCriteria([...editorCriteria, { id: Date.now().toString(), description: "", points: 2 }])}>
-                          + Añadir Criterio de Evaluación
+                        <Button variant="ghost" className="w-full border-2 border-dashed border-slate-200 h-16 rounded-2xl text-slate-400 hover:border-primary hover:text-primary hover:bg-primary/5 font-black uppercase text-xs tracking-widest transition-all" onClick={() => setEditorCriteria([...editorCriteria, { id: Date.now().toString(), description: "", points: 2 }])}>
+                          <Plus className="h-4 w-4 mr-2" /> Añadir Nuevo Criterio
                         </Button>
                       </div>
                     )}
 
                     {newColType === 'rubrica' && (
-                      <div className="space-y-8">
+                      <div className="space-y-10">
                         {editorCriteria.map((rc, idx) => (
-                          <div key={idx} className="space-y-4 p-6 bg-slate-50 rounded-3xl border relative group">
+                          <div key={idx} className="space-y-6 p-8 bg-slate-50/50 rounded-[2.5rem] border-2 border-slate-100 relative group animate-in zoom-in-95">
                             <div className="flex justify-between items-center">
-                              <Input 
-                                value={rc.category} 
-                                onChange={e => {
-                                  const next = [...editorCriteria]
-                                  next[idx].category = e.target.value
-                                  setEditorCriteria(next)
-                                }}
-                                className="font-black uppercase text-xs tracking-widest text-primary bg-transparent border-none p-0 h-auto w-[80%]"
-                                placeholder="NOMBRE DE LA CATEGORÍA / DIMENSIÓN"
-                              />
-                              <Button variant="ghost" size="icon" className="text-red-300" onClick={() => setEditorCriteria(editorCriteria.filter((_, i) => i !== idx))}><Trash2 className="h-4 w-4" /></Button>
+                              <div className="flex items-center gap-3 flex-1 mr-10">
+                                <div className="h-10 w-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary font-black">{idx + 1}</div>
+                                <Input 
+                                  value={rc.category} 
+                                  onChange={e => {
+                                    const next = [...editorCriteria]
+                                    next[idx].category = e.target.value
+                                    setEditorCriteria(next)
+                                  }}
+                                  className="font-black uppercase text-sm tracking-widest text-slate-800 bg-transparent border-none p-0 h-auto focus-visible:ring-0"
+                                  placeholder="ESCRIBE EL NOMBRE DE LA DIMENSIÓN / CATEGORÍA (Ej. CLASIFICACIÓN TÉCNICA)"
+                                />
+                              </div>
+                              <Button variant="ghost" size="icon" className="text-red-300 hover:text-red-500 rounded-xl" onClick={() => setEditorCriteria(editorCriteria.filter((_, i) => i !== idx))}><Trash2 className="h-5 w-5" /></Button>
                             </div>
-                            <div className="grid grid-cols-5 gap-2">
+                            <div className="grid grid-cols-5 gap-3">
                               {rc.levels.map((lvl: any, lIdx: number) => (
-                                <div key={lIdx} className="bg-white p-3 rounded-xl border text-[10px] space-y-2">
-                                  <p className="font-black text-slate-400 text-[8px] uppercase">{lvl.label}</p>
+                                <div key={lIdx} className="bg-white p-5 rounded-2xl border-2 border-slate-100 space-y-3 shadow-sm hover:border-primary/20 transition-all">
+                                  <div className="flex justify-between items-center">
+                                    <p className="font-black text-slate-400 text-[9px] uppercase tracking-widest">{lvl.label}</p>
+                                    <Badge variant="outline" className="font-black text-primary border-primary/20 bg-primary/5 text-[10px]">{lvl.points} pts</Badge>
+                                  </div>
                                   <textarea 
                                     value={lvl.description} 
                                     onChange={e => {
@@ -391,25 +412,26 @@ export default function AcademicGradebookPage() {
                                       next[idx].levels[lIdx].description = e.target.value
                                       setEditorCriteria(next)
                                     }}
-                                    className="w-full resize-none border-none outline-none font-medium h-16 leading-tight text-slate-600"
-                                    placeholder="Desempeño..."
+                                    className="w-full resize-none border-none outline-none font-medium h-24 leading-tight text-slate-600 text-xs placeholder:text-slate-300"
+                                    placeholder="Describe el desempeño esperado..."
                                   />
-                                  <p className="font-black text-primary text-right">{lvl.points} pts</p>
                                 </div>
                               ))}
                             </div>
                           </div>
                         ))}
-                        <Button variant="ghost" className="w-full border-2 border-dashed h-12 rounded-2xl text-slate-400 hover:border-primary hover:text-primary font-bold" onClick={() => setEditorCriteria([...editorCriteria, { id: Date.now().toString(), category: "Nueva Dimensión", levels: JSON.parse(JSON.stringify(RUBRIC_LEVELS_DEFAULT)) }])}>
-                          + Añadir Nueva Dimensión de Rúbrica
+                        <Button variant="ghost" className="w-full border-2 border-dashed border-slate-200 h-20 rounded-[2rem] text-slate-400 hover:border-primary hover:text-primary hover:bg-primary/5 font-black uppercase text-xs tracking-widest transition-all" onClick={() => setEditorCriteria([...editorCriteria, { id: Date.now().toString(), category: "", levels: JSON.parse(JSON.stringify(DEFAULT_RUBRIC_LEVELS)) }])}>
+                          <Plus className="h-4 w-4 mr-2" /> Añadir Nueva Fila de Rúbrica
                         </Button>
                       </div>
                     )}
 
                     {newColType === 'manual' && (
-                      <div className="flex flex-col items-center justify-center h-48 text-slate-400 gap-4">
-                        <FileText className="h-12 w-12 opacity-20" />
-                        <p className="font-bold text-center">La evaluación manual no requiere criterios previos.<br/>Podrás ingresar notas del 0 al 20 directamente.</p>
+                      <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-6">
+                        <div className="p-8 bg-slate-50 rounded-full border-2 border-slate-100">
+                          <FileText className="h-16 w-16 opacity-20" />
+                        </div>
+                        <p className="font-bold text-center text-slate-500 max-w-sm">La evaluación manual permite el ingreso directo de notas (0-20) sin necesidad de configurar criterios previos.</p>
                       </div>
                     )}
                   </ScrollArea>
@@ -417,13 +439,13 @@ export default function AcademicGradebookPage() {
               )}
             </div>
 
-            <div className="p-10 bg-slate-50 border-t flex justify-between gap-3">
-              <Button variant="ghost" onClick={() => setSetupStep(p => Math.max(0, p - 1))} disabled={setupStep === 0} className="font-black text-[10px] uppercase tracking-widest">Anterior</Button>
+            <div className="p-10 bg-slate-50 border-t flex justify-between gap-3 items-center">
+              <Button variant="ghost" onClick={() => setSetupStep(p => Math.max(0, p - 1))} disabled={setupStep === 0} className="font-black text-[10px] uppercase tracking-widest h-12 px-8 rounded-xl border-2">Anterior</Button>
               <div className="flex gap-3">
                 {setupStep < 2 ? (
-                  <Button className="bg-primary px-8 font-black text-[10px] uppercase tracking-widest rounded-xl" onClick={() => setSetupStep(p => p + 1)} disabled={(setupStep === 0 && !selectedIndicator) || (setupStep === 1 && !newColName)}>Siguiente Paso</Button>
+                  <Button className="bg-primary px-10 h-12 font-black text-[10px] uppercase tracking-widest rounded-xl text-white shadow-lg shadow-primary/20" onClick={() => setSetupStep(p => p + 1)} disabled={(setupStep === 0 && !selectedIndicator) || (setupStep === 1 && !newColName)}>Siguiente Paso</Button>
                 ) : (
-                  <Button className="bg-primary px-10 font-black text-[10px] uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20" onClick={addColumn}>Finalizar Configuración</Button>
+                  <Button className="bg-primary px-12 h-12 font-black text-[10px] uppercase tracking-widest rounded-xl shadow-xl shadow-primary/30 text-white" onClick={addColumn}>Finalizar y Guardar Evaluación</Button>
                 )}
               </div>
             </div>
@@ -437,19 +459,19 @@ export default function AcademicGradebookPage() {
             <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
             <Input 
               placeholder="Buscar estudiante por apellidos o nombres..." 
-              className="pl-14 h-14 border-none shadow-inner rounded-2xl bg-white font-medium text-lg"
+              className="pl-14 h-14 border-none shadow-inner rounded-2xl bg-white font-medium text-lg focus-visible:ring-primary/20"
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
             />
           </div>
           <div className="flex items-center gap-4">
              <div className="flex flex-col items-end">
-               <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Instrumentos</span>
-               <span className="text-xl font-black text-primary">{columns.length} activos</span>
+               <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Actividades</span>
+               <span className="text-xl font-black text-primary">{columns.length} configuradas</span>
              </div>
              <div className="h-10 w-px bg-slate-200 mx-2" />
-             <Button variant="outline" className="h-12 px-6 border-slate-200 rounded-xl font-bold gap-2">
-               <Save className="h-4 w-4" /> Guardar Todo
+             <Button variant="outline" className="h-12 px-6 border-slate-200 rounded-xl font-bold gap-2 hover:bg-slate-50 transition-all">
+               <Save className="h-4 w-4" /> Guardar Cambios
              </Button>
           </div>
         </div>
@@ -459,18 +481,18 @@ export default function AcademicGradebookPage() {
             <Table>
               <TableHeader className="bg-slate-50/30">
                 <TableRow className="border-none">
-                  <TableHead className="pl-10 font-black text-[10px] uppercase text-slate-400 tracking-widest w-[350px]">Estudiante</TableHead>
+                  <TableHead className="pl-10 font-black text-[10px] uppercase text-slate-400 tracking-widest w-[350px] py-6">Estudiante</TableHead>
                   {columns.map(c => (
-                    <TableHead key={c.id} className="text-center font-black text-[10px] uppercase text-slate-400 tracking-widest px-6 border-l min-w-[150px]">
-                      <div className="flex flex-col items-center gap-1.5">
-                        <Badge variant="outline" className="border-primary/20 text-primary bg-primary/5 text-[8px] px-2 py-0">
+                    <TableHead key={c.id} className="text-center font-black text-[10px] uppercase text-slate-400 tracking-widest px-6 border-l min-w-[160px]">
+                      <div className="flex flex-col items-center gap-2">
+                        <Badge variant="outline" className="border-primary/20 text-primary bg-primary/5 text-[8px] px-2 py-0.5 font-black">
                           {INDICATORS.find(i => i.id === c.indicatorId)?.code}
                         </Badge>
-                        <span className="text-slate-900 truncate w-32">{c.name}</span>
+                        <span className="text-slate-900 truncate w-36 font-extrabold">{c.name}</span>
                       </div>
                     </TableHead>
                   ))}
-                  <TableHead className="text-center font-black text-[10px] uppercase text-primary tracking-widest bg-primary/5 w-[120px] border-l">Promedio</TableHead>
+                  <TableHead className="text-center font-black text-[10px] uppercase text-primary tracking-widest bg-primary/5 w-[140px] border-l">Promedio Final</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -493,7 +515,7 @@ export default function AcademicGradebookPage() {
                           <div className="flex items-center justify-center gap-3">
                             <Input 
                               type="number" 
-                              className={`w-16 h-11 text-center font-black text-lg border-none shadow-sm rounded-xl transition-all ${
+                              className={`w-16 h-11 text-center font-black text-xl border-none shadow-sm rounded-xl transition-all ${
                                 (grades[s.id]?.[c.id] || 0) < 13 ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-700'
                               }`}
                               value={grades[s.id]?.[c.id] || 0}
@@ -505,29 +527,29 @@ export default function AcademicGradebookPage() {
                                   <Button 
                                     size="icon" 
                                     variant="ghost" 
-                                    className="h-10 w-10 rounded-xl hover:bg-primary/10 text-primary transition-all border border-primary/10"
+                                    className="h-11 w-11 rounded-2xl hover:bg-primary/10 text-primary transition-all border-2 border-primary/10 group-hover:border-primary/30"
                                     onClick={() => { setActiveEval({ student: s, column: c }); setEvalData({}); }}
                                   >
                                     <Target className="h-5 w-5" />
                                   </Button>
                                 </DialogTrigger>
-                                <DialogContent className="max-w-5xl p-0 overflow-hidden border-none shadow-2xl rounded-[3rem]">
+                                <DialogContent className="max-w-6xl p-0 overflow-hidden border-none shadow-2xl rounded-[3rem]">
                                   {activeEval && (
                                     <div className="flex flex-col h-[90vh]">
                                       <div className="bg-primary p-10 text-white flex justify-between items-center shrink-0">
-                                        <div className="space-y-2">
+                                        <div className="space-y-3">
                                           <div className="flex items-center gap-3">
-                                            <Badge className="bg-white/20 text-white font-mono">{activeEval.column.type.toUpperCase()}</Badge>
-                                            <span className="text-blue-200 font-black text-xs uppercase tracking-widest">{INDICATORS.find(i => i.id === activeEval.column.indicatorId)?.code}</span>
+                                            <Badge className="bg-white/20 text-white font-black uppercase text-[10px] tracking-widest border-none px-3">{activeEval.column.type.toUpperCase()}</Badge>
+                                            <span className="text-blue-200 font-black text-xs uppercase tracking-[0.3em]">{INDICATORS.find(i => i.id === activeEval.column.indicatorId)?.code}</span>
                                           </div>
-                                          <h3 className="text-3xl font-black uppercase tracking-tight">{activeEval.student.nombre}</h3>
-                                          <p className="flex items-center gap-2 text-blue-100/80 font-bold uppercase text-[10px] tracking-widest">
-                                            Evaluación: {activeEval.column.name}
+                                          <h3 className="text-4xl font-black uppercase tracking-tighter">{activeEval.student.nombre}</h3>
+                                          <p className="flex items-center gap-2 text-blue-100/80 font-bold uppercase text-[11px] tracking-widest">
+                                            <ClipboardCheck className="h-4 w-4" /> Evaluando: {activeEval.column.name}
                                           </p>
                                         </div>
-                                        <div className="bg-white/10 p-6 rounded-3xl border border-white/10 text-center min-w-[150px]">
-                                          <p className="text-[10px] font-black uppercase tracking-widest text-blue-200 mb-1">Puntaje</p>
-                                          <p className="text-5xl font-black font-mono">
+                                        <div className="bg-white/10 p-8 rounded-[2rem] border-2 border-white/10 text-center min-w-[180px] shadow-inner">
+                                          <p className="text-[10px] font-black uppercase tracking-widest text-blue-200 mb-2">Puntaje Obtenido</p>
+                                          <p className="text-6xl font-black font-mono">
                                             {
                                               activeEval.column.type === 'cotejo' 
                                               ? Object.entries(evalData).reduce((acc, [idx, val]) => val === true ? acc + (instruments[activeEval.column.instrumentId].criteria[parseInt(idx)].points) : acc, 0)
@@ -537,68 +559,73 @@ export default function AcademicGradebookPage() {
                                         </div>
                                       </div>
 
-                                      <ScrollArea className="flex-grow p-10 bg-slate-50">
+                                      <ScrollArea className="flex-grow p-10 bg-slate-50/50">
                                         {activeEval.column.type === 'cotejo' ? (
-                                          <div className="space-y-4">
-                                            <div className="grid grid-cols-[1fr_100px_100px] gap-6 px-6 py-3 font-black text-[11px] uppercase text-slate-400 tracking-widest">
-                                              <span>Criterios de Evaluación</span>
+                                          <div className="space-y-4 max-w-4xl mx-auto">
+                                            <div className="grid grid-cols-[1fr_120px_120px] gap-6 px-8 py-4 font-black text-[11px] uppercase text-slate-400 tracking-[0.2em]">
+                                              <span>Criterios de Evaluación Configurados</span>
                                               <span className="text-center">LOGRADO</span>
                                               <span className="text-center">NO LOGRADO</span>
                                             </div>
                                             {instruments[activeEval.column.instrumentId].criteria.map((cr: any, i: number) => (
-                                              <div key={i} className="grid grid-cols-[1fr_100px_100px] gap-6 items-center p-6 bg-white rounded-[2rem] shadow-sm border border-slate-100 hover:border-primary/20 transition-all group">
-                                                <div className="space-y-1">
-                                                  <p className="text-sm font-bold text-slate-700 leading-relaxed">{i + 1}. {cr.description}</p>
-                                                  <Badge variant="outline" className="text-[9px] font-black text-slate-400 border-slate-200">{cr.points} PUNTOS</Badge>
+                                              <div key={i} className="grid grid-cols-[1fr_120px_120px] gap-6 items-center p-8 bg-white rounded-[2.5rem] shadow-sm border-2 border-slate-100 hover:border-primary/20 transition-all group animate-in slide-in-from-bottom-2">
+                                                <div className="space-y-2">
+                                                  <div className="flex items-center gap-3">
+                                                    <span className="h-7 w-7 rounded-lg bg-slate-50 flex items-center justify-center font-black text-xs text-slate-400">{i + 1}</span>
+                                                    <p className="text-base font-bold text-slate-700 leading-snug">{cr.description}</p>
+                                                  </div>
+                                                  <Badge variant="outline" className="text-[9px] font-black text-primary border-primary/10 bg-primary/5 px-3 py-0.5">{cr.points} PUNTOS</Badge>
                                                 </div>
                                                 <div className="flex justify-center">
                                                   <Button 
                                                     variant="ghost" 
-                                                    className={`h-14 w-14 rounded-2xl transition-all ${evalData[i] === true ? 'bg-emerald-500 text-white shadow-xl shadow-emerald-200 scale-110' : 'text-slate-200 hover:bg-emerald-50 hover:text-emerald-500'}`}
+                                                    className={`h-16 w-16 rounded-[1.5rem] transition-all duration-300 ${evalData[i] === true ? 'bg-emerald-500 text-white shadow-xl shadow-emerald-200 scale-110' : 'text-slate-200 hover:bg-emerald-50 hover:text-emerald-500'}`}
                                                     onClick={() => setEvalData(p => ({ ...p, [i]: true }))}
                                                   >
-                                                    <CheckCircle2 className="h-8 w-8" />
+                                                    <CheckCircle2 className="h-10 w-10" />
                                                   </Button>
                                                 </div>
                                                 <div className="flex justify-center">
                                                   <Button 
                                                     variant="ghost" 
-                                                    className={`h-14 w-14 rounded-2xl transition-all ${evalData[i] === false ? 'bg-red-500 text-white shadow-xl shadow-red-200 scale-110' : 'text-slate-200 hover:bg-red-50 hover:text-red-500'}`}
+                                                    className={`h-16 w-16 rounded-[1.5rem] transition-all duration-300 ${evalData[i] === false ? 'bg-red-500 text-white shadow-xl shadow-red-200 scale-110' : 'text-slate-200 hover:bg-red-50 hover:text-red-500'}`}
                                                     onClick={() => setEvalData(p => ({ ...p, [i]: false }))}
                                                   >
-                                                    <XCircle className="h-8 w-8" />
+                                                    <XCircle className="h-10 w-10" />
                                                   </Button>
                                                 </div>
                                               </div>
                                             ))}
                                           </div>
                                         ) : (
-                                          <div className="space-y-12">
+                                          <div className="space-y-16">
                                             {instruments[activeEval.column.instrumentId].criteria.map((rc: any, i: number) => (
-                                              <div key={i} className="space-y-6">
+                                              <div key={i} className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
                                                 <div className="flex items-center gap-4">
-                                                  <div className="h-10 w-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center font-black">{i + 1}</div>
-                                                  <Label className="text-lg font-black uppercase text-slate-800 tracking-tight">{rc.category}</Label>
+                                                  <div className="h-12 w-12 rounded-2xl bg-primary text-white flex items-center justify-center font-black text-lg shadow-lg shadow-primary/20">{i + 1}</div>
+                                                  <Label className="text-2xl font-black uppercase text-slate-800 tracking-tighter">{rc.category}</Label>
                                                 </div>
                                                 <div className="grid grid-cols-5 gap-4">
                                                   {(rc.levels || []).map((lvl: any) => (
                                                     <Button 
                                                       key={lvl.label}
                                                       variant="outline"
-                                                      className={`h-auto flex-col gap-3 p-6 rounded-[2rem] border-2 transition-all text-left items-start ${
+                                                      className={`h-auto flex-col gap-4 p-8 rounded-[2.5rem] border-2 transition-all text-left items-start min-h-[220px] ${
                                                         evalData[i] === lvl.points 
-                                                        ? 'border-primary bg-primary/5 ring-8 ring-primary/5' 
+                                                        ? 'border-primary bg-primary/5 ring-8 ring-primary/5 shadow-xl' 
                                                         : 'border-white bg-white hover:border-slate-200 hover:shadow-lg'
                                                       }`}
                                                       onClick={() => setEvalData(p => ({ ...p, [i]: lvl.points }))}
                                                     >
-                                                      <div className="flex justify-between w-full">
-                                                        <span className={`font-black text-[9px] uppercase tracking-widest px-2 py-0.5 rounded-full ${evalData[i] === lvl.points ? 'bg-primary text-white' : 'bg-slate-100 text-slate-400'}`}>
+                                                      <div className="flex justify-between w-full items-center">
+                                                        <span className={`font-black text-[10px] uppercase tracking-[0.2em] px-3 py-1 rounded-full ${evalData[i] === lvl.points ? 'bg-primary text-white' : 'bg-slate-100 text-slate-400'}`}>
                                                           {lvl.label}
                                                         </span>
-                                                        <span className="font-black text-sm text-slate-900">{lvl.points} PTS</span>
+                                                        <span className="font-black text-lg text-slate-900 font-mono">{lvl.points} PTS</span>
                                                       </div>
-                                                      <p className="text-[11px] leading-relaxed text-slate-500 font-medium h-20 overflow-hidden">{lvl.description}</p>
+                                                      <p className="text-[13px] leading-relaxed text-slate-500 font-semibold h-24 overflow-y-auto italic">
+                                                        {lvl.description || 'Sin descripción configurada.'}
+                                                      </p>
                                                     </Button>
                                                   ))}
                                                 </div>
@@ -609,12 +636,12 @@ export default function AcademicGradebookPage() {
                                       </ScrollArea>
 
                                       <div className="p-10 bg-white border-t flex justify-end gap-4 shrink-0">
-                                        <Button variant="ghost" className="font-black text-slate-400 uppercase text-xs tracking-[0.2em]" onClick={() => setActiveEval(null)}>Descartar</Button>
+                                        <Button variant="ghost" className="font-black text-slate-400 uppercase text-xs tracking-[0.2em] px-8" onClick={() => setActiveEval(null)}>Descartar Evaluación</Button>
                                         <Button 
-                                          className="bg-primary font-black uppercase text-xs tracking-[0.2em] px-12 h-14 rounded-2xl shadow-2xl shadow-primary/30"
+                                          className="bg-primary font-black uppercase text-xs tracking-[0.2em] px-16 h-16 rounded-[1.5rem] shadow-2xl shadow-primary/30 text-white hover:bg-primary/90 transition-all"
                                           onClick={applyInstrumentScore}
                                         >
-                                          Confirmar y Vaciar Nota
+                                          Confirmar y Vaciar Nota en Registro
                                         </Button>
                                       </div>
                                     </div>
@@ -625,8 +652,8 @@ export default function AcademicGradebookPage() {
                           </div>
                         </TableCell>
                       ))}
-                      <TableCell className="text-center bg-primary/5 border-l">
-                        <span className={`text-xl font-black font-mono ${calculateFinal(s.id) < 13 ? 'text-red-600' : 'text-primary'}`}>
+                      <TableCell className="text-center bg-primary/5 border-l py-6">
+                        <span className={`text-2xl font-black font-mono ${calculateFinal(s.id) < 13 ? 'text-red-600' : 'text-primary'}`}>
                           {calculateFinal(s.id).toString().padStart(2, '0')}
                         </span>
                       </TableCell>
@@ -634,10 +661,12 @@ export default function AcademicGradebookPage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={columns.length + 2} className="h-64 text-center text-slate-400">
-                      <div className="flex flex-col items-center gap-4">
-                        <Settings2 className="h-16 w-16 opacity-5" />
-                        <p className="font-bold text-slate-900 uppercase tracking-widest text-xs">No hay estudiantes o instrumentos configurados</p>
+                    <TableCell colSpan={columns.length + 2} className="h-80 text-center text-slate-400">
+                      <div className="flex flex-col items-center gap-6">
+                        <div className="p-8 bg-slate-50 rounded-full border-2 border-slate-100">
+                          <Settings2 className="h-20 w-20 opacity-5" />
+                        </div>
+                        <p className="font-black text-slate-900 uppercase tracking-[0.2em] text-xs">No hay estudiantes o instrumentos configurados para esta unidad</p>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -650,16 +679,16 @@ export default function AcademicGradebookPage() {
       </Card>
 
       {columns.length === 0 && !isLoading && (
-        <Card className="p-24 border-4 border-dashed border-slate-100 bg-white rounded-[3rem] flex flex-col items-center gap-6 text-slate-400">
-          <div className="p-8 bg-slate-50 rounded-full">
-            <AlertTriangle className="h-16 w-16 opacity-20" />
+        <Card className="p-32 border-4 border-dashed border-slate-100 bg-white rounded-[4rem] flex flex-col items-center gap-8 text-slate-400 animate-in fade-in zoom-in-95 duration-500">
+          <div className="p-10 bg-slate-50 rounded-full border-2 border-slate-100">
+            <AlertTriangle className="h-20 w-20 opacity-20" />
           </div>
-          <div className="text-center space-y-2">
-            <p className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Registro Vacío</p>
-            <p className="text-sm font-medium max-w-sm">Configura tu primera evaluación vinculándola a un indicador de logro del sílabo.</p>
+          <div className="text-center space-y-3">
+            <p className="text-3xl font-black text-slate-900 uppercase tracking-tighter">Registro Auxiliar Vacío</p>
+            <p className="text-base font-medium max-w-md mx-auto text-slate-500 leading-relaxed italic">Construye tu primer instrumento de evaluación vinculándolo a un indicador de logro del sílabo oficial.</p>
           </div>
-          <Button className="h-14 px-10 bg-primary font-black rounded-2xl uppercase text-xs tracking-widest gap-3" onClick={() => setIsNewColOpen(true)}>
-            <PlusCircle className="h-5 w-5" /> Iniciar Configuración
+          <Button className="h-16 px-12 bg-primary font-black rounded-3xl uppercase text-xs tracking-[0.2em] gap-4 text-white shadow-2xl shadow-primary/30 hover:scale-105 transition-all" onClick={() => setIsNewColOpen(true)}>
+            <PlusCircle className="h-6 w-6" /> Iniciar Configuración Pedagógica
           </Button>
         </Card>
       )}
