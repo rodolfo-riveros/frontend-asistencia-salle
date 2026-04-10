@@ -38,6 +38,7 @@ import {
   DialogFooter, 
   DialogHeader, 
   DialogTitle, 
+  DialogDescription,
   DialogTrigger 
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
@@ -375,10 +376,10 @@ export default function AcademicGradebookPage() {
           </DialogTrigger>
           <DialogContent className="max-w-5xl p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl flex flex-col max-h-[95vh]">
             <div className="bg-primary p-8 text-white shrink-0">
-              <h3 className="text-2xl font-black uppercase tracking-tight">Configuración Técnica</h3>
-              <p className="text-blue-100/80 font-bold uppercase text-[10px] tracking-[0.2em] mt-1">
+              <DialogTitle className="text-2xl font-black uppercase tracking-tight">Configuración Técnica</DialogTitle>
+              <DialogDescription className="text-blue-100/80 font-bold uppercase text-[10px] tracking-[0.2em] mt-1">
                 {setupStep === 0 ? "Paso 1: Fundamentación Curricular" : setupStep === 1 ? "Paso 2: Tipo de Evaluación" : "Paso 3: Definición de Criterios"}
-              </p>
+              </DialogDescription>
             </div>
 
             <ScrollArea className="flex-grow">
@@ -747,8 +748,8 @@ export default function AcademicGradebookPage() {
                                       <div className="bg-primary p-10 text-white flex justify-between items-center shrink-0">
                                         <div className="space-y-2">
                                           <Badge className="bg-white/20 text-white font-black uppercase text-[10px]">{activeEval.column.type.toUpperCase()}</Badge>
-                                          <h3 className="text-3xl font-black uppercase tracking-tighter">{activeEval.student.nombre}</h3>
-                                          <p className="text-blue-100/80 font-bold uppercase text-[10px] tracking-widest">{activeEval.column.name}</p>
+                                          <DialogTitle className="text-3xl font-black uppercase tracking-tighter">{activeEval.student.nombre}</DialogTitle>
+                                          <DialogDescription className="text-blue-100/80 font-bold uppercase text-[10px] tracking-widest">{activeEval.column.name}</DialogDescription>
                                         </div>
                                         <div className="bg-white/10 p-6 rounded-2xl border-2 border-white/10 text-center min-w-[140px]">
                                           <p className="text-[9px] font-black uppercase text-blue-200 mb-1">Nota Preliminar</p>
