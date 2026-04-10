@@ -21,7 +21,9 @@ import {
   Library,
   Layers,
   AlertTriangle,
-  GripVertical
+  GripVertical,
+  BookOpen,
+  Info
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -40,6 +42,7 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
 import { getInitials } from "@/lib/utils"
@@ -76,16 +79,11 @@ interface Instrument {
 interface Column {
   id: string
   name: string
-  indicatorId: string
+  indicatorCode: string // Nuevo: Código manual (ej: C1.I1)
+  indicatorDescription: string // Nuevo: Descripción manual
   type: ColumnType
   instrumentId: string
 }
-
-const INDICATORS = [
-  { id: "ILC1", code: "C5.I1", description: "Instala y administra una plataforma web con LMS Moodle con políticas de seguridad." },
-  { id: "ILC2", code: "C5.I2", description: "Instala y administra una plataforma web con CMS WordPress considerando la normativa vigente." },
-  { id: "ILC3", code: "C5.I3", description: "Instala y administra una plataforma web con CMS PrestaShop y el comercio electrónico." }
-]
 
 const DEFAULT_RUBRIC_LEVELS: RubricLevel[] = [
   { label: 'Excelente', points: 4, description: '' },
@@ -113,10 +111,18 @@ export default function AcademicGradebookPage() {
 
   // Multi-step Editor State
   const [setupStep, setSetupStep] = React.useState(0)
-  const [selectedIndicator, setSelectedIndicator] = React.useState("")
+  const [newIndicatorCode, setNewIndicatorCode] = React.useState("")
+  const [newIndicatorDescription, setNewIndicatorDescription] = React.useState("")
   const [newColType, setNewColType] = React.useState<ColumnType>('manual')
   const [newColName, setNewColName] = React.useState("")
   const [editorCriteria, setEditorCriteria] = React.useState<any[]>([])
+
+  // Obtener indicadores únicos ya usados en este curso para sugerencias
+  const existingIndicators = React.useMemo(() => {
+    const map = new Map<string, string>();
+    columns.forEach(c => map.set(c.indicatorCode, c.indicatorDescription));
+    return Array.from(map.entries()).map(([code, desc]) => ({ code, desc }));
+  }, [columns]);
 
   const totalPointsChecklist = React.useMemo(() => {
     if (newColType !== 'cotejo') return 0
@@ -164,7 +170,8 @@ export default function AcademicGradebookPage() {
     const newColumn: Column = {
       id,
       name: newColName,
-      indicatorId: selectedIndicator,
+      indicatorCode: newIndicatorCode,
+      indicatorDescription: newIndicatorDescription,
       type: newColType,
       instrumentId: instId
     }
@@ -185,7 +192,8 @@ export default function AcademicGradebookPage() {
 
   const resetEditor = () => {
     setSetupStep(0)
-    setSelectedIndicator("")
+    setNewIndicatorCode("")
+    setNewIndicatorDescription("")
     setNewColName("")
     setNewColType('manual')
     setEditorCriteria([])
@@ -240,7 +248,7 @@ export default function AcademicGradebookPage() {
             </div>
             <div>
               <h2 className="text-4xl font-headline font-black tracking-tight text-slate-900">Registro Auxiliar</h2>
-              <p className="text-slate-500 font-medium italic">Gestión de Instrumentos de Evaluación por Sílabo</p>
+              <p className="text-slate-500 font-medium italic">Gestión de Instrumentos de Evaluación Personalizados</p>
             </div>
           </div>
         </div>
@@ -256,29 +264,67 @@ export default function AcademicGradebookPage() {
               <div>
                 <Badge className="bg-white/20 text-white mb-4 border-none font-bold">PASO {setupStep + 1} DE 3</Badge>
                 <h3 className="text-3xl font-black uppercase tracking-tight">Nueva Actividad Evaluable</h3>
-                <p className="text-blue-100/80 font-bold uppercase text-[10px] tracking-[0.2em] mt-2">Configura el instrumento pedagógico</p>
+                <p className="text-blue-100/80 font-bold uppercase text-[10px] tracking-[0.2em] mt-2">Configura el indicador y el instrumento</p>
               </div>
               <Layers className="h-16 w-16 text-white/10" />
             </div>
 
             <div className="p-10 space-y-8 bg-white min-h-[500px]">
               {setupStep === 0 && (
-                <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
-                  <div className="space-y-3">
-                    <Label className="font-black text-[11px] uppercase text-primary tracking-widest pl-1">1. Seleccionar Indicador de Logro (Sílabo)</Label>
-                    <div className="grid gap-3">
-                      {INDICATORS.map((ind) => (
-                        <Button 
-                          key={ind.id} 
-                          variant="outline" 
-                          className={`h-auto p-5 justify-start text-left flex-col items-start gap-1 rounded-2xl border-2 transition-all ${selectedIndicator === ind.id ? 'border-primary bg-primary/5 ring-4 ring-primary/5' : 'hover:border-slate-300'}`}
-                          onClick={() => setSelectedIndicator(ind.id)}
-                        >
-                          <span className="font-black text-sm text-primary">{ind.code}</span>
-                          <span className="text-xs text-slate-500 font-medium leading-relaxed">{ind.description}</span>
-                        </Button>
-                      ))}
+                <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-2">
+                      <div className="h-8 w-1 bg-primary rounded-full" />
+                      <Label className="font-black text-xs uppercase text-primary tracking-widest">1. Definir Indicador de Logro</Label>
                     </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="md:col-span-1 space-y-3">
+                        <Label className="font-bold text-slate-700 text-[11px] uppercase tracking-wider">Código del Indicador</Label>
+                        <Input 
+                          value={newIndicatorCode} 
+                          onChange={e => setNewIndicatorCode(e.target.value.toUpperCase())}
+                          placeholder="Ej: C1.I1" 
+                          className="h-12 border-2 rounded-xl font-black text-primary uppercase"
+                        />
+                        <p className="text-[10px] text-slate-400 font-medium leading-tight">Usa una nomenclatura corta para identificarlo en la tabla.</p>
+                      </div>
+                      <div className="md:col-span-2 space-y-3">
+                        <Label className="font-bold text-slate-700 text-[11px] uppercase tracking-wider">Descripción del Indicador</Label>
+                        <Textarea 
+                          value={newIndicatorDescription} 
+                          onChange={e => setNewIndicatorDescription(e.target.value)}
+                          placeholder="Escribe aquí el texto completo del indicador de logro de acuerdo a tu sílabo..." 
+                          className="h-24 border-2 rounded-xl resize-none font-medium text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    {existingIndicators.length > 0 && (
+                      <div className="space-y-4 pt-4 border-t border-slate-100">
+                        <div className="flex items-center gap-2">
+                          <BookOpen className="h-4 w-4 text-slate-400" />
+                          <Label className="font-black text-[10px] uppercase text-slate-400 tracking-widest">Reutilizar indicadores de este curso:</Label>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {existingIndicators.map((ind, i) => (
+                            <Button 
+                              key={i} 
+                              variant="outline" 
+                              size="sm" 
+                              className="h-auto py-2 px-4 rounded-xl border-2 hover:bg-primary/5 hover:border-primary/30 transition-all text-left flex-col items-start gap-0.5"
+                              onClick={() => {
+                                setNewIndicatorCode(ind.code);
+                                setNewIndicatorDescription(ind.desc);
+                              }}
+                            >
+                              <span className="font-black text-xs text-primary">{ind.code}</span>
+                              <span className="text-[10px] text-slate-500 font-medium truncate w-48">{ind.desc}</span>
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -286,7 +332,10 @@ export default function AcademicGradebookPage() {
               {setupStep === 1 && (
                 <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
                   <div className="space-y-4">
-                    <Label className="font-black text-[11px] uppercase text-primary tracking-widest pl-1">2. Tipo de Instrumento</Label>
+                    <div className="flex items-center gap-2">
+                      <div className="h-8 w-1 bg-primary rounded-full" />
+                      <Label className="font-black text-xs uppercase text-primary tracking-widest">2. Tipo de Instrumento</Label>
+                    </div>
                     <div className="grid grid-cols-3 gap-4">
                       {[
                         { id: 'manual', label: 'Nota Manual', icon: FileText, desc: 'Ingreso directo 0-20' },
@@ -299,8 +348,8 @@ export default function AcademicGradebookPage() {
                           className={`h-auto py-8 flex-col gap-3 rounded-2xl border-2 transition-all ${newColType === t.id ? 'border-primary bg-primary/5 ring-4 ring-primary/5' : 'hover:border-slate-200'}`}
                           onClick={() => {
                             setNewColType(t.id as ColumnType)
-                            if (t.id === 'cotejo') setEditorCriteria([{ id: '1', description: '', points: 2 }])
-                            if (t.id === 'rubrica') setEditorCriteria([{ id: '1', category: '', levels: JSON.parse(JSON.stringify(DEFAULT_RUBRIC_LEVELS)) }])
+                            if (t.id === 'cotejo' && editorCriteria.length === 0) setEditorCriteria([{ id: '1', description: '', points: 2 }])
+                            if (t.id === 'rubrica' && editorCriteria.length === 0) setEditorCriteria([{ id: '1', category: '', levels: JSON.parse(JSON.stringify(DEFAULT_RUBRIC_LEVELS)) }])
                           }}
                         >
                           <t.icon className={`h-8 w-8 ${newColType === t.id ? 'text-primary' : 'text-slate-300'}`} />
@@ -324,7 +373,7 @@ export default function AcademicGradebookPage() {
                   <div className="flex justify-between items-center bg-slate-50 p-5 rounded-2xl border-2 border-slate-100">
                     <div>
                       <p className="font-black text-[10px] uppercase text-slate-400 tracking-widest">Resumen de Configuración</p>
-                      <p className="font-bold text-slate-700 text-lg">{newColName} <span className="text-primary ml-2">({INDICATORS.find(i => i.id === selectedIndicator)?.code})</span></p>
+                      <p className="font-bold text-slate-700 text-lg">{newColName} <span className="text-primary ml-2">({newIndicatorCode})</span></p>
                     </div>
                     {newColType === 'cotejo' && (
                       <div className={`px-6 py-3 rounded-2xl font-black text-lg shadow-sm border-2 ${totalPointsChecklist === 20 ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-red-50 text-red-700 border-red-100'}`}>
@@ -443,7 +492,13 @@ export default function AcademicGradebookPage() {
               <Button variant="ghost" onClick={() => setSetupStep(p => Math.max(0, p - 1))} disabled={setupStep === 0} className="font-black text-[10px] uppercase tracking-widest h-12 px-8 rounded-xl border-2">Anterior</Button>
               <div className="flex gap-3">
                 {setupStep < 2 ? (
-                  <Button className="bg-primary px-10 h-12 font-black text-[10px] uppercase tracking-widest rounded-xl text-white shadow-lg shadow-primary/20" onClick={() => setSetupStep(p => p + 1)} disabled={(setupStep === 0 && !selectedIndicator) || (setupStep === 1 && !newColName)}>Siguiente Paso</Button>
+                  <Button 
+                    className="bg-primary px-10 h-12 font-black text-[10px] uppercase tracking-widest rounded-xl text-white shadow-lg shadow-primary/20" 
+                    onClick={() => setSetupStep(p => p + 1)} 
+                    disabled={(setupStep === 0 && (!newIndicatorCode || !newIndicatorDescription)) || (setupStep === 1 && !newColName)}
+                  >
+                    Siguiente Paso
+                  </Button>
                 ) : (
                   <Button className="bg-primary px-12 h-12 font-black text-[10px] uppercase tracking-widest rounded-xl shadow-xl shadow-primary/30 text-white" onClick={addColumn}>Finalizar y Guardar Evaluación</Button>
                 )}
@@ -485,9 +540,24 @@ export default function AcademicGradebookPage() {
                   {columns.map(c => (
                     <TableHead key={c.id} className="text-center font-black text-[10px] uppercase text-slate-400 tracking-widest px-6 border-l min-w-[160px]">
                       <div className="flex flex-col items-center gap-2">
-                        <Badge variant="outline" className="border-primary/20 text-primary bg-primary/5 text-[8px] px-2 py-0.5 font-black">
-                          {INDICATORS.find(i => i.id === c.indicatorId)?.code}
-                        </Badge>
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Badge variant="outline" className="cursor-help border-primary/20 text-primary bg-primary/5 text-[8px] px-2 py-0.5 font-black hover:bg-primary/10 transition-all">
+                              {c.indicatorCode}
+                            </Badge>
+                          </DialogTrigger>
+                          <DialogContent className="sm:max-w-md">
+                            <DialogHeader>
+                              <DialogTitle className="flex items-center gap-2">
+                                <Info className="h-5 w-5 text-primary" />
+                                Indicador de Logro: {c.indicatorCode}
+                              </DialogTitle>
+                              <DialogDescription className="pt-4 text-slate-700 font-medium leading-relaxed">
+                                {c.indicatorDescription}
+                              </DialogDescription>
+                            </DialogHeader>
+                          </DialogContent>
+                        </Dialog>
                         <span className="text-slate-900 truncate w-36 font-extrabold">{c.name}</span>
                       </div>
                     </TableHead>
@@ -540,7 +610,7 @@ export default function AcademicGradebookPage() {
                                         <div className="space-y-3">
                                           <div className="flex items-center gap-3">
                                             <Badge className="bg-white/20 text-white font-black uppercase text-[10px] tracking-widest border-none px-3">{activeEval.column.type.toUpperCase()}</Badge>
-                                            <span className="text-blue-200 font-black text-xs uppercase tracking-[0.3em]">{INDICATORS.find(i => i.id === activeEval.column.indicatorId)?.code}</span>
+                                            <span className="text-blue-200 font-black text-xs uppercase tracking-[0.3em]">{activeEval.column.indicatorCode}</span>
                                           </div>
                                           <h3 className="text-4xl font-black uppercase tracking-tighter">{activeEval.student.nombre}</h3>
                                           <p className="flex items-center gap-2 text-blue-100/80 font-bold uppercase text-[11px] tracking-widest">
@@ -685,7 +755,7 @@ export default function AcademicGradebookPage() {
           </div>
           <div className="text-center space-y-3">
             <p className="text-3xl font-black text-slate-900 uppercase tracking-tighter">Registro Auxiliar Vacío</p>
-            <p className="text-base font-medium max-w-md mx-auto text-slate-500 leading-relaxed italic">Construye tu primer instrumento de evaluación vinculándolo a un indicador de logro del sílabo oficial.</p>
+            <p className="text-base font-medium max-w-md mx-auto text-slate-500 leading-relaxed italic">Construye tu primer instrumento de evaluación definiendo un indicador de logro personalizado.</p>
           </div>
           <Button className="h-16 px-12 bg-primary font-black rounded-3xl uppercase text-xs tracking-[0.2em] gap-4 text-white shadow-2xl shadow-primary/30 hover:scale-105 transition-all" onClick={() => setIsNewColOpen(true)}>
             <PlusCircle className="h-6 w-6" /> Iniciar Configuración Pedagógica
@@ -693,5 +763,24 @@ export default function AcademicGradebookPage() {
         </Card>
       )}
     </div>
+  )
+}
+
+function ActionBtn({ icon: Icon, active, color, onClick }: any) {
+  const styles: any = {
+    green: active ? "bg-emerald-600 text-white scale-110 shadow-lg shadow-emerald-200" : "text-slate-300 hover:text-emerald-600 hover:bg-emerald-50",
+    amber: active ? "bg-amber-500 text-white scale-110 shadow-lg shadow-amber-200" : "text-slate-300 hover:text-amber-600 hover:bg-amber-50",
+    red: active ? "bg-red-600 text-white scale-110 shadow-lg shadow-red-200" : "text-slate-300 hover:text-red-600 hover:bg-red-50",
+    blue: active ? "bg-blue-600 text-white scale-110 shadow-lg shadow-blue-200" : "text-slate-300 hover:text-blue-600 hover:bg-blue-50",
+  }
+  return (
+    <Button 
+      size="icon" 
+      variant="outline" 
+      onClick={onClick} 
+      className={`h-11 w-11 rounded-2xl border-slate-100 transition-all duration-300 ${styles[color]}`}
+    >
+      <Icon className="h-5 w-5" />
+    </Button>
   )
 }
