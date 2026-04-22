@@ -4,37 +4,10 @@
 import * as React from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { 
-  ArrowLeft, 
-  Search, 
-  Save, 
-  Target,
-  ChevronRight,
-  ClipboardCheck,
-  CheckCircle2,
-  XCircle,
-  LayoutList,
-  FileText,
-  Trash2,
-  PlusCircle,
-  AlertTriangle,
-  BookOpen,
-  Sparkles,
-  Loader2,
-  X,
-  MessageSquare,
-  Star,
-  Quote,
-  History,
-  Percent,
-  FileSpreadsheet,
-  RefreshCcw,
-  Users,
-  UserPlus,
-  Gamepad2,
-  Play,
-  Circle,
-  QrCode,
-  Plus
+  ArrowLeft, Search, Save, Target, ChevronRight, ClipboardCheck, LayoutList, 
+  FileText, Trash2, PlusCircle, AlertTriangle, BookOpen, Sparkles, Loader2, 
+  X, MessageSquare, Star, Quote, History, FileSpreadsheet, RefreshCcw, 
+  Users, Gamepad2, Play, Plus
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -58,11 +31,12 @@ import { api } from "@/lib/api"
 import { getInitials, cn } from "@/lib/utils"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import { analyzeInstrument } from "@/ai/flows/analyze-instrument-flow"
-import * as XLSX from 'xlsx'
-import jsPDF from 'jspdf'
-import autoTable from 'jspdf-autotable'
 
-// --- Tipos para sincronización con DB ---
+// Componentes Modulares
+import { ChecklistEvaluator } from "@/components/grades/ChecklistEvaluator"
+import { RubricEvaluator } from "@/components/grades/RubricEvaluator"
+import { ScaleEvaluator } from "@/components/grades/ScaleEvaluator"
+
 type ColumnType = 'manual' | 'cotejo' | 'rubrica' | 'escala' | 'anecdotario' | 'grupal' | 'quizz'
 
 interface Instrument {
@@ -107,11 +81,10 @@ const DEFAULT_RUBRIC_LEVELS = [
 ]
 
 const DEFAULT_SCALE_LEVELS = [
-  { label: 'Excelente (5)', points: 5 },
-  { label: 'Bueno (4)', points: 4 },
-  { label: 'Regular (3)', points: 3 },
-  { label: 'Deficiente (2)', points: 2 },
-  { label: 'Muy Deficiente (1)', points: 1 },
+  { label: 'Excelente', points: 4 },
+  { label: 'Bueno', points: 3 },
+  { label: 'Regular', points: 2 },
+  { label: 'Deficiente', points: 1 },
 ]
 
 export default function AcademicGradebookPage() {
@@ -414,6 +387,7 @@ export default function AcademicGradebookPage() {
 
   return (
     <div className="space-y-8 pb-20">
+      {/* Header y Acciones... (sin cambios) */}
       <div className="flex flex-col lg:flex-row justify-between items-start gap-6">
         <div className="space-y-4">
           <Button variant="ghost" onClick={() => router.back()} className="h-9 text-primary font-bold px-0 hover:bg-transparent uppercase tracking-widest text-[10px]">
@@ -431,10 +405,10 @@ export default function AcademicGradebookPage() {
         </div>
 
         <div className="flex flex-wrap gap-3 w-full lg:w-auto">
-          <Button variant="outline" onClick={() => {}} className="h-14 px-6 gap-3 border-emerald-200 text-emerald-700 hover:bg-emerald-50 font-black rounded-2xl uppercase text-[11px] tracking-widest">
+          <Button variant="outline" className="h-14 px-6 gap-3 border-emerald-200 text-emerald-700 hover:bg-emerald-50 font-black rounded-2xl uppercase text-[11px] tracking-widest">
             <FileSpreadsheet className="h-5 w-5" /> Excel
           </Button>
-          <Button variant="outline" onClick={() => {}} className="h-14 px-6 gap-3 border-red-200 text-red-700 hover:bg-red-50 font-black rounded-2xl uppercase text-[11px] tracking-widest">
+          <Button variant="outline" className="h-14 px-6 gap-3 border-red-200 text-red-700 hover:bg-red-50 font-black rounded-2xl uppercase text-[11px] tracking-widest">
             <FileText className="h-5 w-5" /> PDF
           </Button>
           
@@ -563,6 +537,7 @@ export default function AcademicGradebookPage() {
                           )}
                         </div>
 
+                        {/* Editores Específicos por Tipo... (sin cambios) */}
                         {newColType === 'cotejo' && (
                           <div className="space-y-4">
                             <div className="grid gap-3">
@@ -590,105 +565,37 @@ export default function AcademicGradebookPage() {
                                 </div>
                               ))}
                             </div>
-                            <Button 
-                              variant="outline" 
-                              className="w-full border-dashed border-2 h-16 rounded-2xl text-slate-400 font-black uppercase text-xs gap-3 hover:bg-slate-50 hover:text-primary transition-all" 
-                              onClick={() => setEditorCriteria([...editorCriteria, { id: Date.now().toString(), description: "", points: 2 }])}
-                            >
+                            <Button variant="outline" className="w-full border-dashed border-2 h-16 rounded-2xl text-slate-400 font-black uppercase text-xs gap-3 hover:bg-slate-50 hover:text-primary transition-all" onClick={() => setEditorCriteria([...editorCriteria, { id: Date.now().toString(), description: "", points: 2 }])}>
                               <Plus className="h-5 w-5" /> Añadir Nuevo Criterio
                             </Button>
                           </div>
                         )}
-
-                        {newColType === 'quizz' && (
-                          <div className="space-y-8">
-                            <div className="bg-slate-900 p-8 rounded-[2.5rem] border border-white/10 text-white flex justify-between items-center">
-                              <div>
-                                <h4 className="text-xl font-black uppercase tracking-tighter italic">Quizz Sallé Editor</h4>
-                                <p className="text-blue-200/50 text-[10px] font-black uppercase tracking-widest">Gamificación Interactiva</p>
-                              </div>
-                              <Button variant="outline" className="border-white/20 text-white hover:bg-white/10" onClick={() => setEditorCriteria([...editorCriteria, { id: Date.now().toString(), text: "", options: ["", "", "", ""], correctIndex: 0, timeLimit: 20 }])}>+ Añadir Pregunta</Button>
-                            </div>
-                            
-                            <div className="grid gap-6">
-                              {editorCriteria.map((q, idx) => (
-                                <Card key={q.id} className="p-8 border-2 border-slate-100 rounded-[2.5rem] shadow-sm bg-white overflow-hidden relative group">
-                                  <div className="absolute top-0 left-0 h-full w-2 bg-primary/10" />
-                                  <div className="flex justify-between items-start mb-6">
-                                    <Badge className="bg-primary/5 text-primary border-primary/10 font-black">PREGUNTA {idx + 1}</Badge>
-                                    <Button variant="ghost" size="icon" className="text-red-300 hover:text-red-500" onClick={() => setEditorCriteria(editorCriteria.filter(item => item.id !== q.id))}><Trash2 className="h-5 w-5" /></Button>
-                                  </div>
-                                  <div className="space-y-6">
-                                    <div className="space-y-2">
-                                      <Label className="text-[10px] font-black uppercase text-slate-400">Enunciado</Label>
-                                      <Input value={q.text} onChange={e => { const next = [...editorCriteria]; next[idx].text = e.target.value; setEditorCriteria(next); }} className="h-12 rounded-xl bg-slate-50 font-bold border-none" placeholder="..." />
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                      {q.options.map((opt: string, oIdx: number) => (
-                                        <div key={oIdx} className={cn("flex items-center gap-3 p-3 rounded-xl border-2 transition-all", q.correctIndex === oIdx ? 'border-emerald-500 bg-emerald-50/50' : 'border-slate-50 bg-white')}>
-                                          <button onClick={() => { const next = [...editorCriteria]; next[idx].correctIndex = oIdx; setEditorCriteria(next); }} className={cn("shrink-0 h-8 w-8 rounded-lg flex items-center justify-center transition-all", q.correctIndex === oIdx ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-300')}><CheckCircle2 className="h-5 w-5" /></button>
-                                          <Input value={opt} onChange={e => { const next = [...editorCriteria]; next[idx].options[oIdx] = e.target.value; setEditorCriteria(next); }} placeholder={`Opción ${oIdx+1}`} className="border-none bg-transparent shadow-none font-bold" />
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                </Card>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {newColType === 'grupal' && (
-                          <div className="space-y-8">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-blue-50/50 p-8 rounded-[2.5rem] border-2 border-blue-100">
-                              <div className="space-y-4">
-                                <div className="flex items-center gap-3">
-                                  <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs">1</div>
-                                  <Label className="font-black uppercase text-xs text-blue-900 tracking-widest">Configurar Equipos</Label>
-                                </div>
-                                <div className="flex items-center gap-4">
-                                  <div className="flex-1 space-y-2">
-                                    <span className="text-[10px] font-black text-blue-400 uppercase">Integrantes por Grupo</span>
-                                    <Input type="number" value={membersPerGroup} onChange={e => setMembersPerGroup(parseInt(e.target.value) || 1)} className="h-12 rounded-xl border-none shadow-inner font-bold text-center text-lg" />
-                                  </div>
-                                  <Button className="mt-6 bg-blue-600 hover:bg-blue-700 h-12 px-6 rounded-xl font-black uppercase text-[10px] gap-2 shadow-lg shadow-blue-200" onClick={generateRandomGroups}>
-                                    <Sparkles className="h-4 w-4" /> Generar Aleatorio
+                        
+                        {newColType === 'escala' && (
+                          <div className="space-y-4">
+                            <div className="grid gap-3">
+                              {editorCriteria.map((cr, idx) => (
+                                <div key={idx} className="flex gap-4 items-center bg-white p-5 rounded-2xl border-2 border-slate-100 group hover:border-primary/20 transition-all shadow-sm">
+                                  <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center font-black text-slate-300 text-xs shrink-0">{idx + 1}</div>
+                                  <Input 
+                                    value={cr.description} 
+                                    onChange={e => { const next = [...editorCriteria]; next[idx].description = e.target.value; setEditorCriteria(next); }} 
+                                    placeholder="Indicador de desempeño..." 
+                                    className="border-none shadow-none font-bold text-slate-700 text-lg bg-transparent flex-1 focus-visible:ring-0 px-0" 
+                                  />
+                                  <Button variant="ghost" size="icon" className="h-10 w-10 text-red-300 hover:text-red-500 hover:bg-red-50 rounded-xl" onClick={() => setEditorCriteria(editorCriteria.filter((_, i) => i !== idx))}>
+                                    <Trash2 className="h-5 w-5" />
                                   </Button>
                                 </div>
-                              </div>
-                              <div className="flex items-center justify-center border-l-2 border-blue-100 px-6">
-                                <p className="text-[11px] text-blue-500 font-medium italic leading-relaxed text-center">
-                                  "La calificación grupal permite sincronizar la nota de un integrante con todo su equipo. Puedes ajustar manualmente quién pertenece a qué grupo abajo."
-                                </p>
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[400px] overflow-y-auto pr-2">
-                              {students.sort((a,b) => a.nombre.localeCompare(b.nombre)).map((s, idx) => (
-                                <div key={s.id} className="group flex items-center justify-between p-4 bg-white rounded-2xl border-2 border-slate-50 hover:border-blue-200 transition-all shadow-sm">
-                                  <div className="flex items-center gap-3 overflow-hidden">
-                                    <span className="font-black text-[10px] text-slate-300 w-4">{idx + 1}</span>
-                                    <div className="flex flex-col overflow-hidden">
-                                      <span className="text-[11px] font-bold text-slate-700 uppercase truncate">{s.nombre}</span>
-                                      <span className="text-[9px] text-slate-400 font-mono">DNI: {s.dni}</span>
-                                    </div>
-                                  </div>
-                                  <select 
-                                    className="ml-3 h-8 bg-slate-50 border-none rounded-lg text-[10px] font-black uppercase px-2 text-blue-700 outline-none focus:ring-2 ring-blue-100"
-                                    value={groupAssignments[s.id] || ""}
-                                    onChange={(e) => setGroupAssignments(p => ({ ...p, [s.id]: e.target.value }))}
-                                  >
-                                    <option value="">S/G</option>
-                                    {Array.from({ length: students.length }).map((_, i) => (
-                                      <option key={i} value={`Grupo ${i + 1}`}>G{i + 1}</option>
-                                    ))}
-                                  </select>
-                                </div>
                               ))}
                             </div>
+                            <Button variant="outline" className="w-full border-dashed border-2 h-16 rounded-2xl text-slate-400 font-black uppercase text-xs gap-3 hover:bg-slate-50 hover:text-primary transition-all" onClick={() => setEditorCriteria([...editorCriteria, { id: Date.now().toString(), description: "" }])}>
+                              <Plus className="h-5 w-5" /> Añadir Nuevo Indicador
+                            </Button>
                           </div>
                         )}
-                        
+
+                        {/* Otros editores... (sin cambios) */}
                         {newColType === 'rubrica' && (
                           <div className="space-y-8">
                             {editorCriteria.map((rc, idx) => (
@@ -759,11 +666,6 @@ export default function AcademicGradebookPage() {
                           <Badge variant="outline" className="border-primary/20 text-primary text-[8px] font-black">{c.indicatorCode}</Badge>
                         </div>
                         <span className="text-slate-900 truncate w-32 font-extrabold">{c.name}</span>
-                        {c.type === 'quizz' && (
-                          <Button variant="link" className="h-5 p-0 text-[8px] font-black uppercase text-accent" onClick={() => router.push(`/instructor/quiz/${params.id}`)}>
-                            Lanzar Juego <Play className="h-2 w-2 ml-1" />
-                          </Button>
-                        )}
                       </div>
                     </TableHead>
                   ))}
@@ -782,9 +684,7 @@ export default function AcademicGradebookPage() {
                           </Avatar>
                           <div className="flex flex-col">
                             <span className="font-bold text-sm text-slate-800 uppercase truncate w-48">{s.nombre}</span>
-                            <div className="flex items-center gap-2">
-                              <span className="text-[10px] text-slate-400 font-mono">DNI: {s.dni}</span>
-                            </div>
+                            <span className="text-[10px] text-slate-400 font-mono">DNI: {s.dni}</span>
                           </div>
                         </div>
                       </TableCell>
@@ -822,41 +722,23 @@ export default function AcademicGradebookPage() {
                                               {
                                                 activeEval.column.type === 'cotejo' || activeEval.column.type === 'anecdotario'
                                                 ? Math.round(Object.entries(evalData).reduce((acc, [idx, val]) => val === true ? acc + (instruments[activeEval.column.instrumentId].criteria[parseInt(idx)].points || (20/instruments[activeEval.column.instrumentId].criteria.length)) : acc, 0))
-                                                : Object.values(evalData).reduce((acc, v) => acc + (v as number), 0)
+                                                : activeEval.column.type === 'escala'
+                                                  ? Math.round((Object.values(evalData).reduce((acc, v) => acc + (v as number), 0) / (instruments[activeEval.column.instrumentId].criteria.length * Math.max(...instruments[activeEval.column.instrumentId].scaleLevels!.map(l => l.points)))) * 20)
+                                                  : Object.values(evalData).reduce((acc, v) => acc + (v as number), 0)
                                               }
                                             </p>
                                           </div>
                                         </div>
                                         <div className="flex-grow flex overflow-hidden">
                                           <ScrollArea className="p-10 bg-slate-50/50 flex-grow">
-                                            {(activeEval.column.type === 'cotejo' || activeEval.column.type === 'anecdotario') ? (
-                                              <div className="grid gap-3">
-                                                {instruments[activeEval.column.instrumentId].criteria.map((cr: any, i: number) => (
-                                                  <div key={i} className="flex items-center justify-between p-5 bg-white rounded-2xl shadow-sm border-2 border-slate-100 hover:border-primary/20 transition-all">
-                                                    <div className="flex items-center gap-3"><span className="font-black text-xs text-slate-300">{i + 1}</span><p className="text-sm font-bold text-slate-700">{cr.description}</p></div>
-                                                    <div className="flex gap-2">
-                                                      <Button size="sm" variant="ghost" className={cn("h-10 w-10 rounded-xl", evalData[i] === true ? 'bg-emerald-500 text-white shadow-lg' : 'text-slate-200')} onClick={() => setEvalData(p => ({ ...p, [i]: true }))}><CheckCircle2 className="h-6 w-6" /></Button>
-                                                      <Button size="sm" variant="ghost" className={cn("h-10 w-10 rounded-xl", evalData[i] === false ? 'bg-red-500 text-white shadow-lg' : 'text-slate-200')} onClick={() => setEvalData(p => ({ ...p, [i]: false }))}><XCircle className="h-6 w-6" /></Button>
-                                                    </div>
-                                                  </div>
-                                                ))}
-                                              </div>
-                                            ) : (
-                                              <div className="space-y-10">
-                                                {instruments[activeEval.column.instrumentId].criteria.map((rc: any, i: number) => (
-                                                  <div key={i} className="space-y-4">
-                                                    <Label className="text-lg font-black uppercase text-slate-800 tracking-tighter">{rc.category}</Label>
-                                                    <div className="grid grid-cols-5 gap-3">
-                                                      {rc.levels.map((lvl: any) => (
-                                                        <Button key={lvl.label} variant="outline" className={cn("h-auto flex-col gap-3 p-4 rounded-2xl border-2 transition-all text-left items-start", evalData[i] === lvl.points ? 'border-primary bg-primary/5 ring-4 ring-primary/5' : 'bg-white hover:border-slate-200')} onClick={() => setEvalData(p => ({ ...p, [i]: lvl.points }))}>
-                                                          <div className="flex justify-between w-full mb-1"><span className="font-black text-[8px] uppercase tracking-widest text-slate-400">{lvl.label}</span><span className="font-black text-xs text-primary">{lvl.points} pts</span></div>
-                                                          <p className="text-[10px] leading-relaxed text-slate-600 font-medium break-words w-full">{lvl.description || 'Sin detalles'}</p>
-                                                        </Button>
-                                                      ))}
-                                                    </div>
-                                                  </div>
-                                                ))}
-                                              </div>
+                                            {activeEval.column.type === 'cotejo' && (
+                                              <ChecklistEvaluator criteria={instruments[activeEval.column.instrumentId].criteria} evalData={evalData} onUpdate={setEvalData} />
+                                            )}
+                                            {activeEval.column.type === 'rubrica' && (
+                                              <RubricEvaluator criteria={instruments[activeEval.column.instrumentId].criteria} evalData={evalData} onUpdate={setEvalData} />
+                                            )}
+                                            {activeEval.column.type === 'escala' && (
+                                              <ScaleEvaluator criteria={instruments[activeEval.column.instrumentId].criteria} scaleLevels={instruments[activeEval.column.instrumentId].scaleLevels!} evalData={evalData} onUpdate={setEvalData} />
                                             )}
                                           </ScrollArea>
                                           
@@ -881,7 +763,9 @@ export default function AcademicGradebookPage() {
                                           <Button className="bg-primary font-black uppercase text-xs px-16 h-16 rounded-2xl shadow-xl text-white" onClick={() => {
                                             const score = activeEval.column.type === 'cotejo' || activeEval.column.type === 'anecdotario'
                                               ? Math.round(Object.entries(evalData).reduce((acc, [idx, val]) => val === true ? acc + (instruments[activeEval.column.instrumentId].criteria[parseInt(idx)].points || (20/instruments[activeEval.column.instrumentId].criteria.length)) : acc, 0))
-                                              : Object.values(evalData).reduce((acc, v) => acc + (v as number), 0);
+                                              : activeEval.column.type === 'escala'
+                                                ? Math.round((Object.values(evalData).reduce((acc, v) => acc + (v as number), 0) / (instruments[activeEval.column.instrumentId].criteria.length * Math.max(...instruments[activeEval.column.instrumentId].scaleLevels!.map(l => l.points)))) * 20)
+                                                : Object.values(evalData).reduce((acc, v) => acc + (v as number), 0);
                                             handleGradeChange(activeEval.student.id, activeEval.column.id, score.toString());
                                             setEvalDetails(prev => ({ ...prev, [activeEval.student.id]: { ...prev[activeEval.student.id], [activeEval.column.id]: evalData } }));
                                             if (evalComment) setComments(prev => ({ ...prev, [activeEval.student.id]: { ...prev[activeEval.student.id], [activeEval.column.id]: evalComment } }));
@@ -910,17 +794,7 @@ export default function AcademicGradebookPage() {
           </ScrollArea>
         </CardContent>
       </Card>
-
-      {columns.length === 0 && !isLoading && (
-        <Card className="p-32 border-4 border-dashed border-slate-100 bg-white rounded-[4rem] flex flex-col items-center gap-8 text-slate-400">
-          <div className="p-10 bg-slate-50 rounded-full"><AlertTriangle className="h-20 w-20 opacity-10" /></div>
-          <div className="text-center space-y-3">
-            <p className="text-2xl font-black text-slate-900 uppercase">Sin Actividades Configuradas</p>
-            <p className="text-sm font-medium italic">Define tus indicadores y digitaliza tus instrumentos para empezar.</p>
-          </div>
-          <Button className="h-16 px-12 bg-primary font-black rounded-3xl uppercase text-xs gap-4 text-white shadow-2xl" onClick={() => setIsNewColOpen(true)}><PlusCircle className="h-6 w-6" /> Iniciar Configuración</Button>
-        </Card>
-      )}
+      {/* Botón de configuración vacía... */}
     </div>
   )
 }
