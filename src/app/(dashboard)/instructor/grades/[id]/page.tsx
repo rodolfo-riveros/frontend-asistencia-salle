@@ -29,7 +29,11 @@ import {
   FileSpreadsheet,
   RefreshCcw,
   Users,
-  UserPlus
+  UserPlus,
+  Gamepad2,
+  Play,
+  Circle,
+  QrCode
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -58,7 +62,7 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
 // --- Tipos para sincronización con DB ---
-type ColumnType = 'manual' | 'cotejo' | 'rubrica' | 'escala' | 'anecdotario' | 'grupal'
+type ColumnType = 'manual' | 'cotejo' | 'rubrica' | 'escala' | 'anecdotario' | 'grupal' | 'quizz'
 
 interface Instrument {
   id: string
@@ -80,7 +84,7 @@ interface Column {
   type: ColumnType
   instrumentId: string
   maxPoints: number
-  groups?: Record<string, string> // studentId -> groupId
+  groups?: Record<string, string> 
 }
 
 const DEFAULT_RUBRIC_LEVELS = [
@@ -136,7 +140,7 @@ export default function AcademicGradebookPage() {
 
   // Group Editor State
   const [membersPerGroup, setMembersPerGroup] = React.useState(2)
-  const [groupAssignments, setGroupAssignments] = React.useState<Record<string, string>>({}) // studentId -> groupId
+  const [groupAssignments, setGroupAssignments] = React.useState<Record<string, string>>({}) 
 
   // AI Scanner State
   const [isScanning, setIsScanning] = React.useState(false)
@@ -259,7 +263,7 @@ export default function AcademicGradebookPage() {
       type: newColType,
       criteria: editorCriteria,
       scaleLevels: newColType === 'escala' ? editorScaleLevels : undefined,
-      maxPoints: newColType === 'manual' || newColType === 'grupal' ? newMaxPoints : 20
+      maxPoints: (newColType === 'manual' || newColType === 'grupal' || newColType === 'quizz') ? newMaxPoints : 20
     }
 
     const newColumn: Column = {
@@ -272,7 +276,7 @@ export default function AcademicGradebookPage() {
       instrumentWeight: newInstrumentWeight,
       type: newColType,
       instrumentId: instId,
-      maxPoints: newColType === 'manual' || newColType === 'grupal' ? newMaxPoints : 20,
+      maxPoints: (newColType === 'manual' || newColType === 'grupal' || newColType === 'quizz') ? newMaxPoints : 20,
       groups: newColType === 'grupal' ? groupAssignments : undefined
     }
 
@@ -390,6 +394,7 @@ export default function AcademicGradebookPage() {
       case 'escala': return <Star className="h-3 w-3" />;
       case 'anecdotario': return <Quote className="h-3 w-3" />;
       case 'grupal': return <Users className="h-3 w-3" />;
+      case 'quizz': return <Gamepad2 className="h-3 w-3" />;
       default: return <FileText className="h-3 w-3" />;
     }
   }
@@ -482,16 +487,22 @@ export default function AcademicGradebookPage() {
                   {setupStep === 1 && (
                     <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
                       <div className="space-y-1"><Label className="font-black text-xs uppercase text-primary tracking-widest flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-primary" /> Selección del Instrumento</Label></div>
-                      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+                      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
                         {[
                           { id: 'manual', label: 'Nota Directa', icon: FileText },
                           { id: 'cotejo', label: 'Lista / Test', icon: LayoutList },
                           { id: 'rubrica', label: 'Rúbrica', icon: Target },
                           { id: 'escala', label: 'Escala Valor.', icon: Star },
                           { id: 'anecdotario', label: 'Observación', icon: Quote },
-                          { id: 'grupal', label: 'Trabajo Grupal', icon: Users }
+                          { id: 'grupal', label: 'Trabajo Grupal', icon: Users },
+                          { id: 'quizz', label: 'Quizz Sallé', icon: Gamepad2 }
                         ].map((t) => (
-                          <Button key={t.id} variant="outline" className={cn("h-auto py-6 flex-col gap-2 rounded-2xl border-2", newColType === t.id ? 'border-primary bg-primary/5' : 'hover:border-slate-200')} onClick={() => setNewColType(t.id as ColumnType)}>
+                          <Button key={t.id} variant="outline" className={cn("h-auto py-6 flex-col gap-2 rounded-2xl border-2", newColType === t.id ? 'border-primary bg-primary/5' : 'hover:border-slate-200')} onClick={() => {
+                            setNewColType(t.id as ColumnType);
+                            if(t.id === 'quizz' && editorCriteria.length === 0) {
+                              setEditorCriteria([{ id: Date.now().toString(), text: "", options: ["", "", "", ""], correctIndex: 0, timeLimit: 20 }]);
+                            }
+                          }}>
                             <t.icon className={`h-6 w-6 ${newColType === t.id ? 'text-primary' : 'text-slate-300'}`} />
                             <span className="font-black text-[9px] uppercase tracking-tighter">{t.label}</span>
                           </Button>
@@ -513,7 +524,7 @@ export default function AcademicGradebookPage() {
                           <Label className="font-black text-[11px] uppercase text-indigo-600 tracking-widest">Peso (%)</Label>
                           <Input type="number" value={newInstrumentWeight || ""} onChange={e => setNewInstrumentWeight(parseInt(e.target.value) || 0)} className="h-14 rounded-xl text-center text-lg font-black border-2" />
                         </div>
-                        {(newColType === 'manual' || newColType === 'grupal') && (
+                        {(newColType === 'manual' || newColType === 'grupal' || newColType === 'quizz') && (
                           <div className="space-y-3">
                             <Label className="font-black text-[11px] uppercase text-primary tracking-widest">Puntaje Máx.</Label>
                             <Input type="number" value={newMaxPoints} onChange={e => setNewMaxPoints(parseInt(e.target.value) || 20)} className="h-14 rounded-xl text-center text-lg font-black border-2" />
@@ -530,8 +541,45 @@ export default function AcademicGradebookPage() {
                           <div className="p-3 bg-primary text-white rounded-xl">{getInstrumentIcon(newColType)}</div>
                           <div><p className="font-black text-[10px] uppercase text-slate-400 tracking-widest">{newColType.toUpperCase()}</p><div className="font-bold text-slate-700 text-lg">{newColName}</div></div>
                         </div>
-                        {newColType === 'cotejo' && <Badge className={cn("h-10 px-6 rounded-xl font-black", totalPointsChecklist === 20 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700')}>{totalPointsChecklist}/20 pts</Badge>}
                       </div>
+
+                      {newColType === 'quizz' && (
+                        <div className="space-y-8">
+                          <div className="bg-slate-900 p-8 rounded-[2.5rem] border border-white/10 text-white flex justify-between items-center">
+                            <div>
+                              <h4 className="text-xl font-black uppercase tracking-tighter italic">Quizz Sallé Editor</h4>
+                              <p className="text-blue-200/50 text-[10px] font-black uppercase tracking-widest">Gamificación Interactiva</p>
+                            </div>
+                            <Button variant="outline" className="border-white/20 text-white hover:bg-white/10" onClick={() => setEditorCriteria([...editorCriteria, { id: Date.now().toString(), text: "", options: ["", "", "", ""], correctIndex: 0, timeLimit: 20 }])}>+ Añadir Pregunta</Button>
+                          </div>
+                          
+                          <div className="grid gap-6">
+                            {editorCriteria.map((q, idx) => (
+                              <Card key={q.id} className="p-8 border-2 border-slate-100 rounded-[2.5rem] shadow-sm bg-white overflow-hidden relative group">
+                                <div className="absolute top-0 left-0 h-full w-2 bg-primary/10" />
+                                <div className="flex justify-between items-start mb-6">
+                                  <Badge className="bg-primary/5 text-primary border-primary/10 font-black">PREGUNTA {idx + 1}</Badge>
+                                  <Button variant="ghost" size="icon" className="text-red-300 hover:text-red-500" onClick={() => setEditorCriteria(editorCriteria.filter(item => item.id !== q.id))}><Trash2 className="h-5 w-5" /></Button>
+                                </div>
+                                <div className="space-y-6">
+                                  <div className="space-y-2">
+                                    <Label className="text-[10px] font-black uppercase text-slate-400">Enunciado</Label>
+                                    <Input value={q.text} onChange={e => { const next = [...editorCriteria]; next[idx].text = e.target.value; setEditorCriteria(next); }} className="h-12 rounded-xl bg-slate-50 font-bold border-none" placeholder="..." />
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-4">
+                                    {q.options.map((opt: string, oIdx: number) => (
+                                      <div key={oIdx} className={cn("flex items-center gap-3 p-3 rounded-xl border-2 transition-all", q.correctIndex === oIdx ? 'border-emerald-500 bg-emerald-50/50' : 'border-slate-50 bg-white')}>
+                                        <button onClick={() => { const next = [...editorCriteria]; next[idx].correctIndex = oIdx; setEditorCriteria(next); }} className={cn("shrink-0 h-8 w-8 rounded-lg flex items-center justify-center transition-all", q.correctIndex === oIdx ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-300')}><CheckCircle2 className="h-5 w-5" /></button>
+                                        <Input value={opt} onChange={e => { const next = [...editorCriteria]; next[idx].options[oIdx] = e.target.value; setEditorCriteria(next); }} placeholder={`Opción ${oIdx+1}`} className="border-none bg-transparent shadow-none font-bold" />
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              </Card>
+                            ))}
+                          </div>
+                        </div>
+                      )}
 
                       {newColType === 'grupal' && (
                         <div className="space-y-8">
@@ -665,10 +713,13 @@ export default function AcademicGradebookPage() {
                         <div className="flex items-center gap-1">
                           <div className="text-primary/60">{getInstrumentIcon(c.type)}</div>
                           <Badge variant="outline" className="border-primary/20 text-primary text-[8px] font-black">{c.indicatorCode}</Badge>
-                          {c.instrumentWeight > 0 && <Badge className="bg-indigo-50 text-indigo-600 border-none text-[8px]">{c.instrumentWeight}%</Badge>}
                         </div>
                         <span className="text-slate-900 truncate w-32 font-extrabold">{c.name}</span>
-                        <span className="text-[8px] text-slate-400 font-bold">Máx: {c.maxPoints} pts</span>
+                        {c.type === 'quizz' && (
+                          <Button variant="link" className="h-5 p-0 text-[8px] font-black uppercase text-accent" onClick={() => router.push(`/instructor/quiz/${params.id}`)}>
+                            Lanzar Juego <Play className="h-2 w-2 ml-1" />
+                          </Button>
+                        )}
                       </div>
                     </TableHead>
                   ))}
@@ -689,9 +740,6 @@ export default function AcademicGradebookPage() {
                             <span className="font-bold text-sm text-slate-800 uppercase truncate w-48">{s.nombre}</span>
                             <div className="flex items-center gap-2">
                               <span className="text-[10px] text-slate-400 font-mono">DNI: {s.dni}</span>
-                              {columns.some(c => c.type === 'grupal' && c.groups?.[s.id]) && (
-                                <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-100 text-[8px] h-4 font-black">EQUIPO</Badge>
-                              )}
                             </div>
                           </div>
                         </div>
@@ -708,7 +756,7 @@ export default function AcademicGradebookPage() {
                                 value={grade} 
                                 onChange={e => handleGradeChange(s.id, c.id, e.target.value)} 
                               />
-                              {c.type !== 'manual' && c.type !== 'grupal' && (
+                              {c.type !== 'manual' && c.type !== 'grupal' && c.type !== 'quizz' && (
                                 <Dialog>
                                   <DialogTrigger asChild>
                                     <Button size="icon" variant="ghost" className="h-10 w-10 rounded-xl hover:bg-primary/10 text-primary border-2 border-primary/5" onClick={() => { setActiveEval({ student: s, column: c }); setEvalData(evalDetails[s.id]?.[c.id] || {}); setEvalComment(comments[s.id]?.[c.id] || ""); }}>
@@ -716,7 +764,6 @@ export default function AcademicGradebookPage() {
                                     </Button>
                                   </DialogTrigger>
                                   <DialogContent className="max-w-6xl p-0 overflow-hidden border-none shadow-2xl rounded-[3rem] flex flex-col h-[90vh]">
-                                    <DialogHeader className="sr-only"><DialogTitle>Calificación dinámica</DialogTitle></DialogHeader>
                                     {activeEval && (
                                       <>
                                         <div className="bg-primary p-10 text-white flex justify-between items-center shrink-0">
