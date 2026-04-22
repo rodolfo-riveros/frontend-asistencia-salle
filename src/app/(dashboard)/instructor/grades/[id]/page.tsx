@@ -33,7 +33,8 @@ import {
   Gamepad2,
   Play,
   Circle,
-  QrCode
+  QrCode,
+  Plus
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -433,7 +434,7 @@ export default function AcademicGradebookPage() {
                 <PlusCircle className="h-5 w-5" /> Nueva Evaluación
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-5xl p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl flex flex-col max-h-[95vh]">
+            <DialogContent className="max-w-5xl p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl flex flex-col h-[90vh]">
               <div className="bg-primary p-8 text-white shrink-0">
                 <DialogTitle className="text-2xl font-black uppercase tracking-tight">Configuración Técnica</DialogTitle>
                 <DialogDescription className="text-blue-100/80 font-bold uppercase text-[10px] tracking-[0.2em] mt-1">
@@ -441,236 +442,269 @@ export default function AcademicGradebookPage() {
                 </DialogDescription>
               </div>
 
-              <ScrollArea className="flex-grow">
-                <div className="p-10 bg-white">
-                  {setupStep === 0 && (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                      <div className="space-y-6">
-                        <div className="flex items-center gap-4 mb-4">
-                          <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary"><BookOpen className="h-6 w-6" /></div>
-                          <div className="flex flex-col">
-                            <h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Indicador de Logro</h4>
-                            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Fundamentación Curricular</p>
+              <div className="flex-grow overflow-hidden flex flex-col">
+                <ScrollArea className="flex-grow">
+                  <div className="p-10 bg-white min-h-full">
+                    {setupStep === 0 && (
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                        <div className="space-y-6">
+                          <div className="flex items-center gap-4 mb-4">
+                            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary"><BookOpen className="h-6 w-6" /></div>
+                            <div className="flex flex-col">
+                              <h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Indicador de Logro</h4>
+                              <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Fundamentación Curricular</p>
+                            </div>
+                          </div>
+                          <div className="bg-slate-50/50 p-6 rounded-[2rem] border-2 border-slate-100 space-y-6">
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <Label className="font-black text-slate-400 text-[9px] uppercase tracking-[0.2em]">Código ILC</Label>
+                                <Input value={newIndicatorCode} onChange={e => setNewIndicatorCode(e.target.value.toUpperCase())} placeholder="Ej: C1.I1" className="h-12 border-none shadow-inner rounded-xl font-black text-lg bg-white" />
+                              </div>
+                              <div className="space-y-2">
+                                <Label className="font-black text-slate-400 text-[9px] uppercase tracking-[0.2em]">Peso (%)</Label>
+                                <Input type="number" value={newIndicatorWeight || ""} onChange={e => setNewIndicatorWeight(parseInt(e.target.value) || 0)} className="h-12 border-none shadow-inner rounded-xl font-black text-center text-lg bg-white" />
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <Label className="font-black text-slate-400 text-[9px] uppercase tracking-[0.2em]">Descripción de la Capacidad</Label>
+                              <Textarea value={newIndicatorDescription} onChange={e => setNewIndicatorDescription(e.target.value)} placeholder="Logro esperado..." className="h-32 border-none shadow-inner rounded-2xl bg-white" />
+                            </div>
                           </div>
                         </div>
-                        <div className="bg-slate-50/50 p-6 rounded-[2rem] border-2 border-slate-100 space-y-6">
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                              <Label className="font-black text-slate-400 text-[9px] uppercase tracking-[0.2em]">Código ILC</Label>
-                              <Input value={newIndicatorCode} onChange={e => setNewIndicatorCode(e.target.value.toUpperCase())} placeholder="Ej: C1.I1" className="h-12 border-none shadow-inner rounded-xl font-black text-lg bg-white" />
-                            </div>
-                            <div className="space-y-2">
-                              <Label className="font-black text-slate-400 text-[9px] uppercase tracking-[0.2em]">Peso (%)</Label>
-                              <Input type="number" value={newIndicatorWeight || ""} onChange={e => setNewIndicatorWeight(parseInt(e.target.value) || 0)} className="h-12 border-none shadow-inner rounded-xl font-black text-center text-lg bg-white" />
-                            </div>
-                          </div>
-                          <div className="space-y-2">
-                            <Label className="font-black text-slate-400 text-[9px] uppercase tracking-[0.2em]">Descripción de la Capacidad</Label>
-                            <Textarea value={newIndicatorDescription} onChange={e => setNewIndicatorDescription(e.target.value)} placeholder="Logro esperado..." className="h-32 border-none shadow-inner rounded-2xl bg-white" />
+                        <div className="space-y-6">
+                          <div className="flex items-center gap-4 mb-4"><div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600"><History className="h-6 w-6" /></div><h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Biblioteca</h4></div>
+                          <div className="bg-white rounded-[2rem] border-2 border-dashed border-slate-200 p-6 min-h-[300px]">
+                            {existingIndicators.map((ind, i) => (
+                              <button key={i} className="flex flex-col items-start p-4 rounded-2xl border-2 border-slate-50 hover:border-primary/30 hover:bg-primary/5 mb-3 w-full" onClick={() => { setNewIndicatorCode(ind.code); setNewIndicatorDescription(ind.desc); setNewIndicatorWeight(ind.weight); }}>
+                                <div className="flex justify-between w-full font-black text-sm text-primary mb-1"><span>{ind.code}</span><Badge variant="outline">{ind.weight}%</Badge></div>
+                                <p className="text-[11px] text-slate-500 line-clamp-2">{ind.desc}</p>
+                              </button>
+                            ))}
                           </div>
                         </div>
                       </div>
-                      <div className="space-y-6">
-                        <div className="flex items-center gap-4 mb-4"><div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600"><History className="h-6 w-6" /></div><h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Biblioteca</h4></div>
-                        <div className="bg-white rounded-[2rem] border-2 border-dashed border-slate-200 p-6 min-h-[300px]">
-                          {existingIndicators.map((ind, i) => (
-                            <button key={i} className="flex flex-col items-start p-4 rounded-2xl border-2 border-slate-50 hover:border-primary/30 hover:bg-primary/5 mb-3 w-full" onClick={() => { setNewIndicatorCode(ind.code); setNewIndicatorDescription(ind.desc); setNewIndicatorWeight(ind.weight); }}>
-                              <div className="flex justify-between w-full font-black text-sm text-primary mb-1"><span>{ind.code}</span><Badge variant="outline">{ind.weight}%</Badge></div>
-                              <p className="text-[11px] text-slate-500 line-clamp-2">{ind.desc}</p>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                    )}
 
-                  {setupStep === 1 && (
-                    <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
-                      <div className="space-y-1"><Label className="font-black text-xs uppercase text-primary tracking-widest flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-primary" /> Selección del Instrumento</Label></div>
-                      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
-                        {[
-                          { id: 'manual', label: 'Nota Directa', icon: FileText },
-                          { id: 'cotejo', label: 'Lista / Test', icon: LayoutList },
-                          { id: 'rubrica', label: 'Rúbrica', icon: Target },
-                          { id: 'escala', label: 'Escala Valor.', icon: Star },
-                          { id: 'anecdotario', label: 'Observación', icon: Quote },
-                          { id: 'grupal', label: 'Trabajo Grupal', icon: Users },
-                          { id: 'quizz', label: 'Quizz Sallé', icon: Gamepad2 }
-                        ].map((t) => (
-                          <Button key={t.id} variant="outline" className={cn("h-auto py-6 flex-col gap-2 rounded-2xl border-2", newColType === t.id ? 'border-primary bg-primary/5' : 'hover:border-slate-200')} onClick={() => {
-                            setNewColType(t.id as ColumnType);
-                            if(t.id === 'quizz' && editorCriteria.length === 0) {
-                              setEditorCriteria([{ id: Date.now().toString(), text: "", options: ["", "", "", ""], correctIndex: 0, timeLimit: 20 }]);
-                            }
-                          }}>
-                            <t.icon className={`h-6 w-6 ${newColType === t.id ? 'text-primary' : 'text-slate-300'}`} />
-                            <span className="font-black text-[9px] uppercase tracking-tighter">{t.label}</span>
-                          </Button>
-                        ))}
-                        <div className="relative">
-                          <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleAiScan} />
-                          <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isScanning} className="h-full w-full py-6 flex-col gap-2 rounded-2xl border-2 border-dashed border-accent hover:bg-accent/5">
-                            {isScanning ? <Loader2 className="h-6 w-6 animate-spin text-accent" /> : <Sparkles className="h-6 w-6 text-accent" />}
-                            <span className="font-black text-[9px] uppercase tracking-tighter text-accent">{isScanning ? "..." : "Escanear IA"}</span>
-                          </Button>
+                    {setupStep === 1 && (
+                      <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
+                        <div className="space-y-1"><Label className="font-black text-xs uppercase text-primary tracking-widest flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-primary" /> Selección del Instrumento</Label></div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+                          {[
+                            { id: 'manual', label: 'Nota Directa', icon: FileText },
+                            { id: 'cotejo', label: 'Lista / Test', icon: LayoutList },
+                            { id: 'rubrica', label: 'Rúbrica', icon: Target },
+                            { id: 'escala', label: 'Escala Valor.', icon: Star },
+                            { id: 'anecdotario', label: 'Observación', icon: Quote },
+                            { id: 'grupal', label: 'Trabajo Grupal', icon: Users },
+                            { id: 'quizz', label: 'Quizz Sallé', icon: Gamepad2 }
+                          ].map((t) => (
+                            <Button key={t.id} variant="outline" className={cn("h-auto py-6 flex-col gap-2 rounded-2xl border-2", newColType === t.id ? 'border-primary bg-primary/5' : 'hover:border-slate-200')} onClick={() => {
+                              setNewColType(t.id as ColumnType);
+                              if(t.id === 'quizz' && editorCriteria.length === 0) {
+                                setEditorCriteria([{ id: Date.now().toString(), text: "", options: ["", "", "", ""], correctIndex: 0, timeLimit: 20 }]);
+                              }
+                            }}>
+                              <t.icon className={`h-6 w-6 ${newColType === t.id ? 'text-primary' : 'text-slate-300'}`} />
+                              <span className="font-black text-[9px] uppercase tracking-tighter">{t.label}</span>
+                            </Button>
+                          ))}
+                          <div className="relative">
+                            <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleAiScan} />
+                            <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isScanning} className="h-full w-full py-6 flex-col gap-2 rounded-2xl border-2 border-dashed border-accent hover:bg-accent/5">
+                              {isScanning ? <Loader2 className="h-6 w-6 animate-spin text-accent" /> : <Sparkles className="h-6 w-6 text-accent" />}
+                              <span className="font-black text-[9px] uppercase tracking-tighter text-accent">{isScanning ? "..." : "Escanear IA"}</span>
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 pt-4 border-t border-slate-50 items-end">
+                          <div className="md:col-span-2 space-y-3">
+                            <Label className="font-black text-[11px] uppercase text-primary tracking-widest">Nombre de la Actividad</Label>
+                            <Input value={newColName} onChange={e => setNewColName(e.target.value)} placeholder="Ej. Proyecto Final" className="h-14 rounded-xl text-lg font-bold border-2" />
+                          </div>
+                          <div className="space-y-3">
+                            <Label className="font-black text-[11px] uppercase text-indigo-600 tracking-widest">Peso (%)</Label>
+                            <Input type="number" value={newInstrumentWeight || ""} onChange={e => setNewInstrumentWeight(parseInt(e.target.value) || 0)} className="h-14 rounded-xl text-center text-lg font-black border-2" />
+                          </div>
+                          {(newColType === 'manual' || newColType === 'grupal' || newColType === 'quizz') && (
+                            <div className="space-y-3">
+                              <Label className="font-black text-[11px] uppercase text-primary tracking-widest">Puntaje Máx.</Label>
+                              <Input type="number" value={newMaxPoints} onChange={e => setNewMaxPoints(parseInt(e.target.value) || 20)} className="h-14 rounded-xl text-center text-lg font-black border-2" />
+                            </div>
+                          )}
                         </div>
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 pt-4 border-t border-slate-50 items-end">
-                        <div className="md:col-span-2 space-y-3">
-                          <Label className="font-black text-[11px] uppercase text-primary tracking-widest">Nombre de la Actividad</Label>
-                          <Input value={newColName} onChange={e => setNewColName(e.target.value)} placeholder="Ej. Proyecto Final" className="h-14 rounded-xl text-lg font-bold border-2" />
+                    )}
+
+                    {setupStep === 2 && (
+                      <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
+                        <div className="flex justify-between items-center bg-slate-50 p-6 rounded-[2rem] border-2 border-slate-100">
+                          <div className="flex items-center gap-4">
+                            <div className="p-4 bg-primary text-white rounded-2xl shadow-lg shadow-primary/20">{getInstrumentIcon(newColType)}</div>
+                            <div>
+                              <p className="font-black text-[10px] uppercase text-slate-400 tracking-[0.2em] mb-1">{newColType.toUpperCase()} CONFIGURACIÓN</p>
+                              <div className="font-black text-slate-900 text-2xl tracking-tighter">{newColName}</div>
+                            </div>
+                          </div>
+                          {newColType === 'cotejo' && (
+                            <div className={cn("px-6 py-3 rounded-2xl font-black text-lg shadow-sm border-2", totalPointsChecklist === 20 ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-red-50 text-red-700 border-red-100')}>
+                              PUNTOS: {totalPointsChecklist} / 20
+                            </div>
+                          )}
                         </div>
-                        <div className="space-y-3">
-                          <Label className="font-black text-[11px] uppercase text-indigo-600 tracking-widest">Peso (%)</Label>
-                          <Input type="number" value={newInstrumentWeight || ""} onChange={e => setNewInstrumentWeight(parseInt(e.target.value) || 0)} className="h-14 rounded-xl text-center text-lg font-black border-2" />
-                        </div>
-                        {(newColType === 'manual' || newColType === 'grupal' || newColType === 'quizz') && (
-                          <div className="space-y-3">
-                            <Label className="font-black text-[11px] uppercase text-primary tracking-widest">Puntaje Máx.</Label>
-                            <Input type="number" value={newMaxPoints} onChange={e => setNewMaxPoints(parseInt(e.target.value) || 20)} className="h-14 rounded-xl text-center text-lg font-black border-2" />
+
+                        {newColType === 'cotejo' && (
+                          <div className="space-y-4">
+                            <div className="grid gap-3">
+                              {editorCriteria.map((cr, idx) => (
+                                <div key={idx} className="flex gap-4 items-center bg-white p-5 rounded-2xl border-2 border-slate-100 group hover:border-primary/20 transition-all shadow-sm">
+                                  <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center font-black text-slate-300 text-xs shrink-0">{idx + 1}</div>
+                                  <Input 
+                                    value={cr.description} 
+                                    onChange={e => { const next = [...editorCriteria]; next[idx].description = e.target.value; setEditorCriteria(next); }} 
+                                    placeholder="Define el criterio de evaluación..." 
+                                    className="border-none shadow-none font-bold text-slate-700 text-lg bg-transparent flex-1 focus-visible:ring-0 px-0" 
+                                  />
+                                  <div className="flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-xl border border-slate-100">
+                                    <span className="font-black text-[9px] text-slate-400 uppercase tracking-widest">PTS</span>
+                                    <Input 
+                                      type="number" 
+                                      value={cr.points} 
+                                      onChange={e => { const next = [...editorCriteria]; next[idx].points = parseInt(e.target.value) || 0; setEditorCriteria(next); }} 
+                                      className="w-14 h-9 bg-white border-2 border-slate-100 rounded-lg text-center font-black text-sm" 
+                                    />
+                                  </div>
+                                  <Button variant="ghost" size="icon" className="h-10 w-10 text-red-300 hover:text-red-500 hover:bg-red-50 rounded-xl" onClick={() => setEditorCriteria(editorCriteria.filter((_, i) => i !== idx))}>
+                                    <Trash2 className="h-5 w-5" />
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                            <Button 
+                              variant="outline" 
+                              className="w-full border-dashed border-2 h-16 rounded-2xl text-slate-400 font-black uppercase text-xs gap-3 hover:bg-slate-50 hover:text-primary transition-all" 
+                              onClick={() => setEditorCriteria([...editorCriteria, { id: Date.now().toString(), description: "", points: 2 }])}
+                            >
+                              <Plus className="h-5 w-5" /> Añadir Nuevo Criterio
+                            </Button>
+                          </div>
+                        )}
+
+                        {newColType === 'quizz' && (
+                          <div className="space-y-8">
+                            <div className="bg-slate-900 p-8 rounded-[2.5rem] border border-white/10 text-white flex justify-between items-center">
+                              <div>
+                                <h4 className="text-xl font-black uppercase tracking-tighter italic">Quizz Sallé Editor</h4>
+                                <p className="text-blue-200/50 text-[10px] font-black uppercase tracking-widest">Gamificación Interactiva</p>
+                              </div>
+                              <Button variant="outline" className="border-white/20 text-white hover:bg-white/10" onClick={() => setEditorCriteria([...editorCriteria, { id: Date.now().toString(), text: "", options: ["", "", "", ""], correctIndex: 0, timeLimit: 20 }])}>+ Añadir Pregunta</Button>
+                            </div>
+                            
+                            <div className="grid gap-6">
+                              {editorCriteria.map((q, idx) => (
+                                <Card key={q.id} className="p-8 border-2 border-slate-100 rounded-[2.5rem] shadow-sm bg-white overflow-hidden relative group">
+                                  <div className="absolute top-0 left-0 h-full w-2 bg-primary/10" />
+                                  <div className="flex justify-between items-start mb-6">
+                                    <Badge className="bg-primary/5 text-primary border-primary/10 font-black">PREGUNTA {idx + 1}</Badge>
+                                    <Button variant="ghost" size="icon" className="text-red-300 hover:text-red-500" onClick={() => setEditorCriteria(editorCriteria.filter(item => item.id !== q.id))}><Trash2 className="h-5 w-5" /></Button>
+                                  </div>
+                                  <div className="space-y-6">
+                                    <div className="space-y-2">
+                                      <Label className="text-[10px] font-black uppercase text-slate-400">Enunciado</Label>
+                                      <Input value={q.text} onChange={e => { const next = [...editorCriteria]; next[idx].text = e.target.value; setEditorCriteria(next); }} className="h-12 rounded-xl bg-slate-50 font-bold border-none" placeholder="..." />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                      {q.options.map((opt: string, oIdx: number) => (
+                                        <div key={oIdx} className={cn("flex items-center gap-3 p-3 rounded-xl border-2 transition-all", q.correctIndex === oIdx ? 'border-emerald-500 bg-emerald-50/50' : 'border-slate-50 bg-white')}>
+                                          <button onClick={() => { const next = [...editorCriteria]; next[idx].correctIndex = oIdx; setEditorCriteria(next); }} className={cn("shrink-0 h-8 w-8 rounded-lg flex items-center justify-center transition-all", q.correctIndex === oIdx ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-300')}><CheckCircle2 className="h-5 w-5" /></button>
+                                          <Input value={opt} onChange={e => { const next = [...editorCriteria]; next[idx].options[oIdx] = e.target.value; setEditorCriteria(next); }} placeholder={`Opción ${oIdx+1}`} className="border-none bg-transparent shadow-none font-bold" />
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </Card>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {newColType === 'grupal' && (
+                          <div className="space-y-8">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-blue-50/50 p-8 rounded-[2.5rem] border-2 border-blue-100">
+                              <div className="space-y-4">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs">1</div>
+                                  <Label className="font-black uppercase text-xs text-blue-900 tracking-widest">Configurar Equipos</Label>
+                                </div>
+                                <div className="flex items-center gap-4">
+                                  <div className="flex-1 space-y-2">
+                                    <span className="text-[10px] font-black text-blue-400 uppercase">Integrantes por Grupo</span>
+                                    <Input type="number" value={membersPerGroup} onChange={e => setMembersPerGroup(parseInt(e.target.value) || 1)} className="h-12 rounded-xl border-none shadow-inner font-bold text-center text-lg" />
+                                  </div>
+                                  <Button className="mt-6 bg-blue-600 hover:bg-blue-700 h-12 px-6 rounded-xl font-black uppercase text-[10px] gap-2 shadow-lg shadow-blue-200" onClick={generateRandomGroups}>
+                                    <Sparkles className="h-4 w-4" /> Generar Aleatorio
+                                  </Button>
+                                </div>
+                              </div>
+                              <div className="flex items-center justify-center border-l-2 border-blue-100 px-6">
+                                <p className="text-[11px] text-blue-500 font-medium italic leading-relaxed text-center">
+                                  "La calificación grupal permite sincronizar la nota de un integrante con todo su equipo. Puedes ajustar manualmente quién pertenece a qué grupo abajo."
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[400px] overflow-y-auto pr-2">
+                              {students.sort((a,b) => a.nombre.localeCompare(b.nombre)).map((s, idx) => (
+                                <div key={s.id} className="group flex items-center justify-between p-4 bg-white rounded-2xl border-2 border-slate-50 hover:border-blue-200 transition-all shadow-sm">
+                                  <div className="flex items-center gap-3 overflow-hidden">
+                                    <span className="font-black text-[10px] text-slate-300 w-4">{idx + 1}</span>
+                                    <div className="flex flex-col overflow-hidden">
+                                      <span className="text-[11px] font-bold text-slate-700 uppercase truncate">{s.nombre}</span>
+                                      <span className="text-[9px] text-slate-400 font-mono">DNI: {s.dni}</span>
+                                    </div>
+                                  </div>
+                                  <select 
+                                    className="ml-3 h-8 bg-slate-50 border-none rounded-lg text-[10px] font-black uppercase px-2 text-blue-700 outline-none focus:ring-2 ring-blue-100"
+                                    value={groupAssignments[s.id] || ""}
+                                    onChange={(e) => setGroupAssignments(p => ({ ...p, [s.id]: e.target.value }))}
+                                  >
+                                    <option value="">S/G</option>
+                                    {Array.from({ length: students.length }).map((_, i) => (
+                                      <option key={i} value={`Grupo ${i + 1}`}>G{i + 1}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {newColType === 'rubrica' && (
+                          <div className="space-y-8">
+                            {editorCriteria.map((rc, idx) => (
+                              <div key={idx} className="p-6 bg-slate-50/50 rounded-3xl border-2 border-slate-100">
+                                <div className="flex justify-between items-center mb-4">
+                                  <Input value={rc.category} onChange={e => { const next = [...editorCriteria]; next[idx].category = e.target.value; setEditorCriteria(next); }} className="font-black uppercase text-xs tracking-widest bg-transparent border-none p-0 h-auto" placeholder="NOMBRE DIMENSIÓN" />
+                                  <Button variant="ghost" size="icon" className="text-red-300" onClick={() => setEditorCriteria(editorCriteria.filter((_, i) => i !== idx))}><Trash2 className="h-4 w-4" /></Button>
+                                </div>
+                                <div className="grid grid-cols-5 gap-2">
+                                  {rc.levels.map((lvl: any, lIdx: number) => (
+                                    <div key={lIdx} className="bg-white p-3 rounded-xl border-2 border-slate-100 space-y-2">
+                                      <Badge variant="outline" className="font-black text-primary text-[8px]">{lvl.points} pts</Badge>
+                                      <textarea value={lvl.description} onChange={e => { const next = [...editorCriteria]; next[idx].levels[lIdx].description = e.target.value; setEditorCriteria(next); }} className="w-full resize-none border-none text-[10px] font-medium h-16" placeholder="..." />
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                            <Button variant="outline" className="w-full border-dashed border-2 h-12 rounded-xl font-black uppercase text-[10px]" onClick={() => setEditorCriteria([...editorCriteria, { id: Date.now().toString(), category: "", levels: JSON.parse(JSON.stringify(DEFAULT_RUBRIC_LEVELS)) }])}>+ Añadir Fila</Button>
                           </div>
                         )}
                       </div>
-                    </div>
-                  )}
-
-                  {setupStep === 2 && (
-                    <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
-                      <div className="flex justify-between items-center bg-slate-50 p-5 rounded-2xl border-2 border-slate-100">
-                        <div className="flex items-center gap-3">
-                          <div className="p-3 bg-primary text-white rounded-xl">{getInstrumentIcon(newColType)}</div>
-                          <div><p className="font-black text-[10px] uppercase text-slate-400 tracking-widest">{newColType.toUpperCase()}</p><div className="font-bold text-slate-700 text-lg">{newColName}</div></div>
-                        </div>
-                      </div>
-
-                      {newColType === 'quizz' && (
-                        <div className="space-y-8">
-                          <div className="bg-slate-900 p-8 rounded-[2.5rem] border border-white/10 text-white flex justify-between items-center">
-                            <div>
-                              <h4 className="text-xl font-black uppercase tracking-tighter italic">Quizz Sallé Editor</h4>
-                              <p className="text-blue-200/50 text-[10px] font-black uppercase tracking-widest">Gamificación Interactiva</p>
-                            </div>
-                            <Button variant="outline" className="border-white/20 text-white hover:bg-white/10" onClick={() => setEditorCriteria([...editorCriteria, { id: Date.now().toString(), text: "", options: ["", "", "", ""], correctIndex: 0, timeLimit: 20 }])}>+ Añadir Pregunta</Button>
-                          </div>
-                          
-                          <div className="grid gap-6">
-                            {editorCriteria.map((q, idx) => (
-                              <Card key={q.id} className="p-8 border-2 border-slate-100 rounded-[2.5rem] shadow-sm bg-white overflow-hidden relative group">
-                                <div className="absolute top-0 left-0 h-full w-2 bg-primary/10" />
-                                <div className="flex justify-between items-start mb-6">
-                                  <Badge className="bg-primary/5 text-primary border-primary/10 font-black">PREGUNTA {idx + 1}</Badge>
-                                  <Button variant="ghost" size="icon" className="text-red-300 hover:text-red-500" onClick={() => setEditorCriteria(editorCriteria.filter(item => item.id !== q.id))}><Trash2 className="h-5 w-5" /></Button>
-                                </div>
-                                <div className="space-y-6">
-                                  <div className="space-y-2">
-                                    <Label className="text-[10px] font-black uppercase text-slate-400">Enunciado</Label>
-                                    <Input value={q.text} onChange={e => { const next = [...editorCriteria]; next[idx].text = e.target.value; setEditorCriteria(next); }} className="h-12 rounded-xl bg-slate-50 font-bold border-none" placeholder="..." />
-                                  </div>
-                                  <div className="grid grid-cols-2 gap-4">
-                                    {q.options.map((opt: string, oIdx: number) => (
-                                      <div key={oIdx} className={cn("flex items-center gap-3 p-3 rounded-xl border-2 transition-all", q.correctIndex === oIdx ? 'border-emerald-500 bg-emerald-50/50' : 'border-slate-50 bg-white')}>
-                                        <button onClick={() => { const next = [...editorCriteria]; next[idx].correctIndex = oIdx; setEditorCriteria(next); }} className={cn("shrink-0 h-8 w-8 rounded-lg flex items-center justify-center transition-all", q.correctIndex === oIdx ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-300')}><CheckCircle2 className="h-5 w-5" /></button>
-                                        <Input value={opt} onChange={e => { const next = [...editorCriteria]; next[idx].options[oIdx] = e.target.value; setEditorCriteria(next); }} placeholder={`Opción ${oIdx+1}`} className="border-none bg-transparent shadow-none font-bold" />
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              </Card>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {newColType === 'grupal' && (
-                        <div className="space-y-8">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-blue-50/50 p-8 rounded-[2.5rem] border-2 border-blue-100">
-                            <div className="space-y-4">
-                              <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs">1</div>
-                                <Label className="font-black uppercase text-xs text-blue-900 tracking-widest">Configurar Equipos</Label>
-                              </div>
-                              <div className="flex items-center gap-4">
-                                <div className="flex-1 space-y-2">
-                                  <span className="text-[10px] font-black text-blue-400 uppercase">Integrantes por Grupo</span>
-                                  <Input type="number" value={membersPerGroup} onChange={e => setMembersPerGroup(parseInt(e.target.value) || 1)} className="h-12 rounded-xl border-none shadow-inner font-bold text-center text-lg" />
-                                </div>
-                                <Button className="mt-6 bg-blue-600 hover:bg-blue-700 h-12 px-6 rounded-xl font-black uppercase text-[10px] gap-2 shadow-lg shadow-blue-200" onClick={generateRandomGroups}>
-                                  <Sparkles className="h-4 w-4" /> Generar Aleatorio
-                                </Button>
-                              </div>
-                            </div>
-                            <div className="flex items-center justify-center border-l-2 border-blue-100 px-6">
-                              <p className="text-[11px] text-blue-500 font-medium italic leading-relaxed text-center">
-                                "La calificación grupal permite sincronizar la nota de un integrante con todo su equipo. Puedes ajustar manualmente quién pertenece a qué grupo abajo."
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[400px] overflow-y-auto pr-2">
-                            {students.sort((a,b) => a.nombre.localeCompare(b.nombre)).map((s, idx) => (
-                              <div key={s.id} className="group flex items-center justify-between p-4 bg-white rounded-2xl border-2 border-slate-50 hover:border-blue-200 transition-all shadow-sm">
-                                <div className="flex items-center gap-3 overflow-hidden">
-                                  <span className="font-black text-[10px] text-slate-300 w-4">{idx + 1}</span>
-                                  <div className="flex flex-col overflow-hidden">
-                                    <span className="text-[11px] font-bold text-slate-700 uppercase truncate">{s.nombre}</span>
-                                    <span className="text-[9px] text-slate-400 font-mono">DNI: {s.dni}</span>
-                                  </div>
-                                </div>
-                                <select 
-                                  className="ml-3 h-8 bg-slate-50 border-none rounded-lg text-[10px] font-black uppercase px-2 text-blue-700 outline-none focus:ring-2 ring-blue-100"
-                                  value={groupAssignments[s.id] || ""}
-                                  onChange={(e) => setGroupAssignments(p => ({ ...p, [s.id]: e.target.value }))}
-                                >
-                                  <option value="">S/G</option>
-                                  {Array.from({ length: students.length }).map((_, i) => (
-                                    <option key={i} value={`Grupo ${i + 1}`}>G{i + 1}</option>
-                                  ))}
-                                </select>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {newColType === 'cotejo' && (
-                        <div className="space-y-3">
-                          {editorCriteria.map((cr, idx) => (
-                            <div key={idx} className="flex gap-3 items-center bg-white p-3 rounded-xl border-2 border-slate-100 group">
-                              <span className="font-black text-xs text-slate-300 w-6">{idx + 1}</span>
-                              <Input value={cr.description} onChange={e => { const next = [...editorCriteria]; next[idx].description = e.target.value; setEditorCriteria(next); }} placeholder="Criterio..." className="border-none shadow-none font-bold flex-1" />
-                              <Input type="number" value={cr.points} onChange={e => { const next = [...editorCriteria]; next[idx].points = parseInt(e.target.value) || 0; setEditorCriteria(next); }} className="w-16 h-10 border-2 rounded-lg text-center font-black" />
-                              <Button variant="ghost" size="icon" className="text-red-300 hover:text-red-500" onClick={() => setEditorCriteria(editorCriteria.filter((_, i) => i !== idx))}><Trash2 className="h-4 w-4" /></Button>
-                            </div>
-                          ))}
-                          <Button variant="outline" className="w-full border-dashed border-2 h-12 rounded-xl text-slate-400 font-black uppercase text-[10px]" onClick={() => setEditorCriteria([...editorCriteria, { id: Date.now().toString(), description: "", points: 2 }])}>+ Añadir Criterio</Button>
-                        </div>
-                      )}
-                      
-                      {newColType === 'rubrica' && (
-                        <div className="space-y-8">
-                          {editorCriteria.map((rc, idx) => (
-                            <div key={idx} className="p-6 bg-slate-50/50 rounded-3xl border-2 border-slate-100">
-                              <div className="flex justify-between items-center mb-4">
-                                <Input value={rc.category} onChange={e => { const next = [...editorCriteria]; next[idx].category = e.target.value; setEditorCriteria(next); }} className="font-black uppercase text-xs tracking-widest bg-transparent border-none p-0 h-auto" placeholder="NOMBRE DIMENSIÓN" />
-                                <Button variant="ghost" size="icon" className="text-red-300" onClick={() => setEditorCriteria(editorCriteria.filter((_, i) => i !== idx))}><Trash2 className="h-4 w-4" /></Button>
-                              </div>
-                              <div className="grid grid-cols-5 gap-2">
-                                {rc.levels.map((lvl: any, lIdx: number) => (
-                                  <div key={lIdx} className="bg-white p-3 rounded-xl border-2 border-slate-100 space-y-2">
-                                    <Badge variant="outline" className="font-black text-primary text-[8px]">{lvl.points} pts</Badge>
-                                    <textarea value={lvl.description} onChange={e => { const next = [...editorCriteria]; next[idx].levels[lIdx].description = e.target.value; setEditorCriteria(next); }} className="w-full resize-none border-none text-[10px] font-medium h-16" placeholder="..." />
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          ))}
-                          <Button variant="outline" className="w-full border-dashed border-2 h-12 rounded-xl font-black uppercase text-[10px]" onClick={() => setEditorCriteria([...editorCriteria, { id: Date.now().toString(), category: "", levels: JSON.parse(JSON.stringify(DEFAULT_RUBRIC_LEVELS)) }])}>+ Añadir Fila</Button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </ScrollArea>
+                    )}
+                  </div>
+                </ScrollArea>
+              </div>
 
               <div className="p-8 bg-slate-50 border-t flex justify-between gap-3 items-center shrink-0">
                 <Button variant="ghost" onClick={() => setSetupStep(p => Math.max(0, p - 1))} disabled={setupStep === 0 || isScanning} className="font-black text-[10px] uppercase h-11 px-8 rounded-xl border-2">Anterior</Button>
