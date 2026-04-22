@@ -751,7 +751,7 @@ function EvaluationModal({ activeEval, setActiveEval, evalData, setEvalData, eva
   };
 
   return (
-    <Dialog open={!!activeEval} onOpenChange={(o) => if(!o) setActiveEval(null)}>
+    <Dialog open={!!activeEval} onOpenChange={(o) => { if(!o) setActiveEval(null); }}>
       <DialogContent className="max-w-6xl p-0 overflow-hidden border-none shadow-2xl rounded-[3rem] flex flex-col h-[90vh]">
         <div className="bg-primary p-10 text-white flex justify-between items-center shrink-0">
           <div className="space-y-2">
