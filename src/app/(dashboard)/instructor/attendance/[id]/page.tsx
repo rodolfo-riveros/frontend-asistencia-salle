@@ -250,9 +250,9 @@ export default function AttendancePage() {
       doc.setFontSize(10); doc.setTextColor(0)
       doc.text(`UD: ${courseInfo.unidad_nombre.toUpperCase()} | PROGRAMA: ${courseInfo.programa_nombre.toUpperCase()} | DOCENTE: ${userName}`, 14, 25)
 
-      const headers = ['N°', 'ALUMNO', ...uniqueDates.map(d => {
-        const [_, m, d] = d.split('-')
-        return `${d}/${m}`
+      const headers = ['N°', 'ALUMNO', ...uniqueDates.map(dateStr => {
+        const [year, m, day] = dateStr.split('-')
+        return `${day}/${m}`
       }), 'FALTAS', '%']
 
       const body = students.sort((a, b) => a.nombre.localeCompare(b.nombre)).map((alumno, index) => {
