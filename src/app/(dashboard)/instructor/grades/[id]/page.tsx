@@ -220,17 +220,6 @@ export default function AcademicGradebookPage() {
     }
   }
 
-  const generateRandomGroups = () => {
-    const shuffled = [...students].sort(() => Math.random() - 0.5);
-    const newGroups: Record<string, string> = {};
-    shuffled.forEach((s, idx) => {
-      const groupNum = Math.floor(idx / membersPerGroup) + 1;
-      newGroups[s.id] = `Grupo ${groupNum}`;
-    });
-    setGroupAssignments(newGroups);
-    toast({ title: "Grupos Generados", description: "Se han mezclado los alumnos aleatoriamente." });
-  }
-
   const addColumn = () => {
     if (newColType === 'cotejo' && totalPointsChecklist !== 20) {
       toast({ variant: "destructive", title: "Puntaje Inválido", description: "La suma de la Lista de Cotejo debe ser exactamente 20." })
@@ -387,7 +376,6 @@ export default function AcademicGradebookPage() {
 
   return (
     <div className="space-y-8 pb-20">
-      {/* Header y Acciones... (sin cambios) */}
       <div className="flex flex-col lg:flex-row justify-between items-start gap-6">
         <div className="space-y-4">
           <Button variant="ghost" onClick={() => router.back()} className="h-9 text-primary font-bold px-0 hover:bg-transparent uppercase tracking-widest text-[10px]">
@@ -537,7 +525,6 @@ export default function AcademicGradebookPage() {
                           )}
                         </div>
 
-                        {/* Editores Específicos por Tipo... (sin cambios) */}
                         {newColType === 'cotejo' && (
                           <div className="space-y-4">
                             <div className="grid gap-3">
@@ -595,26 +582,43 @@ export default function AcademicGradebookPage() {
                           </div>
                         )}
 
-                        {/* Otros editores... (sin cambios) */}
                         {newColType === 'rubrica' && (
-                          <div className="space-y-8">
+                          <div className="space-y-10">
                             {editorCriteria.map((rc, idx) => (
-                              <div key={idx} className="p-6 bg-slate-50/50 rounded-3xl border-2 border-slate-100">
-                                <div className="flex justify-between items-center mb-4">
-                                  <Input value={rc.category} onChange={e => { const next = [...editorCriteria]; next[idx].category = e.target.value; setEditorCriteria(next); }} className="font-black uppercase text-xs tracking-widest bg-transparent border-none p-0 h-auto" placeholder="NOMBRE DIMENSIÓN" />
-                                  <Button variant="ghost" size="icon" className="text-red-300" onClick={() => setEditorCriteria(editorCriteria.filter((_, i) => i !== idx))}><Trash2 className="h-4 w-4" /></Button>
+                              <div key={idx} className="p-8 bg-slate-50/50 rounded-[2.5rem] border-2 border-slate-100 overflow-hidden">
+                                <div className="flex justify-between items-center mb-6">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-2 h-8 bg-primary rounded-full" />
+                                    <Input 
+                                      value={rc.category} 
+                                      onChange={e => { const next = [...editorCriteria]; next[idx].category = e.target.value; setEditorCriteria(next); }} 
+                                      className="font-black uppercase text-sm tracking-widest bg-transparent border-none p-0 h-auto w-[400px] focus-visible:ring-0" 
+                                      placeholder="NOMBRE DE LA DIMENSIÓN A EVALUAR" 
+                                    />
+                                  </div>
+                                  <Button variant="ghost" size="icon" className="text-red-300 hover:text-red-500 hover:bg-red-50 rounded-xl" onClick={() => setEditorCriteria(editorCriteria.filter((_, i) => i !== idx))}><Trash2 className="h-5 w-5" /></Button>
                                 </div>
-                                <div className="grid grid-cols-5 gap-2">
+                                <div className="grid grid-cols-5 gap-3">
                                   {rc.levels.map((lvl: any, lIdx: number) => (
-                                    <div key={lIdx} className="bg-white p-3 rounded-xl border-2 border-slate-100 space-y-2">
-                                      <Badge variant="outline" className="font-black text-primary text-[8px]">{lvl.points} pts</Badge>
-                                      <textarea value={lvl.description} onChange={e => { const next = [...editorCriteria]; next[idx].levels[lIdx].description = e.target.value; setEditorCriteria(next); }} className="w-full resize-none border-none text-[10px] font-medium h-16" placeholder="..." />
+                                    <div key={lIdx} className="bg-white p-4 rounded-2xl border-2 border-slate-100 space-y-3 shadow-sm flex flex-col min-w-0">
+                                      <div className="flex justify-between items-center">
+                                        <span className="font-black text-[9px] text-slate-400 uppercase tracking-widest truncate">{lvl.label}</span>
+                                        <Badge variant="outline" className="font-black text-primary text-[10px] bg-primary/5 border-primary/20 shrink-0">{lvl.points} pts</Badge>
+                                      </div>
+                                      <textarea 
+                                        value={lvl.description} 
+                                        onChange={e => { const next = [...editorCriteria]; next[idx].levels[lIdx].description = e.target.value; setEditorCriteria(next); }} 
+                                        className="w-full resize-none border-none text-[11px] font-medium h-24 bg-slate-50/50 p-3 rounded-xl focus:bg-white transition-colors break-words" 
+                                        placeholder="Descripción del nivel..." 
+                                      />
                                     </div>
                                   ))}
                                 </div>
                               </div>
                             ))}
-                            <Button variant="outline" className="w-full border-dashed border-2 h-12 rounded-xl font-black uppercase text-[10px]" onClick={() => setEditorCriteria([...editorCriteria, { id: Date.now().toString(), category: "", levels: JSON.parse(JSON.stringify(DEFAULT_RUBRIC_LEVELS)) }])}>+ Añadir Fila</Button>
+                            <Button variant="outline" className="w-full border-dashed border-2 h-20 rounded-[2rem] text-slate-400 font-black uppercase text-xs gap-3 hover:bg-slate-50 hover:text-primary transition-all" onClick={() => setEditorCriteria([...editorCriteria, { id: Date.now().toString(), category: "", levels: JSON.parse(JSON.stringify(DEFAULT_RUBRIC_LEVELS)) }])}>
+                              <Plus className="h-6 w-6" /> Añadir Nueva Dimensión a la Rúbrica
+                            </Button>
                           </div>
                         )}
                       </div>
@@ -759,8 +763,8 @@ export default function AcademicGradebookPage() {
                                           )}
                                         </div>
                                         <div className="p-10 bg-white border-t flex justify-end gap-4 shrink-0">
-                                          <Button variant="ghost" className="font-black text-slate-400 uppercase text-xs px-8" onClick={() => setActiveEval(null)}>Descartar</Button>
-                                          <Button className="bg-primary font-black uppercase text-xs px-16 h-16 rounded-2xl shadow-xl text-white" onClick={() => {
+                                          <Button variant="ghost" className="font-black text-slate-400 uppercase text-xs px-12 h-16 rounded-2xl border-2 hover:bg-slate-50 flex-1 sm:flex-none" onClick={() => setActiveEval(null)}>Descartar</Button>
+                                          <Button className="bg-primary font-black uppercase text-xs px-12 h-16 rounded-2xl shadow-xl text-white flex-1 sm:flex-none" onClick={() => {
                                             const score = activeEval.column.type === 'cotejo' || activeEval.column.type === 'anecdotario'
                                               ? Math.round(Object.entries(evalData).reduce((acc, [idx, val]) => val === true ? acc + (instruments[activeEval.column.instrumentId].criteria[parseInt(idx)].points || (20/instruments[activeEval.column.instrumentId].criteria.length)) : acc, 0))
                                               : activeEval.column.type === 'escala'
@@ -794,7 +798,6 @@ export default function AcademicGradebookPage() {
           </ScrollArea>
         </CardContent>
       </Card>
-      {/* Botón de configuración vacía... */}
     </div>
   )
 }
