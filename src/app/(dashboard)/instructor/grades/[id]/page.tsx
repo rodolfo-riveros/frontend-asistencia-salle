@@ -37,7 +37,7 @@ import { ChecklistEvaluator } from "@/components/grades/ChecklistEvaluator"
 import { RubricEvaluator } from "@/components/grades/RubricEvaluator"
 import { ScaleEvaluator } from "@/components/grades/ScaleEvaluator"
 
-type ColumnType = 'manual' | 'cotejo' | 'rubrica' | 'escala' | 'anecdotario' | 'grupal' | 'quizz'
+type ColumnType = 'manual' | 'cotejo' | 'rubrica' | 'escala' | 'guia' | 'grupal' | 'quizz'
 
 interface Instrument {
   id: string
@@ -67,7 +67,7 @@ const TYPE_LABELS: Record<string, string> = {
   cotejo: 'Lista de Cotejo',
   rubrica: 'Rúbrica',
   escala: 'Escala Valorativa',
-  anecdotario: 'Registro Anecdótico',
+  guia: 'Guía de Observación',
   grupal: 'Trabajo Grupal',
   quizz: 'Quizz Sallé'
 }
@@ -122,10 +122,6 @@ export default function AcademicGradebookPage() {
   const [editorCriteria, setEditorCriteria] = React.useState<any[]>([])
   const [editorScaleLevels, setEditorScaleLevels] = React.useState<any[]>(DEFAULT_SCALE_LEVELS)
 
-  // Group Editor State
-  const [membersPerGroup, setMembersPerGroup] = React.useState(2)
-  const [groupAssignments, setGroupAssignments] = React.useState<Record<string, string>>({}) 
-
   // AI Scanner State
   const [isScanning, setIsScanning] = React.useState(false)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
@@ -138,8 +134,8 @@ export default function AcademicGradebookPage() {
     return Array.from(map.values());
   }, [columns]);
 
-  const totalPointsChecklist = React.useMemo(() => {
-    if (newColType !== 'cotejo') return 0
+  const totalPointsStep = React.useMemo(() => {
+    if (newColType !== 'cotejo' && newColType !== 'guia') return 0
     return editorCriteria.reduce((acc, curr) => acc + (Number(curr.points) || 0), 0)
   }, [editorCriteria, newColType])
 
@@ -203,7 +199,7 @@ export default function AcademicGradebookPage() {
       setNewColType(analysis.type)
       setNewColName(analysis.name)
       if (analysis.suggestedWeight) setNewInstrumentWeight(analysis.suggestedWeight)
-      if (analysis.type === 'cotejo' && analysis.checklistCriteria) {
+      if ((analysis.type === 'cotejo' || analysis.type === 'guia') && analysis.checklistCriteria) {
         setEditorCriteria(analysis.checklistCriteria.map((c: any) => ({ id: Math.random().toString(), ...c })))
       } else if (analysis.type === 'rubrica' && analysis.rubricDimensions) {
         setEditorCriteria(analysis.rubricDimensions.map((d: any) => ({ id: Math.random().toString(), ...d })))
@@ -221,8 +217,8 @@ export default function AcademicGradebookPage() {
   }
 
   const addColumn = () => {
-    if (newColType === 'cotejo' && totalPointsChecklist !== 20) {
-      toast({ variant: "destructive", title: "Puntaje Inválido", description: "La suma de la Lista de Cotejo debe ser exactamente 20." })
+    if ((newColType === 'cotejo' || newColType === 'guia') && totalPointsStep !== 20) {
+      toast({ variant: "destructive", title: "Puntaje Inválido", description: "La suma de los criterios debe ser exactamente 20." })
       return
     }
 
@@ -249,8 +245,7 @@ export default function AcademicGradebookPage() {
       instrumentWeight: newInstrumentWeight,
       type: newColType,
       instrumentId: instId,
-      maxPoints: (newColType === 'manual' || newColType === 'grupal' || newColType === 'quizz') ? newMaxPoints : 20,
-      groups: newColType === 'grupal' ? groupAssignments : undefined
+      maxPoints: (newColType === 'manual' || newColType === 'grupal' || newColType === 'quizz') ? newMaxPoints : 20
     }
 
     setInstruments(prev => ({ ...prev, [instId]: newInstrument }))
@@ -280,8 +275,6 @@ export default function AcademicGradebookPage() {
     setNewColType('manual')
     setNewMaxPoints(20)
     setEditorCriteria([])
-    setGroupAssignments({})
-    setMembersPerGroup(2)
   }
 
   const handleGradeChange = (studentId: string, columnId: string, value: string) => {
@@ -291,18 +284,8 @@ export default function AcademicGradebookPage() {
     
     setGrades(prev => {
       const next = { ...prev }
-      if (column?.type === 'grupal' && column.groups && column.groups[studentId]) {
-        const gid = column.groups[studentId]
-        Object.entries(column.groups).forEach(([sid, g]) => {
-          if (g === gid) {
-            if (!next[sid]) next[sid] = {}
-            next[sid][columnId] = numValue
-          }
-        })
-      } else {
-        if (!next[studentId]) next[studentId] = {}
-        next[studentId][columnId] = numValue
-      }
+      if (!next[studentId]) next[studentId] = {}
+      next[studentId][columnId] = numValue
       return next
     })
   }
@@ -365,7 +348,7 @@ export default function AcademicGradebookPage() {
       case 'cotejo': return <LayoutList className="h-3 w-3" />;
       case 'rubrica': return <Target className="h-3 w-3" />;
       case 'escala': return <Star className="h-3 w-3" />;
-      case 'anecdotario': return <Quote className="h-3 w-3" />;
+      case 'guia': return <Quote className="h-3 w-3" />;
       case 'grupal': return <Users className="h-3 w-3" />;
       case 'quizz': return <Gamepad2 className="h-3 w-3" />;
       default: return <FileText className="h-3 w-3" />;
@@ -467,7 +450,7 @@ export default function AcademicGradebookPage() {
                             { id: 'cotejo', label: 'Lista de Cotejo', icon: LayoutList },
                             { id: 'rubrica', label: 'Rúbrica', icon: Target },
                             { id: 'escala', label: 'Escala Valorativa', icon: Star },
-                            { id: 'anecdotario', label: 'Observación', icon: Quote },
+                            { id: 'guia', label: 'Guía Observación', icon: Quote },
                             { id: 'grupal', label: 'Trabajo Grupal', icon: Users },
                             { id: 'quizz', label: 'Quizz Sallé', icon: Gamepad2 }
                           ].map((t) => (
@@ -518,23 +501,25 @@ export default function AcademicGradebookPage() {
                               <div className="font-black text-slate-900 text-2xl tracking-tighter">{newColName}</div>
                             </div>
                           </div>
-                          {newColType === 'cotejo' && (
-                            <div className={cn("px-6 py-3 rounded-2xl font-black text-lg shadow-sm border-2", totalPointsChecklist === 20 ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-red-50 text-red-700 border-red-100')}>
-                              PUNTOS: {totalPointsChecklist} / 20
+                          {(newColType === 'cotejo' || newColType === 'guia') && (
+                            <div className={cn("px-6 py-3 rounded-2xl font-black text-lg shadow-sm border-2", totalPointsStep === 20 ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-red-50 text-red-700 border-red-100')}>
+                              PUNTOS: {totalPointsStep} / 20
                             </div>
                           )}
                         </div>
 
-                        {newColType === 'cotejo' && (
+                        {(newColType === 'cotejo' || newColType === 'guia') && (
                           <div className="space-y-4">
                             <div className="grid gap-3">
                               {editorCriteria.map((cr, idx) => (
                                 <div key={idx} className="flex gap-4 items-center bg-white p-5 rounded-2xl border-2 border-slate-100 group hover:border-primary/20 transition-all shadow-sm">
-                                  <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center font-black text-slate-300 text-xs shrink-0">{idx + 1}</div>
+                                  <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center font-black text-slate-300 text-xs shrink-0 group-hover:bg-primary/5 group-hover:text-primary transition-colors">
+                                    {idx + 1}
+                                  </div>
                                   <Input 
                                     value={cr.description} 
                                     onChange={e => { const next = [...editorCriteria]; next[idx].description = e.target.value; setEditorCriteria(next); }} 
-                                    placeholder="Define el criterio de evaluación..." 
+                                    placeholder={newColType === 'guia' ? "Paso o proceso técnico..." : "Define el criterio de evaluación..."} 
                                     className="border-none shadow-none font-bold text-slate-700 text-lg bg-transparent flex-1 focus-visible:ring-0 px-0" 
                                   />
                                   <div className="flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-xl border border-slate-100">
@@ -724,7 +709,7 @@ export default function AcademicGradebookPage() {
                                             <p className="text-[9px] font-black uppercase text-blue-200 mb-1">Nota Calculada</p>
                                             <p className="text-5xl font-black font-mono">
                                               {
-                                                activeEval.column.type === 'cotejo' || activeEval.column.type === 'anecdotario'
+                                                activeEval.column.type === 'cotejo' || activeEval.column.type === 'guia'
                                                 ? Math.round(Object.entries(evalData).reduce((acc, [idx, val]) => val === true ? acc + (instruments[activeEval.column.instrumentId].criteria[parseInt(idx)].points || (20/instruments[activeEval.column.instrumentId].criteria.length)) : acc, 0))
                                                 : activeEval.column.type === 'escala'
                                                   ? Math.round((Object.values(evalData).reduce((acc, v) => acc + (v as number), 0) / (instruments[activeEval.column.instrumentId].criteria.length * Math.max(...instruments[activeEval.column.instrumentId].scaleLevels!.map(l => l.points)))) * 20)
@@ -735,7 +720,7 @@ export default function AcademicGradebookPage() {
                                         </div>
                                         <div className="flex-grow flex overflow-hidden">
                                           <ScrollArea className="p-10 bg-slate-50/50 flex-grow">
-                                            {activeEval.column.type === 'cotejo' && (
+                                            {(activeEval.column.type === 'cotejo' || activeEval.column.type === 'guia') && (
                                               <ChecklistEvaluator criteria={instruments[activeEval.column.instrumentId].criteria} evalData={evalData} onUpdate={setEvalData} />
                                             )}
                                             {activeEval.column.type === 'rubrica' && (
@@ -746,7 +731,7 @@ export default function AcademicGradebookPage() {
                                             )}
                                           </ScrollArea>
                                           
-                                          {(activeEval.column.type === 'cotejo' || activeEval.column.type === 'anecdotario') && (
+                                          {(activeEval.column.type === 'cotejo' || activeEval.column.type === 'guia') && (
                                             <div className="w-[400px] p-10 bg-white border-l flex flex-col gap-6">
                                               <div className="space-y-3 flex-1 flex flex-col">
                                                 <Label className="font-black text-xs uppercase text-slate-400 flex items-center gap-2 shrink-0">
@@ -765,7 +750,7 @@ export default function AcademicGradebookPage() {
                                         <div className="p-10 bg-white border-t flex justify-end gap-4 shrink-0">
                                           <Button variant="ghost" className="font-black text-slate-400 uppercase text-xs px-12 h-16 rounded-2xl border-2 hover:bg-slate-50 flex-1 sm:flex-none" onClick={() => setActiveEval(null)}>Descartar</Button>
                                           <Button className="bg-primary font-black uppercase text-xs px-12 h-16 rounded-2xl shadow-xl text-white flex-1 sm:flex-none" onClick={() => {
-                                            const score = activeEval.column.type === 'cotejo' || activeEval.column.type === 'anecdotario'
+                                            const score = activeEval.column.type === 'cotejo' || activeEval.column.type === 'guia'
                                               ? Math.round(Object.entries(evalData).reduce((acc, [idx, val]) => val === true ? acc + (instruments[activeEval.column.instrumentId].criteria[parseInt(idx)].points || (20/instruments[activeEval.column.instrumentId].criteria.length)) : acc, 0))
                                               : activeEval.column.type === 'escala'
                                                 ? Math.round((Object.values(evalData).reduce((acc, v) => acc + (v as number), 0) / (instruments[activeEval.column.instrumentId].criteria.length * Math.max(...instruments[activeEval.column.instrumentId].scaleLevels!.map(l => l.points)))) * 20)
