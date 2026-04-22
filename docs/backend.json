@@ -1,32 +1,43 @@
 
 {
   "entities": {
-    "QuizRoom": {
-      "title": "Sala de Quiz",
-      "description": "Estado de una sesión de quiz en tiempo real.",
+    "GradeIndicator": {
+      "title": "Indicador de Logro",
+      "description": "Criterio de evaluación curricular.",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
-        "courseId": { "type": "string" },
-        "instructorId": { "type": "string" },
+        "unidad_id": { "type": "string" },
+        "periodo_id": { "type": "string" },
+        "codigo": { "type": "string" },
+        "descripcion": { "type": "string" },
+        "peso_porcentaje": { "type": "number" }
+      }
+    },
+    "Evaluation": {
+      "title": "Evaluación / Actividad",
+      "description": "Instancia de calificación (Rúbrica, Cotejo, Quizz).",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "indicador_id": { "type": "string" },
+        "nombre": { "type": "string" },
+        "tipo": { "type": "string", "enum": ["manual", "cotejo", "rubrica", "escala", "anecdotario", "grupal", "quizz"] },
+        "peso_instrumento": { "type": "number" },
+        "configuracion_json": { "type": "object" }
+      }
+    },
+    "QuizRoom": {
+      "title": "Sala de Quiz (Real-time)",
+      "description": "Estado de una sesión de quiz activa en Firebase.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "evaluationId": { "type": "string" },
         "status": { "type": "string", "enum": ["lobby", "active", "finished"] },
         "code": { "type": "string" },
         "currentQuestionIndex": { "type": "number" },
-        "questions": { "type": "array" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      }
-    },
-    "QuizParticipant": {
-      "title": "Participante",
-      "description": "Alumno unido a una sala de quiz.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "roomId": { "type": "string" },
-        "studentName": { "type": "string" },
-        "score": { "type": "number" },
-        "lastAnswerCorrect": { "type": "boolean" },
-        "joinedAt": { "type": "string", "format": "date-time" }
+        "questions": { "type": "array" }
       }
     }
   },
@@ -36,11 +47,11 @@
   "firestore": {
     "/quiz_rooms/{roomId}": {
       "schema": "QuizRoom",
-      "description": "Salas de quiz activas."
+      "description": "Salas de quiz activas para interacción en tiempo real."
     },
     "/quiz_rooms/{roomId}/participants/{participantId}": {
-      "schema": "QuizParticipant",
-      "description": "Estudiantes en la sala."
+      "schema": "object",
+      "description": "Estudiantes conectados a la sala de juego."
     }
   }
 }
