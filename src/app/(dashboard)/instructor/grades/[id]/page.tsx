@@ -42,7 +42,7 @@ import { ScaleConfig } from "@/components/grades/editor/ScaleConfig"
 import { GuideConfig } from "@/components/grades/editor/GuideConfig"
 import { GroupConfig } from "@/components/grades/strategies/GroupConfig"
 
-type InstrumentType = 'manual' | 'cotejo' | 'rubrica' | 'escala' | 'guia' | 'objetiva'
+type InstrumentType = 'manual' | 'cotejo' | 'rubrica' | 'escala' | 'guia'
 type StrategyType = 'individual' | 'grupal' | 'quizz'
 
 interface Instrument {
@@ -74,8 +74,7 @@ const INST_LABELS: Record<string, string> = {
   cotejo: 'Lista de Cotejo',
   rubrica: 'Rúbrica',
   escala: 'Escala Valorativa',
-  guia: 'Guía Observación',
-  objetiva: 'Prueba Objetiva'
+  guia: 'Guía Observación'
 }
 
 const STRAT_LABELS: Record<string, string> = {
@@ -216,7 +215,7 @@ export default function AcademicGradebookPage() {
         setEditorCriteria(analysis.checklistCriteria.map((c: any) => ({ id: Math.random().toString(), description: c.description })))
         if (analysis.scaleLevels) setEditorScaleLevels(analysis.scaleLevels)
       }
-      setSetupStep(2)
+      setSetupStep(3) // Salta al editor detallado
       toast({ title: "Digitalización Exitosa" })
     } catch (err: any) {
       toast({ variant: "destructive", title: "IA Ocupada", description: "Reintenta en unos segundos." })
@@ -241,7 +240,7 @@ export default function AcademicGradebookPage() {
       type: newInstType,
       criteria: editorCriteria,
       scaleLevels: newInstType === 'escala' ? editorScaleLevels : undefined,
-      maxPoints: (newInstType === 'manual' || newInstType === 'objetiva') ? newMaxPoints : 20
+      maxPoints: newInstType === 'manual' ? newMaxPoints : 20
     }
 
     const newColumn: Column = {
@@ -255,7 +254,7 @@ export default function AcademicGradebookPage() {
       type: newInstType,
       strategy: newStrategyType,
       instrumentId: instId,
-      maxPoints: (newInstType === 'manual' || newInstType === 'objetiva') ? newMaxPoints : 20,
+      maxPoints: newInstType === 'manual' ? newMaxPoints : 20,
       groups: newStrategyType === 'grupal' ? studentGroups : undefined
     }
 
@@ -345,7 +344,6 @@ export default function AcademicGradebookPage() {
       case 'rubrica': return <Target className="h-3 w-3" />;
       case 'escala': return <Star className="h-3 w-3" />;
       case 'guia': return <Quote className="h-3 w-3" />;
-      case 'objetiva': return <ClipboardCheck className="h-3 w-3" />;
       default: return <FileText className="h-3 w-3" />;
     }
   }
@@ -544,7 +542,7 @@ function GradeCell({ studentId, column, grade, handleGradeChange, onEvaluate }: 
           value={grade} 
           onChange={e => handleGradeChange(studentId, column.id, e.target.value)} 
         />
-        {column.type !== 'manual' && column.type !== 'objetiva' && (
+        {column.type !== 'manual' && (
           <Button size="icon" variant="ghost" className="h-10 w-10 rounded-xl hover:bg-primary/10 text-primary border-2 border-primary/5" onClick={onEvaluate}>
             <Target className="h-4 w-4" />
           </Button>
@@ -572,7 +570,13 @@ function ConfigWizard({
       <DialogContent className="max-w-5xl p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl flex flex-col h-[90vh]">
         <div className="bg-primary p-8 text-white shrink-0">
           <DialogTitle className="text-2xl font-black uppercase tracking-tight">Configuración Técnica</DialogTitle>
-          <DialogDescription className="text-blue-100/80 font-bold uppercase text-[10px] tracking-[0.2em] mt-1">Establece los criterios de evaluación</DialogDescription>
+          <DialogDescription className="text-blue-100/80 font-bold uppercase text-[10px] tracking-[0.2em] mt-1">
+            Paso {setupStep + 1}: {
+              setupStep === 0 ? "Indicador de Logro" :
+              setupStep === 1 ? "Instrumento y Estrategia" :
+              setupStep === 2 ? "Detalles de Actividad" : "Diseño Pedagógico"
+            }
+          </DialogDescription>
         </div>
 
         <div className="flex-grow overflow-hidden flex flex-col">
@@ -582,9 +586,12 @@ function ConfigWizard({
                 <IndicatorStep newIndicatorCode={newIndicatorCode} setNewIndicatorCode={setNewIndicatorCode} newIndicatorWeight={newIndicatorWeight} setNewIndicatorWeight={setNewIndicatorWeight} newIndicatorDescription={newIndicatorDescription} setNewIndicatorDescription={setNewIndicatorDescription} existingIndicators={existingIndicators} />
               )}
               {setupStep === 1 && (
-                <SelectionStep newInstType={newInstType} setNewInstType={setNewInstType} newStrategyType={newStrategyType} setNewStrategyType={setNewStrategyType} newColName={newColName} setNewColName={setNewColName} newInstrumentWeight={newInstrumentWeight} setNewInstrumentWeight={setNewInstrumentWeight} newMaxPoints={newMaxPoints} setNewMaxPoints={setNewMaxPoints} isScanning={isScanning} fileInputRef={fileInputRef} handleAiScan={handleAiScan} />
+                <SelectionStep newInstType={newInstType} setNewInstType={setNewInstType} newStrategyType={newStrategyType} setNewStrategyType={setNewStrategyType} />
               )}
               {setupStep === 2 && (
+                <ActivityStep newColName={newColName} setNewColName={setNewColName} newInstrumentWeight={newInstrumentWeight} setNewInstrumentWeight={setNewInstrumentWeight} newMaxPoints={newMaxPoints} setNewMaxPoints={setNewMaxPoints} newInstType={newInstType} isScanning={isScanning} fileInputRef={fileInputRef} handleAiScan={handleAiScan} />
+              )}
+              {setupStep === 3 && (
                 <DetailedConfigStep newInstType={newInstType} newStrategyType={newStrategyType} newColName={newColName} totalPointsStep={totalPointsStep} students={students} groupSize={groupSize} setGroupSize={setGroupSize} studentGroups={studentGroups} setStudentGroups={setStudentGroups} editorCriteria={editorCriteria} setEditorCriteria={setEditorCriteria} getInstrumentIcon={getInstrumentIcon} />
               )}
             </div>
@@ -594,8 +601,12 @@ function ConfigWizard({
         <div className="p-8 bg-slate-50 border-t flex justify-between gap-3 items-center shrink-0">
           <Button variant="ghost" onClick={() => setSetupStep(Math.max(0, setupStep - 1))} disabled={setupStep === 0 || isScanning} className="font-black text-[10px] uppercase h-11 px-8 rounded-xl border-2">Anterior</Button>
           <div className="flex gap-3">
-            {setupStep < 2 ? (
-              <Button className="bg-primary px-10 h-11 font-black text-[10px] uppercase rounded-xl text-white" onClick={() => setSetupStep(setupStep + 1)} disabled={(setupStep === 0 && (!newIndicatorCode || !newIndicatorDescription)) || (setupStep === 1 && !newColName) || isScanning}>Siguiente</Button>
+            {setupStep < 3 ? (
+              <Button className="bg-primary px-10 h-11 font-black text-[10px] uppercase rounded-xl text-white" onClick={() => setSetupStep(setupStep + 1)} disabled={
+                (setupStep === 0 && (!newIndicatorCode || !newIndicatorDescription)) || 
+                (setupStep === 2 && !newColName) || 
+                isScanning
+              }>Siguiente</Button>
             ) : (
               <Button className="bg-primary px-12 h-11 font-black text-[10px] uppercase rounded-xl text-white" onClick={addColumn}>Finalizar y Crear</Button>
             )}
@@ -612,7 +623,7 @@ function IndicatorStep({ newIndicatorCode, setNewIndicatorCode, newIndicatorWeig
       <div className="space-y-6">
         <div className="flex items-center gap-4 mb-4">
           <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary"><BookOpen className="h-6 w-6" /></div>
-          <div className="flex flex-col"><h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Indicador de Logro</h4><p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Fundamentación</p></div>
+          <div className="flex flex-col"><h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Indicador de Logro</h4><p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Fundamentación Curricular</p></div>
         </div>
         <div className="bg-slate-50/50 p-6 rounded-[2rem] border-2 border-slate-100 space-y-6">
           <div className="grid grid-cols-2 gap-4">
@@ -634,53 +645,46 @@ function IndicatorStep({ newIndicatorCode, setNewIndicatorCode, newIndicatorWeig
       <div className="space-y-6">
         <div className="flex items-center gap-4 mb-4"><div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600"><History className="h-6 w-6" /></div><h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Biblioteca</h4></div>
         <div className="bg-white rounded-[2rem] border-2 border-dashed border-slate-200 p-6 min-h-[300px]">
-          {existingIndicators.map((ind: any, i: number) => (
+          {existingIndicators.length > 0 ? existingIndicators.map((ind: any, i: number) => (
             <button key={i} className="flex flex-col items-start p-4 rounded-2xl border-2 border-slate-50 hover:border-primary/30 hover:bg-primary/5 mb-3 w-full" onClick={() => { setNewIndicatorCode(ind.code); setNewIndicatorDescription(ind.desc); setNewIndicatorWeight(ind.weight); }}>
               <div className="flex justify-between w-full font-black text-sm text-primary mb-1"><span>{ind.code}</span><Badge variant="outline">{ind.weight}%</Badge></div>
               <p className="text-[11px] text-slate-500 line-clamp-2">{ind.desc}</p>
             </button>
-          ))}
+          )) : <p className="text-center text-slate-400 font-bold uppercase text-[10px] py-20">No hay indicadores previos</p>}
         </div>
       </div>
     </div>
   )
 }
 
-function SelectionStep({ newInstType, setNewInstType, newStrategyType, setNewStrategyType, newColName, setNewColName, newInstrumentWeight, setNewInstrumentWeight, newMaxPoints, setNewMaxPoints, isScanning, fileInputRef, handleAiScan }: any) {
+function SelectionStep({ newInstType, setNewInstType, newStrategyType, setNewStrategyType }: any) {
   return (
     <div className="space-y-12 animate-in fade-in slide-in-from-right-4">
       <div className="space-y-8">
-        <div className="flex items-center gap-3"><div className="h-2 w-2 rounded-full bg-primary" /><h4 className="font-black text-xs uppercase text-primary tracking-widest">Selección del Instrumento (El Cómo)</h4></div>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="flex items-center gap-3"><div className="h-2 w-2 rounded-full bg-primary" /><h4 className="font-black text-xs uppercase text-primary tracking-widest">¿Cómo medirás el desempeño? (Instrumento)</h4></div>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           {[
             { id: 'manual', label: 'Nota Directa', icon: FileText },
             { id: 'cotejo', label: 'Lista de Cotejo', icon: LayoutList },
             { id: 'rubrica', label: 'Rúbrica', icon: Target },
             { id: 'escala', label: 'Escala Valorativa', icon: Star },
-            { id: 'guia', label: 'Guía Observación', icon: Quote },
-            { id: 'objetiva', label: 'Prueba Objetiva', icon: ClipboardCheck }
+            { id: 'guia', label: 'Guía Observación', icon: Quote }
           ].map((t) => (
-            <Button key={t.id} variant="outline" className={cn("h-auto py-6 flex-col gap-3 rounded-2xl border-2 transition-all", newInstType === t.id ? 'border-primary bg-primary/5 shadow-lg shadow-primary/5' : 'hover:border-slate-200')} onClick={() => setNewInstType(t.id as any)}>
-              <t.icon className={`h-7 w-7 ${newInstType === t.id ? 'text-primary' : 'text-slate-300'}`} />
-              <span className="font-black text-[9px] uppercase tracking-tighter text-center">{t.label}</span>
+            <Button key={t.id} variant="outline" className={cn("h-auto py-8 flex-col gap-4 rounded-3xl border-2 transition-all", newInstType === t.id ? 'border-primary bg-primary/5 shadow-lg shadow-primary/5' : 'hover:border-slate-200')} onClick={() => setNewInstType(t.id as any)}>
+              <t.icon className={`h-8 w-8 ${newInstType === t.id ? 'text-primary' : 'text-slate-300'}`} />
+              <span className="font-black text-[10px] uppercase tracking-tighter text-center">{t.label}</span>
             </Button>
           ))}
-          <div className="relative">
-            <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleAiScan} />
-            <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isScanning} className="h-full w-full py-6 flex-col gap-3 rounded-2xl border-2 border-dashed border-accent hover:bg-accent/5">
-              {isScanning ? <Loader2 className="h-7 w-7 animate-spin text-accent" /> : <Sparkles className="h-7 w-7 text-accent" />}
-              <span className="font-black text-[9px] uppercase tracking-tighter text-accent">{isScanning ? "..." : "Escanear IA"}</span>
-            </Button>
-          </div>
         </div>
       </div>
+      
       <div className="space-y-8 pt-10 border-t border-slate-50">
-        <div className="flex items-center gap-3"><div className="h-2 w-2 rounded-full bg-indigo-500" /><h4 className="font-black text-xs uppercase text-indigo-600 tracking-widest">Modalidad de Trabajo / Estrategia (El Qué)</h4></div>
+        <div className="flex items-center gap-3"><div className="h-2 w-2 rounded-full bg-indigo-500" /><h4 className="font-black text-xs uppercase text-indigo-600 tracking-widest">¿Cuál es la modalidad de la actividad? (Estrategia)</h4></div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {[
-            { id: 'individual', label: 'Actividad Individual', icon: User, desc: 'Evaluación personalizada por alumno.' },
-            { id: 'grupal', label: 'Trabajo en Equipo', icon: Users, desc: 'Califica a uno y replica al grupo.' },
-            { id: 'quizz', label: 'Gamificación Sallé', icon: Gamepad2, desc: 'Lanza una sala interactiva en vivo.' }
+            { id: 'individual', label: 'Individual', icon: User, desc: 'Evaluación personalizada por cada estudiante.' },
+            { id: 'grupal', label: 'Grupal', icon: Users, desc: 'Califica a un integrante y replica al equipo.' },
+            { id: 'quizz', label: 'Gamificación', icon: Gamepad2, desc: 'Lanza una sala interactiva en tiempo real.' }
           ].map((s) => (
             <Button key={s.id} variant="outline" className={cn("h-auto p-6 flex-col gap-3 rounded-[2rem] border-2 text-left items-start transition-all", newStrategyType === s.id ? 'border-indigo-600 bg-indigo-50/30' : 'hover:border-slate-200')} onClick={() => setNewStrategyType(s.id as any)}>
               <div className="flex justify-between items-center w-full"><s.icon className={`h-8 w-8 ${newStrategyType === s.id ? 'text-indigo-600' : 'text-slate-300'}`} />{newStrategyType === s.id && <CheckCircle2 className="h-5 w-5 text-indigo-600" />}</div>
@@ -689,10 +693,57 @@ function SelectionStep({ newInstType, setNewInstType, newStrategyType, setNewStr
           ))}
         </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 pt-4 border-t border-slate-50 items-end">
-        <div className="md:col-span-2 space-y-3"><Label className="font-black text-[11px] uppercase text-primary tracking-widest">Nombre de la Actividad</Label><Input value={newColName} onChange={e => setNewColName(e.target.value)} placeholder="Ej. Exposición de Proyectos" className="h-14 rounded-xl text-lg font-bold border-2" /></div>
-        <div className="space-y-3"><Label className="font-black text-[11px] uppercase text-indigo-600 tracking-widest">Peso Instrumento (%)</Label><Input type="number" value={newInstrumentWeight || ""} onChange={e => setNewInstrumentWeight(parseInt(e.target.value) || 0)} className="h-14 rounded-xl text-center text-lg font-black border-2" /></div>
-        {(newInstType === 'manual' || newInstType === 'objetiva') && <div className="space-y-3"><Label className="font-black text-[11px] uppercase text-primary tracking-widest">Puntaje Máx.</Label><Input type="number" value={newMaxPoints} onChange={e => setNewMaxPoints(parseInt(e.target.value) || 20)} className="h-14 rounded-xl text-center text-lg font-black border-2" /></div>}
+    </div>
+  )
+}
+
+function ActivityStep({ newColName, setNewColName, newInstrumentWeight, setNewInstrumentWeight, newMaxPoints, setNewMaxPoints, newInstType, isScanning, fileInputRef, handleAiScan }: any) {
+  return (
+    <div className="space-y-10 animate-in fade-in slide-in-from-right-4">
+      <div className="bg-slate-50 p-10 rounded-[3rem] border-2 border-slate-100 space-y-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="space-y-3">
+            <Label className="font-black text-[11px] uppercase text-primary tracking-widest ml-1">Nombre de la Actividad</Label>
+            <Input value={newColName} onChange={e => setNewColName(e.target.value)} placeholder="Ej. Exposición de Proyectos Finales" className="h-16 rounded-2xl text-xl font-bold border-none shadow-inner bg-white" />
+          </div>
+          <div className="grid grid-cols-2 gap-6">
+            <div className="space-y-3">
+              <Label className="font-black text-[11px] uppercase text-indigo-600 tracking-widest ml-1">Peso del Instrumento (%)</Label>
+              <Input type="number" value={newInstrumentWeight || ""} onChange={e => setNewInstrumentWeight(parseInt(e.target.value) || 0)} className="h-16 rounded-2xl text-center text-xl font-black border-none shadow-inner bg-white" />
+            </div>
+            {newInstType === 'manual' && (
+              <div className="space-y-3">
+                <Label className="font-black text-[11px] uppercase text-primary tracking-widest ml-1">Puntaje Máximo</Label>
+                <Input type="number" value={newMaxPoints} onChange={e => setNewMaxPoints(parseInt(e.target.value) || 20)} className="h-16 rounded-2xl text-center text-xl font-black border-none shadow-inner bg-white" />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {newInstType !== 'manual' && (
+          <div className="pt-6 border-t border-slate-200">
+             <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                <div className="space-y-1">
+                  <h5 className="font-black text-sm uppercase text-slate-800">Carga Rápida con IA</h5>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">¿Tienes el instrumento en papel o PDF? Escanéalo ahora.</p>
+                </div>
+                <div className="relative">
+                  <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleAiScan} />
+                  <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isScanning} className="h-14 px-8 gap-3 rounded-2xl border-2 border-dashed border-accent text-accent hover:bg-accent hover:text-white transition-all font-black uppercase text-[10px] tracking-widest">
+                    {isScanning ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
+                    {isScanning ? "Digitalizando..." : "Digitalizar con IA"}
+                  </Button>
+                </div>
+             </div>
+          </div>
+        )}
+      </div>
+      
+      <div className="bg-blue-50 border border-blue-100 p-6 rounded-2xl flex gap-4 items-center">
+        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 shrink-0"><ClipboardCheck className="h-5 w-5" /></div>
+        <p className="text-xs text-blue-700 font-medium leading-relaxed">
+          En el siguiente paso podrás {newInstType === 'manual' ? "finalizar el registro" : "cargar los criterios y niveles de desempeño"} según el instrumento seleccionado.
+        </p>
       </div>
     </div>
   )
@@ -709,16 +760,32 @@ function DetailedConfigStep({ newInstType, newStrategyType, newColName, totalPoi
               <Badge variant="outline" className="font-black text-[8px] uppercase tracking-widest border-primary/20 text-primary">{INST_LABELS[newInstType].toUpperCase()}</Badge>
               <Badge className="font-black text-[8px] uppercase tracking-widest bg-indigo-600">{STRAT_LABELS[newStrategyType].toUpperCase()}</Badge>
             </div>
-            <div className="font-black text-slate-900 text-3xl tracking-tighter">{newColName}</div>
+            <div className="font-black text-slate-900 text-3xl tracking-tighter">{newColName || "Sin Nombre"}</div>
           </div>
         </div>
-        {(newInstType === 'cotejo' || newInstType === 'guia') && <div className={cn("px-8 py-4 rounded-2xl font-black text-xl shadow-inner border-2", totalPointsStep === 20 ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-red-50 text-red-700 border-red-100')}>TOTAL: {totalPointsStep} / 20</div>}
+        {(newInstType === 'cotejo' || newInstType === 'guia') && (
+          <div className={cn("px-8 py-4 rounded-2xl font-black text-xl shadow-inner border-2", totalPointsStep === 20 ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-red-50 text-red-700 border-red-100')}>
+            TOTAL: {totalPointsStep} / 20
+          </div>
+        )}
       </div>
-      {newStrategyType === 'grupal' && <GroupConfig students={students} groupSize={groupSize} setGroupSize={setGroupSize} studentGroups={studentGroups} setStudentGroups={setStudentGroups} />}
+
+      {newStrategyType === 'grupal' && (
+        <GroupConfig students={students} groupSize={groupSize} setGroupSize={setGroupSize} studentGroups={studentGroups} setStudentGroups={setStudentGroups} />
+      )}
+
       {newInstType === 'cotejo' && <ChecklistConfig criteria={editorCriteria} setCriteria={setEditorCriteria} />}
       {newInstType === 'rubrica' && <RubricConfig criteria={editorCriteria} setCriteria={setEditorCriteria} />}
       {newInstType === 'escala' && <ScaleConfig criteria={editorCriteria} setCriteria={setEditorCriteria} />}
       {newInstType === 'guia' && <GuideConfig criteria={editorCriteria} setCriteria={setEditorCriteria} />}
+      
+      {newInstType === 'manual' && (
+        <div className="p-20 text-center flex flex-col items-center gap-4">
+          <div className="p-6 bg-slate-50 rounded-full"><CheckCircle2 className="h-12 w-12 text-emerald-500" /></div>
+          <h4 className="text-xl font-black uppercase text-slate-800 tracking-tight">Instrumento Directo</h4>
+          <p className="text-sm text-slate-500 font-medium">Este tipo de evaluación no requiere configuración de criterios. Puedes finalizar ahora.</p>
+        </div>
+      )}
     </div>
   )
 }
@@ -730,14 +797,16 @@ function EvaluationModal({ activeEval, setActiveEval, evalData, setEvalData, eva
   const instrument = instruments[column.instrumentId];
 
   const calculateScore = () => {
+    if (!instrument) return 0;
     if (column.type === 'cotejo' || column.type === 'guia') {
       return Math.round(Object.entries(evalData).reduce((acc, [idx, val]) => val === true ? acc + (instrument.criteria[parseInt(idx)].points || (20/instrument.criteria.length)) : acc, 0));
     }
     if (column.type === 'escala') {
+      if (!instrument.scaleLevels) return 0;
       const maxPts = Math.max(...instrument.scaleLevels!.map((l: any) => l.points));
       const totalPossible = instrument.criteria.length * maxPts;
       const obtained = Object.values(evalData).reduce((acc, v) => acc + (v as number), 0);
-      return Math.round((obtained / totalPossible) * 20);
+      return Math.round((obtained / (totalPossible || 1)) * 20);
     }
     return Object.values(evalData).reduce((acc, v) => acc + (v as number), 0);
   };
@@ -756,7 +825,7 @@ function EvaluationModal({ activeEval, setActiveEval, evalData, setEvalData, eva
         <div className="bg-primary p-10 text-white flex justify-between items-center shrink-0">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <Badge className="bg-white/20 text-white font-black uppercase text-[10px]">{INST_LABELS[column.type].toUpperCase()}</Badge>
+              <Badge className="bg-white/20 text-white font-black uppercase text-[10px]">{column.type ? INST_LABELS[column.type].toUpperCase() : "EVALUACIÓN"}</Badge>
               <Badge className="bg-indigo-600/50 text-white font-black uppercase text-[10px]">{STRAT_LABELS[column.strategy].toUpperCase()}</Badge>
             </div>
             <h3 className="text-3xl font-black uppercase tracking-tighter">{student.nombre} {column.strategy === 'grupal' && <span className="text-blue-300 ml-4">[{column.groups?.[student.id]}]</span>}</h3>
@@ -769,10 +838,14 @@ function EvaluationModal({ activeEval, setActiveEval, evalData, setEvalData, eva
         </div>
         <div className="flex-grow flex overflow-hidden">
           <ScrollArea className="p-10 bg-slate-50/50 flex-grow">
-            {column.type === 'cotejo' && <ChecklistEvaluator criteria={instrument.criteria} evalData={evalData} onUpdate={setEvalData} />}
-            {column.type === 'rubrica' && <RubricEvaluator criteria={instrument.criteria} evalData={evalData} onUpdate={setEvalData} />}
-            {column.type === 'escala' && <ScaleEvaluator criteria={instrument.criteria} scaleLevels={instrument.scaleLevels!} evalData={evalData} onUpdate={setEvalData} />}
-            {column.type === 'guia' && <GuideEvaluator criteria={instrument.criteria} evalData={evalData} onUpdate={setEvalData} />}
+            {instrument && (
+              <>
+                {column.type === 'cotejo' && <ChecklistEvaluator criteria={instrument.criteria} evalData={evalData} onUpdate={setEvalData} />}
+                {column.type === 'rubrica' && <RubricEvaluator criteria={instrument.criteria} evalData={evalData} onUpdate={setEvalData} />}
+                {column.type === 'escala' && <ScaleEvaluator criteria={instrument.criteria} scaleLevels={instrument.scaleLevels!} evalData={evalData} onUpdate={setEvalData} />}
+                {column.type === 'guia' && <GuideEvaluator criteria={instrument.criteria} evalData={evalData} onUpdate={setEvalData} />}
+              </>
+            )}
           </ScrollArea>
           {(column.type === 'cotejo' || column.type === 'guia') && (
             <div className="w-[400px] p-10 bg-white border-l flex flex-col gap-6">
