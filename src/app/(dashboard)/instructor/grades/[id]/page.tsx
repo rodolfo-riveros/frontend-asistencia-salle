@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -83,14 +82,6 @@ const STRAT_LABELS: Record<string, string> = {
   quizz: 'Gamificación'
 }
 
-const DEFAULT_RUBRIC_LEVELS = [
-  { label: 'Excelente', points: 4, description: '' },
-  { label: 'Bueno', points: 3, description: '' },
-  { label: 'Regular', points: 2, description: '' },
-  { label: 'Deficiente', points: 1, description: '' },
-  { label: 'No presenta', points: 0, description: '' },
-]
-
 const DEFAULT_SCALE_LEVELS = [
   { label: 'Excelente', points: 4 },
   { label: 'Bueno', points: 3 },
@@ -169,10 +160,6 @@ export default function AcademicGradebookPage() {
           setGrades(configData.grades || {})
           setEvalDetails(configData.details || {})
           setComments(configData.comments || {})
-        } else {
-          const initialGrades: any = {}
-          studentData.forEach(s => { initialGrades[s.id] = {} })
-          setGrades(initialGrades)
         }
       } catch (e) {
         console.log("Iniciando registro en blanco.")
@@ -203,11 +190,12 @@ export default function AcademicGradebookPage() {
         reader.onerror = () => reject(new Error("Error al leer archivo."))
         reader.readAsDataURL(file)
       })
+      
       const analysis = await analysisPromise
       
       // Actualizar estados con el resultado de la IA
-      setNewInstType(analysis.type)
-      setNewColName(analysis.name)
+      if (analysis.type) setNewInstType(analysis.type)
+      if (analysis.name) setNewColName(analysis.name)
       if (analysis.suggestedWeight) setNewInstrumentWeight(analysis.suggestedWeight)
       
       if ((analysis.type === 'cotejo' || analysis.type === 'guia') && analysis.checklistCriteria) {
@@ -219,13 +207,14 @@ export default function AcademicGradebookPage() {
         if (analysis.scaleLevels) setEditorScaleLevels(analysis.scaleLevels)
       }
       
-      setSetupStep(3) // Saltar directamente al editor detallado
-      toast({ title: "Digitalización Exitosa", description: "Revisa los criterios extraídos." })
+      setSetupStep(3) // Saltar al diseño detallado para revisión
+      toast({ title: "Digitalización Exitosa", description: "Revisa los criterios extraídos por la IA." })
     } catch (err: any) {
       console.error("Error IA:", err)
       toast({ variant: "destructive", title: "IA Ocupada", description: "No se pudo procesar la imagen. Reintenta." })
     } finally {
       setIsScanning(false)
+      if (fileInputRef.current) fileInputRef.current.value = "" // Reset para re-escanear
     }
   }
 
@@ -267,9 +256,9 @@ export default function AcademicGradebookPage() {
     setColumns(prev => [...prev, newColumn])
     setGrades(prev => {
       const next = { ...prev }
-      Object.keys(next).forEach(sid => { 
-        if(!next[sid]) next[sid] = {}
-        next[sid][colId] = 0 
+      students.forEach(s => { 
+        if(!next[s.id]) next[s.id] = {}
+        next[s.id][colId] = 0 
       })
       return next
     })
@@ -316,34 +305,35 @@ export default function AcademicGradebookPage() {
       if (!indicatorsMap.has(c.indicatorCode)) indicatorsMap.set(c.indicatorCode, { weight: c.indicatorWeight, cols: [] })
       indicatorsMap.get(c.indicatorCode)!.cols.push(c)
     })
-    const weightedAverages: number[] = []; const indicatorWeights: number[] = []
+    
+    let finalSum = 0
+    let totalIndicatorWeight = 0
+
     indicatorsMap.forEach((data) => {
       const { cols, weight } = data
-      let indicatorAvg = 0; const totalInstrumentWeight = cols.reduce((sum, c) => sum + c.instrumentWeight, 0)
+      let indicatorAvg = 0
+      const totalInstrumentWeight = cols.reduce((sum, c) => sum + c.instrumentWeight, 0)
+      
       if (totalInstrumentWeight > 0) {
-        let weightedSum = 0; let weightFactor = 0
+        let weightedSum = 0
+        let weightFactor = 0
         cols.forEach(c => {
-          const rawScore = studentGrades[c.id] || 0; const normalized = (rawScore / c.maxPoints) * 20
-          weightedSum += normalized * (c.instrumentWeight / 100); weightFactor += (c.instrumentWeight / 100)
+          const rawScore = studentGrades[c.id] || 0
+          const normalized = (rawScore / c.maxPoints) * 20
+          weightedSum += normalized * (c.instrumentWeight / 100)
+          weightFactor += (c.instrumentWeight / 100)
         })
         indicatorAvg = weightFactor > 0 ? weightedSum / weightFactor : 0
       } else {
         const sum = cols.reduce((s, c) => s + (studentGrades[c.id] || 0) / c.maxPoints * 20, 0)
         indicatorAvg = sum / cols.length
       }
-      weightedAverages.push(indicatorAvg); indicatorWeights.push(weight)
+
+      finalSum += indicatorAvg * (weight / 100)
+      totalIndicatorWeight += (weight / 100)
     })
-    const totalWeight = indicatorWeights.reduce((s, w) => s + w, 0)
-    if (totalWeight > 0) {
-      let finalSum = 0; let totalAppliedWeight = 0
-      for (let i = 0; i < weightedAverages.length; i++) {
-        finalSum += weightedAverages[i] * (indicatorWeights[i] / 100)
-        totalAppliedWeight += (indicatorWeights[i] / 100)
-      }
-      return Math.round(finalSum / (totalAppliedWeight || 1))
-    }
-    const finalSum = weightedAverages.reduce((s, a) => s + a, 0)
-    return Math.round(finalSum / (weightedAverages.length || 1))
+
+    return Math.round(totalIndicatorWeight > 0 ? finalSum / totalIndicatorWeight : finalSum / (indicatorsMap.size || 1))
   }
 
   const getInstrumentIcon = (type: InstrumentType) => {

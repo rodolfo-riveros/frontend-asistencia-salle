@@ -2,7 +2,7 @@
 /**
  * @fileOverview AI flow to analyze any type of pedagogical assessment instrument.
  * 
- * Supported: Checklists, Rubrics, Rating Scales, Questionnaires, Anecdotal Records, etc.
+ * Supported: Checklists, Rubrics, Rating Scales, Questionnaires, Structured Observation Guides.
  */
 
 import {ai} from '@/ai/genkit';
@@ -30,11 +30,11 @@ const AnalyzeInstrumentInputSchema = z.object({
 export type AnalyzeInstrumentInput = z.infer<typeof AnalyzeInstrumentInputSchema>;
 
 const AnalyzeInstrumentOutputSchema = z.object({
-  type: z.enum(['cotejo', 'rubrica', 'escala', 'anecdotario']).describe('Identified instrument type.'),
+  type: z.enum(['cotejo', 'rubrica', 'escala', 'guia']).describe('Identified instrument type.'),
   name: z.string().describe('Suggested name for the evaluation activity.'),
   description: z.string().describe('Pedagogical intent or context.'),
   suggestedWeight: z.number().optional().describe('Weight percentage (0-100) if found in the document text.'),
-  checklistCriteria: z.array(ChecklistItemSchema).optional().describe('Criteria for checklist/test.'),
+  checklistCriteria: z.array(ChecklistItemSchema).optional().describe('Criteria for checklist/test or guide.'),
   rubricDimensions: z.array(RubricDimensionSchema).optional().describe('Dimensions for rubric.'),
   scaleLevels: z.array(z.object({
     label: z.string(),
@@ -55,13 +55,13 @@ ANALIZA LA IMAGEN Y DETECTA:
    - Si es una lista de ítems con SI/NO o puntajes: 'cotejo'.
    - Si es una tabla con filas (criterios) y columnas (niveles): 'rubrica'.
    - Si es una lista de criterios con una escala única (ej: 1 al 5): 'escala'.
-   - Si es un formato de observación narrativa: 'anecdotario'.
+   - Si es un formato de observación de procesos técnicos paso a paso: 'guia'.
 
 2. EXTRACCIÓN DE DATOS:
    - Extrae el NOMBRE de la actividad.
    - Extrae todos los CRITERIOS o PREGUNTAS.
    - Si es RÚBRICA: Extrae las dimensiones y descripciones de cada nivel.
-   - Si es COTEJO: Ajusta los puntos de cada criterio para que la SUMA TOTAL SEA EXACTAMENTE 20.
+   - Si es COTEJO o GUIA: Ajusta los puntos de cada criterio para que la SUMA TOTAL SEA EXACTAMENTE 20.
    - PESO: Busca si el documento menciona algún porcentaje (ej: "Vale 30%", "Peso: 40"). Si lo encuentras, extráelo como un número en 'suggestedWeight'.
 
 INSTRUCCIONES CRÍTICAS:
