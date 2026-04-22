@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -193,7 +194,6 @@ export default function AcademicGradebookPage() {
       
       const analysis = await analysisPromise
       
-      // Actualizar estados con el resultado de la IA
       if (analysis.type) setNewInstType(analysis.type)
       if (analysis.name) setNewColName(analysis.name)
       if (analysis.suggestedWeight) setNewInstrumentWeight(analysis.suggestedWeight)
@@ -207,14 +207,14 @@ export default function AcademicGradebookPage() {
         if (analysis.scaleLevels) setEditorScaleLevels(analysis.scaleLevels)
       }
       
-      setSetupStep(3) // Saltar al diseño detallado para revisión
+      setSetupStep(3) 
       toast({ title: "Digitalización Exitosa", description: "Revisa los criterios extraídos por la IA." })
     } catch (err: any) {
       console.error("Error IA:", err)
       toast({ variant: "destructive", title: "IA Ocupada", description: "No se pudo procesar la imagen. Reintenta." })
     } finally {
       setIsScanning(false)
-      if (fileInputRef.current) fileInputRef.current.value = "" // Reset para re-escanear
+      if (fileInputRef.current) fileInputRef.current.value = "" 
     }
   }
 
@@ -572,6 +572,39 @@ function ConfigWizard({
   editorCriteria, setEditorCriteria, isScanning, fileInputRef, handleAiScan, totalPointsStep,
   students, groupSize, setGroupSize, studentGroups, setStudentGroups, addColumn, resetEditor, getInstrumentIcon
 }: any) {
+  
+  const handleNext = () => {
+    if (setupStep === 2) {
+      if (newInstType === 'manual') {
+        if (newStrategyType === 'grupal') setSetupStep(4);
+        else addColumn();
+      } else {
+        setSetupStep(3);
+      }
+    } else if (setupStep === 3) {
+      if (newStrategyType === 'grupal') setSetupStep(4);
+      else addColumn();
+    } else if (setupStep === 4) {
+      addColumn();
+    } else {
+      setSetupStep(setupStep + 1);
+    }
+  }
+
+  const handleBack = () => {
+    if (setupStep === 4) {
+      if (newInstType === 'manual') setSetupStep(2);
+      else setSetupStep(3);
+    } else {
+      setSetupStep(Math.max(0, setupStep - 1));
+    }
+  }
+
+  let nextText = "Siguiente";
+  if (setupStep === 4) nextText = "Finalizar y Crear";
+  if (setupStep === 2 && newInstType === 'manual' && newStrategyType !== 'grupal') nextText = "Finalizar y Crear";
+  if (setupStep === 3 && newStrategyType !== 'grupal') nextText = "Finalizar y Crear";
+
   return (
     <Dialog open={isOpen} onOpenChange={(o) => { setIsOpen(o); if(!o) resetEditor(); }}>
       <DialogContent className="max-w-5xl p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl flex flex-col h-[90vh]">
@@ -581,7 +614,8 @@ function ConfigWizard({
             Paso {setupStep + 1}: {
               setupStep === 0 ? "Indicador de Logro" :
               setupStep === 1 ? "Instrumento y Estrategia" :
-              setupStep === 2 ? "Detalles de Actividad" : "Diseño Pedagógico"
+              setupStep === 2 ? "Detalles de Actividad" :
+              setupStep === 3 ? "Diseño Pedagógico" : "Sorteo de Equipos"
             }
           </DialogDescription>
         </div>
@@ -599,26 +633,23 @@ function ConfigWizard({
                 <ActivityStep newColName={newColName} setNewColName={setNewColName} newInstrumentWeight={newInstrumentWeight} setNewInstrumentWeight={setNewInstrumentWeight} newMaxPoints={newMaxPoints} setNewMaxPoints={setNewMaxPoints} newInstType={newInstType} isScanning={isScanning} fileInputRef={fileInputRef} handleAiScan={handleAiScan} />
               )}
               {setupStep === 3 && (
-                <DetailedConfigStep newInstType={newInstType} newStrategyType={newStrategyType} newColName={newColName} totalPointsStep={totalPointsStep} students={students} groupSize={groupSize} setGroupSize={setGroupSize} studentGroups={studentGroups} setStudentGroups={setStudentGroups} editorCriteria={editorCriteria} setEditorCriteria={setEditorCriteria} getInstrumentIcon={getInstrumentIcon} />
+                <DetailedConfigStep newInstType={newInstType} newColName={newColName} totalPointsStep={totalPointsStep} editorCriteria={editorCriteria} setEditorCriteria={setEditorCriteria} getInstrumentIcon={getInstrumentIcon} />
+              )}
+              {setupStep === 4 && (
+                <TeamsStep students={students} groupSize={groupSize} setGroupSize={setGroupSize} studentGroups={studentGroups} setStudentGroups={setStudentGroups} newColName={newColName} />
               )}
             </div>
           </ScrollArea>
         </div>
 
         <div className="p-8 bg-slate-50 border-t flex justify-between gap-3 items-center shrink-0">
-          <Button variant="ghost" onClick={() => setSetupStep(Math.max(0, setupStep - 1))} disabled={setupStep === 0 || isScanning} className="font-black text-[10px] uppercase h-11 px-8 rounded-xl border-2">Anterior</Button>
+          <Button variant="ghost" onClick={handleBack} disabled={setupStep === 0 || isScanning} className="font-black text-[10px] uppercase h-11 px-8 rounded-xl border-2">Anterior</Button>
           <div className="flex gap-3">
-            {setupStep === 2 && newInstType === 'manual' ? (
-              <Button className="bg-emerald-600 px-10 h-11 font-black text-[10px] uppercase rounded-xl text-white shadow-lg shadow-emerald-200" onClick={addColumn}>Finalizar y Crear</Button>
-            ) : setupStep < 3 ? (
-              <Button className="bg-primary px-10 h-11 font-black text-[10px] uppercase rounded-xl text-white" onClick={() => setSetupStep(setupStep + 1)} disabled={
-                (setupStep === 0 && (!newIndicatorCode || !newIndicatorDescription)) || 
-                (setupStep === 2 && !newColName) || 
-                isScanning
-              }>Siguiente</Button>
-            ) : (
-              <Button className="bg-primary px-12 h-11 font-black text-[10px] uppercase rounded-xl text-white" onClick={addColumn}>Finalizar y Crear</Button>
-            )}
+            <Button className="bg-primary px-10 h-11 font-black text-[10px] uppercase rounded-xl text-white" onClick={handleNext} disabled={
+              (setupStep === 0 && (!newIndicatorCode || !newIndicatorDescription)) || 
+              (setupStep === 2 && !newColName) || 
+              isScanning
+            }>{nextText}</Button>
           </div>
         </div>
       </DialogContent>
@@ -687,23 +718,21 @@ function SelectionStep({ newInstType, setNewInstType, newStrategyType, setNewStr
         </div>
       </div>
       
-      {newInstType !== 'manual' && (
-        <div className="space-y-8 pt-10 border-t border-slate-50">
-          <div className="flex items-center gap-3"><div className="h-2 w-2 rounded-full bg-indigo-500" /><h4 className="font-black text-xs uppercase text-indigo-600 tracking-widest">¿Cuál es la modalidad de la actividad? (Estrategia)</h4></div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {[
-              { id: 'individual', label: 'Individual', icon: User, desc: 'Evaluación personalizada por cada estudiante.' },
-              { id: 'grupal', label: 'Grupal', icon: Users, desc: 'Califica a un integrante y replica al equipo.' },
-              { id: 'quizz', label: 'Gamificación', icon: Gamepad2, desc: 'Lanza una sala interactiva en tiempo real.' }
-            ].map((s) => (
-              <Button key={s.id} variant="outline" className={cn("h-auto p-6 flex-col gap-3 rounded-[2rem] border-2 text-left items-start transition-all", newStrategyType === s.id ? 'border-indigo-600 bg-indigo-50/30' : 'hover:border-slate-200')} onClick={() => setNewStrategyType(s.id as any)}>
-                <div className="flex justify-between items-center w-full"><s.icon className={`h-8 w-8 ${newStrategyType === s.id ? 'text-indigo-600' : 'text-slate-300'}`} />{newStrategyType === s.id && <CheckCircle2 className="h-5 w-5 text-indigo-600" />}</div>
-                <div className="space-y-1"><p className="font-black text-[11px] uppercase tracking-tighter">{s.label}</p><p className="text-[10px] text-slate-400 leading-tight font-medium">{s.desc}</p></div>
-              </Button>
-            ))}
-          </div>
+      <div className="space-y-8 pt-10 border-t border-slate-50">
+        <div className="flex items-center gap-3"><div className="h-2 w-2 rounded-full bg-indigo-500" /><h4 className="font-black text-xs uppercase text-indigo-600 tracking-widest">¿Cuál es la modalidad de la actividad? (Estrategia)</h4></div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {[
+            { id: 'individual', label: 'Individual', icon: User, desc: 'Evaluación personalizada por cada estudiante.' },
+            { id: 'grupal', label: 'Grupal', icon: Users, desc: 'Califica a un integrante y replica al equipo.' },
+            { id: 'quizz', label: 'Gamificación', icon: Gamepad2, desc: 'Lanza una sala interactiva en tiempo real.' }
+          ].map((s) => (
+            <Button key={s.id} variant="outline" className={cn("h-auto p-6 flex-col gap-3 rounded-[2rem] border-2 text-left items-start transition-all", newStrategyType === s.id ? 'border-indigo-600 bg-indigo-50/30' : 'hover:border-slate-200')} onClick={() => setNewStrategyType(s.id as any)}>
+              <div className="flex justify-between items-center w-full"><s.icon className={`h-8 w-8 ${newStrategyType === s.id ? 'text-indigo-600' : 'text-slate-300'}`} />{newStrategyType === s.id && <CheckCircle2 className="h-5 w-5 text-indigo-600" />}</div>
+              <div className="space-y-1"><p className="font-black text-[11px] uppercase tracking-tighter">{s.label}</p><p className="text-[10px] text-slate-400 leading-tight font-medium">{s.desc}</p></div>
+            </Button>
+          ))}
         </div>
-      )}
+      </div>
     </div>
   )
 }
@@ -752,7 +781,7 @@ function ActivityStep({ newColName, setNewColName, newInstrumentWeight, setNewIn
         <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 shrink-0"><ClipboardCheck className="h-5 w-5" /></div>
         <p className="text-xs text-blue-700 font-medium leading-relaxed">
           {newInstType === 'manual' 
-            ? "Has seleccionado Nota Directa. No se requiere configuración adicional de criterios. Puedes finalizar el registro ahora." 
+            ? "Has seleccionado Nota Directa. No se requiere configuración adicional de criterios." 
             : "En el siguiente paso podrás cargar los criterios detallados de tu instrumento pedagógico."}
         </p>
       </div>
@@ -760,7 +789,7 @@ function ActivityStep({ newColName, setNewColName, newInstrumentWeight, setNewIn
   )
 }
 
-function DetailedConfigStep({ newInstType, newStrategyType, newColName, totalPointsStep, students, groupSize, setGroupSize, studentGroups, setStudentGroups, editorCriteria, setEditorCriteria, getInstrumentIcon }: any) {
+function DetailedConfigStep({ newInstType, newColName, totalPointsStep, editorCriteria, setEditorCriteria, getInstrumentIcon }: any) {
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
       <div className="flex justify-between items-center bg-slate-50 p-8 rounded-[2.5rem] border-2 border-slate-100">
@@ -769,7 +798,6 @@ function DetailedConfigStep({ newInstType, newStrategyType, newColName, totalPoi
           <div>
             <div className="flex items-center gap-3 mb-1">
               <Badge variant="outline" className="font-black text-[8px] uppercase tracking-widest border-primary/20 text-primary">{INST_LABELS[newInstType].toUpperCase()}</Badge>
-              <Badge className="font-black text-[8px] uppercase tracking-widest bg-indigo-600">{STRAT_LABELS[newStrategyType].toUpperCase()}</Badge>
             </div>
             <div className="font-black text-slate-900 text-3xl tracking-tighter">{newColName || "Sin Nombre"}</div>
           </div>
@@ -781,14 +809,33 @@ function DetailedConfigStep({ newInstType, newStrategyType, newColName, totalPoi
         )}
       </div>
 
-      {newStrategyType === 'grupal' && (
-        <GroupConfig students={students} groupSize={groupSize} setGroupSize={setGroupSize} studentGroups={studentGroups} setStudentGroups={setStudentGroups} />
-      )}
-
       {newInstType === 'cotejo' && <ChecklistConfig criteria={editorCriteria} setCriteria={setEditorCriteria} />}
       {newInstType === 'rubrica' && <RubricConfig criteria={editorCriteria} setCriteria={setEditorCriteria} />}
       {newInstType === 'escala' && <ScaleConfig criteria={editorCriteria} setCriteria={setEditorCriteria} />}
       {newInstType === 'guia' && <GuideConfig criteria={editorCriteria} setCriteria={setEditorCriteria} />}
+    </div>
+  )
+}
+
+function TeamsStep({ students, groupSize, setGroupSize, studentGroups, setStudentGroups, newColName }: any) {
+  return (
+    <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
+      <div className="flex items-center gap-6 bg-indigo-600 p-8 rounded-[2.5rem] text-white shadow-xl shadow-indigo-100">
+        <div className="p-5 bg-white/20 rounded-3xl backdrop-blur-md border border-white/10">
+          <Users className="h-8 w-8" />
+        </div>
+        <div>
+          <Badge className="bg-white/20 text-white border-none font-black uppercase text-[8px] tracking-widest mb-1">Estrategia Grupal</Badge>
+          <div className="font-black text-3xl tracking-tighter">{newColName || "Trabajo en Equipo"}</div>
+        </div>
+      </div>
+      <GroupConfig 
+        students={students} 
+        groupSize={groupSize} 
+        setGroupSize={setGroupSize} 
+        studentGroups={studentGroups} 
+        setStudentGroups={setStudentGroups} 
+      />
     </div>
   )
 }
