@@ -88,6 +88,16 @@ interface Column {
   groups?: Record<string, string> 
 }
 
+const TYPE_LABELS: Record<string, string> = {
+  manual: 'Nota Directa',
+  cotejo: 'Lista de Cotejo',
+  rubrica: 'Rúbrica',
+  escala: 'Escala Valorativa',
+  anecdotario: 'Registro Anecdótico',
+  grupal: 'Trabajo Grupal',
+  quizz: 'Quizz Sallé'
+}
+
 const DEFAULT_RUBRIC_LEVELS = [
   { label: 'Excelente', points: 4, description: '' },
   { label: 'Bueno', points: 3, description: '' },
@@ -250,7 +260,7 @@ export default function AcademicGradebookPage() {
 
   const addColumn = () => {
     if (newColType === 'cotejo' && totalPointsChecklist !== 20) {
-      toast({ variant: "destructive", title: "Puntaje Inválido", description: "La suma debe ser 20." })
+      toast({ variant: "destructive", title: "Puntaje Inválido", description: "La suma de la Lista de Cotejo debe ser exactamente 20." })
       return
     }
 
@@ -492,9 +502,9 @@ export default function AcademicGradebookPage() {
                         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
                           {[
                             { id: 'manual', label: 'Nota Directa', icon: FileText },
-                            { id: 'cotejo', label: 'Lista / Test', icon: LayoutList },
+                            { id: 'cotejo', label: 'Lista de Cotejo', icon: LayoutList },
                             { id: 'rubrica', label: 'Rúbrica', icon: Target },
-                            { id: 'escala', label: 'Escala Valor.', icon: Star },
+                            { id: 'escala', label: 'Escala Valorativa', icon: Star },
                             { id: 'anecdotario', label: 'Observación', icon: Quote },
                             { id: 'grupal', label: 'Trabajo Grupal', icon: Users },
                             { id: 'quizz', label: 'Quizz Sallé', icon: Gamepad2 }
@@ -542,7 +552,7 @@ export default function AcademicGradebookPage() {
                           <div className="flex items-center gap-4">
                             <div className="p-4 bg-primary text-white rounded-2xl shadow-lg shadow-primary/20">{getInstrumentIcon(newColType)}</div>
                             <div>
-                              <p className="font-black text-[10px] uppercase text-slate-400 tracking-[0.2em] mb-1">{newColType.toUpperCase()} CONFIGURACIÓN</p>
+                              <p className="font-black text-[10px] uppercase text-slate-400 tracking-[0.2em] mb-1">{TYPE_LABELS[newColType].toUpperCase()} CONFIGURACIÓN</p>
                               <div className="font-black text-slate-900 text-2xl tracking-tighter">{newColName}</div>
                             </div>
                           </div>
@@ -802,7 +812,7 @@ export default function AcademicGradebookPage() {
                                       <>
                                         <div className="bg-primary p-10 text-white flex justify-between items-center shrink-0">
                                           <div className="space-y-2">
-                                            <Badge className="bg-white/20 text-white font-black uppercase text-[10px]">{activeEval.column.type.toUpperCase()}</Badge>
+                                            <Badge className="bg-white/20 text-white font-black uppercase text-[10px]">{TYPE_LABELS[activeEval.column.type].toUpperCase()}</Badge>
                                             <h3 className="text-3xl font-black uppercase tracking-tighter">{activeEval.student.nombre}</h3>
                                             <p className="text-blue-100/80 font-bold uppercase text-[10px] tracking-widest">{activeEval.column.name}</p>
                                           </div>
@@ -849,12 +859,22 @@ export default function AcademicGradebookPage() {
                                               </div>
                                             )}
                                           </ScrollArea>
-                                          <div className="w-1/3 p-10 bg-white border-l space-y-6">
-                                            <div className="space-y-3">
-                                              <Label className="font-black text-xs uppercase text-slate-400 flex items-center gap-2"><MessageSquare className="h-4 w-4" /> Observaciones del Logro</Label>
-                                              <Textarea value={evalComment} onChange={e => setEvalComment(e.target.value)} placeholder="Comentarios sobre el desempeño..." className="h-[400px] rounded-2xl border-2 resize-none p-6 font-medium italic text-slate-600" />
+                                          
+                                          {(activeEval.column.type === 'cotejo' || activeEval.column.type === 'anecdotario') && (
+                                            <div className="w-[400px] p-10 bg-white border-l flex flex-col gap-6">
+                                              <div className="space-y-3 flex-1 flex flex-col">
+                                                <Label className="font-black text-xs uppercase text-slate-400 flex items-center gap-2 shrink-0">
+                                                  <MessageSquare className="h-4 w-4" /> Observaciones del Logro
+                                                </Label>
+                                                <Textarea 
+                                                  value={evalComment} 
+                                                  onChange={e => setEvalComment(e.target.value)} 
+                                                  placeholder="Comentarios sobre el desempeño o incidencias..." 
+                                                  className="flex-1 rounded-2xl border-2 resize-none p-6 font-medium italic text-slate-600 shadow-inner bg-slate-50/30" 
+                                                />
+                                              </div>
                                             </div>
-                                          </div>
+                                          )}
                                         </div>
                                         <div className="p-10 bg-white border-t flex justify-end gap-4 shrink-0">
                                           <Button variant="ghost" className="font-black text-slate-400 uppercase text-xs px-8" onClick={() => setActiveEval(null)}>Descartar</Button>
