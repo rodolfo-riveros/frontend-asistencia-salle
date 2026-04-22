@@ -190,8 +190,8 @@ export default function AttendancePage() {
       
       const headerRow = ['N°', 'APELLIDOS Y NOMBRES', 'DNI']
       uniqueDates.forEach(d => {
-        const [_, month, day] = d.split('-')
-        headerRow.push(`${day}/${month}`)
+        const dateParts = d.split('-')
+        headerRow.push(`${dateParts[2]}/${dateParts[1]}`)
       })
       headerRow.push('FALTAS', '%')
       rows.push(headerRow)
@@ -244,15 +244,39 @@ export default function AttendancePage() {
       })
 
       const doc = new jsPDF('l', 'mm', 'a4')
-      doc.setFontSize(16); doc.setTextColor(0, 51, 102)
+      
+      // Cabecera Bonita
+      doc.setFontSize(16); doc.setTextColor(0, 51, 102); doc.setFont("helvetica", "bold")
       doc.text("INSTITUTO DE EDUCACIÓN SUPERIOR LA SALLE - URUBAMBA", 14, 15)
       
-      doc.setFontSize(10); doc.setTextColor(0)
-      doc.text(`UD: ${courseInfo.unidad_nombre.toUpperCase()} | PROGRAMA: ${courseInfo.programa_nombre.toUpperCase()} | DOCENTE: ${userName}`, 14, 25)
+      doc.setFontSize(9); doc.setTextColor(100); doc.setFont("helvetica", "bold")
+      doc.text("REPORTE OFICIAL DE ASISTENCIA ACADÉMICA", 14, 22)
+      
+      // Bloque de Datos Académicos
+      doc.setFontSize(8); doc.setTextColor(0); doc.setFont("helvetica", "normal")
+      doc.text("UNIDAD DIDÁCTICA:", 14, 30); doc.setFont("helvetica", "bold")
+      doc.text(`${courseInfo.unidad_nombre.toUpperCase()}`, 45, 30)
+      
+      doc.setFont("helvetica", "normal")
+      doc.text("PROGRAMA PROFESIONAL:", 14, 35); doc.setFont("helvetica", "bold")
+      doc.text(`${courseInfo.programa_nombre.toUpperCase()}`, 55, 35)
+      
+      doc.setFont("helvetica", "normal")
+      doc.text("DOCENTE RESPONSABLE:", 14, 40); doc.setFont("helvetica", "bold")
+      doc.text(`${userName}`, 55, 40)
+      
+      // Datos a la derecha
+      doc.setFont("helvetica", "normal")
+      doc.text("SEMESTRE ACADÉMICO:", 230, 30); doc.setFont("helvetica", "bold")
+      doc.text(`${courseInfo.semestre}`, 270, 30)
+      
+      doc.setFont("helvetica", "normal")
+      doc.text("FECHA DE EMISIÓN:", 230, 35); doc.setFont("helvetica", "bold")
+      doc.text(`${new Date().toLocaleDateString()}`, 265, 35)
 
-      const headers = ['N°', 'ALUMNO', ...uniqueDates.map(dateStr => {
-        const [year, m, day] = dateStr.split('-')
-        return `${day}/${m}`
+      const headers = ['N°', 'APELLIDOS Y NOMBRES', ...uniqueDates.map(dateStr => {
+        const parts = dateStr.split('-')
+        return `${parts[2]}/${parts[1]}`
       }), 'FALTAS', '%']
 
       const body = students.sort((a, b) => a.nombre.localeCompare(b.nombre)).map((alumno, index) => {
@@ -271,14 +295,14 @@ export default function AttendancePage() {
       autoTable(doc, {
         head: [headers],
         body: body,
-        startY: 35,
-        styles: { fontSize: 7, cellPadding: 2, halign: 'center' },
-        headStyles: { fillColor: [0, 51, 102] },
-        columnStyles: { 1: { halign: 'left', fontStyle: 'bold', cellWidth: 50 } },
+        startY: 48,
+        styles: { fontSize: 7, cellPadding: 2, halign: 'center', valign: 'middle' },
+        headStyles: { fillColor: [0, 51, 102], textColor: 255, fontStyle: 'bold' },
+        columnStyles: { 1: { halign: 'left', fontStyle: 'bold', cellWidth: 60 } },
         theme: 'grid'
       })
 
-      doc.save(`MATRIZ_${courseInfo.unidad_nombre.replace(/\s+/g, '_')}.pdf`)
+      doc.save(`MATRIZ_ASISTENCIA_${courseInfo.unidad_nombre.replace(/\s+/g, '_')}.pdf`)
     } catch (err: any) {
       toast({ variant: "destructive", title: "Error", description: "Fallo al generar el PDF." })
     } finally {
