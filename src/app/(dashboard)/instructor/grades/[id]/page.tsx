@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -18,7 +19,6 @@ import {
   Dialog, 
   DialogContent, 
   DialogDescription,
-  DialogTrigger,
   DialogTitle
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
@@ -204,9 +204,12 @@ export default function AcademicGradebookPage() {
         reader.readAsDataURL(file)
       })
       const analysis = await analysisPromise
+      
+      // Actualizar estados con el resultado de la IA
       setNewInstType(analysis.type)
       setNewColName(analysis.name)
       if (analysis.suggestedWeight) setNewInstrumentWeight(analysis.suggestedWeight)
+      
       if ((analysis.type === 'cotejo' || analysis.type === 'guia') && analysis.checklistCriteria) {
         setEditorCriteria(analysis.checklistCriteria.map((c: any) => ({ id: Math.random().toString(), ...c })))
       } else if (analysis.type === 'rubrica' && analysis.rubricDimensions) {
@@ -215,10 +218,12 @@ export default function AcademicGradebookPage() {
         setEditorCriteria(analysis.checklistCriteria.map((c: any) => ({ id: Math.random().toString(), description: c.description })))
         if (analysis.scaleLevels) setEditorScaleLevels(analysis.scaleLevels)
       }
-      setSetupStep(3) // Salta al editor detallado
-      toast({ title: "Digitalización Exitosa" })
+      
+      setSetupStep(3) // Saltar directamente al editor detallado
+      toast({ title: "Digitalización Exitosa", description: "Revisa los criterios extraídos." })
     } catch (err: any) {
-      toast({ variant: "destructive", title: "IA Ocupada", description: "Reintenta en unos segundos." })
+      console.error("Error IA:", err)
+      toast({ variant: "destructive", title: "IA Ocupada", description: "No se pudo procesar la imagen. Reintenta." })
     } finally {
       setIsScanning(false)
     }
@@ -262,7 +267,10 @@ export default function AcademicGradebookPage() {
     setColumns(prev => [...prev, newColumn])
     setGrades(prev => {
       const next = { ...prev }
-      Object.keys(next).forEach(sid => { if(!next[sid]) next[sid] = {}; next[sid][colId] = 0 })
+      Object.keys(next).forEach(sid => { 
+        if(!next[sid]) next[sid] = {}
+        next[sid][colId] = 0 
+      })
       return next
     })
 
@@ -355,7 +363,16 @@ export default function AcademicGradebookPage() {
       <HeaderSection router={router} setIsNewColOpen={setIsNewColOpen} />
 
       <Card className="border-none shadow-2xl overflow-hidden bg-white rounded-[2.5rem]">
-        <TableToolbar searchTerm={searchTerm} setSearchTerm={setSearchTerm} fetchFullGradebook={fetchFullGradebook} isSaving={isSaving} handleSaveAll={() => { setIsSaving(true); setTimeout(() => { setIsSaving(false); toast({ title: "Sincronizado" }); }, 1000); }} />
+        <TableToolbar 
+          searchTerm={searchTerm} 
+          setSearchTerm={setSearchTerm} 
+          fetchFullGradebook={fetchFullGradebook} 
+          isSaving={isSaving} 
+          handleSaveAll={() => { 
+            setIsSaving(true); 
+            setTimeout(() => { setIsSaving(false); toast({ title: "Sincronizado" }); }, 1000); 
+          }} 
+        />
         
         <CardContent className="p-0">
           <ScrollArea className="w-full h-[600px]">
@@ -601,7 +618,9 @@ function ConfigWizard({
         <div className="p-8 bg-slate-50 border-t flex justify-between gap-3 items-center shrink-0">
           <Button variant="ghost" onClick={() => setSetupStep(Math.max(0, setupStep - 1))} disabled={setupStep === 0 || isScanning} className="font-black text-[10px] uppercase h-11 px-8 rounded-xl border-2">Anterior</Button>
           <div className="flex gap-3">
-            {setupStep < 3 ? (
+            {setupStep === 2 && newInstType === 'manual' ? (
+              <Button className="bg-emerald-600 px-10 h-11 font-black text-[10px] uppercase rounded-xl text-white shadow-lg shadow-emerald-200" onClick={addColumn}>Finalizar y Crear</Button>
+            ) : setupStep < 3 ? (
               <Button className="bg-primary px-10 h-11 font-black text-[10px] uppercase rounded-xl text-white" onClick={() => setSetupStep(setupStep + 1)} disabled={
                 (setupStep === 0 && (!newIndicatorCode || !newIndicatorDescription)) || 
                 (setupStep === 2 && !newColName) || 
@@ -646,7 +665,7 @@ function IndicatorStep({ newIndicatorCode, setNewIndicatorCode, newIndicatorWeig
         <div className="flex items-center gap-4 mb-4"><div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600"><History className="h-6 w-6" /></div><h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Biblioteca</h4></div>
         <div className="bg-white rounded-[2rem] border-2 border-dashed border-slate-200 p-6 min-h-[300px]">
           {existingIndicators.length > 0 ? existingIndicators.map((ind: any, i: number) => (
-            <button key={i} className="flex flex-col items-start p-4 rounded-2xl border-2 border-slate-50 hover:border-primary/30 hover:bg-primary/5 mb-3 w-full" onClick={() => { setNewIndicatorCode(ind.code); setNewIndicatorDescription(ind.desc); setNewIndicatorWeight(ind.weight); }}>
+            <button key={i} className="flex flex-col items-start p-4 rounded-2xl border-2 border-slate-50 hover:border-primary/30 hover:bg-primary/5 mb-3 w-full text-left" onClick={() => { setNewIndicatorCode(ind.code); setNewIndicatorDescription(ind.desc); setNewIndicatorWeight(ind.weight); }}>
               <div className="flex justify-between w-full font-black text-sm text-primary mb-1"><span>{ind.code}</span><Badge variant="outline">{ind.weight}%</Badge></div>
               <p className="text-[11px] text-slate-500 line-clamp-2">{ind.desc}</p>
             </button>
@@ -678,21 +697,23 @@ function SelectionStep({ newInstType, setNewInstType, newStrategyType, setNewStr
         </div>
       </div>
       
-      <div className="space-y-8 pt-10 border-t border-slate-50">
-        <div className="flex items-center gap-3"><div className="h-2 w-2 rounded-full bg-indigo-500" /><h4 className="font-black text-xs uppercase text-indigo-600 tracking-widest">¿Cuál es la modalidad de la actividad? (Estrategia)</h4></div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {[
-            { id: 'individual', label: 'Individual', icon: User, desc: 'Evaluación personalizada por cada estudiante.' },
-            { id: 'grupal', label: 'Grupal', icon: Users, desc: 'Califica a un integrante y replica al equipo.' },
-            { id: 'quizz', label: 'Gamificación', icon: Gamepad2, desc: 'Lanza una sala interactiva en tiempo real.' }
-          ].map((s) => (
-            <Button key={s.id} variant="outline" className={cn("h-auto p-6 flex-col gap-3 rounded-[2rem] border-2 text-left items-start transition-all", newStrategyType === s.id ? 'border-indigo-600 bg-indigo-50/30' : 'hover:border-slate-200')} onClick={() => setNewStrategyType(s.id as any)}>
-              <div className="flex justify-between items-center w-full"><s.icon className={`h-8 w-8 ${newStrategyType === s.id ? 'text-indigo-600' : 'text-slate-300'}`} />{newStrategyType === s.id && <CheckCircle2 className="h-5 w-5 text-indigo-600" />}</div>
-              <div className="space-y-1"><p className="font-black text-[11px] uppercase tracking-tighter">{s.label}</p><p className="text-[10px] text-slate-400 leading-tight font-medium">{s.desc}</p></div>
-            </Button>
-          ))}
+      {newInstType !== 'manual' && (
+        <div className="space-y-8 pt-10 border-t border-slate-50">
+          <div className="flex items-center gap-3"><div className="h-2 w-2 rounded-full bg-indigo-500" /><h4 className="font-black text-xs uppercase text-indigo-600 tracking-widest">¿Cuál es la modalidad de la actividad? (Estrategia)</h4></div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {[
+              { id: 'individual', label: 'Individual', icon: User, desc: 'Evaluación personalizada por cada estudiante.' },
+              { id: 'grupal', label: 'Grupal', icon: Users, desc: 'Califica a un integrante y replica al equipo.' },
+              { id: 'quizz', label: 'Gamificación', icon: Gamepad2, desc: 'Lanza una sala interactiva en tiempo real.' }
+            ].map((s) => (
+              <Button key={s.id} variant="outline" className={cn("h-auto p-6 flex-col gap-3 rounded-[2rem] border-2 text-left items-start transition-all", newStrategyType === s.id ? 'border-indigo-600 bg-indigo-50/30' : 'hover:border-slate-200')} onClick={() => setNewStrategyType(s.id as any)}>
+                <div className="flex justify-between items-center w-full"><s.icon className={`h-8 w-8 ${newStrategyType === s.id ? 'text-indigo-600' : 'text-slate-300'}`} />{newStrategyType === s.id && <CheckCircle2 className="h-5 w-5 text-indigo-600" />}</div>
+                <div className="space-y-1"><p className="font-black text-[11px] uppercase tracking-tighter">{s.label}</p><p className="text-[10px] text-slate-400 leading-tight font-medium">{s.desc}</p></div>
+              </Button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }
@@ -711,12 +732,10 @@ function ActivityStep({ newColName, setNewColName, newInstrumentWeight, setNewIn
               <Label className="font-black text-[11px] uppercase text-indigo-600 tracking-widest ml-1">Peso del Instrumento (%)</Label>
               <Input type="number" value={newInstrumentWeight || ""} onChange={e => setNewInstrumentWeight(parseInt(e.target.value) || 0)} className="h-16 rounded-2xl text-center text-xl font-black border-none shadow-inner bg-white" />
             </div>
-            {newInstType === 'manual' && (
-              <div className="space-y-3">
-                <Label className="font-black text-[11px] uppercase text-primary tracking-widest ml-1">Puntaje Máximo</Label>
-                <Input type="number" value={newMaxPoints} onChange={e => setNewMaxPoints(parseInt(e.target.value) || 20)} className="h-16 rounded-2xl text-center text-xl font-black border-none shadow-inner bg-white" />
-              </div>
-            )}
+            <div className="space-y-3">
+              <Label className="font-black text-[11px] uppercase text-primary tracking-widest ml-1">Puntaje Máximo</Label>
+              <Input type="number" value={newMaxPoints} onChange={e => setNewMaxPoints(parseInt(e.target.value) || 20)} disabled={newInstType !== 'manual'} className="h-16 rounded-2xl text-center text-xl font-black border-none shadow-inner bg-white disabled:opacity-50" />
+            </div>
           </div>
         </div>
 
@@ -725,13 +744,13 @@ function ActivityStep({ newColName, setNewColName, newInstrumentWeight, setNewIn
              <div className="flex flex-col md:flex-row items-center justify-between gap-6">
                 <div className="space-y-1">
                   <h5 className="font-black text-sm uppercase text-slate-800">Carga Rápida con IA</h5>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">¿Tienes el instrumento en papel o PDF? Escanéalo ahora.</p>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">¿Tienes el instrumento físico? Digitalízalo al instante.</p>
                 </div>
                 <div className="relative">
                   <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleAiScan} />
-                  <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isScanning} className="h-14 px-8 gap-3 rounded-2xl border-2 border-dashed border-accent text-accent hover:bg-accent hover:text-white transition-all font-black uppercase text-[10px] tracking-widest">
+                  <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isScanning} className="h-14 px-8 gap-3 rounded-2xl border-2 border-dashed border-accent text-accent hover:bg-accent hover:text-white transition-all font-black uppercase text-[10px] tracking-widest shadow-lg shadow-accent/5">
                     {isScanning ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
-                    {isScanning ? "Digitalizando..." : "Digitalizar con IA"}
+                    {isScanning ? "Procesando..." : "Escanear Instrumento con IA"}
                   </Button>
                 </div>
              </div>
@@ -742,7 +761,9 @@ function ActivityStep({ newColName, setNewColName, newInstrumentWeight, setNewIn
       <div className="bg-blue-50 border border-blue-100 p-6 rounded-2xl flex gap-4 items-center">
         <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 shrink-0"><ClipboardCheck className="h-5 w-5" /></div>
         <p className="text-xs text-blue-700 font-medium leading-relaxed">
-          En el siguiente paso podrás {newInstType === 'manual' ? "finalizar el registro" : "cargar los criterios y niveles de desempeño"} según el instrumento seleccionado.
+          {newInstType === 'manual' 
+            ? "Has seleccionado Nota Directa. No se requiere configuración adicional de criterios. Puedes finalizar el registro ahora." 
+            : "En el siguiente paso podrás cargar los criterios detallados de tu instrumento pedagógico."}
         </p>
       </div>
     </div>
@@ -778,14 +799,6 @@ function DetailedConfigStep({ newInstType, newStrategyType, newColName, totalPoi
       {newInstType === 'rubrica' && <RubricConfig criteria={editorCriteria} setCriteria={setEditorCriteria} />}
       {newInstType === 'escala' && <ScaleConfig criteria={editorCriteria} setCriteria={setEditorCriteria} />}
       {newInstType === 'guia' && <GuideConfig criteria={editorCriteria} setCriteria={setEditorCriteria} />}
-      
-      {newInstType === 'manual' && (
-        <div className="p-20 text-center flex flex-col items-center gap-4">
-          <div className="p-6 bg-slate-50 rounded-full"><CheckCircle2 className="h-12 w-12 text-emerald-500" /></div>
-          <h4 className="text-xl font-black uppercase text-slate-800 tracking-tight">Instrumento Directo</h4>
-          <p className="text-sm text-slate-500 font-medium">Este tipo de evaluación no requiere configuración de criterios. Puedes finalizar ahora.</p>
-        </div>
-      )}
     </div>
   )
 }
@@ -857,8 +870,8 @@ function EvaluationModal({ activeEval, setActiveEval, evalData, setEvalData, eva
           )}
         </div>
         <div className="p-10 bg-white border-t flex justify-end gap-4 shrink-0">
-          <Button variant="ghost" className="font-black text-slate-400 uppercase text-xs px-12 h-16 rounded-2xl border-2 hover:bg-slate-50" onClick={() => setActiveEval(null)}>Descartar</Button>
-          <Button className="bg-primary font-black uppercase text-xs px-12 h-16 rounded-2xl shadow-xl text-white" onClick={handleApply}>Aplicar Nota {column.strategy === 'grupal' ? 'al Grupo' : ''}</Button>
+          <Button variant="ghost" className="font-black text-slate-400 uppercase text-xs px-12 h-16 rounded-2xl border-2 hover:bg-slate-50 min-w-[180px]" onClick={() => setActiveEval(null)}>Descartar</Button>
+          <Button className="bg-primary font-black uppercase text-xs px-12 h-16 rounded-2xl shadow-xl text-white min-w-[180px]" onClick={handleApply}>Aplicar Nota {column.strategy === 'grupal' ? 'al Grupo' : ''}</Button>
         </div>
       </DialogContent>
     </Dialog>
