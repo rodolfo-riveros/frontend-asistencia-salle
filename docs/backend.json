@@ -1,0 +1,46 @@
+
+{
+  "entities": {
+    "QuizRoom": {
+      "title": "Sala de Quiz",
+      "description": "Estado de una sesión de quiz en tiempo real.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "courseId": { "type": "string" },
+        "instructorId": { "type": "string" },
+        "status": { "type": "string", "enum": ["lobby", "active", "finished"] },
+        "code": { "type": "string" },
+        "currentQuestionIndex": { "type": "number" },
+        "questions": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "QuizParticipant": {
+      "title": "Participante",
+      "description": "Alumno unido a una sala de quiz.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "roomId": { "type": "string" },
+        "studentName": { "type": "string" },
+        "score": { "type": "number" },
+        "lastAnswerCorrect": { "type": "boolean" },
+        "joinedAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "auth": {
+    "providers": ["email", "google"]
+  },
+  "firestore": {
+    "/quiz_rooms/{roomId}": {
+      "schema": "QuizRoom",
+      "description": "Salas de quiz activas."
+    },
+    "/quiz_rooms/{roomId}/participants/{participantId}": {
+      "schema": "QuizParticipant",
+      "description": "Estudiantes en la sala."
+    }
+  }
+}

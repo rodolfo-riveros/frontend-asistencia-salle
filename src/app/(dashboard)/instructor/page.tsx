@@ -16,7 +16,8 @@ import {
   CircleDashed, 
   GraduationCap,
   ClipboardCheck,
-  LayoutDashboard
+  LayoutDashboard,
+  Gamepad2
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
@@ -129,9 +130,11 @@ export default function InstructorDashboard() {
                   <Badge variant="outline" className="text-[10px] font-black uppercase tracking-widest bg-slate-50 text-slate-500 rounded-lg px-3 py-1">
                     UD: {asg.unidad_id.substring(0,8)}
                   </Badge>
-                  <div className="p-3 bg-primary/5 rounded-2xl text-primary transition-all group-hover:bg-primary group-hover:text-white shadow-sm border border-primary/5">
-                    <BookOpen className="h-5 w-5" />
-                  </div>
+                  <Button asChild variant="ghost" size="icon" className="h-12 w-12 rounded-2xl text-accent hover:bg-accent hover:text-white transition-all">
+                    <Link href={`/instructor/quiz/${asg.unidad_id}`}>
+                      <Gamepad2 className="h-6 w-6" />
+                    </Link>
+                  </Button>
                 </div>
                 <div>
                   <CardTitle className="text-xl md:text-2xl font-headline font-black line-clamp-2 text-slate-800 leading-tight">
