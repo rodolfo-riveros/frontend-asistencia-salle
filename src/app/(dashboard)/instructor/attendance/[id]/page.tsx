@@ -1,10 +1,12 @@
+
 "use client"
 
 import * as React from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { 
   ArrowLeft, Search, Save, Sparkles, UserCheck, UserX, Clock, MessageSquareQuote, 
-  Loader2, RefreshCcw, PieChart as PieIcon, BarChart3, AlertTriangle, CheckCircle2
+  Loader2, RefreshCcw, PieChart as PieIcon, BarChart3, AlertTriangle, CheckCircle2,
+  FileSpreadsheet, FileText
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -18,7 +20,11 @@ import { aiAttendanceInsights, type AttendanceInsightsOutput } from "@/ai/flows/
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import { api } from "@/lib/api"
 import { getInitials } from "@/lib/utils"
+import { supabase } from "@/lib/supabase"
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from "recharts"
+import * as XLSX from 'xlsx'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
 const STATUS_MAP: Record<string, string> = { 'Presente': 'P', 'Falta': 'F', 'Tarde': 'T', 'Justificado': 'J' }
 const REVERSE_MAP: Record<string, string> = { 'P': 'Presente', 'F': 'Falta', 'T': 'Tarde', 'J': 'Justificado' }
@@ -42,6 +48,11 @@ export default function AttendancePage() {
   const [isAnalyzing, setIsAnalyzing] = React.useState(false)
   const [aiResult, setAiResult] = React.useState<AttendanceInsightsOutput | null>(null)
   const [availableDates, setAvailableDates] = React.useState<string[]>([])
+  
+  const [isExportingExcel, setIsExportingExcel] = React.useState(false)
+  const [isExportingPdf, setIsExportingPdf] = React.useState(false)
+  const [courseInfo, setCourseInfo] = React.useState<any>(null)
+  const [userName, setUserName] = React.useState("")
 
   const fetchAvailableDates = React.useCallback(async () => {
     if (!params.id) return
@@ -60,7 +71,6 @@ export default function AttendancePage() {
     
     setIsSyncing(true)
     try {
-      console.log(`🔍 Buscando asistencia para fecha: ${queryDate}`)
       const existing = await api.get<any[]>(`/asistencias/reporte/unidad/${params.id}?fecha_inicio=${queryDate}&fecha_fin=${queryDate}`)
       
       const mapped: Record<string, string | null> = {}
@@ -86,16 +96,28 @@ export default function AttendancePage() {
   const fetchStudents = React.useCallback(async () => {
     setIsLoading(true)
     try {
-      const data = await api.get<any[]>(`/me/unidades/${params.id}/alumnos`)
-      setStudents(data)
+      const [studentData, assignments, userData] = await Promise.all([
+        api.get<any[]>(`/me/unidades/${params.id}/alumnos`),
+        api.get<any[]>(`/me/asignaciones/?periodo_id=${periodoId}`),
+        supabase.auth.getUser()
+      ])
+
+      if (userData.data.user?.user_metadata?.firstname) {
+        setUserName(`${userData.data.user.user_metadata.firstname} ${userData.data.user.user_metadata.lastname || ""}`.trim().toUpperCase())
+      }
+
+      setStudents(studentData)
+      const info = assignments.find((asg: any) => asg.unidad_id === params.id)
+      setCourseInfo(info)
+
       await fetchAvailableDates()
-      await fetchExistingAttendance(data, date)
+      await fetchExistingAttendance(studentData, date)
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Error", description: "Fallo al cargar la lista de alumnos." })
+      toast({ variant: "destructive", title: "Error", description: "Fallo al cargar la información del curso." })
     } finally {
       setIsLoading(false)
     }
-  }, [params.id, fetchExistingAttendance, fetchAvailableDates, date])
+  }, [params.id, periodoId, fetchExistingAttendance, fetchAvailableDates, date])
 
   React.useEffect(() => { 
     fetchStudents() 
@@ -137,6 +159,130 @@ export default function AttendancePage() {
       await fetchAvailableDates()
     } catch (err: any) { 
       toast({ variant: "destructive", title: "Error al guardar", description: err.message }) 
+    }
+  }
+
+  const handleExportExcel = async () => {
+    if (!courseInfo) return
+    setIsExportingExcel(true)
+    toast({ title: "Generando Excel", description: "Preparando reporte de asistencia..." })
+
+    try {
+      const reportData = await api.get<any[]>(`/asistencias/reporte/unidad/${params.id}`)
+      const uniqueDates = Array.from(new Set(reportData.map(r => r.fecha))).sort()
+      const matrix: Record<string, Record<string, string>> = {}
+      reportData.forEach(reg => {
+        const idAlumno = reg.alumno_id;
+        if (idAlumno) {
+          if (!matrix[idAlumno]) matrix[idAlumno] = {}
+          matrix[idAlumno][reg.fecha] = reg.estado
+        }
+      })
+
+      const rows: any[] = []
+      rows.push(["INSTITUTO DE EDUCACIÓN SUPERIOR LA SALLE - URUBAMBA"])
+      rows.push(["REPORTE OFICIAL DE ASISTENCIA ACADÉMICA"])
+      rows.push([])
+      rows.push(["PROGRAMA PROFESIONAL:", courseInfo.programa_nombre.toUpperCase()])
+      rows.push(["UNIDAD DIDÁCTICA:", courseInfo.unidad_nombre.toUpperCase(), "", "SEMESTRE:", courseInfo.semestre])
+      rows.push(["DOCENTE RESPONSABLE:", userName, "", "FECHA EMISIÓN:", new Date().toLocaleDateString()])
+      rows.push([])
+      
+      const headerRow = ['N°', 'APELLIDOS Y NOMBRES', 'DNI']
+      uniqueDates.forEach(d => {
+        const [_, month, day] = d.split('-')
+        headerRow.push(`${day}/${month}`)
+      })
+      headerRow.push('FALTAS', '%')
+      rows.push(headerRow)
+
+      students.sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach((alumno, index) => {
+        let absences = 0
+        const attendanceByDate: any[] = []
+        uniqueDates.forEach(date => {
+          const status = matrix[alumno.id]?.[date] || "-"
+          attendanceByDate.push(status)
+          if (status === 'F') absences++
+        })
+        const pct = uniqueDates.length > 0 ? ((absences / uniqueDates.length) * 100).toFixed(1) : "0"
+        rows.push([
+          (index + 1).toString().padStart(2, '0'),
+          alumno.nombre.toUpperCase(),
+          alumno.dni,
+          ...attendanceByDate,
+          absences,
+          `${pct}%`
+        ])
+      })
+
+      const wb = XLSX.utils.book_new()
+      const ws = XLSX.utils.aoa_to_sheet(rows)
+      XLSX.utils.book_append_sheet(wb, ws, "Asistencia")
+      XLSX.writeFile(wb, `REPORTE_${courseInfo.unidad_nombre.replace(/\s+/g, '_')}.xlsx`)
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Error", description: "No se pudo generar el reporte." })
+    } finally {
+      setIsExportingExcel(false)
+    }
+  }
+
+  const handleExportPdf = async () => {
+    if (!courseInfo) return
+    setIsExportingPdf(true)
+    toast({ title: "Generando PDF", description: "Preparando reporte oficial..." })
+
+    try {
+      const reportData = await api.get<any[]>(`/asistencias/reporte/unidad/${params.id}`)
+      const uniqueDates = Array.from(new Set(reportData.map(r => r.fecha))).sort()
+      const matrix: Record<string, Record<string, string>> = {}
+      reportData.forEach(reg => {
+        const idAlumno = reg.alumno_id;
+        if (idAlumno) {
+          if (!matrix[idAlumno]) matrix[idAlumno] = {}
+          matrix[idAlumno][reg.fecha] = reg.estado
+        }
+      })
+
+      const doc = new jsPDF('l', 'mm', 'a4')
+      doc.setFontSize(16); doc.setTextColor(0, 51, 102)
+      doc.text("INSTITUTO DE EDUCACIÓN SUPERIOR LA SALLE - URUBAMBA", 14, 15)
+      
+      doc.setFontSize(10); doc.setTextColor(0)
+      doc.text(`UD: ${courseInfo.unidad_nombre.toUpperCase()} | PROGRAMA: ${courseInfo.programa_nombre.toUpperCase()} | DOCENTE: ${userName}`, 14, 25)
+
+      const headers = ['N°', 'ALUMNO', ...uniqueDates.map(d => {
+        const [_, m, d] = d.split('-')
+        return `${d}/${m}`
+      }), 'FALTAS', '%']
+
+      const body = students.sort((a, b) => a.nombre.localeCompare(b.nombre)).map((alumno, index) => {
+        const row = [(index + 1).toString().padStart(2, '0'), alumno.nombre.toUpperCase()]
+        let absences = 0
+        uniqueDates.forEach(date => {
+          const status = matrix[alumno.id]?.[date] || "-"
+          row.push(status)
+          if (status === 'F') absences++
+        })
+        const pct = uniqueDates.length > 0 ? ((absences / uniqueDates.length) * 100).toFixed(1) : "0"
+        row.push(absences, `${pct}%`)
+        return row
+      })
+
+      autoTable(doc, {
+        head: [headers],
+        body: body,
+        startY: 35,
+        styles: { fontSize: 7, cellPadding: 2, halign: 'center' },
+        headStyles: { fillColor: [0, 51, 102] },
+        columnStyles: { 1: { halign: 'left', fontStyle: 'bold', cellWidth: 50 } },
+        theme: 'grid'
+      })
+
+      doc.save(`MATRIZ_${courseInfo.unidad_nombre.replace(/\s+/g, '_')}.pdf`)
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Error", description: "Fallo al generar el PDF." })
+    } finally {
+      setIsExportingPdf(false)
     }
   }
 
@@ -185,6 +331,10 @@ export default function AttendancePage() {
         onRunAi={runAnalysis} 
         isAnalyzing={isAnalyzing} 
         onSave={handleSave}
+        onExportExcel={handleExportExcel}
+        onExportPdf={handleExportPdf}
+        isExportingExcel={isExportingExcel}
+        isExportingPdf={isExportingPdf}
         hasRecords={hasRecordsForCurrentDate}
         availableDates={availableDates}
       />
@@ -212,7 +362,11 @@ export default function AttendancePage() {
   )
 }
 
-function HeaderSection({ date, setDate, isSyncing, onBack, onRunAi, isAnalyzing, onSave, hasRecords, availableDates }: any) {
+function HeaderSection({ 
+  date, setDate, isSyncing, onBack, onRunAi, isAnalyzing, onSave, 
+  onExportExcel, onExportPdf, isExportingExcel, isExportingPdf,
+  hasRecords, availableDates 
+}: any) {
   return (
     <div className="space-y-8">
       <Button variant="ghost" onClick={onBack} className="h-10 text-primary font-bold hover:bg-primary/5">
@@ -248,12 +402,20 @@ function HeaderSection({ date, setDate, isSyncing, onBack, onRunAi, isAnalyzing,
             )}
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-4 w-full lg:w-auto">
-          <Button variant="outline" className="flex-1 h-14 px-8 gap-3 text-accent border-accent/20 font-black uppercase tracking-widest text-[11px]" onClick={onRunAi} disabled={isAnalyzing}>
-            <Sparkles className={`h-5 w-5 ${isAnalyzing ? 'animate-spin' : ''}`} /> Diagnóstico IA
+        <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+          <div className="flex gap-2">
+            <Button variant="outline" className="h-14 px-5 border-emerald-200 text-emerald-700 hover:bg-emerald-50 font-black uppercase text-[10px] tracking-widest" onClick={onExportExcel} disabled={isExportingExcel}>
+              {isExportingExcel ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSpreadsheet className="h-4 w-4" />} EXCEL
+            </Button>
+            <Button variant="outline" className="h-14 px-5 border-red-200 text-red-700 hover:bg-red-50 font-black uppercase text-[10px] tracking-widest" onClick={onExportPdf} disabled={isExportingPdf}>
+              {isExportingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />} PDF
+            </Button>
+          </div>
+          <Button variant="outline" className="flex-1 h-14 px-6 gap-3 text-accent border-accent/20 font-black uppercase tracking-widest text-[10px]" onClick={onRunAi} disabled={isAnalyzing}>
+            <Sparkles className={`h-5 w-5 ${isAnalyzing ? 'animate-spin' : ''}`} /> DIAGNÓSTICO IA
           </Button>
-          <Button className="flex-1 h-14 px-10 gap-3 font-black uppercase tracking-widest text-[11px] shadow-xl shadow-primary/20 bg-primary hover:bg-primary/90" onClick={onSave}>
-            <Save className="h-5 w-5" /> Guardar Asistencia
+          <Button className="flex-1 h-14 px-8 gap-3 font-black uppercase tracking-widest text-[10px] shadow-xl shadow-primary/20 bg-primary hover:bg-primary/90" onClick={onSave}>
+            <Save className="h-5 w-5" /> GUARDAR
           </Button>
         </div>
       </div>
