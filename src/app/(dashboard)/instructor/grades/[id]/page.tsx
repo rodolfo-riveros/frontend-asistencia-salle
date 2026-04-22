@@ -177,25 +177,38 @@ export default function AcademicGradebookPage() {
   const handleAiScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+
+    // Validación obligatoria de peso antes de escanear
+    if (newInstrumentWeight <= 0) {
+      toast({ 
+        variant: "destructive", 
+        title: "Peso requerido", 
+        description: "Por favor, asigna un peso (%) al instrumento antes de digitalizar." 
+      })
+      if (fileInputRef.current) fileInputRef.current.value = ""
+      return
+    }
+
     setIsScanning(true)
     try {
-      const reader = new FileReader()
-      const analysisPromise = new Promise<any>((resolve, reject) => {
-        reader.onload = async () => {
-          try {
-            const base64 = reader.result as string
-            const analysis = await analyzeInstrument({ photoDataUri: base64 })
-            resolve(analysis)
-          } catch (error) { reject(error) }
-        }
-        reader.onerror = () => reject(new Error("Error al leer archivo."))
+      // Leer archivo como Data URI de forma robusta
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as string)
+        reader.onerror = () => reject(new Error("Error al leer el archivo físico."))
         reader.readAsDataURL(file)
       })
+
+      // Llamada al flujo Genkit
+      const analysis = await analyzeInstrument({ photoDataUri: base64 })
       
-      const analysis = await analysisPromise
-      
+      if (!analysis) throw new Error("La IA no pudo interpretar el documento.")
+
+      // Mapeo inteligente de resultados al estado del editor
       if (analysis.type) setNewInstType(analysis.type)
       if (analysis.name) setNewColName(analysis.name)
+      
+      // Solo actualizamos el peso si la IA encontró uno específico, de lo contrario dejamos el que puso el usuario
       if (analysis.suggestedWeight) setNewInstrumentWeight(analysis.suggestedWeight)
       
       if ((analysis.type === 'cotejo' || analysis.type === 'guia') && analysis.checklistCriteria) {
@@ -207,11 +220,16 @@ export default function AcademicGradebookPage() {
         if (analysis.scaleLevels) setEditorScaleLevels(analysis.scaleLevels)
       }
       
+      // Saltar directamente al paso de diseño para revisión
       setSetupStep(3) 
       toast({ title: "Digitalización Exitosa", description: "Revisa los criterios extraídos por la IA." })
     } catch (err: any) {
-      console.error("Error IA:", err)
-      toast({ variant: "destructive", title: "IA Ocupada", description: "No se pudo procesar la imagen. Reintenta." })
+      console.error("[SCAN ERROR]", err)
+      toast({ 
+        variant: "destructive", 
+        title: "Fallo en Digitalización", 
+        description: err.message || "No se pudo procesar la imagen. Reintenta." 
+      })
     } finally {
       setIsScanning(false)
       if (fileInputRef.current) fileInputRef.current.value = "" 
@@ -738,6 +756,8 @@ function SelectionStep({ newInstType, setNewInstType, newStrategyType, setNewStr
 }
 
 function ActivityStep({ newColName, setNewColName, newInstrumentWeight, setNewInstrumentWeight, newMaxPoints, setNewMaxPoints, newInstType, isScanning, fileInputRef, handleAiScan }: any) {
+  const canScan = newInstrumentWeight > 0;
+  
   return (
     <div className="space-y-10 animate-in fade-in slide-in-from-right-4">
       <div className="bg-slate-50 p-10 rounded-[3rem] border-2 border-slate-100 space-y-8">
@@ -762,14 +782,29 @@ function ActivityStep({ newColName, setNewColName, newInstrumentWeight, setNewIn
           <div className="pt-6 border-t border-slate-200">
              <div className="flex flex-col md:flex-row items-center justify-between gap-6">
                 <div className="space-y-1">
-                  <h5 className="font-black text-sm uppercase text-slate-800">Carga Rápida con IA</h5>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">¿Tienes el instrumento físico? Digitalízalo al instante.</p>
+                  <h5 className="font-black text-sm uppercase text-slate-800">Digitalizador con IA</h5>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Digitaliza tu instrumento físico al instante.</p>
+                  {!canScan && <p className="text-[9px] text-red-500 font-bold uppercase">Requiere asignar peso (%) primero</p>}
                 </div>
                 <div className="relative">
                   <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleAiScan} />
-                  <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isScanning} className="h-14 px-8 gap-3 rounded-2xl border-2 border-dashed border-accent text-accent hover:bg-accent hover:text-white transition-all font-black uppercase text-[10px] tracking-widest shadow-lg shadow-accent/5">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      if (!canScan) {
+                        toast({ variant: "destructive", title: "Atención", description: "Por favor, asigna un peso (%) al instrumento antes de escanear." });
+                        return;
+                      }
+                      fileInputRef.current?.click();
+                    }} 
+                    disabled={isScanning} 
+                    className={cn(
+                      "h-14 px-8 gap-3 rounded-2xl border-2 border-dashed transition-all font-black uppercase text-[10px] tracking-widest shadow-lg shadow-accent/5",
+                      canScan ? "border-accent text-accent hover:bg-accent hover:text-white" : "border-slate-200 text-slate-300"
+                    )}
+                  >
                     {isScanning ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
-                    {isScanning ? "Procesando..." : "Escanear Instrumento con IA"}
+                    {isScanning ? "Escaneando..." : "Escanear Instrumento con IA"}
                   </Button>
                 </div>
              </div>
@@ -782,7 +817,7 @@ function ActivityStep({ newColName, setNewColName, newInstrumentWeight, setNewIn
         <p className="text-xs text-blue-700 font-medium leading-relaxed">
           {newInstType === 'manual' 
             ? "Has seleccionado Nota Directa. No se requiere configuración adicional de criterios." 
-            : "En el siguiente paso podrás cargar los criterios detallados de tu instrumento pedagógico."}
+            : "Puedes redactar tus criterios manualmente o usar el digitalizador para ahorrar tiempo."}
         </p>
       </div>
     </div>
