@@ -154,16 +154,18 @@ export function ConfigWizard({
         creado_el: serverTimestamp()
       }
       
-      setDoc(evalRef, configData).catch(async (serverError) => {
-        const error = new FirestorePermissionError({ 
-          path: evalRef.path, 
-          operation: 'create', 
-          requestResourceData: configData 
+      setDoc(evalRef, configData)
+        .then(() => {
+          console.info(`[FIREBASE SUCCESS] Documento guardado en Firestore: ${evalId}`);
+        })
+        .catch(async (serverError) => {
+          const error = new FirestorePermissionError({ 
+            path: evalRef.path, 
+            operation: 'create', 
+            requestResourceData: configData 
+          });
+          errorEmitter.emit('permission-error', error);
         });
-        errorEmitter.emit('permission-error', error);
-      });
-      
-      console.info(`[FIREBASE] Configuración de Gamificación guardada: ${evalId}`);
     }
     
     addColumn() 

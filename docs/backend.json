@@ -1,32 +1,6 @@
 
 {
   "entities": {
-    "GradeIndicator": {
-      "title": "Indicador de Logro",
-      "description": "Criterio de evaluación curricular.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "unidad_id": { "type": "string" },
-        "periodo_id": { "type": "string" },
-        "codigo": { "type": "string" },
-        "descripcion": { "type": "string" },
-        "peso_porcentaje": { "type": "number" }
-      }
-    },
-    "Evaluation": {
-      "title": "Evaluación / Actividad",
-      "description": "Instancia de calificación (Rúbrica, Cotejo, Quizz).",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "indicador_id": { "type": "string" },
-        "nombre": { "type": "string" },
-        "tipo": { "type": "string", "enum": ["manual", "cotejo", "rubrica", "escala", "anecdotario", "grupal", "quizz"] },
-        "peso_instrumento": { "type": "number" },
-        "configuracion_json": { "type": "object" }
-      }
-    },
     "EvaluationConfig": {
       "title": "Configuración de Evaluación",
       "description": "Configuración pedagógica de una evaluación, incluyendo criterios e instrumentos digitalizados.",
@@ -53,7 +27,7 @@
   "firestore": {
     "/evaluaciones_config/{evalId}": {
       "schema": "EvaluationConfig",
-      "description": "Repositorio de instrumentos digitalizados y configuraciones para gamificación."
+      "description": "Repositorio de instrumentos digitalizados para gamificación."
     }
   }
 }
