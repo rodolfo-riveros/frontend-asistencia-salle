@@ -6,7 +6,8 @@ import {
   Dialog, 
   DialogContent, 
   DialogDescription, 
-  DialogTitle 
+  DialogTitle,
+  DialogHeader
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -46,7 +47,7 @@ const INST_LABELS: Record<string, string> = {
   cotejo: 'Lista de Cotejo',
   rubrica: 'Rúbrica',
   escala: 'Escala Valorativa',
-  guia: 'Guía Observación',
+  anecdotario: 'Guía Observación',
   quizz: 'Gamificación'
 }
 
@@ -64,7 +65,7 @@ interface ConfigWizardProps {
   newIndicatorWeight: number
   setNewIndicatorWeight: (val: number) => void
   existingIndicators: any[]
-  newInstType: 'manual' | 'cotejo' | 'rubrica' | 'escala' | 'guia'
+  newInstType: 'manual' | 'cotejo' | 'rubrica' | 'escala' | 'anecdotario'
   setNewInstType: (val: any) => void
   newStrategyType: 'individual' | 'grupal' | 'quizz'
   setNewStrategyType: (val: any) => void
@@ -98,13 +99,10 @@ export function ConfigWizard({
 }: ConfigWizardProps) {
   
   const [isFinishing, setIsFinishing] = React.useState(false)
-  const [isScanning, setIsScanning] = React.useState(false)
-  
   const [registeredIndicatorId, setRegisteredIndicatorId] = React.useState<string | null>(null)
   const [registeredEvalId, setRegisteredEvalId] = React.useState<string | null>(null)
-
-  // Guardar valores originales para detectar si hubo cambios reales
   const [originalIndicator, setOriginalIndicator] = React.useState<any>(null)
+  const [isScanning, setIsScanning] = React.useState(false)
 
   const handleAiScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -118,7 +116,10 @@ export function ConfigWizard({
       });
       const analysis = await analyzeInstrument({ photoDataUri: base64 });
       
-      if (analysis.type) setNewInstType(analysis.type);
+      // MAPEO DE TIPO PARA EL BACKEND (FastAPI espera 'anecdotario' no 'guia')
+      const mappedType = analysis.type === 'guia' ? 'anecdotario' : analysis.type;
+      
+      if (mappedType) setNewInstType(mappedType);
       if (analysis.name) setNewColName(analysis.name);
       if (analysis.suggestedWeight) setNewInstrumentWeight(analysis.suggestedWeight);
       
@@ -156,7 +157,6 @@ export function ConfigWizard({
   };
 
   const registerStep0 = async () => {
-    // Si es un indicador existente de la biblioteca y los valores son los mismos, no llamar a API
     if (registeredIndicatorId && originalIndicator) {
       const hasChanged = 
         originalIndicator.codigo !== newIndicatorCode || 
@@ -232,7 +232,11 @@ export function ConfigWizard({
         toast({ title: "Actividad Registrada" })
       }
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Error", description: e.message })
+      if (e.message.includes('409')) {
+        toast({ variant: "destructive", title: "Nombre Duplicado", description: "Ya existe una actividad con ese nombre para este indicador." });
+      } else {
+        toast({ variant: "destructive", title: "Error", description: e.message })
+      }
     } finally {
       setIsFinishing(false)
     }
@@ -308,7 +312,7 @@ export function ConfigWizard({
       case 'cotejo': return <LayoutList className="h-6 w-6" />;
       case 'rubrica': return <Target className="h-6 w-6" />;
       case 'escala': return <Star className="h-6 w-6" />;
-      case 'guia': return <Quote className="h-6 w-6" />;
+      case 'anecdotario': return <Quote className="h-6 w-6" />;
       default: return <FileText className="h-6 w-6" />;
     }
   }
@@ -316,7 +320,7 @@ export function ConfigWizard({
   return (
     <Dialog open={isOpen} onOpenChange={(o) => { if(!isFinishing) { setIsOpen(o); if(!o) { resetEditor(); setRegisteredIndicatorId(null); setRegisteredEvalId(null); setOriginalIndicator(null); } } }}>
       <DialogContent className="max-w-5xl p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl flex flex-col h-[90vh]">
-        <div className="bg-primary h-28 flex flex-col justify-center px-10 text-white shrink-0">
+        <DialogHeader className="bg-primary h-28 flex flex-col justify-center px-10 text-white shrink-0">
           <DialogTitle className="text-2xl font-black uppercase tracking-tight">Registro de Evaluación Técnica</DialogTitle>
           <DialogDescription className="text-blue-100/80 font-bold uppercase text-[10px] tracking-[0.2em] mt-1">
             PASO {setupStep + 1}: {
@@ -326,7 +330,7 @@ export function ConfigWizard({
               setupStep === 3 ? "Diseño Pedagógico" : "Sorteo de Equipos"
             }
           </DialogDescription>
-        </div>
+        </DialogHeader>
 
         <div className="flex-grow overflow-hidden flex flex-col bg-white">
           <ScrollArea className="flex-grow">
@@ -412,7 +416,7 @@ export function ConfigWizard({
                         { id: 'cotejo', label: 'Lista de Cotejo', icon: LayoutList },
                         { id: 'rubrica', label: 'Rúbrica', icon: Target },
                         { id: 'escala', label: 'Escala Valorativa', icon: Star },
-                        { id: 'guia', label: 'Guía Observación', icon: Quote }
+                        { id: 'anecdotario', label: 'Guía Observación', icon: Quote }
                       ].map((t) => (
                         <Button key={t.id} variant="outline" className={cn("h-auto py-8 flex-col gap-4 rounded-3xl border-2 transition-all w-full", newInstType === t.id ? 'border-primary bg-primary/5 shadow-lg ring-2 ring-primary/20' : 'hover:border-slate-200')} onClick={() => { setNewInstType(t.id as any); if(t.id === 'manual') setNewStrategyType('individual'); }}>
                           <t.icon className={`h-8 w-8 ${newInstType === t.id ? 'text-primary' : 'text-slate-300'}`} />
@@ -485,12 +489,12 @@ export function ConfigWizard({
                         <div className="font-black text-slate-900 text-3xl tracking-tighter uppercase">{newColName || "Actividad"}</div>
                       </div>
                     </div>
-                    {(newInstType === 'cotejo' || newInstType === 'guia') && <div className={cn("px-8 py-4 rounded-2xl font-black text-xl shadow-inner border-2", totalPointsStep === 20 ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-red-50 text-red-700 border-red-100')}>{totalPointsStep} / 20 PTS</div>}
+                    {(newInstType === 'cotejo' || newInstType === 'anecdotario') && <div className={cn("px-8 py-4 rounded-2xl font-black text-xl shadow-inner border-2", totalPointsStep === 20 ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-red-50 text-red-700 border-red-100')}>{totalPointsStep} / 20 PTS</div>}
                   </div>
                   {newInstType === 'cotejo' && <ChecklistConfig criteria={editorCriteria} setCriteria={setEditorCriteria} />}
                   {newInstType === 'rubrica' && <RubricConfig criteria={editorCriteria} setCriteria={setEditorCriteria} />}
                   {newInstType === 'escala' && <ScaleConfig criteria={editorCriteria} setCriteria={setEditorCriteria} />}
-                  {newInstType === 'guia' && <GuideConfig criteria={editorCriteria} setCriteria={setEditorCriteria} />}
+                  {newInstType === 'anecdotario' && <GuideConfig criteria={editorCriteria} setCriteria={setEditorCriteria} />}
                 </div>
               )}
 

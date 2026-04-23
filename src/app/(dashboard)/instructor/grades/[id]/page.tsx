@@ -21,7 +21,7 @@ import { GradebookToolbar } from "@/components/grades/GradebookToolbar"
 import { ConfigWizard } from "@/components/grades/ConfigWizard"
 import { EvaluationModal } from "@/components/grades/EvaluationModal"
 
-type InstrumentType = 'manual' | 'cotejo' | 'rubrica' | 'escala' | 'guia' | 'quizz'
+type InstrumentType = 'manual' | 'cotejo' | 'rubrica' | 'escala' | 'anecdotario' | 'quizz'
 type StrategyType = 'individual' | 'grupal' | 'quizz'
 
 interface Column {
@@ -86,7 +86,7 @@ export default function AcademicGradebookPage() {
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
   const totalPointsStep = React.useMemo(() => {
-    if (newInstType !== 'cotejo' && newInstType !== 'guia') return 0
+    if (newInstType !== 'cotejo' && newInstType !== 'anecdotario') return 0
     return editorCriteria.reduce((acc, curr) => acc + (Number(curr.points) || 0), 0)
   }, [editorCriteria, newInstType])
 
@@ -170,7 +170,6 @@ export default function AcademicGradebookPage() {
     const max = column?.maxPoints || 20
     const numValue = Math.min(max, Math.max(0, parseFloat(value) || 0))
     
-    // Actualizar estados locales inmediatamente
     setGrades(prev => ({
       ...prev,
       [studentId]: { ...(prev[studentId] || {}), [columnId]: numValue }
@@ -235,7 +234,7 @@ export default function AcademicGradebookPage() {
       case 'cotejo': return <LayoutList className="h-3 w-3" />;
       case 'rubrica': return <Target className="h-3 w-3" />;
       case 'escala': return <Star className="h-3 w-3" />;
-      case 'guia': return <Quote className="h-3 w-3" />;
+      case 'anecdotario': return <Quote className="h-3 w-3" />;
       case 'quizz': return <Gamepad2 className="h-3 w-3" />;
       default: return <FileText className="h-3 w-3" />;
     }

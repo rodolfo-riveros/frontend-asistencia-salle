@@ -37,7 +37,7 @@ const INST_LABELS: Record<string, string> = {
   cotejo: 'Lista de Cotejo',
   rubrica: 'Rúbrica',
   escala: 'Escala Valorativa',
-  guia: 'Guía Observación'
+  anecdotario: 'Guía Observación'
 }
 
 const STRAT_LABELS: Record<string, string> = {
@@ -60,7 +60,7 @@ export function EvaluationModal({
 
   const calculateScore = () => {
     if (!instrument) return 0;
-    if (column.type === 'cotejo' || column.type === 'guia') {
+    if (column.type === 'cotejo' || column.type === 'anecdotario') {
       const criteria = instrument.criteria || [];
       return Math.round(Object.entries(evalData).reduce((acc, [idx, val]) => val === true ? acc + (criteria[parseInt(idx)]?.points || (20/(criteria.length || 1))) : acc, 0));
     }
@@ -79,7 +79,6 @@ export function EvaluationModal({
     const score = calculateScore();
     
     try {
-      // Enviamos score, detalles y la observación en una sola llamada
       await handleGradeChange(
         student.id, 
         column.id, 
@@ -121,13 +120,13 @@ export function EvaluationModal({
                   {column.type === 'cotejo' && <ChecklistEvaluator criteria={instrument.criteria} evalData={evalData} onUpdate={setEvalData} />}
                   {column.type === 'rubrica' && <RubricEvaluator criteria={instrument.criteria} evalData={evalData} onUpdate={setEvalData} />}
                   {column.type === 'escala' && <ScaleEvaluator criteria={instrument.criteria} scaleLevels={instrument.scaleLevels!} evalData={evalData} onUpdate={setEvalData} />}
-                  {column.type === 'guia' && <GuideEvaluator criteria={instrument.criteria} evalData={evalData} onUpdate={setEvalData} />}
+                  {column.type === 'anecdotario' && <GuideEvaluator criteria={instrument.criteria} evalData={evalData} onUpdate={setEvalData} />}
                 </div>
               )}
             </ScrollArea>
           </div>
           
-          {(column.type === 'cotejo' || column.type === 'guia') && (
+          {(column.type === 'cotejo' || column.type === 'anecdotario') && (
             <div className="w-full lg:w-[400px] p-6 md:p-10 bg-white border-t lg:border-t-0 lg:border-l flex flex-col gap-6 shrink-0">
               <div className="bg-slate-50 p-6 rounded-2xl border-2 border-slate-100 text-center mb-4">
                 <p className="text-[8px] md:text-[9px] font-black uppercase text-slate-400 mb-1">Nota Calculada</p>
