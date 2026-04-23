@@ -20,7 +20,6 @@ import { RubricEvaluator } from "./RubricEvaluator"
 import { ScaleEvaluator } from "./ScaleEvaluator"
 import { GuideEvaluator } from "./GuideEvaluator"
 import { toast } from "@/hooks/use-toast"
-import { VisuallyHidden } from "@radix-ui/react-visually-hidden"
 
 interface EvaluationModalProps {
   activeEval: any
@@ -30,9 +29,7 @@ interface EvaluationModalProps {
   evalComment: string
   setEvalComment: (comment: string) => void
   instruments: Record<string, any>
-  handleGradeChange: (studentId: string, columnId: string, value: string) => void
-  setEvalDetails: (details: any) => void
-  setComments: (comments: any) => void
+  handleGradeChange: (studentId: string, columnId: string, value: string, overrideDetails?: any, overrideComment?: string) => Promise<void>
 }
 
 const INST_LABELS: Record<string, string> = {
@@ -51,7 +48,7 @@ const STRAT_LABELS: Record<string, string> = {
 
 export function EvaluationModal({ 
   activeEval, onClose, evalData, setEvalData, evalComment, setEvalComment, 
-  instruments, handleGradeChange, setEvalDetails, setComments 
+  instruments, handleGradeChange
 }: EvaluationModalProps) {
   
   const [isApplying, setIsApplying] = React.useState(false)
@@ -82,10 +79,14 @@ export function EvaluationModal({
     const score = calculateScore();
     
     try {
-      await handleGradeChange(student.id, column.id, score.toString());
-      
-      setEvalDetails((prev: any) => ({ ...prev, [student.id]: { ...prev[student.id], [column.id]: evalData } }));
-      if (evalComment) setComments((prev: any) => ({ ...prev, [student.id]: { ...prev[student.id], [column.id]: evalComment } }));
+      // Enviamos score, detalles y la observación en una sola llamada
+      await handleGradeChange(
+        student.id, 
+        column.id, 
+        score.toString(), 
+        evalData, 
+        evalComment
+      );
       
       toast({ title: "Nota Aplicada", description: `Se ha registrado ${score} para ${student.nombre}.` });
       onClose();
@@ -99,40 +100,40 @@ export function EvaluationModal({
   return (
     <Dialog open={!!activeEval} onOpenChange={(o) => { if(!o) onClose(); }}>
       <DialogContent className="max-w-6xl p-0 overflow-hidden border-none shadow-2xl rounded-[1.5rem] md:rounded-[3rem] flex flex-col h-[95vh] md:h-[90vh]">
-        <DialogHeader className="hidden">
-          <DialogTitle>Evaluación de {student.nombre}</DialogTitle>
-          <DialogDescription>Calificación detallada del instrumento {column.name}</DialogDescription>
+        <DialogHeader className="p-6 md:p-10 bg-primary text-white space-y-2">
+          <div className="flex items-center gap-2">
+            <Badge className="bg-white/20 text-white font-black uppercase text-[9px] md:text-[10px]">{column.type ? INST_LABELS[column.type].toUpperCase() : "EVALUACIÓN"}</Badge>
+            <Badge className="bg-primary/20 text-white font-black uppercase text-[9px] md:text-[10px]">{STRAT_LABELS[column.strategy].toUpperCase()}</Badge>
+          </div>
+          <DialogTitle className="text-xl md:text-3xl font-black uppercase tracking-tighter leading-tight">
+            {student.nombre} {column.strategy === 'grupal' && <span className="text-blue-300 block md:inline md:ml-4">[{column.groups?.[student.id]}]</span>}
+          </DialogTitle>
+          <DialogDescription className="text-blue-100/80 font-bold uppercase text-[9px] md:text-[10px] tracking-widest">
+            Instrumento: {column.name}
+          </DialogDescription>
         </DialogHeader>
 
-        <div className="bg-primary p-6 md:p-10 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-6 shrink-0">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Badge className="bg-white/20 text-white font-black uppercase text-[9px] md:text-[10px]">{column.type ? INST_LABELS[column.type].toUpperCase() : "EVALUACIÓN"}</Badge>
-              <Badge className="bg-primary/20 text-white font-black uppercase text-[9px] md:text-[10px]">{STRAT_LABELS[column.strategy].toUpperCase()}</Badge>
-            </div>
-            <h3 className="text-xl md:text-3xl font-black uppercase tracking-tighter leading-tight">{student.nombre} {column.strategy === 'grupal' && <span className="text-blue-300 block md:inline md:ml-4">[{column.groups?.[student.id]}]</span>}</h3>
-            <p className="text-blue-100/80 font-bold uppercase text-[9px] md:text-[10px] tracking-widest">{column.name}</p>
+        <div className="flex-grow flex flex-col lg:flex-row overflow-hidden bg-white">
+          <div className="flex-grow overflow-hidden flex flex-col">
+            <ScrollArea className="p-4 md:p-10 bg-slate-50/50 flex-grow">
+              {instrument && (
+                <div className="max-w-full">
+                  {column.type === 'cotejo' && <ChecklistEvaluator criteria={instrument.criteria} evalData={evalData} onUpdate={setEvalData} />}
+                  {column.type === 'rubrica' && <RubricEvaluator criteria={instrument.criteria} evalData={evalData} onUpdate={setEvalData} />}
+                  {column.type === 'escala' && <ScaleEvaluator criteria={instrument.criteria} scaleLevels={instrument.scaleLevels!} evalData={evalData} onUpdate={setEvalData} />}
+                  {column.type === 'guia' && <GuideEvaluator criteria={instrument.criteria} evalData={evalData} onUpdate={setEvalData} />}
+                </div>
+              )}
+            </ScrollArea>
           </div>
-          <div className="bg-white/10 p-4 md:p-6 rounded-xl md:rounded-2xl border-2 border-white/10 text-center min-w-[120px] md:min-w-[140px] w-full md:w-auto self-end md:self-auto">
-            <p className="text-[8px] md:text-[9px] font-black uppercase text-blue-200 mb-1">Nota Calculada</p>
-            <p className="text-4xl md:text-5xl font-black font-mono">{calculateScore()}</p>
-          </div>
-        </div>
-        
-        <div className="flex-grow flex flex-col lg:flex-row overflow-hidden">
-          <ScrollArea className="p-4 md:p-10 bg-slate-50/50 flex-grow">
-            {instrument && (
-              <div className="max-w-full">
-                {column.type === 'cotejo' && <ChecklistEvaluator criteria={instrument.criteria} evalData={evalData} onUpdate={setEvalData} />}
-                {column.type === 'rubrica' && <RubricEvaluator criteria={instrument.criteria} evalData={evalData} onUpdate={setEvalData} />}
-                {column.type === 'escala' && <ScaleEvaluator criteria={instrument.criteria} scaleLevels={instrument.scaleLevels!} evalData={evalData} onUpdate={setEvalData} />}
-                {column.type === 'guia' && <GuideEvaluator criteria={instrument.criteria} evalData={evalData} onUpdate={setEvalData} />}
-              </div>
-            )}
-          </ScrollArea>
           
           {(column.type === 'cotejo' || column.type === 'guia') && (
             <div className="w-full lg:w-[400px] p-6 md:p-10 bg-white border-t lg:border-t-0 lg:border-l flex flex-col gap-6 shrink-0">
+              <div className="bg-slate-50 p-6 rounded-2xl border-2 border-slate-100 text-center mb-4">
+                <p className="text-[8px] md:text-[9px] font-black uppercase text-slate-400 mb-1">Nota Calculada</p>
+                <p className="text-4xl md:text-5xl font-black font-mono text-primary">{calculateScore()}</p>
+              </div>
+
               <div className="space-y-3 flex-1 flex flex-col">
                 <Label className="font-black text-xs uppercase text-slate-400 flex items-center gap-2 shrink-0"><MessageSquare className="h-4 w-4" /> Observaciones del Logro</Label>
                 <Textarea 

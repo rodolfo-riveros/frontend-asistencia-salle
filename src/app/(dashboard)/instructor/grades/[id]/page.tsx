@@ -101,10 +101,8 @@ export default function AcademicGradebookPage() {
       setStudents(studentData)
 
       if (configData) {
-        // Guardar indicadores para la biblioteca
         setIndicators(configData.indicadores || []);
 
-        // Mapear evaluaciones del backend a columnas del frontend
         const mappedCols: Column[] = configData.evaluaciones.map((ev: any) => ({
           id: ev.id,
           name: ev.nombre,
@@ -120,7 +118,6 @@ export default function AcademicGradebookPage() {
         }));
         setColumns(mappedCols);
 
-        // Mapear instrumentos (criterios)
         const instMap: Record<string, any> = {};
         configData.evaluaciones.forEach((ev: any) => {
           instMap[ev.id] = {
@@ -133,7 +130,6 @@ export default function AcademicGradebookPage() {
         });
         setInstruments(instMap);
 
-        // Mapear notas existentes
         const gradesMap: Record<string, Record<string, number>> = {};
         const detailsMap: Record<string, Record<string, any>> = {};
         const commentsMap: Record<string, Record<string, string>> = {};
@@ -163,23 +159,44 @@ export default function AcademicGradebookPage() {
 
   React.useEffect(() => { fetchFullGradebook() }, [fetchFullGradebook])
 
-  const handleGradeChange = async (studentId: string, columnId: string, value: string) => {
+  const handleGradeChange = async (
+    studentId: string, 
+    columnId: string, 
+    value: string,
+    overrideDetails?: any,
+    overrideComment?: string
+  ) => {
     const column = columns.find(c => c.id === columnId)
     const max = column?.maxPoints || 20
     const numValue = Math.min(max, Math.max(0, parseFloat(value) || 0))
     
+    // Actualizar estados locales inmediatamente
     setGrades(prev => ({
       ...prev,
       [studentId]: { ...(prev[studentId] || {}), [columnId]: numValue }
     }))
+
+    if (overrideDetails) {
+      setEvalDetails(prev => ({
+        ...prev,
+        [studentId]: { ...(prev[studentId] || {}), [columnId]: overrideDetails }
+      }))
+    }
+
+    if (overrideComment !== undefined) {
+      setComments(prev => ({
+        ...prev,
+        [studentId]: { ...(prev[studentId] || {}), [columnId]: overrideComment }
+      }))
+    }
 
     try {
       await api.post('/evaluaciones/calificar/', {
         evaluacion_id: columnId,
         alumno_id: studentId,
         puntaje: numValue,
-        observacion: comments[studentId]?.[columnId] || "",
-        detalles_json: evalDetails[studentId]?.[columnId] || null
+        observacion: overrideComment ?? (comments[studentId]?.[columnId] || ""),
+        detalles_json: overrideDetails ?? (evalDetails[studentId]?.[columnId] || null)
       })
     } catch (e: any) {
       toast({ variant: "destructive", title: "Error al calificar", description: "No se pudo guardar la nota en el servidor." })
@@ -343,8 +360,8 @@ export default function AcademicGradebookPage() {
         activeEval={activeEval} onClose={() => setActiveEval(null)}
         evalData={evalData} setEvalData={setEvalData}
         evalComment={evalComment} setEvalComment={setEvalComment}
-        instruments={instruments} handleGradeChange={handleGradeChange}
-        setEvalDetails={setEvalDetails} setComments={setComments}
+        instruments={instruments} 
+        handleGradeChange={handleGradeChange}
       />
     </div>
   )
