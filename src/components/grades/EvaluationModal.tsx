@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -11,7 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { MessageSquare, Target } from "lucide-react"
+import { MessageSquare } from "lucide-react"
 import { ChecklistEvaluator } from "./ChecklistEvaluator"
 import { RubricEvaluator } from "./RubricEvaluator"
 import { ScaleEvaluator } from "./ScaleEvaluator"
@@ -78,7 +77,7 @@ export function EvaluationModal({
   };
 
   return (
-    <Dialog open={!!activeEval} onOpenChange={(o) => { if(!o) onClose() }}>
+    <Dialog open={!!activeEval} onOpenChange={(o) => { if(!o) onClose(); }}>
       <DialogContent className="max-w-6xl p-0 overflow-hidden border-none shadow-2xl rounded-[1.5rem] md:rounded-[3rem] flex flex-col h-[95vh] md:h-[90vh]">
         <div className="bg-primary p-6 md:p-10 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-6 shrink-0">
           <div className="space-y-2">

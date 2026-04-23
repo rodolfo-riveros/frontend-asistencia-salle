@@ -56,9 +56,9 @@ interface ConfigWizardProps {
   newIndicatorWeight: number
   setNewIndicatorWeight: (val: number) => void
   existingIndicators: any[]
-  newInstType: any
+  newInstType: 'manual' | 'cotejo' | 'rubrica' | 'escala' | 'guia'
   setNewInstType: (val: any) => void
-  newStrategyType: any
+  newStrategyType: 'individual' | 'grupal' | 'quizz'
   setNewStrategyType: (val: any) => void
   newColName: string
   setNewColName: (val: string) => void
@@ -91,6 +91,13 @@ export function ConfigWizard({
 }: ConfigWizardProps) {
   
   const handleNext = () => {
+    // Lógica inteligente para Nota Directa: si es manual, la estrategia es siempre individual
+    if (setupStep === 1 && newInstType === 'manual') {
+      setNewStrategyType('individual');
+      setSetupStep(2);
+      return;
+    }
+
     if (setupStep === 2) {
       if (newInstType === 'manual') {
         if (newStrategyType === 'grupal') setSetupStep(4);
@@ -109,7 +116,9 @@ export function ConfigWizard({
   }
 
   const handleBack = () => {
-    if (setupStep === 4) {
+    if (setupStep === 2 && newInstType === 'manual') {
+      setSetupStep(1);
+    } else if (setupStep === 4) {
       if (newInstType === 'manual') setSetupStep(2);
       else setSetupStep(3);
     } else {
@@ -200,7 +209,7 @@ export function ConfigWizard({
                         { id: 'escala', label: 'Escala Valorativa', icon: Star },
                         { id: 'guia', label: 'Guía Observación', icon: Quote }
                       ].map((t) => (
-                        <Button key={t.id} variant="outline" className={cn("h-auto py-6 md:py-8 flex-col gap-3 md:gap-4 rounded-2xl md:rounded-3xl border-2 transition-all", newInstType === t.id ? 'border-primary bg-primary/5 shadow-lg' : 'hover:border-slate-200')} onClick={() => { setNewInstType(t.id as any); if(t.id === 'manual') setNewStrategyType('individual'); }}>
+                        <Button key={t.id} variant="outline" className={cn("h-auto py-6 md:py-8 flex-col gap-3 md:gap-4 rounded-2xl md:rounded-3xl border-2 transition-all", newInstType === t.id ? 'border-primary bg-primary/5 shadow-lg' : 'hover:border-slate-200')} onClick={() => setNewInstType(t.id as any)}>
                           <t.icon className={`h-6 w-6 md:h-8 md:w-8 ${newInstType === t.id ? 'text-primary' : 'text-slate-300'}`} />
                           <span className="font-black text-[9px] md:text-[10px] uppercase tracking-tighter text-center">{t.label}</span>
                         </Button>
@@ -208,42 +217,45 @@ export function ConfigWizard({
                     </div>
                   </div>
                   
-                  <div className="space-y-6 md:space-y-8 pt-10 border-t border-slate-50">
-                    <div className="flex items-center gap-3"><div className="h-2 w-2 rounded-full bg-primary" /><h4 className="font-black text-[10px] uppercase text-primary tracking-[0.2em]">Define la Estrategia</h4></div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
-                      {[
-                        { id: 'individual', label: 'Individual', icon: User, desc: 'Evaluación personalizada.' },
-                        { id: 'grupal', label: 'Trabajo Grupal', icon: Users, desc: 'Califica equipos.' },
-                        { id: 'quizz', label: 'Gamificación', icon: Gamepad2, desc: 'Evaluación interactiva en vivo.', beta: true }
-                      ].map((s) => (
-                        <Button 
-                          key={s.id} 
-                          variant="outline" 
-                          disabled={s.beta}
-                          className={cn(
-                            "h-auto p-4 md:p-6 flex-col gap-3 rounded-2xl md:rounded-[2rem] border-2 text-left items-start transition-all relative overflow-hidden", 
-                            newStrategyType === s.id ? 'border-primary bg-primary/5' : 'hover:border-slate-200',
-                            s.beta && "opacity-60 grayscale bg-slate-50 cursor-not-allowed"
-                          )} 
-                          onClick={() => !s.beta && setNewStrategyType(s.id as any)}
-                        >
-                          {s.beta && (
-                            <div className="absolute top-2 right-2 bg-amber-500 text-white text-[8px] font-black px-2 py-0.5 rounded-full flex items-center gap-1">
-                              <Lock className="h-2 w-2" /> PRÓXIMAMENTE
+                  {/* SI SE SELECCIONA NOTA DIRECTA, SE OCULTA LA ESTRATEGIA */}
+                  {newInstType !== 'manual' && (
+                    <div className="space-y-6 md:space-y-8 pt-10 border-t border-slate-50">
+                      <div className="flex items-center gap-3"><div className="h-2 w-2 rounded-full bg-primary" /><h4 className="font-black text-[10px] uppercase text-primary tracking-[0.2em]">Define la Estrategia</h4></div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
+                        {[
+                          { id: 'individual', label: 'Individual', icon: User, desc: 'Evaluación personalizada.' },
+                          { id: 'grupal', label: 'Trabajo Grupal', icon: Users, desc: 'Califica equipos.' },
+                          { id: 'quizz', label: 'Gamificación', icon: Gamepad2, desc: 'Evaluación interactiva en vivo.', beta: true }
+                        ].map((s) => (
+                          <Button 
+                            key={s.id} 
+                            variant="outline" 
+                            disabled={s.beta}
+                            className={cn(
+                              "h-auto p-4 md:p-6 flex-col gap-3 rounded-2xl md:rounded-[2rem] border-2 text-left items-start transition-all relative overflow-hidden", 
+                              newStrategyType === s.id ? 'border-primary bg-primary/5' : 'hover:border-slate-200',
+                              s.beta && "opacity-60 grayscale bg-slate-50 cursor-not-allowed"
+                            )} 
+                            onClick={() => !s.beta && setNewStrategyType(s.id as any)}
+                          >
+                            {s.beta && (
+                              <div className="absolute top-2 right-2 bg-amber-500 text-white text-[8px] font-black px-2 py-0.5 rounded-full flex items-center gap-1">
+                                <Lock className="h-2 w-2" /> PRÓXIMAMENTE
+                              </div>
+                            )}
+                            <div className="flex justify-between items-center w-full">
+                              <s.icon className={`h-6 w-6 md:h-8 md:w-8 ${newStrategyType === s.id ? 'text-primary' : 'text-slate-300'}`} />
+                              {newStrategyType === s.id && <CheckCircle2 className="h-4 w-4 md:h-5 md:w-5 text-primary" />}
                             </div>
-                          )}
-                          <div className="flex justify-between items-center w-full">
-                            <s.icon className={`h-6 w-6 md:h-8 md:w-8 ${newStrategyType === s.id ? 'text-primary' : 'text-slate-300'}`} />
-                            {newStrategyType === s.id && <CheckCircle2 className="h-4 w-4 md:h-5 md:w-5 text-primary" />}
-                          </div>
-                          <div className="space-y-1">
-                            <p className="font-black text-[10px] md:text-[11px] uppercase tracking-tighter">{s.label}</p>
-                            <p className="text-[9px] md:text-[10px] text-slate-400 leading-tight font-medium">{s.desc}</p>
-                          </div>
-                        </Button>
-                      ))}
+                            <div className="space-y-1">
+                              <p className="font-black text-[10px] md:text-[11px] uppercase tracking-tighter">{s.label}</p>
+                              <p className="text-[9px] md:text-[10px] text-slate-400 leading-tight font-medium">{s.desc}</p>
+                            </div>
+                          </Button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               )}
 
