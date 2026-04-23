@@ -157,6 +157,7 @@ export function ConfigWizard({
 
   const registerStep0 = async () => {
     // Si es un indicador existente de la biblioteca y los valores son los mismos, no llamar a PATCH
+    // Esto evita el error 400 del backend cuando ya hay notas vinculadas
     if (registeredIndicatorId && originalIndicator) {
       const hasChanged = 
         originalIndicator.codigo !== newIndicatorCode || 
