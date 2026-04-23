@@ -100,7 +100,6 @@ export function ConfigWizard({
   const [isFinishing, setIsFinishing] = React.useState(false)
   const [isScanning, setIsScanning] = React.useState(false)
   
-  // Tracking de registros persistidos para actualizaciones
   const [registeredIndicatorId, setRegisteredIndicatorId] = React.useState<string | null>(null)
   const [registeredEvalId, setRegisteredEvalId] = React.useState<string | null>(null)
 
@@ -175,11 +174,7 @@ export function ConfigWizard({
       setSetupStep(1)
       toast({ title: "Indicador Registrado" })
     } catch (e: any) {
-      if (e.message.includes("409")) {
-        toast({ variant: "destructive", title: "Dato Duplicado", description: "Este código de indicador ya existe. Cámbialo o selecciónalo de la biblioteca." })
-      } else {
-        toast({ variant: "destructive", title: "Error", description: e.message })
-      }
+      toast({ variant: "destructive", title: "Error", description: e.message })
     } finally {
       setIsFinishing(false)
     }
@@ -216,11 +211,7 @@ export function ConfigWizard({
         toast({ title: "Actividad Registrada" })
       }
     } catch (e: any) {
-      if (e.message.includes("409")) {
-        toast({ variant: "destructive", title: "Conflicto", description: "Ya existe una actividad con ese nombre para este indicador." })
-      } else {
-        toast({ variant: "destructive", title: "Error", description: e.message })
-      }
+      toast({ variant: "destructive", title: "Error", description: e.message })
     } finally {
       setIsFinishing(false)
     }
@@ -245,7 +236,7 @@ export function ConfigWizard({
         addColumn(); setIsOpen(false); resetEditor();
       }
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Error al guardar diseño", description: e.message })
+      toast({ variant: "destructive", title: "Error", description: e.message })
     } finally {
       setIsFinishing(false)
     }
@@ -264,7 +255,7 @@ export function ConfigWizard({
       const payload = {
         evaluacion_id: registeredEvalId,
         grupos: Object.entries(groupsMap).map(([name, ids]) => ({
-          nombre_group: name,
+          nombre_grupo: name,
           integrantes: ids
         }))
       };
@@ -273,7 +264,7 @@ export function ConfigWizard({
       toast({ title: "Equipos Registrados" });
       addColumn(); setIsOpen(false); resetEditor();
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Error en equipos", description: e.message });
+      toast({ variant: "destructive", title: "Error", description: e.message });
     } finally {
       setIsFinishing(false);
     }
@@ -358,13 +349,27 @@ export function ConfigWizard({
                     <div className="bg-white rounded-[2rem] border-2 border-dashed border-slate-200 p-6 min-h-[250px]">
                       {existingIndicators.length > 0 ? (
                         existingIndicators.map((ind: any, i: number) => (
-                          <button key={i} className="flex flex-col items-start p-4 rounded-2xl border-2 border-slate-50 hover:border-primary/30 hover:bg-primary/5 mb-3 w-full text-left transition-all" onClick={() => { setNewIndicatorCode(ind.code); setNewIndicatorDescription(ind.desc); setNewIndicatorWeight(ind.weight); setRegisteredIndicatorId(ind.id); }}>
-                            <div className="flex justify-between w-full font-black text-sm text-primary mb-1"><span>{ind.code}</span><Badge variant="outline" className="text-[10px]">{ind.weight}%</Badge></div>
-                            <p className="text-[11px] text-slate-500 line-clamp-2">{ind.desc}</p>
+                          <button 
+                            key={i} 
+                            className="flex flex-col items-start p-4 rounded-2xl border-2 border-slate-50 hover:border-primary/30 hover:bg-primary/5 mb-3 w-full text-left transition-all" 
+                            onClick={() => { 
+                              setNewIndicatorCode(ind.codigo); 
+                              setNewIndicatorDescription(ind.descripcion); 
+                              setNewIndicatorWeight(ind.peso_porcentaje); 
+                              setRegisteredIndicatorId(ind.id); 
+                            }}
+                          >
+                            <div className="flex justify-between w-full font-black text-sm text-primary mb-1">
+                              <span>{ind.codigo}</span>
+                              <Badge variant="outline" className="text-[10px]">{ind.peso_porcentaje}%</Badge>
+                            </div>
+                            <p className="text-[11px] text-slate-500 line-clamp-2">{ind.descripcion}</p>
                           </button>
                         ))
                       ) : (
-                        <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-4 py-20"><p className="text-center font-bold uppercase text-[10px] tracking-widest">No hay indicadores previos</p></div>
+                        <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-4 py-20">
+                          <p className="text-center font-bold uppercase text-[10px] tracking-widest">No hay indicadores previos</p>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -430,7 +435,10 @@ export function ConfigWizard({
                     </div>
                     {newInstType !== 'manual' && (
                       <div className="pt-8 border-t border-slate-200 flex flex-col items-center space-y-4">
-                         <div className="text-center space-y-1"><h5 className="font-black text-[10px] uppercase text-slate-800 tracking-widest">Digitalizador con IA</h5><p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Escanea instrumentos físicos</p></div>
+                         <div className="text-center space-y-1">
+                           <h5 className="font-black text-[10px] uppercase text-slate-800 tracking-widest">Digitalizador con IA</h5>
+                           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Escanea instrumentos físicos</p>
+                         </div>
                          <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleAiScan} />
                          <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isScanning} className="h-14 px-10 gap-3 rounded-2xl border-2 border-dashed border-accent text-accent hover:bg-accent hover:text-white font-black uppercase text-[10px] tracking-widest shadow-sm">
                             {isScanning ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-4 w-4" />} {isScanning ? "Escaneando..." : "Digitalizar con IA"}
@@ -444,7 +452,13 @@ export function ConfigWizard({
               {setupStep === 3 && (
                 <div className="space-y-8 animate-in fade-in slide-in-from-right-4 w-full max-w-4xl">
                   <div className="flex flex-col md:flex-row justify-between items-center bg-slate-50 p-8 rounded-[2.5rem] border-2 border-slate-100 gap-6">
-                    <div className="flex items-center gap-6"><div className="p-5 bg-primary text-white rounded-3xl shadow-xl">{getInstrumentIcon(newInstType)}</div><div><Badge variant="outline" className="font-black text-[8px] uppercase tracking-widest border-primary/20 text-primary mb-1">{INST_LABELS[newInstType].toUpperCase()}</Badge><div className="font-black text-slate-900 text-3xl tracking-tighter uppercase">{newColName || "Actividad"}</div></div></div>
+                    <div className="flex items-center gap-6">
+                      <div className="p-5 bg-primary text-white rounded-3xl shadow-xl">{getInstrumentIcon(newInstType)}</div>
+                      <div>
+                        <Badge variant="outline" className="font-black text-[8px] uppercase tracking-widest border-primary/20 text-primary mb-1">{INST_LABELS[newInstType].toUpperCase()}</Badge>
+                        <div className="font-black text-slate-900 text-3xl tracking-tighter uppercase">{newColName || "Actividad"}</div>
+                      </div>
+                    </div>
                     {(newInstType === 'cotejo' || newInstType === 'guia') && <div className={cn("px-8 py-4 rounded-2xl font-black text-xl shadow-inner border-2", totalPointsStep === 20 ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-red-50 text-red-700 border-red-100')}>{totalPointsStep} / 20 PTS</div>}
                   </div>
                   {newInstType === 'cotejo' && <ChecklistConfig criteria={editorCriteria} setCriteria={setEditorCriteria} />}
@@ -456,7 +470,13 @@ export function ConfigWizard({
 
               {setupStep === 4 && (
                 <div className="space-y-8 animate-in fade-in slide-in-from-right-4 w-full max-w-4xl">
-                  <div className="flex items-center gap-6 bg-primary p-8 rounded-[2.5rem] text-white shadow-xl"><div className="p-5 bg-white/20 rounded-3xl backdrop-blur-md border border-white/10"><Users className="h-8 w-8" /></div><div><Badge className="bg-white/20 text-white border-none font-black uppercase text-[8px] tracking-widest mb-1">Estrategia Grupal</Badge><div className="font-black text-3xl tracking-tighter uppercase">{newColName || "Trabajo en Equipo"}</div></div></div>
+                  <div className="flex items-center gap-6 bg-primary p-8 rounded-[2.5rem] text-white shadow-xl">
+                    <div className="p-5 bg-white/20 rounded-3xl backdrop-blur-md border border-white/10"><Users className="h-8 w-8" /></div>
+                    <div>
+                      <Badge className="bg-white/20 text-white border-none font-black uppercase text-[8px] tracking-widest mb-1">Estrategia Grupal</Badge>
+                      <div className="font-black text-3xl tracking-tighter uppercase">{newColName || "Trabajo en Equipo"}</div>
+                    </div>
+                  </div>
                   <GroupConfig students={students} groupSize={groupSize} setGroupSize={setGroupSize} studentGroups={studentGroups} setStudentGroups={setStudentGroups} newColName={newColName} />
                 </div>
               )}

@@ -3,7 +3,7 @@
 
 import * as React from "react"
 import { useParams, useSearchParams } from "next/navigation"
-import { Target, FileText, LayoutList, Star, Quote, Loader2 } from "lucide-react"
+import { Target, FileText, LayoutList, Star, Quote, Loader2, Gamepad2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -52,6 +52,7 @@ export default function AcademicGradebookPage() {
   const periodoId = searchParams.get('periodo_id') || "ACTUAL"
   
   const [students, setStudents] = React.useState<any[]>([])
+  const [indicators, setIndicators] = React.useState<any[]>([])
   const [columns, setColumns] = React.useState<Column[]>([])
   const [instruments, setInstruments] = React.useState<Record<string, any>>({})
   const [grades, setGrades] = React.useState<Record<string, Record<string, number>>>({})
@@ -84,14 +85,6 @@ export default function AcademicGradebookPage() {
   const [isScanning, setIsScanning] = React.useState(false)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
-  const existingIndicators = React.useMemo(() => {
-    const map = new Map<string, { id?: string, code: string, desc: string, weight: number }>();
-    columns.forEach(c => {
-      if (c.indicatorCode) map.set(c.indicatorCode, { id: c.indicatorId, code: c.indicatorCode, desc: c.indicatorDescription, weight: c.indicatorWeight });
-    });
-    return Array.from(map.values());
-  }, [columns]);
-
   const totalPointsStep = React.useMemo(() => {
     if (newInstType !== 'cotejo' && newInstType !== 'guia') return 0
     return editorCriteria.reduce((acc, curr) => acc + (Number(curr.points) || 0), 0)
@@ -108,6 +101,9 @@ export default function AcademicGradebookPage() {
       setStudents(studentData)
 
       if (configData) {
+        // Guardar indicadores para la biblioteca
+        setIndicators(configData.indicadores || []);
+
         // Mapear evaluaciones del backend a columnas del frontend
         const mappedCols: Column[] = configData.evaluaciones.map((ev: any) => ({
           id: ev.id,
@@ -132,7 +128,7 @@ export default function AcademicGradebookPage() {
             name: ev.nombre,
             type: ev.tipo,
             criteria: ev.configuracion_json?.criteria || [],
-            scaleLevels: DEFAULT_SCALE_LEVELS // Por ahora default
+            scaleLevels: DEFAULT_SCALE_LEVELS
           }
         });
         setInstruments(instMap);
@@ -172,13 +168,11 @@ export default function AcademicGradebookPage() {
     const max = column?.maxPoints || 20
     const numValue = Math.min(max, Math.max(0, parseFloat(value) || 0))
     
-    // Actualización optimista en UI
     setGrades(prev => ({
       ...prev,
       [studentId]: { ...(prev[studentId] || {}), [columnId]: numValue }
     }))
 
-    // Persistencia en FastAPI
     try {
       await api.post('/evaluaciones/calificar/', {
         evaluacion_id: columnId,
@@ -327,7 +321,7 @@ export default function AcademicGradebookPage() {
         newIndicatorCode={newIndicatorCode} setNewIndicatorCode={setNewIndicatorCode}
         newIndicatorDescription={newIndicatorDescription} setNewIndicatorDescription={setNewIndicatorDescription}
         newIndicatorWeight={newIndicatorWeight} setNewIndicatorWeight={setNewIndicatorWeight}
-        existingIndicators={existingIndicators}
+        existingIndicators={indicators}
         newInstType={newInstType} setNewInstType={setNewInstType}
         newStrategyType={newStrategyType} setNewStrategyType={setNewStrategyType}
         newColName={newColName} setNewColName={setNewColName}
