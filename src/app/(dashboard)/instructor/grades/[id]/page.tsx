@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -60,7 +59,6 @@ export default function AcademicGradebookPage() {
   const [comments, setComments] = React.useState<Record<string, Record<string, string>>>({})
   
   const [isLoading, setIsLoading] = React.useState(true)
-  const [isSaving, setIsSaving] = React.useState(false)
   const [searchTerm, setSearchTerm] = React.useState("")
   
   const [isNewColOpen, setIsNewColOpen] = React.useState(false)
@@ -185,11 +183,15 @@ export default function AcademicGradebookPage() {
     const column = columns.find(c => c.id === columnId)
     const max = column?.maxPoints || 20
     
-    // Si el valor es vacío, no procesamos como número aún, solo limpiamos el estado local
+    // Si el valor es vacío, limpiamos el estado local
     if (value === "") {
        setGrades(prev => {
          const next = { ...prev };
-         if (next[studentId]) delete next[studentId][columnId];
+         if (next[studentId]) {
+           const studentGrades = { ...next[studentId] };
+           delete studentGrades[columnId];
+           next[studentId] = studentGrades;
+         }
          return next;
        });
        return;
@@ -309,9 +311,6 @@ export default function AcademicGradebookPage() {
         <GradebookToolbar 
           searchTerm={searchTerm} 
           setSearchTerm={setSearchTerm} 
-          onReload={fetchFullGradebook} 
-          onSave={() => { setIsSaving(true); setTimeout(() => setIsSaving(false), 1000); }} 
-          isSaving={isSaving} 
         />
         
         <CardContent className="p-0 overflow-hidden">
@@ -327,16 +326,16 @@ export default function AcademicGradebookPage() {
                       {columns.map(c => (
                         <TableHead key={c.id} className="text-center font-black text-[10px] uppercase text-slate-400 tracking-widest px-4 md:px-6 border-l min-w-[120px] md:min-w-[140px]">
                           <div className="flex flex-col items-center gap-1">
-                            <div className="flex items-center gap-1">
+                            <div className="flex items-center justify-center gap-1">
                               <div className="text-primary/60">{getInstrumentIcon(c.type)}</div>
-                              <Badge variant="outline" className="border-primary/20 text-primary text-[8px] font-black">{c.indicatorCode}</Badge>
+                              <Badge variant="outline" className="border-primary/20 text-primary text-[8px] font-black px-1.5">{c.indicatorCode}</Badge>
                             </div>
                             <span className="text-slate-900 truncate w-24 md:w-32 font-extrabold text-[11px]">{c.name}</span>
                           </div>
                         </TableHead>
                       ))}
                       <TableHead className="text-center font-black text-[10px] uppercase text-primary tracking-widest w-[100px] md:w-[120px] border-l sticky right-0 z-30 bg-primary/5 backdrop-blur-sm shadow-[-2px_0_5px_rgba(0,0,0,0.02)]">
-                        Final
+                        Promedio
                       </TableHead>
                     </TableRow>
                   </TableHeader>
