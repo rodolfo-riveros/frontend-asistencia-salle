@@ -127,7 +127,7 @@ export default function AcademicGradebookPage() {
           };
         });
 
-        // ORDENAMIENTO POR CÓDIGO DE INDICADOR (C1, C2, etc)
+        // Ordenamiento por código de indicador de forma natural (C1, C2... C10)
         const sortedCols = [...mappedCols].sort((a, b) => 
           a.indicatorCode.localeCompare(b.indicatorCode, undefined, { numeric: true, sensitivity: 'base' })
         );
@@ -149,6 +149,7 @@ export default function AcademicGradebookPage() {
         const detailsMap: Record<string, Record<string, any>> = {};
         const commentsMap: Record<string, Record<string, string>> = {};
 
+        // Llenar notas directas
         configData.calificaciones?.forEach((cal: any) => {
           if (!gradesMap[cal.alumno_id]) gradesMap[cal.alumno_id] = {};
           gradesMap[cal.alumno_id][cal.evaluacion_id] = cal.puntaje;
@@ -158,6 +159,42 @@ export default function AcademicGradebookPage() {
 
           if (!commentsMap[cal.alumno_id]) commentsMap[cal.alumno_id] = {};
           commentsMap[cal.alumno_id][cal.evaluacion_id] = cal.observacion;
+        });
+
+        // Sincronización Grupal (Si un miembro tiene nota, se la damos a todo el grupo visualmente)
+        sortedCols.forEach(col => {
+          if (col.strategy === 'grupal' && col.groups) {
+            const groupGrades: Record<string, { grade: number, detail: any, comment: string }> = {};
+            
+            // Buscar una nota existente en cada grupo
+            Object.entries(col.groups).forEach(([sId, gName]) => {
+              if (gradesMap[sId]?.[col.id] !== undefined && !groupGrades[gName]) {
+                groupGrades[gName] = {
+                  grade: gradesMap[sId][col.id],
+                  detail: detailsMap[sId]?.[col.id],
+                  comment: commentsMap[sId]?.[col.id] || ""
+                };
+              }
+            });
+
+            // Replicar la nota encontrada a todos los integrantes del mismo grupo
+            Object.entries(col.groups).forEach(([sId, gName]) => {
+              if (groupGrades[gName]) {
+                if (!gradesMap[sId]) gradesMap[sId] = {};
+                gradesMap[sId][col.id] = groupGrades[gName].grade;
+                
+                if (groupGrades[gName].detail) {
+                  if (!detailsMap[sId]) detailsMap[sId] = {};
+                  detailsMap[sId][col.id] = groupGrades[gName].detail;
+                }
+                
+                if (groupGrades[gName].comment) {
+                  if (!commentsMap[sId]) commentsMap[sId] = {};
+                  commentsMap[sId][col.id] = groupGrades[gName].comment;
+                }
+              }
+            });
+          }
         });
 
         setGrades(gradesMap);
@@ -211,15 +248,13 @@ export default function AcademicGradebookPage() {
          });
          return next;
        });
-       // En limpieza no enviamos nada al backend o enviamos puntaje 0 si el backend lo requiere.
-       // Por ahora evitamos la llamada si es limpieza manual.
        return;
     }
 
     const numValue = Math.min(max, Math.max(0, parseFloat(value)));
     if (isNaN(numValue)) return;
     
-    // Actualizar estados locales para todo el grupo
+    // Actualizar estados locales para todo el grupo de forma inmediata
     setGrades(prev => {
       const next = { ...prev };
       targetStudentIds.forEach(id => {
@@ -248,7 +283,7 @@ export default function AcademicGradebookPage() {
       });
     }
 
-    // El backend se encarga de la replicación masiva, solo llamamos una vez
+    // El backend se encarga de la persistencia (el service ya tiene la lógica de replicación grupal)
     try {
       await api.post('/evaluaciones/calificar/', {
         evaluacion_id: columnId,
@@ -375,7 +410,7 @@ export default function AcademicGradebookPage() {
                                       type="number" 
                                       placeholder="-"
                                       className={cn(
-                                        "w-11 md:w-12 h-8 md:h-9 text-center font-bold text-xs md:text-sm border-none shadow-inner rounded-lg p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none", 
+                                        "w-12 h-8 md:h-9 text-center font-bold text-xs md:text-sm border-none shadow-inner rounded-lg p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus-visible:ring-1 focus-visible:ring-primary/20", 
                                         (gradeValue !== undefined && gradeValue < 13) ? 'text-red-600 bg-red-50' : 'text-emerald-700 bg-emerald-50',
                                         gradeValue === undefined && 'bg-slate-50 text-slate-300'
                                       )} 
