@@ -149,7 +149,7 @@ export function ConfigWizard({
           <DialogDescription className="text-blue-100/80 font-bold uppercase text-[9px] md:text-[10px] tracking-[0.2em] mt-1">
             Paso {setupStep + 1}: {
               setupStep === 0 ? "Indicador de Logro" :
-              setupStep === 1 ? (newInstType === 'manual' ? "Tipo de Instrumento" : "Instrumento y Estrategia") :
+              setupStep === 1 ? (newInstType === 'manual' ? "Instrumento de Evaluación" : "Instrumento y Estrategia") :
               setupStep === 2 ? "Detalles de Actividad" :
               setupStep === 3 ? "Diseño Pedagógico" : "Sorteo de Equipos"
             }
