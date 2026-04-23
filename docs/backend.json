@@ -45,19 +45,6 @@
         "max_puntos": { "type": "number" },
         "creado_el": { "type": "object" }
       }
-    },
-    "QuizRoom": {
-      "title": "Sala de Quiz (Real-time)",
-      "description": "Estado de una sesión de quiz activa en Firebase.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "evaluationId": { "type": "string" },
-        "status": { "type": "string", "enum": ["lobby", "active", "finished"] },
-        "code": { "type": "string" },
-        "currentQuestionIndex": { "type": "number" },
-        "questions": { "type": "array" }
-      }
     }
   },
   "auth": {
@@ -67,14 +54,6 @@
     "/evaluaciones_config/{evalId}": {
       "schema": "EvaluationConfig",
       "description": "Repositorio de instrumentos digitalizados y configuraciones para gamificación."
-    },
-    "/quiz_rooms/{roomId}": {
-      "schema": "QuizRoom",
-      "description": "Salas de quiz activas para interacción en tiempo real."
-    },
-    "/quiz_rooms/{roomId}/participants/{participantId}": {
-      "schema": "object",
-      "description": "Estudiantes conectados a la sala de juego."
     }
   }
 }

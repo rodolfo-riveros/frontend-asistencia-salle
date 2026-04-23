@@ -27,8 +27,7 @@ import {
   Gamepad2, 
   CheckCircle2, 
   Sparkles, 
-  Loader2,
-  Lock
+  Loader2
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ChecklistConfig } from "./editor/ChecklistConfig"
@@ -136,7 +135,6 @@ export function ConfigWizard({
   }
 
   const handleFinish = async () => {
-    // PERSISTENCIA EN FIREBASE: Solo si es Gamificación (Quizz)
     if (newStrategyType === 'quizz') {
       const evalId = `eval-${Date.now()}`
       const evalRef = doc(firestore, 'evaluaciones_config', evalId)
@@ -156,7 +154,6 @@ export function ConfigWizard({
         creado_el: serverTimestamp()
       }
       
-      // Guardado no bloqueante (Optimista)
       setDoc(evalRef, configData).catch(async (serverError) => {
         const error = new FirestorePermissionError({ 
           path: evalRef.path, 
