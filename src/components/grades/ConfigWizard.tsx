@@ -93,7 +93,7 @@ export function ConfigWizard({
   newIndicatorDescription, setNewIndicatorDescription, newIndicatorWeight, setNewIndicatorWeight,
   existingIndicators, newInstType, setNewInstType, newStrategyType, setNewStrategyType,
   newColName, setNewColName, newInstrumentWeight, setNewInstrumentWeight, newMaxPoints, setNewMaxPoints,
-  editorCriteria, setEditorCriteria, isScanning: parentIsScanning, fileInputRef, totalPointsStep,
+  editorCriteria, setEditorCriteria, fileInputRef, totalPointsStep,
   students, groupSize, setGroupSize, studentGroups, setStudentGroups, addColumn, resetEditor
 }: ConfigWizardProps) {
   
@@ -105,40 +105,53 @@ export function ConfigWizard({
   const [registeredEvalId, setRegisteredEvalId] = React.useState<string | null>(null)
 
   const handleAiScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setIsScanning(true)
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsScanning(true);
     try {
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload = () => resolve(reader.result as string)
-        reader.readAsDataURL(file)
-      })
-      const analysis = await analyzeInstrument({ photoDataUri: base64 })
-      if (!analysis) throw new Error("La IA no pudo interpretar el documento.")
+      const base64 = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.readAsDataURL(file);
+      });
+      const analysis = await analyzeInstrument({ photoDataUri: base64 });
       
-      if (analysis.type) setNewInstType(analysis.type)
-      if (analysis.name) setNewColName(analysis.name)
-      if (analysis.suggestedWeight) setNewInstrumentWeight(analysis.suggestedWeight)
+      if (analysis.type) setNewInstType(analysis.type);
+      if (analysis.name) setNewColName(analysis.name);
+      if (analysis.suggestedWeight) setNewInstrumentWeight(analysis.suggestedWeight);
       
-      if ((analysis.type === 'cotejo' || analysis.type === 'guia') && analysis.checklistCriteria) {
-        setEditorCriteria(analysis.checklistCriteria.map((c: any) => ({ id: Math.random().toString(), ...c })))
-      } else if (analysis.type === 'rubrica' && analysis.rubricDimensions) {
-        setEditorCriteria(analysis.rubricDimensions.map((d: any) => ({ id: Math.random().toString(), ...d })))
-      } else if (analysis.type === 'escala' && analysis.checklistCriteria) {
-        setEditorCriteria(analysis.checklistCriteria.map((c: any) => ({ id: Math.random().toString(), description: c.description })))
+      if (analysis.type === 'cotejo' || analysis.type === 'guia') {
+        if (analysis.checklistCriteria) {
+          setEditorCriteria(analysis.checklistCriteria.map(c => ({ 
+            id: Math.random().toString(), 
+            description: c.description, 
+            points: c.points 
+          })));
+        }
+      } else if (analysis.type === 'rubrica') {
+        if (analysis.rubricDimensions) {
+          setEditorCriteria(analysis.rubricDimensions.map(d => ({
+            id: Math.random().toString(),
+            category: d.category,
+            levels: d.levels
+          })));
+        }
+      } else if (analysis.type === 'escala') {
+        if (analysis.checklistCriteria) {
+          setEditorCriteria(analysis.checklistCriteria.map(c => ({
+            id: Math.random().toString(),
+            description: c.description
+          })));
+        }
       }
-      
-      toast({ title: "Digitalización Exitosa" })
+      toast({ title: "Digitalización Exitosa", description: "El instrumento ha sido interpretado por la IA." });
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Error", description: err.message })
+      toast({ variant: "destructive", title: "Error de IA", description: err.message });
     } finally {
-      setIsScanning(false)
-      if (fileInputRef.current) fileInputRef.current.value = "" 
+      setIsScanning(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
-  }
-
-  // --- FLUJO INCREMENTAL ---
+  };
 
   const registerStep0 = async () => {
     setIsFinishing(true)
@@ -151,18 +164,22 @@ export function ConfigWizard({
         peso_porcentaje: newIndicatorWeight
       }
       
-      let res;
+      let res: any;
       if (registeredIndicatorId) {
         res = await api.patch(`/evaluaciones/indicadores/${registeredIndicatorId}`, payload)
       } else {
-        res = await api.post<any>('/evaluaciones/indicadores/', payload)
+        res = await api.post('/evaluaciones/indicadores/', payload)
       }
       
       setRegisteredIndicatorId(res.id)
       setSetupStep(1)
       toast({ title: "Indicador Registrado" })
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Error al registrar indicador", description: e.message })
+      if (e.message.includes("409")) {
+        toast({ variant: "destructive", title: "Dato Duplicado", description: "Este código de indicador ya existe. Cámbialo o selecciónalo de la biblioteca." })
+      } else {
+        toast({ variant: "destructive", title: "Error", description: e.message })
+      }
     } finally {
       setIsFinishing(false)
     }
@@ -182,11 +199,11 @@ export function ConfigWizard({
         configuracion_json: { strategy: newStrategyType, criteria: [] }
       }
 
-      let res;
+      let res: any;
       if (registeredEvalId) {
         res = await api.patch(`/evaluaciones/${registeredEvalId}`, payload)
       } else {
-        res = await api.post<any>('/evaluaciones/', payload)
+        res = await api.post('/evaluaciones/', payload)
       }
 
       setRegisteredEvalId(res.id)
@@ -199,7 +216,11 @@ export function ConfigWizard({
         toast({ title: "Actividad Registrada" })
       }
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Error en evaluación", description: e.message })
+      if (e.message.includes("409")) {
+        toast({ variant: "destructive", title: "Conflicto", description: "Ya existe una actividad con ese nombre para este indicador." })
+      } else {
+        toast({ variant: "destructive", title: "Error", description: e.message })
+      }
     } finally {
       setIsFinishing(false)
     }
