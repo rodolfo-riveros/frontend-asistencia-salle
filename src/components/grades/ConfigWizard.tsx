@@ -46,7 +46,8 @@ const INST_LABELS: Record<string, string> = {
   cotejo: 'Lista de Cotejo',
   rubrica: 'Rúbrica',
   escala: 'Escala Valorativa',
-  guia: 'Guía Observación'
+  guia: 'Guía Observación',
+  quizz: 'Gamificación'
 }
 
 interface ConfigWizardProps {
@@ -98,7 +99,10 @@ export function ConfigWizard({
   
   const [isFinishing, setIsFinishing] = React.useState(false)
   const [isScanning, setIsScanning] = React.useState(false)
-  const [evalIdCreated, setEvalIdCreated] = React.useState<string | null>(null)
+  
+  // Tracking de registros persistidos para actualizaciones
+  const [registeredIndicatorId, setRegisteredIndicatorId] = React.useState<string | null>(null)
+  const [registeredEvalId, setRegisteredEvalId] = React.useState<string | null>(null)
 
   const handleAiScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -125,7 +129,6 @@ export function ConfigWizard({
         setEditorCriteria(analysis.checklistCriteria.map((c: any) => ({ id: Math.random().toString(), description: c.description })))
       }
       
-      setSetupStep(3) 
       toast({ title: "Digitalización Exitosa" })
     } catch (err: any) {
       toast({ variant: "destructive", title: "Error", description: err.message })
@@ -135,114 +138,136 @@ export function ConfigWizard({
     }
   }
 
-  const handleFinish = async () => {
-    if (isFinishing) return
+  // --- FLUJO INCREMENTAL ---
+
+  const registerStep0 = async () => {
     setIsFinishing(true)
-    
-    // Si la estrategia es Gamificación, el tipo debe ser QUIZZ para el backend
-    const finalType = newStrategyType === 'quizz' ? 'quizz' : newInstType;
-
-    const payload = {
-      unidad_id: unidadId,
-      periodo_id: periodoId,
-      indicador_codigo: newIndicatorCode,
-      indicador_desc: newIndicatorDescription,
-      indicador_peso: newIndicatorWeight,
-      nombre: newColName,
-      tipo: finalType,
-      peso_instrumento: newInstrumentWeight,
-      puntaje_maximo: newMaxPoints,
-      configuracion_json: {
-        criteria: editorCriteria,
-        strategy: newStrategyType
-      }
-    }
-
     try {
-      // El backend devuelve { indicador: IndicadorOut, evaluacion: EvaluacionOut }
-      const response = await api.post<any>('/evaluaciones/config/', payload);
-      const evalId = response.evaluacion.id;
-      setEvalIdCreated(evalId);
+      const payload = {
+        unidad_id: unidadId,
+        periodo_id: periodoId,
+        codigo: newIndicatorCode,
+        descripcion: newIndicatorDescription,
+        peso_porcentaje: newIndicatorWeight
+      }
       
-      if (newStrategyType === 'grupal') {
-        setSetupStep(4);
+      let res;
+      if (registeredIndicatorId) {
+        res = await api.patch(`/evaluaciones/indicadores/${registeredIndicatorId}`, payload)
       } else {
-        toast({ title: "Evaluación Registrada", description: "La actividad ha sido guardada en el servidor." });
-        addColumn();
-        setIsOpen(false);
-        resetEditor();
+        res = await api.post<any>('/evaluaciones/indicadores/', payload)
       }
-    } catch (err: any) {
-      if (err.message.includes('409')) {
-        toast({ 
-          variant: "destructive", 
-          title: "Conflicto de Datos", 
-          description: "Ya existe una actividad con este nombre para el indicador seleccionado." 
-        });
-      } else {
-        toast({ variant: "destructive", title: "Error", description: err.message || "Fallo en la sincronización con el servidor." });
-      }
+      
+      setRegisteredIndicatorId(res.id)
+      setSetupStep(1)
+      toast({ title: "Indicador Registrado" })
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Error al registrar indicador", description: e.message })
     } finally {
       setIsFinishing(false)
     }
   }
 
-  const handleSaveGroups = async () => {
-    if (!evalIdCreated || isFinishing) return;
-    setIsFinishing(true);
-
-    const groupsMap: Record<string, string[]> = {};
-    Object.entries(studentGroups).forEach(([studentId, groupName]) => {
-      if (!groupsMap[groupName]) groupsMap[groupName] = [];
-      groupsMap[groupName].push(studentId);
-    });
-
-    const payload = {
-      evaluacion_id: evalIdCreated,
-      grupos: Object.entries(groupsMap).map(([name, ids]) => ({
-        nombre_group: name,
-        integrantes: ids
-      }))
-    };
-
+  const registerStep2 = async () => {
+    if (!registeredIndicatorId) return;
+    setIsFinishing(true)
     try {
-      await api.post('/evaluaciones/grupos/', payload);
-      toast({ title: "Equipos Guardados", description: "La conformación de grupos ha sido registrada." });
-      addColumn();
-      setIsOpen(false);
-      resetEditor();
+      const payload = {
+        indicador_id: registeredIndicatorId,
+        periodo_id: periodoId,
+        nombre: newColName,
+        tipo: newStrategyType === 'quizz' ? 'quizz' : newInstType,
+        peso_instrumento: newInstrumentWeight,
+        puntaje_maximo: newMaxPoints,
+        configuracion_json: { strategy: newStrategyType, criteria: [] }
+      }
+
+      let res;
+      if (registeredEvalId) {
+        res = await api.patch(`/evaluaciones/${registeredEvalId}`, payload)
+      } else {
+        res = await api.post<any>('/evaluaciones/', payload)
+      }
+
+      setRegisteredEvalId(res.id)
+      
+      if (newInstType === 'manual') {
+        toast({ title: "Registro Auxiliar Actualizado" })
+        addColumn(); setIsOpen(false); resetEditor();
+      } else {
+        setSetupStep(3)
+        toast({ title: "Actividad Registrada" })
+      }
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Error de Grupos", description: "No se pudieron guardar los equipos." });
+      toast({ variant: "destructive", title: "Error en evaluación", description: e.message })
+    } finally {
+      setIsFinishing(false)
+    }
+  }
+
+  const registerStep3 = async () => {
+    if (!registeredEvalId) return;
+    setIsFinishing(true)
+    try {
+      const payload = {
+        configuracion_json: {
+          strategy: newStrategyType,
+          criteria: editorCriteria
+        }
+      }
+      await api.patch(`/evaluaciones/${registeredEvalId}`, payload)
+      
+      if (newStrategyType === 'grupal') {
+        setSetupStep(4)
+      } else {
+        toast({ title: "Diseño Guardado" })
+        addColumn(); setIsOpen(false); resetEditor();
+      }
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Error al guardar diseño", description: e.message })
+    } finally {
+      setIsFinishing(false)
+    }
+  }
+
+  const registerStep4 = async () => {
+    if (!registeredEvalId) return;
+    setIsFinishing(true);
+    try {
+      const groupsMap: Record<string, string[]> = {};
+      Object.entries(studentGroups).forEach(([studentId, groupName]) => {
+        if (!groupsMap[groupName]) groupsMap[groupName] = [];
+        groupsMap[groupName].push(studentId);
+      });
+
+      const payload = {
+        evaluacion_id: registeredEvalId,
+        grupos: Object.entries(groupsMap).map(([name, ids]) => ({
+          nombre_group: name,
+          integrantes: ids
+        }))
+      };
+
+      await api.post('/evaluaciones/grupos/', payload);
+      toast({ title: "Equipos Registrados" });
+      addColumn(); setIsOpen(false); resetEditor();
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Error en equipos", description: e.message });
     } finally {
       setIsFinishing(false);
     }
   }
 
   const handleNext = () => {
-    if (setupStep === 1 && newInstType === 'manual') {
-      setNewStrategyType('individual');
-      setSetupStep(2);
-      return;
-    }
-    
-    const isReadyToSave = (
-      (setupStep === 2 && newInstType === 'manual') || 
-      (setupStep === 2 && newInstType !== 'manual' && newStrategyType === 'individual') ||
-      (setupStep === 3)
-    );
-
-    if (isReadyToSave) {
-      handleFinish();
-    } else if (setupStep === 4) {
-      handleSaveGroups();
-    } else {
-      setSetupStep(setupStep + 1);
-    }
+    if (setupStep === 0) registerStep0();
+    else if (setupStep === 1) setSetupStep(2);
+    else if (setupStep === 2) registerStep2();
+    else if (setupStep === 3) registerStep3();
+    else if (setupStep === 4) registerStep4();
   }
 
   const handleBack = () => {
-    if (setupStep === 2 && newInstType === 'manual') setSetupStep(1);
-    else setSetupStep(Math.max(0, setupStep - 1));
+    setSetupStep(Math.max(0, setupStep - 1));
   }
 
   const getInstrumentIcon = (type: string) => {
@@ -256,14 +281,14 @@ export function ConfigWizard({
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={(o) => { if(!isFinishing) { setIsOpen(o); if(!o) resetEditor(); } }}>
+    <Dialog open={isOpen} onOpenChange={(o) => { if(!isFinishing) { setIsOpen(o); if(!o) { resetEditor(); setRegisteredIndicatorId(null); setRegisteredEvalId(null); } } }}>
       <DialogContent className="max-w-5xl p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl flex flex-col h-[90vh]">
         <div className="bg-primary h-28 flex flex-col justify-center px-10 text-white shrink-0">
           <DialogTitle className="text-2xl font-black uppercase tracking-tight">Registro de Evaluación Técnica</DialogTitle>
           <DialogDescription className="text-blue-100/80 font-bold uppercase text-[10px] tracking-[0.2em] mt-1">
             PASO {setupStep + 1}: {
               setupStep === 0 ? "Indicador de Logro" :
-              setupStep === 1 ? (newInstType === 'manual' ? "Instrumento de Evaluación" : "Instrumento y Estrategia") :
+              setupStep === 1 ? "Instrumento y Estrategia" :
               setupStep === 2 ? "Detalles de Actividad" :
               setupStep === 3 ? "Diseño Pedagógico" : "Sorteo de Equipos"
             }
@@ -312,7 +337,7 @@ export function ConfigWizard({
                     <div className="bg-white rounded-[2rem] border-2 border-dashed border-slate-200 p-6 min-h-[250px]">
                       {existingIndicators.length > 0 ? (
                         existingIndicators.map((ind: any, i: number) => (
-                          <button key={i} className="flex flex-col items-start p-4 rounded-2xl border-2 border-slate-50 hover:border-primary/30 hover:bg-primary/5 mb-3 w-full text-left transition-all" onClick={() => { setNewIndicatorCode(ind.code); setNewIndicatorDescription(ind.desc); setNewIndicatorWeight(ind.weight); }}>
+                          <button key={i} className="flex flex-col items-start p-4 rounded-2xl border-2 border-slate-50 hover:border-primary/30 hover:bg-primary/5 mb-3 w-full text-left transition-all" onClick={() => { setNewIndicatorCode(ind.code); setNewIndicatorDescription(ind.desc); setNewIndicatorWeight(ind.weight); setRegisteredIndicatorId(ind.id); }}>
                             <div className="flex justify-between w-full font-black text-sm text-primary mb-1"><span>{ind.code}</span><Badge variant="outline" className="text-[10px]">{ind.weight}%</Badge></div>
                             <p className="text-[11px] text-slate-500 line-clamp-2">{ind.desc}</p>
                           </button>
@@ -420,8 +445,16 @@ export function ConfigWizard({
 
         <div className="h-24 px-10 bg-slate-50 border-t flex items-center justify-between shrink-0">
           <Button variant="ghost" onClick={handleBack} disabled={setupStep === 0 || isScanning || isFinishing} className="font-black text-[10px] uppercase h-12 px-8 rounded-xl border-2">Anterior</Button>
-          <Button className="bg-primary px-10 h-12 font-black text-[10px] uppercase rounded-xl text-white shadow-lg min-w-[140px]" onClick={handleNext} disabled={(setupStep === 0 && (!newIndicatorCode || !newIndicatorDescription)) || (setupStep === 2 && !newColName) || isScanning || isFinishing}>
-            {isFinishing ? <Loader2 className="h-4 w-4 animate-spin" /> : (setupStep === 4 || (setupStep === 2 && newInstType === 'manual') || (setupStep === 2 && newInstType !== 'manual' && newStrategyType === 'individual') || (setupStep === 3) ? "Finalizar y Guardar" : "Siguiente")}
+          <Button className="bg-primary px-10 h-12 font-black text-[10px] uppercase rounded-xl text-white shadow-lg min-w-[140px]" onClick={handleNext} disabled={isScanning || isFinishing}>
+            {isFinishing ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              setupStep === 0 ? "Registrar Indicador" :
+              setupStep === 1 ? "Continuar" :
+              setupStep === 2 ? (newInstType === 'manual' ? "Registrar Actividad" : "Guardar Detalles") :
+              setupStep === 3 ? (newStrategyType === 'grupal' ? "Guardar y Ver Grupos" : "Finalizar Diseño") :
+              "Finalizar Equipos"
+            )}
           </Button>
         </div>
       </DialogContent>
