@@ -27,7 +27,6 @@ import {
   CheckCircle2, 
   Sparkles, 
   Loader2,
-  AlertTriangle
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ChecklistConfig } from "./editor/ChecklistConfig"
@@ -36,8 +35,7 @@ import { ScaleConfig } from "./editor/ScaleConfig"
 import { GuideConfig } from "./editor/GuideConfig"
 import { GroupConfig } from "./strategies/GroupConfig"
 
-import { useFirestore } from "@/firebase"
-import { doc, setDoc, serverTimestamp } from "firebase/firestore"
+import { api } from "@/lib/api"
 import { toast } from "@/hooks/use-toast"
 
 const INST_LABELS: Record<string, string> = {
@@ -96,58 +94,48 @@ export function ConfigWizard({
   students, groupSize, setGroupSize, studentGroups, setStudentGroups, addColumn, resetEditor, handleAiScan
 }: ConfigWizardProps) {
   
-  const firestore = useFirestore()
   const [isFinishing, setIsFinishing] = React.useState(false)
 
   const handleFinish = async () => {
     setIsFinishing(true)
     
-    // Si es gamificación, guardamos en Firestore
-    if (newStrategyType === 'quizz') {
-      const evalId = `eval-${Date.now()}`
-      const evalRef = doc(firestore, 'evaluaciones_config', evalId)
-      
-      const configData = {
-        id: evalId,
-        unidad_id: unidadId,
-        periodo_id: periodoId,
-        nombre: newColName,
-        tipo_instrumento: newInstType,
-        estrategia: newStrategyType,
-        criterios: editorCriteria,
-        indicador_codigo: newIndicatorCode,
-        indicador_peso: newIndicatorWeight,
-        instrumento_peso: newInstrumentWeight,
-        max_puntos: newMaxPoints,
-        creado_el: serverTimestamp()
-      }
-      
-      console.log(`[FIREBASE] Intentando guardar en Firestore: ${evalId}`);
-
-      try {
-        await setDoc(evalRef, configData);
-        console.log("[FIREBASE SUCCESS] Configuración guardada en la nube.");
-        toast({ title: "Guardado en Firebase", description: "La configuración de gamificación está lista en la nube." });
-      } catch (serverError: any) {
-        console.error("[FIREBASE ERROR CRÍTICO]", serverError);
-        
-        // Detección de AdBlocker basado en el mensaje de error o fallo de red
-        const isBlocked = serverError.message?.includes("Failed to load resource") || serverError.code === "unavailable";
-        
-        toast({ 
-          variant: "destructive", 
-          title: isBlocked ? "Conexión Bloqueada" : "Error de Firebase", 
-          description: isBlocked 
-            ? "Tu navegador (AdBlocker) está bloqueando la conexión con Firebase. Por favor, desactiva uBlock, AdBlock o Brave Shields para este sitio." 
-            : "No se pudo guardar la configuración en la nube. Revisa tu conexión." 
-        });
-        setIsFinishing(false);
-        return; // No cerramos el modal si falló el guardado crítico
-      }
+    // Preparar el objeto de configuración
+    const configData = {
+      unidad_id: unidadId,
+      periodo_id: periodoId,
+      nombre: newColName,
+      tipo_instrumento: newInstType,
+      estrategia: newStrategyType,
+      criterios: editorCriteria,
+      indicador_codigo: newIndicatorCode,
+      indicador_peso: newIndicatorWeight,
+      instrumento_peso: newInstrumentWeight,
+      max_puntos: newMaxPoints,
+      creado_el: new Date().toISOString()
     }
-    
-    addColumn()
-    setIsFinishing(false)
+
+    try {
+      // Enviar datos al BACKEND (FastAPI) en lugar de Firestore Directo
+      // Esto evita el bloqueo por AdBlockers y centraliza la lógica
+      console.log(`[BACKEND] Enviando configuración de evaluación a FastAPI...`);
+      
+      await api.post('/evaluaciones/config/', configData);
+      
+      console.log("[BACKEND SUCCESS] Configuración sincronizada con el servidor.");
+      toast({ title: "Registro Sincronizado", description: "La evaluación se ha guardado en el servidor con éxito." });
+      
+      // Si todo sale bien, procedemos a actualizar la UI local
+      addColumn()
+    } catch (err: any) {
+      console.error("[BACKEND ERROR]", err);
+      toast({ 
+        variant: "destructive", 
+        title: "Error de Sincronización", 
+        description: "No se pudo guardar en el servidor. Verifica tu conexión o los logs de FastAPI." 
+      });
+    } finally {
+      setIsFinishing(false)
+    }
   }
 
   const handleNext = () => {
