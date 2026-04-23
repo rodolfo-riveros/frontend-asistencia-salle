@@ -2,11 +2,12 @@
 /**
  * @fileOverview AI flow to analyze any type of pedagogical assessment instrument.
  * 
- * Supported: Checklists, Rubrics, Rating Scales, Questionnaires, Structured Observation Guides.
+ * - analyzeInstrument - Digitaliza instrumentos de evaluación desde imágenes.
  */
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import {googleAI} from '@genkit-ai/google-genai';
 
 const ChecklistItemSchema = z.object({
   description: z.string().describe('The description of the criterion or question.'),
@@ -79,7 +80,11 @@ const analyzeInstrumentFlow = ai.defineFlow(
     outputSchema: AnalyzeInstrumentOutputSchema,
   },
   async (input) => {
-    const { output } = await analyzeInstrumentPrompt(input);
+    const { output } = await ai.generate({
+      model: googleAI.model('gemini-1.5-flash'),
+      prompt: analyzeInstrumentPrompt(input),
+    });
+    
     if (!output) throw new Error("La IA no pudo procesar la imagen correctamente.");
     return output;
   }

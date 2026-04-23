@@ -28,7 +28,7 @@ import {
   Sparkles, 
   Loader2,
   Lock
-} from "lucide-react"
+} from "lucide-center"
 import { cn } from "@/lib/utils"
 import { ChecklistConfig } from "./editor/ChecklistConfig"
 import { RubricConfig } from "./editor/RubricConfig"
@@ -100,8 +100,8 @@ export function ConfigWizard({
   
   const firestore = useFirestore()
 
-  const handleFinish = () => {
-    // 1. Guardar en Firebase para futura gamificación
+  const handleFinish = async () => {
+    // 1. Guardar en Firebase para persistencia y futura gamificación
     const evalId = `eval-${Date.now()}`
     const evalRef = doc(firestore, 'evaluaciones_config', evalId)
     
@@ -120,20 +120,24 @@ export function ConfigWizard({
       creado_el: serverTimestamp()
     }
 
-    setDoc(evalRef, configData).catch(async (err) => {
+    try {
+      await setDoc(evalRef, configData)
+    } catch (err) {
+      console.error("Error al guardar en Firebase:", err)
       const permissionError = new FirestorePermissionError({
         path: evalRef.path,
         operation: 'create',
         requestResourceData: configData,
       });
       errorEmitter.emit('permission-error', permissionError);
-    })
+    }
 
     // 2. Ejecutar lógica local del registro
     addColumn()
   }
 
   const handleNext = () => {
+    // Si es Nota Directa, saltamos la estrategia y vamos a detalles
     if (setupStep === 1 && newInstType === 'manual') {
       setNewStrategyType('individual');
       setSetupStep(2);
@@ -142,8 +146,8 @@ export function ConfigWizard({
 
     if (setupStep === 2) {
       if (newInstType === 'manual') {
-        if (newStrategyType === 'grupal') setSetupStep(4);
-        else handleFinish();
+        // Notas directas no requieren diseño de criterios (Paso 3) ni equipos (Paso 4)
+        handleFinish();
       } else {
         setSetupStep(3);
       }
@@ -170,7 +174,7 @@ export function ConfigWizard({
 
   let nextText = "Siguiente";
   if (setupStep === 4) nextText = "Finalizar y Crear";
-  if (setupStep === 2 && newInstType === 'manual' && newStrategyType !== 'grupal') nextText = "Finalizar y Crear";
+  if (setupStep === 2 && newInstType === 'manual') nextText = "Finalizar y Crear";
   if (setupStep === 3 && newStrategyType !== 'grupal') nextText = "Finalizar y Crear";
 
   const getInstrumentIcon = (type: string) => {
@@ -259,6 +263,7 @@ export function ConfigWizard({
                     </div>
                   </div>
                   
+                  {/* OCULTAR ESTRATEGIA SI ES MANUAL */}
                   {newInstType !== 'manual' && (
                     <div className="space-y-6 md:space-y-8 pt-10 border-t border-slate-50">
                       <div className="flex items-center justify-center gap-3"><div className="h-2 w-2 rounded-full bg-primary" /><h4 className="font-black text-[10px] uppercase text-primary tracking-[0.2em]">Define la Estrategia</h4><div className="h-2 w-2 rounded-full bg-primary" /></div>
