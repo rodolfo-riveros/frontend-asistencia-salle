@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -36,7 +35,6 @@ import { ScaleConfig } from "./editor/ScaleConfig"
 import { GuideConfig } from "./editor/GuideConfig"
 import { GroupConfig } from "./strategies/GroupConfig"
 
-import { analyzeInstrument } from "@/ai/flows/analyze-instrument-flow"
 import { useFirestore } from "@/firebase"
 import { doc, setDoc, serverTimestamp } from "firebase/firestore"
 import { errorEmitter } from "@/firebase/error-emitter"
@@ -86,6 +84,7 @@ interface ConfigWizardProps {
   setStudentGroups: (val: Record<string, string>) => void
   addColumn: () => void
   resetEditor: () => void
+  handleAiScan: (e: React.ChangeEvent<HTMLInputElement>) => Promise<void>
 }
 
 export function ConfigWizard({ 
@@ -94,47 +93,13 @@ export function ConfigWizard({
   existingIndicators, newInstType, setNewInstType, newStrategyType, setNewStrategyType,
   newColName, setNewColName, newInstrumentWeight, setNewInstrumentWeight, newMaxPoints, setNewMaxPoints,
   editorCriteria, setEditorCriteria, isScanning, fileInputRef, totalPointsStep,
-  students, groupSize, setGroupSize, studentGroups, setStudentGroups, addColumn, resetEditor
+  students, groupSize, setGroupSize, studentGroups, setStudentGroups, addColumn, resetEditor, handleAiScan
 }: ConfigWizardProps) {
   
   const firestore = useFirestore()
-  const [localIsScanning, setLocalIsScanning] = React.useState(false)
-
-  const handleAiScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setLocalIsScanning(true)
-    try {
-      const base64 = await new Promise<string>((resolve) => {
-        const reader = new FileReader()
-        reader.onload = () => resolve(reader.result as string)
-        reader.readAsDataURL(file)
-      })
-      const analysis = await analyzeInstrument({ photoDataUri: base64 })
-      if (!analysis) throw new Error("La IA no pudo interpretar el documento.")
-      
-      setNewInstType(analysis.type)
-      setNewColName(analysis.name)
-      if (analysis.suggestedWeight) setNewInstrumentWeight(analysis.suggestedWeight)
-      
-      if ((analysis.type === 'cotejo' || analysis.type === 'guia') && analysis.checklistCriteria) {
-        setEditorCriteria(analysis.checklistCriteria.map((c: any) => ({ id: Math.random().toString(), ...c })))
-      } else if (analysis.type === 'rubrica' && analysis.rubricDimensions) {
-        setEditorCriteria(analysis.rubricDimensions.map((d: any) => ({ id: Math.random().toString(), ...d })))
-      } else if (analysis.type === 'escala' && analysis.checklistCriteria) {
-        setEditorCriteria(analysis.checklistCriteria.map((c: any) => ({ id: Math.random().toString(), description: c.description })))
-      }
-      
-      setSetupStep(3) 
-    } catch (err: any) {
-      console.error(err)
-    } finally {
-      setLocalIsScanning(false)
-      if (fileInputRef.current) fileInputRef.current.value = "" 
-    }
-  }
 
   const handleFinish = async () => {
+    // Solo guardamos en Firebase si es Gamificación (quizz)
     if (newStrategyType === 'quizz') {
       const evalId = `eval-${Date.now()}`
       const evalRef = doc(firestore, 'evaluaciones_config', evalId)
@@ -154,11 +119,14 @@ export function ConfigWizard({
         creado_el: serverTimestamp()
       }
       
+      console.log("[FIREBASE] Intentando guardar configuración en Firestore:", evalId);
+
       setDoc(evalRef, configData)
         .then(() => {
-          console.info(`[FIREBASE SUCCESS] Documento guardado en Firestore: ${evalId}`);
+          console.info("[FIREBASE SUCCESS] Configuración guardada en la nube:", evalId);
         })
         .catch(async (serverError) => {
+          console.error("[FIREBASE ERROR] No se pudo guardar en Firestore:", serverError);
           const error = new FirestorePermissionError({ 
             path: evalRef.path, 
             operation: 'create', 
@@ -248,7 +216,7 @@ export function ConfigWizard({
                     </div>
                   </div>
                   <div className="space-y-6">
-                    <div className="flex items-center gap-4"><div className="w-12 h-12 rounded-2xl bg-primary/5 flex items-center justify-center text-primary"><History className="h-6 w-6" /></div><h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Biblioteca</h4></div>
+                    <div className="flex items-center justify-between"><div className="flex items-center gap-4"><div className="w-12 h-12 rounded-2xl bg-primary/5 flex items-center justify-center text-primary"><History className="h-6 w-6" /></div><h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Biblioteca</h4></div></div>
                     <div className="bg-white rounded-[2rem] border-2 border-dashed border-slate-200 p-6 min-h-[250px]">
                       {existingIndicators.length > 0 ? existingIndicators.map((ind: any, i: number) => (
                         <button key={i} className="flex flex-col items-start p-4 rounded-2xl border-2 border-slate-50 hover:border-primary/30 hover:bg-primary/5 mb-3 w-full text-left transition-all" onClick={() => { setNewIndicatorCode(ind.code); setNewIndicatorDescription(ind.desc); setNewIndicatorWeight(ind.weight); }}>
@@ -282,7 +250,7 @@ export function ConfigWizard({
                   </div>
                   
                   {newInstType !== 'manual' && (
-                    <div className="space-y-8 pt-10 border-t border-slate-50 w-full flex flex-col items-center">
+                    <div className="space-y-8 pt-6 border-t border-slate-50 w-full flex flex-col items-center">
                       <div className="flex items-center justify-center gap-3"><div className="h-2 w-2 rounded-full bg-primary" /><h4 className="font-black text-[10px] uppercase text-primary tracking-[0.2em]">Define la Estrategia</h4><div className="h-2 w-2 rounded-full bg-primary" /></div>
                       <div className="flex flex-wrap justify-center gap-4 w-full">
                         {[
@@ -346,11 +314,11 @@ export function ConfigWizard({
                          <Button 
                             variant="outline" 
                             onClick={() => fileInputRef.current?.click()} 
-                            disabled={localIsScanning} 
+                            disabled={isScanning} 
                             className="h-14 px-10 gap-3 rounded-2xl border-2 border-dashed border-accent text-accent hover:bg-accent hover:text-white transition-all font-black uppercase text-[10px] tracking-widest shadow-sm"
                          >
-                            {localIsScanning ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                            {localIsScanning ? "Escaneando..." : "Digitalizar con IA"}
+                            {isScanning ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                            {isScanning ? "Escaneando..." : "Digitalizar con IA"}
                          </Button>
                       </div>
                     )}
@@ -408,11 +376,11 @@ export function ConfigWizard({
         </div>
 
         <div className="h-24 px-10 bg-slate-50 border-t flex items-center justify-between shrink-0">
-          <Button variant="ghost" onClick={handleBack} disabled={setupStep === 0 || localIsScanning} className="font-black text-[10px] uppercase h-12 px-8 rounded-xl border-2">Anterior</Button>
+          <Button variant="ghost" onClick={handleBack} disabled={setupStep === 0 || isScanning} className="font-black text-[10px] uppercase h-12 px-8 rounded-xl border-2">Anterior</Button>
           <Button className="bg-primary px-10 h-12 font-black text-[10px] uppercase rounded-xl text-white shadow-lg" onClick={handleNext} disabled={
             (setupStep === 0 && (!newIndicatorCode || !newIndicatorDescription)) || 
             (setupStep === 2 && !newColName) || 
-            localIsScanning
+            isScanning
           }>
             {setupStep === 4 || (setupStep === 2 && newInstType === 'manual') || (setupStep === 3 && newStrategyType !== 'grupal') ? "Finalizar y Crear" : "Siguiente"}
           </Button>
