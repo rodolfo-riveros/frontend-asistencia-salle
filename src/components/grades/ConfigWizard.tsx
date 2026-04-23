@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -28,7 +29,7 @@ import {
   Sparkles, 
   Loader2,
   Lock
-} from "lucide-center"
+} from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ChecklistConfig } from "./editor/ChecklistConfig"
 import { RubricConfig } from "./editor/RubricConfig"
@@ -204,9 +205,9 @@ export function ConfigWizard({
 
         <div className="flex-grow overflow-hidden flex flex-col">
           <ScrollArea className="flex-grow">
-            <div className="p-5 md:p-10 bg-white min-h-full">
+            <div className="p-5 md:p-10 bg-white min-h-full flex flex-col items-center">
               {setupStep === 0 && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-10">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-10 w-full max-w-4xl">
                   <div className="space-y-6">
                     <div className="flex items-center gap-4 mb-4">
                       <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl bg-primary/10 flex items-center justify-center text-primary"><BookOpen className="h-5 w-5 md:h-6 md:w-6" /></div>
@@ -244,10 +245,10 @@ export function ConfigWizard({
               )}
 
               {setupStep === 1 && (
-                <div className="space-y-12 animate-in fade-in slide-in-from-right-4 max-w-4xl mx-auto">
-                  <div className="space-y-6 md:space-y-8">
+                <div className="space-y-12 animate-in fade-in slide-in-from-right-4 w-full max-w-4xl flex flex-col items-center py-4">
+                  <div className="space-y-6 md:space-y-8 w-full">
                     <div className="flex items-center justify-center gap-3"><div className="h-2 w-2 rounded-full bg-primary" /><h4 className="font-black text-[10px] uppercase text-primary tracking-[0.2em]">Selecciona el Instrumento</h4><div className="h-2 w-2 rounded-full bg-primary" /></div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 md:gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 md:gap-4 justify-center">
                       {[
                         { id: 'manual', label: 'Nota Directa', icon: FileText },
                         { id: 'cotejo', label: 'Lista de Cotejo', icon: LayoutList },
@@ -255,7 +256,7 @@ export function ConfigWizard({
                         { id: 'escala', label: 'Escala Valorativa', icon: Star },
                         { id: 'guia', label: 'Guía Observación', icon: Quote }
                       ].map((t) => (
-                        <Button key={t.id} variant="outline" className={cn("h-auto py-6 md:py-8 flex-col gap-3 md:gap-4 rounded-2xl md:rounded-3xl border-2 transition-all", newInstType === t.id ? 'border-primary bg-primary/5 shadow-lg ring-2 ring-primary/20' : 'hover:border-slate-200')} onClick={() => { setNewInstType(t.id as any); if(t.id === 'manual') setNewStrategyType('individual'); }}>
+                        <Button key={t.id} variant="outline" className={cn("h-auto py-6 md:py-8 flex-col gap-3 md:gap-4 rounded-2xl md:rounded-3xl border-2 transition-all w-full", newInstType === t.id ? 'border-primary bg-primary/5 shadow-lg ring-2 ring-primary/20' : 'hover:border-slate-200')} onClick={() => { setNewInstType(t.id as any); if(t.id === 'manual') setNewStrategyType('individual'); }}>
                           <t.icon className={`h-6 w-6 md:h-8 md:w-8 ${newInstType === t.id ? 'text-primary' : 'text-slate-300'}`} />
                           <span className="font-black text-[9px] md:text-[10px] uppercase tracking-tighter text-center">{t.label}</span>
                         </Button>
@@ -263,11 +264,10 @@ export function ConfigWizard({
                     </div>
                   </div>
                   
-                  {/* OCULTAR ESTRATEGIA SI ES MANUAL */}
                   {newInstType !== 'manual' && (
-                    <div className="space-y-6 md:space-y-8 pt-10 border-t border-slate-50">
+                    <div className="space-y-6 md:space-y-8 pt-10 border-t border-slate-50 w-full">
                       <div className="flex items-center justify-center gap-3"><div className="h-2 w-2 rounded-full bg-primary" /><h4 className="font-black text-[10px] uppercase text-primary tracking-[0.2em]">Define la Estrategia</h4><div className="h-2 w-2 rounded-full bg-primary" /></div>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4 justify-center">
                         {[
                           { id: 'individual', label: 'Individual', icon: User, desc: 'Evaluación personalizada.' },
                           { id: 'grupal', label: 'Trabajo Grupal', icon: Users, desc: 'Califica equipos.' },
@@ -278,7 +278,7 @@ export function ConfigWizard({
                             variant="outline" 
                             disabled={s.beta}
                             className={cn(
-                              "h-auto p-4 md:p-6 flex-col gap-3 rounded-2xl md:rounded-[2rem] border-2 text-left items-start transition-all relative overflow-hidden", 
+                              "h-auto p-4 md:p-6 flex-col gap-3 rounded-2xl md:rounded-[2rem] border-2 text-left items-start transition-all relative overflow-hidden w-full", 
                               newStrategyType === s.id ? 'border-primary bg-primary/5 ring-2 ring-primary/20' : 'hover:border-slate-200',
                               s.beta && "opacity-60 grayscale bg-slate-50 cursor-not-allowed"
                             )} 
@@ -306,7 +306,7 @@ export function ConfigWizard({
               )}
 
               {setupStep === 2 && (
-                <div className="space-y-10 animate-in fade-in slide-in-from-right-4">
+                <div className="space-y-10 animate-in fade-in slide-in-from-right-4 w-full max-w-4xl">
                   <div className="bg-slate-50 p-6 md:p-10 rounded-2xl md:rounded-[3rem] border-2 border-slate-100 space-y-8">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
                       <div className="space-y-3">
@@ -341,7 +341,7 @@ export function ConfigWizard({
                                 className="w-full sm:w-auto h-12 md:h-14 px-8 gap-3 rounded-xl md:rounded-2xl border-2 border-dashed border-accent text-accent hover:bg-accent hover:text-white transition-all font-black uppercase text-[9px] md:text-[10px] tracking-widest"
                               >
                                 {isScanning ? <Loader2 className="h-4 w-4 md:h-5 md:w-5 animate-spin" /> : <Sparkles className="h-4 w-4 md:h-5 md:w-5" />}
-                                {isScanning ? "Escanenando..." : "Digitalizar con IA"}
+                                {isScanning ? "Escaneando..." : "Digitalizar con IA"}
                               </Button>
                             </div>
                          </div>
@@ -352,7 +352,7 @@ export function ConfigWizard({
               )}
 
               {setupStep === 3 && (
-                <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
+                <div className="space-y-8 animate-in fade-in slide-in-from-right-4 w-full max-w-4xl">
                   <div className="flex flex-col sm:flex-row justify-between items-center bg-slate-50 p-6 md:p-8 rounded-2xl md:rounded-[2.5rem] border-2 border-slate-100 gap-6">
                     <div className="flex items-center gap-4 md:gap-6 text-center sm:text-left">
                       <div className="hidden sm:block p-4 md:p-5 bg-primary text-white rounded-2xl md:rounded-3xl shadow-xl">{getInstrumentIcon(newInstType)}</div>
@@ -376,7 +376,7 @@ export function ConfigWizard({
               )}
 
               {setupStep === 4 && (
-                <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
+                <div className="space-y-8 animate-in fade-in slide-in-from-right-4 w-full max-w-4xl">
                   <div className="flex items-center gap-4 md:gap-6 bg-primary p-6 md:p-8 rounded-2xl md:rounded-[2.5rem] text-white shadow-xl shadow-primary/10">
                     <div className="hidden sm:block p-4 md:p-5 bg-white/20 rounded-2xl md:rounded-3xl backdrop-blur-md border border-white/10">
                       <Users className="h-6 w-6 md:h-8 md:w-8" />
