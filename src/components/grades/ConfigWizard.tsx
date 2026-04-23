@@ -26,7 +26,8 @@ import {
   Gamepad2, 
   CheckCircle2, 
   Sparkles, 
-  Loader2
+  Loader2,
+  AlertTriangle
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ChecklistConfig } from "./editor/ChecklistConfig"
@@ -101,6 +102,7 @@ export function ConfigWizard({
   const handleFinish = async () => {
     setIsFinishing(true)
     
+    // Si es gamificación, guardamos en Firestore
     if (newStrategyType === 'quizz') {
       const evalId = `eval-${Date.now()}`
       const evalRef = doc(firestore, 'evaluaciones_config', evalId)
@@ -120,30 +122,27 @@ export function ConfigWizard({
         creado_el: serverTimestamp()
       }
       
-      console.group("[FIREBASE DIAGNOSTIC]");
-      console.log("Project ID:", firestore.app.options.projectId);
-      console.log("Attempting write to path:", evalRef.path);
-      console.log("Payload:", configData);
-      console.groupEnd();
+      console.log(`[FIREBASE] Intentando guardar en Firestore: ${evalId}`);
 
       try {
         await setDoc(evalRef, configData);
-        console.log("%c[FIREBASE SUCCESS] ¡DATOS GUARDADOS CORRECTAMENTE!", "color: #10b981; font-weight: bold; font-size: 14px;");
+        console.log("[FIREBASE SUCCESS] Configuración guardada en la nube.");
         toast({ title: "Guardado en Firebase", description: "La configuración de gamificación está lista en la nube." });
       } catch (serverError: any) {
-        console.error("%c[FIREBASE ERROR CRÍTICO]", "color: #ef4444; font-weight: bold; font-size: 14px;", serverError);
+        console.error("[FIREBASE ERROR CRÍTICO]", serverError);
         
+        // Detección de AdBlocker basado en el mensaje de error o fallo de red
         const isBlocked = serverError.message?.includes("Failed to load resource") || serverError.code === "unavailable";
         
         toast({ 
           variant: "destructive", 
           title: isBlocked ? "Conexión Bloqueada" : "Error de Firebase", 
           description: isBlocked 
-            ? "Tu navegador (AdBlocker) está bloqueando la conexión con Firebase. Desactiva uBlock/AdBlock." 
-            : "No se pudo guardar en la nube. Revisa las reglas o la consola." 
+            ? "Tu navegador (AdBlocker) está bloqueando la conexión con Firebase. Por favor, desactiva uBlock, AdBlock o Brave Shields para este sitio." 
+            : "No se pudo guardar la configuración en la nube. Revisa tu conexión." 
         });
         setIsFinishing(false);
-        return; 
+        return; // No cerramos el modal si falló el guardado crítico
       }
     }
     
@@ -188,6 +187,7 @@ export function ConfigWizard({
   return (
     <Dialog open={isOpen} onOpenChange={(o) => { if(!isFinishing) { setIsOpen(o); if(!o) resetEditor(); } }}>
       <DialogContent className="max-w-5xl p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl flex flex-col h-[90vh]">
+        {/* HEADER FIJO */}
         <div className="bg-primary h-28 flex flex-col justify-center px-10 text-white shrink-0">
           <DialogTitle className="text-2xl font-black uppercase tracking-tight">Registro de Evaluación Técnica</DialogTitle>
           <DialogDescription className="text-blue-100/80 font-bold uppercase text-[10px] tracking-[0.2em] mt-1">
@@ -200,6 +200,7 @@ export function ConfigWizard({
           </DialogDescription>
         </div>
 
+        {/* CUERPO SCROLLABLE */}
         <div className="flex-grow overflow-hidden flex flex-col bg-white">
           <ScrollArea className="flex-grow">
             <div className="p-10 flex flex-col items-center">
@@ -207,35 +208,80 @@ export function ConfigWizard({
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 w-full max-w-4xl">
                   <div className="space-y-6">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary"><BookOpen className="h-6 w-6" /></div>
-                      <div className="flex flex-col"><h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Indicador de Logro</h4><p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Criterio Curricular</p></div>
+                      <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+                        <BookOpen className="h-6 w-6" />
+                      </div>
+                      <div className="flex flex-col">
+                        <h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Indicador de Logro</h4>
+                        <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Criterio Curricular</p>
+                      </div>
                     </div>
                     <div className="bg-slate-50/50 p-8 rounded-[2rem] border-2 border-slate-100 space-y-6">
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label className="font-black text-slate-400 text-[10px] uppercase tracking-[0.2em] ml-1">Código ILC</Label>
-                          <Input value={newIndicatorCode} onChange={e => setNewIndicatorCode(e.target.value.toUpperCase())} placeholder="Ej: C1.I1" className="h-12 border-none shadow-inner rounded-xl font-black text-lg bg-white" />
+                          <Input 
+                            value={newIndicatorCode} 
+                            onChange={e => setNewIndicatorCode(e.target.value.toUpperCase())} 
+                            placeholder="Ej: C1.I1" 
+                            className="h-12 border-none shadow-inner rounded-xl font-black text-lg bg-white" 
+                          />
                         </div>
                         <div className="space-y-2">
                           <Label className="font-black text-slate-400 text-[10px] uppercase tracking-[0.2em] ml-1">Peso (%)</Label>
-                          <Input type="number" value={newIndicatorWeight || ""} onChange={e => setNewIndicatorWeight(parseInt(e.target.value) || 0)} className="h-12 border-none shadow-inner rounded-xl font-black text-center text-lg bg-white" />
+                          <Input 
+                            type="number" 
+                            value={newIndicatorWeight || ""} 
+                            onChange={e => setNewIndicatorWeight(parseInt(e.target.value) || 0)} 
+                            className="h-12 border-none shadow-inner rounded-xl font-black text-center text-lg bg-white" 
+                          />
                         </div>
                       </div>
                       <div className="space-y-2">
                         <Label className="font-black text-slate-400 text-[10px] uppercase tracking-[0.2em] ml-1">Descripción del Indicador</Label>
-                        <Textarea value={newIndicatorDescription} onChange={e => setNewIndicatorDescription(e.target.value)} placeholder="Logro esperado..." className="h-24 border-none shadow-inner rounded-2xl bg-white resize-none" />
+                        <Textarea 
+                          value={newIndicatorDescription} 
+                          onChange={e => setNewIndicatorDescription(e.target.value)} 
+                          placeholder="Logro esperado..." 
+                          className="h-24 border-none shadow-inner rounded-2xl bg-white resize-none" 
+                        />
                       </div>
                     </div>
                   </div>
+
                   <div className="space-y-6">
-                    <div className="flex items-center justify-between"><div className="flex items-center gap-4"><div className="w-12 h-12 rounded-2xl bg-primary/5 flex items-center justify-center text-primary"><History className="h-6 w-6" /></div><h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Biblioteca</h4></div></div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-primary/5 flex items-center justify-center text-primary">
+                          <History className="h-6 w-6" />
+                        </div>
+                        <h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Biblioteca</h4>
+                      </div>
+                    </div>
                     <div className="bg-white rounded-[2rem] border-2 border-dashed border-slate-200 p-6 min-h-[250px]">
-                      {existingIndicators.length > 0 ? existingIndicators.map((ind: any, i: number) => (
-                        <button key={i} className="flex flex-col items-start p-4 rounded-2xl border-2 border-slate-50 hover:border-primary/30 hover:bg-primary/5 mb-3 w-full text-left transition-all" onClick={() => { setNewIndicatorCode(ind.code); setNewIndicatorDescription(ind.desc); setNewIndicatorWeight(ind.weight); }}>
-                          <div className="flex justify-between w-full font-black text-sm text-primary mb-1"><span>{ind.code}</span><Badge variant="outline" className="text-[10px]">{ind.weight}%</Badge></div>
-                          <p className="text-[11px] text-slate-500 line-clamp-2">{ind.desc}</p>
-                        </button>
-                      )) : <p className="text-center text-slate-400 font-bold uppercase text-[10px] py-20">No hay indicadores previos</p>}
+                      {existingIndicators.length > 0 ? (
+                        existingIndicators.map((ind: any, i: number) => (
+                          <button 
+                            key={i} 
+                            className="flex flex-col items-start p-4 rounded-2xl border-2 border-slate-50 hover:border-primary/30 hover:bg-primary/5 mb-3 w-full text-left transition-all"
+                            onClick={() => {
+                              setNewIndicatorCode(ind.code);
+                              setNewIndicatorDescription(ind.desc);
+                              setNewIndicatorWeight(ind.weight);
+                            }}
+                          >
+                            <div className="flex justify-between w-full font-black text-sm text-primary mb-1">
+                              <span>{ind.code}</span>
+                              <Badge variant="outline" className="text-[10px]">{ind.weight}%</Badge>
+                            </div>
+                            <p className="text-[11px] text-slate-500 line-clamp-2">{ind.desc}</p>
+                          </button>
+                        ))
+                      ) : (
+                        <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-4 py-20">
+                          <p className="text-center font-bold uppercase text-[10px] tracking-widest">No hay indicadores previos registrados</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -243,8 +289,13 @@ export function ConfigWizard({
 
               {setupStep === 1 && (
                 <div className="space-y-12 animate-in fade-in slide-in-from-right-4 w-full max-w-4xl flex flex-col items-center">
+                  {/* INSTRUMENTO SECTION */}
                   <div className="space-y-8 w-full">
-                    <div className="flex items-center justify-center gap-3"><div className="h-2 w-2 rounded-full bg-primary" /><h4 className="font-black text-[10px] uppercase text-primary tracking-[0.2em]">Instrumento de Evaluación</h4><div className="h-2 w-2 rounded-full bg-primary" /></div>
+                    <div className="flex items-center justify-center gap-3">
+                      <div className="h-2 w-2 rounded-full bg-primary" />
+                      <h4 className="font-black text-[10px] uppercase text-primary tracking-[0.2em]">Instrumento de Evaluación</h4>
+                      <div className="h-2 w-2 rounded-full bg-primary" />
+                    </div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
                       {[
                         { id: 'manual', label: 'Nota Directa', icon: FileText },
@@ -253,7 +304,18 @@ export function ConfigWizard({
                         { id: 'escala', label: 'Escala Valorativa', icon: Star },
                         { id: 'guia', label: 'Guía Observación', icon: Quote }
                       ].map((t) => (
-                        <Button key={t.id} variant="outline" className={cn("h-auto py-8 flex-col gap-4 rounded-3xl border-2 transition-all w-full", newInstType === t.id ? 'border-primary bg-primary/5 shadow-lg ring-2 ring-primary/20' : 'hover:border-slate-200')} onClick={() => { setNewInstType(t.id as any); if(t.id === 'manual') setNewStrategyType('individual'); }}>
+                        <Button 
+                          key={t.id} 
+                          variant="outline" 
+                          className={cn(
+                            "h-auto py-8 flex-col gap-4 rounded-3xl border-2 transition-all w-full", 
+                            newInstType === t.id ? 'border-primary bg-primary/5 shadow-lg ring-2 ring-primary/20' : 'hover:border-slate-200'
+                          )} 
+                          onClick={() => {
+                            setNewInstType(t.id as any);
+                            if(t.id === 'manual') setNewStrategyType('individual');
+                          }}
+                        >
                           <t.icon className={`h-8 w-8 ${newInstType === t.id ? 'text-primary' : 'text-slate-300'}`} />
                           <span className="font-black text-[10px] uppercase tracking-tighter text-center">{t.label}</span>
                         </Button>
@@ -261,14 +323,19 @@ export function ConfigWizard({
                     </div>
                   </div>
                   
+                  {/* ESTRATEGIA SECTION - CONDICIONAL */}
                   {newInstType !== 'manual' && (
                     <div className="space-y-8 pt-6 border-t border-slate-50 w-full flex flex-col items-center">
-                      <div className="flex items-center justify-center gap-3"><div className="h-2 w-2 rounded-full bg-primary" /><h4 className="font-black text-[10px] uppercase text-primary tracking-[0.2em]">Define la Estrategia</h4><div className="h-2 w-2 rounded-full bg-primary" /></div>
+                      <div className="flex items-center justify-center gap-3">
+                        <div className="h-2 w-2 rounded-full bg-primary" />
+                        <h4 className="font-black text-[10px] uppercase text-primary tracking-[0.2em]">Define la Estrategia</h4>
+                        <div className="h-2 w-2 rounded-full bg-primary" />
+                      </div>
                       <div className="flex flex-wrap justify-center gap-4 w-full">
                         {[
-                          { id: 'individual', label: 'Evaluación Individual', icon: User, desc: 'Calificación personalizada.' },
-                          { id: 'grupal', label: 'Evaluación Grupal', icon: Users, desc: 'Trabajo en equipo.' },
-                          { id: 'quizz', label: 'Gamificación', icon: Gamepad2, desc: 'Interactiva en vivo.' }
+                          { id: 'individual', label: 'Evaluación Individual', icon: User, desc: 'Calificación personalizada por estudiante.' },
+                          { id: 'grupal', label: 'Evaluación Grupal', icon: Users, desc: 'Trabajo colaborativo y equipos.' },
+                          { id: 'quizz', label: 'Gamificación', icon: Gamepad2, desc: 'Evaluación interactiva en vivo.' }
                         ].map((s) => (
                           <Button 
                             key={s.id} 
@@ -301,21 +368,38 @@ export function ConfigWizard({
                     <div className="space-y-6">
                       <div className="space-y-3">
                         <Label className="font-black text-slate-500 text-sm uppercase tracking-[0.2em] ml-1">Nombre de la Actividad</Label>
-                        <Input value={newColName} onChange={e => setNewColName(e.target.value)} placeholder="Ej. Exposición de Proyectos" className="h-16 rounded-2xl text-xl font-bold border-none shadow-inner bg-white" />
+                        <Input 
+                          value={newColName} 
+                          onChange={e => setNewColName(e.target.value)} 
+                          placeholder="Ej. Exposición de Proyectos" 
+                          className="h-16 rounded-2xl text-xl font-bold border-none shadow-inner bg-white" 
+                        />
                       </div>
                       
                       <div className="grid grid-cols-2 gap-6">
                         <div className="space-y-3">
                           <Label className="font-black text-slate-500 text-sm uppercase tracking-[0.2em] ml-1">Peso (%)</Label>
-                          <Input type="number" value={newInstrumentWeight || ""} onChange={e => setNewInstrumentWeight(parseInt(e.target.value) || 0)} className="h-16 rounded-2xl text-center text-xl font-black border-none shadow-inner bg-white" />
+                          <Input 
+                            type="number" 
+                            value={newInstrumentWeight || ""} 
+                            onChange={e => setNewInstrumentWeight(parseInt(e.target.value) || 0)} 
+                            className="h-16 rounded-2xl text-center text-xl font-black border-none shadow-inner bg-white" 
+                          />
                         </div>
                         <div className="space-y-3">
                           <Label className="font-black text-slate-500 text-sm uppercase tracking-[0.2em] ml-1">Puntaje Máximo</Label>
-                          <Input type="number" value={newMaxPoints} onChange={e => setNewMaxPoints(parseInt(e.target.value) || 20)} disabled={newInstType !== 'manual'} className="h-16 rounded-2xl text-center text-xl font-black border-none shadow-inner bg-white disabled:opacity-50" />
+                          <Input 
+                            type="number" 
+                            value={newMaxPoints} 
+                            onChange={e => setNewMaxPoints(parseInt(e.target.value) || 20)} 
+                            disabled={newInstType !== 'manual'}
+                            className="h-16 rounded-2xl text-center text-xl font-black border-none shadow-inner bg-white disabled:opacity-50" 
+                          />
                         </div>
                       </div>
                     </div>
 
+                    {/* BOTÓN IA CENTRADO */}
                     {newInstType !== 'manual' && (
                       <div className="pt-8 border-t border-slate-200 flex flex-col items-center space-y-4">
                          <div className="text-center space-y-1">
@@ -342,14 +426,19 @@ export function ConfigWizard({
                 <div className="space-y-8 animate-in fade-in slide-in-from-right-4 w-full max-w-4xl">
                   <div className="flex flex-col md:flex-row justify-between items-center bg-slate-50 p-8 rounded-[2.5rem] border-2 border-slate-100 gap-6">
                     <div className="flex items-center gap-6">
-                      <div className="p-5 bg-primary text-white rounded-3xl shadow-xl">{getInstrumentIcon(newInstType)}</div>
+                      <div className="p-5 bg-primary text-white rounded-3xl shadow-xl">
+                        {getInstrumentIcon(newInstType)}
+                      </div>
                       <div>
                         <Badge variant="outline" className="font-black text-[8px] uppercase tracking-widest border-primary/20 text-primary mb-1">{INST_LABELS[newInstType].toUpperCase()}</Badge>
                         <div className="font-black text-slate-900 text-3xl tracking-tighter uppercase">{newColName || "Actividad Pedagógica"}</div>
                       </div>
                     </div>
                     {(newInstType === 'cotejo' || newInstType === 'guia') && (
-                      <div className={cn("px-8 py-4 rounded-2xl font-black text-xl shadow-inner border-2", totalPointsStep === 20 ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-red-50 text-red-700 border-red-100')}>
+                      <div className={cn(
+                        "px-8 py-4 rounded-2xl font-black text-xl shadow-inner border-2",
+                        totalPointsStep === 20 ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-red-50 text-red-700 border-red-100'
+                      )}>
                         {totalPointsStep} / 20 PTS
                       </div>
                     )}
@@ -387,14 +476,30 @@ export function ConfigWizard({
           </ScrollArea>
         </div>
 
+        {/* FOOTER FIJO */}
         <div className="h-24 px-10 bg-slate-50 border-t flex items-center justify-between shrink-0">
-          <Button variant="ghost" onClick={handleBack} disabled={setupStep === 0 || isScanning || isFinishing} className="font-black text-[10px] uppercase h-12 px-8 rounded-xl border-2">Anterior</Button>
-          <Button className="bg-primary px-10 h-12 font-black text-[10px] uppercase rounded-xl text-white shadow-lg min-w-[140px]" onClick={handleNext} disabled={
-            (setupStep === 0 && (!newIndicatorCode || !newIndicatorDescription)) || 
-            (setupStep === 2 && !newColName) || 
-            isScanning || isFinishing
-          }>
-            {isFinishing ? <Loader2 className="h-4 w-4 animate-spin" /> : (setupStep === 4 || (setupStep === 2 && newInstType === 'manual') || (setupStep === 3 && newStrategyType !== 'grupal') ? "Finalizar y Crear" : "Siguiente")}
+          <Button 
+            variant="ghost" 
+            onClick={handleBack} 
+            disabled={setupStep === 0 || isScanning || isFinishing}
+            className="font-black text-[10px] uppercase h-12 px-8 rounded-xl border-2"
+          >
+            Anterior
+          </Button>
+          <Button 
+            className="bg-primary px-10 h-12 font-black text-[10px] uppercase rounded-xl text-white shadow-lg min-w-[140px]"
+            onClick={handleNext}
+            disabled={
+              (setupStep === 0 && (!newIndicatorCode || !newIndicatorDescription)) || 
+              (setupStep === 2 && !newColName) || 
+              isScanning || isFinishing
+            }
+          >
+            {isFinishing ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              (setupStep === 4 || (setupStep === 2 && newInstType === 'manual') || (setupStep === 3 && newStrategyType !== 'grupal') ? "Finalizar y Crear" : "Siguiente")
+            )}
           </Button>
         </div>
       </DialogContent>
