@@ -1,10 +1,6 @@
 'use server';
 /**
- * @fileOverview AI flow to analyze any type of pedagogical assessment instrument.
- * 
- * - analyzeInstrument - Digitaliza instrumentos de evaluación a partir de imágenes.
- * - AnalyzeInstrumentInput - Esquema de entrada (Data URI de la imagen).
- * - AnalyzeInstrumentOutput - Esquema de salida (Instrumento estructurado).
+ * @fileOverview AI flow to analyze any type of pedagogical assessment instrument using Gemini 2.5 Flash.
  */
 
 import {ai} from '@/ai/genkit';
@@ -47,7 +43,7 @@ export type AnalyzeInstrumentOutput = z.infer<typeof AnalyzeInstrumentOutputSche
 
 const analyzeInstrumentPrompt = ai.definePrompt({
   name: 'analyzeInstrumentPrompt',
-  model: 'googleai/gemini-2.0-flash',
+  model: 'googleai/gemini-2.5-flash',
   input: { schema: AnalyzeInstrumentInputSchema },
   output: { schema: AnalyzeInstrumentOutputSchema },
   config: {
@@ -86,11 +82,9 @@ const analyzeInstrumentFlow = ai.defineFlow(
   },
   async (input) => {
     const { output } = await analyzeInstrumentPrompt(input);
-    
     if (!output) {
-      throw new Error("La IA no pudo procesar la imagen correctamente. Asegúrate de que sea clara y contenga un instrumento de evaluación.");
+      throw new Error("La IA no pudo procesar la imagen correctamente. Asegúrate de que sea clara.");
     }
-    
     return output;
   }
 );

@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -37,7 +36,7 @@ import { ScaleConfig } from "./editor/ScaleConfig"
 import { GuideConfig } from "./editor/GuideConfig"
 import { GroupConfig } from "./strategies/GroupConfig"
 
-// Firebase
+import { analyzeInstrument } from "@/ai/flows/analyze-instrument-flow"
 import { useFirestore } from "@/firebase"
 import { doc, setDoc, serverTimestamp } from "firebase/firestore"
 import { errorEmitter } from "@/firebase/error-emitter"
@@ -79,7 +78,6 @@ interface ConfigWizardProps {
   setEditorCriteria: (val: any[]) => void
   isScanning: boolean
   fileInputRef: React.RefObject<HTMLInputElement>
-  handleAiScan: (e: React.ChangeEvent<HTMLInputElement>) => void
   totalPointsStep: number
   students: any[]
   groupSize: number
@@ -95,63 +93,74 @@ export function ConfigWizard({
   newIndicatorDescription, setNewIndicatorDescription, newIndicatorWeight, setNewIndicatorWeight,
   existingIndicators, newInstType, setNewInstType, newStrategyType, setNewStrategyType,
   newColName, setNewColName, newInstrumentWeight, setNewInstrumentWeight, newMaxPoints, setNewMaxPoints,
-  editorCriteria, setEditorCriteria, isScanning, fileInputRef, handleAiScan, totalPointsStep,
+  editorCriteria, setEditorCriteria, isScanning, fileInputRef, totalPointsStep,
   students, groupSize, setGroupSize, studentGroups, setStudentGroups, addColumn, resetEditor
 }: ConfigWizardProps) {
   
   const firestore = useFirestore()
+  const [localIsScanning, setLocalIsScanning] = React.useState(false)
+
+  const handleAiScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setLocalIsScanning(true)
+    try {
+      const base64 = await new Promise<string>((resolve) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as string)
+        reader.readAsDataURL(file)
+      })
+      const analysis = await analyzeInstrument({ photoDataUri: base64 })
+      if (!analysis) throw new Error("La IA no pudo interpretar el documento.")
+      
+      setNewInstType(analysis.type)
+      setNewColName(analysis.name)
+      if (analysis.suggestedWeight) setNewInstrumentWeight(analysis.suggestedWeight)
+      
+      if ((analysis.type === 'cotejo' || analysis.type === 'guia') && analysis.checklistCriteria) {
+        setEditorCriteria(analysis.checklistCriteria.map((c: any) => ({ id: Math.random().toString(), ...c })))
+      } else if (analysis.type === 'rubrica' && analysis.rubricDimensions) {
+        setEditorCriteria(analysis.rubricDimensions.map((d: any) => ({ id: Math.random().toString(), ...d })))
+      } else if (analysis.type === 'escala' && analysis.checklistCriteria) {
+        setEditorCriteria(analysis.checklistCriteria.map((c: any) => ({ id: Math.random().toString(), description: c.description })))
+      }
+      
+      setSetupStep(3) 
+    } catch (err: any) {
+      errorEmitter.emit('permission-error', new Error(err.message));
+    } finally {
+      setLocalIsScanning(false)
+      if (fileInputRef.current) fileInputRef.current.value = "" 
+    }
+  }
 
   const handleFinish = async () => {
-    // 1. Guardar en Firebase para persistencia y futura gamificación
     const evalId = `eval-${Date.now()}`
     const evalRef = doc(firestore, 'evaluaciones_config', evalId)
-    
     const configData = {
-      id: evalId,
-      unidad_id: unidadId,
-      periodo_id: periodoId,
-      nombre: newColName,
-      tipo_instrumento: newInstType,
-      estrategia: newStrategyType,
-      criterios: editorCriteria,
-      indicador_codigo: newIndicatorCode,
-      indicador_peso: newIndicatorWeight,
-      instrumento_peso: newInstrumentWeight,
-      max_puntos: newMaxPoints,
-      creado_el: serverTimestamp()
+      id: evalId, unidad_id: unidadId, periodo_id: periodoId, nombre: newColName,
+      tipo_instrumento: newInstType, estrategia: newStrategyType, criterios: editorCriteria,
+      indicador_codigo: newIndicatorCode, indicador_peso: newIndicatorWeight,
+      instrumento_peso: newInstrumentWeight, max_puntos: newMaxPoints, creado_el: serverTimestamp()
     }
-
     try {
-      await setDoc(evalRef, configData)
-    } catch (err) {
-      console.error("Error al guardar en Firebase:", err)
-      const permissionError = new FirestorePermissionError({
-        path: evalRef.path,
-        operation: 'create',
-        requestResourceData: configData,
+      setDoc(evalRef, configData).catch(async (e) => {
+        const error = new FirestorePermissionError({ path: evalRef.path, operation: 'create', requestResourceData: configData });
+        errorEmitter.emit('permission-error', error);
       });
-      errorEmitter.emit('permission-error', permissionError);
-    }
-
-    // 2. Ejecutar lógica local del registro
+    } catch (err) {}
     addColumn()
   }
 
   const handleNext = () => {
-    // Si es Nota Directa, saltamos la estrategia y vamos a detalles
     if (setupStep === 1 && newInstType === 'manual') {
       setNewStrategyType('individual');
       setSetupStep(2);
       return;
     }
-
     if (setupStep === 2) {
-      if (newInstType === 'manual') {
-        // Notas directas no requieren diseño de criterios (Paso 3) ni equipos (Paso 4)
-        handleFinish();
-      } else {
-        setSetupStep(3);
-      }
+      if (newInstType === 'manual') handleFinish();
+      else setSetupStep(3);
     } else if (setupStep === 3) {
       if (newStrategyType === 'grupal') setSetupStep(4);
       else handleFinish();
@@ -163,20 +172,9 @@ export function ConfigWizard({
   }
 
   const handleBack = () => {
-    if (setupStep === 2 && newInstType === 'manual') {
-      setSetupStep(1);
-    } else if (setupStep === 4) {
-      if (newInstType === 'manual') setSetupStep(2);
-      else setSetupStep(3);
-    } else {
-      setSetupStep(Math.max(0, setupStep - 1));
-    }
+    if (setupStep === 2 && newInstType === 'manual') setSetupStep(1);
+    else setSetupStep(Math.max(0, setupStep - 1));
   }
-
-  let nextText = "Siguiente";
-  if (setupStep === 4) nextText = "Finalizar y Crear";
-  if (setupStep === 2 && newInstType === 'manual') nextText = "Finalizar y Crear";
-  if (setupStep === 3 && newStrategyType !== 'grupal') nextText = "Finalizar y Crear";
 
   const getInstrumentIcon = (type: string) => {
     switch (type) {
@@ -337,11 +335,11 @@ export function ConfigWizard({
                               <Button 
                                 variant="outline" 
                                 onClick={() => fileInputRef.current?.click()} 
-                                disabled={isScanning} 
+                                disabled={localIsScanning} 
                                 className="w-full sm:w-auto h-12 md:h-14 px-8 gap-3 rounded-xl md:rounded-2xl border-2 border-dashed border-accent text-accent hover:bg-accent hover:text-white transition-all font-black uppercase text-[9px] md:text-[10px] tracking-widest"
                               >
-                                {isScanning ? <Loader2 className="h-4 w-4 md:h-5 md:w-5 animate-spin" /> : <Sparkles className="h-4 w-4 md:h-5 md:w-5" />}
-                                {isScanning ? "Escaneando..." : "Digitalizar con IA"}
+                                {localIsScanning ? <Loader2 className="h-4 w-4 md:h-5 md:w-5 animate-spin" /> : <Sparkles className="h-4 w-4 md:h-5 md:w-5" />}
+                                {localIsScanning ? "Escaneando..." : "Digitalizar con IA"}
                               </Button>
                             </div>
                          </div>
@@ -401,12 +399,14 @@ export function ConfigWizard({
         </div>
 
         <div className="p-4 md:p-8 bg-slate-50 border-t flex flex-row justify-between gap-3 items-center shrink-0">
-          <Button variant="ghost" onClick={handleBack} disabled={setupStep === 0 || isScanning} className="flex-1 sm:flex-none font-black text-[10px] uppercase h-11 px-4 md:px-8 rounded-lg md:rounded-xl border-2">Anterior</Button>
+          <Button variant="ghost" onClick={handleBack} disabled={setupStep === 0 || localIsScanning} className="flex-1 sm:flex-none font-black text-[10px] uppercase h-11 px-4 md:px-8 rounded-lg md:rounded-xl border-2">Anterior</Button>
           <Button className="flex-1 sm:flex-none bg-primary px-4 md:px-10 h-11 font-black text-[10px] uppercase rounded-lg md:rounded-xl text-white" onClick={handleNext} disabled={
             (setupStep === 0 && (!newIndicatorCode || !newIndicatorDescription)) || 
             (setupStep === 2 && !newColName) || 
-            isScanning
-          }>{nextText}</Button>
+            localIsScanning
+          }>
+            {setupStep === 4 || (setupStep === 2 && newInstType === 'manual') || (setupStep === 3 && newStrategyType !== 'grupal') ? "Finalizar y Crear" : "Siguiente"}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
