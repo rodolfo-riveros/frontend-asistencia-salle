@@ -28,6 +28,7 @@ import {
   CheckCircle2, 
   Sparkles, 
   Loader2,
+  AlertCircle
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ChecklistConfig } from "./editor/ChecklistConfig"
@@ -99,6 +100,7 @@ export function ConfigWizard({
   const [evalIdCreated, setEvalIdCreated] = React.useState<string | null>(null)
 
   const handleFinish = async () => {
+    if (isFinishing) return
     setIsFinishing(true)
     
     const payload = {
@@ -118,7 +120,6 @@ export function ConfigWizard({
     }
 
     try {
-      // Envío Paso 1+2+3 según imagen
       const response = await api.post<any>('/evaluaciones/config/', payload);
       const evalId = response.id;
       setEvalIdCreated(evalId);
@@ -133,14 +134,22 @@ export function ConfigWizard({
         resetEditor();
       }
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Error", description: err.message || "No se pudo sincronizar con el servidor." });
+      if (err.message.includes('409') || err.message.includes('existe')) {
+        toast({ 
+          variant: "destructive", 
+          title: "Registro Duplicado", 
+          description: "La actividad o el indicador ya existen. Intenta con un nombre diferente." 
+        });
+      } else {
+        toast({ variant: "destructive", title: "Error", description: err.message || "No se pudo sincronizar con el servidor." });
+      }
     } finally {
       setIsFinishing(false)
     }
   }
 
   const handleSaveGroups = async () => {
-    if (!evalIdCreated) return;
+    if (!evalIdCreated || isFinishing) return;
     setIsFinishing(true);
 
     const groupsMap: Record<string, string[]> = {};
@@ -176,9 +185,11 @@ export function ConfigWizard({
       setSetupStep(2);
       return;
     }
-    if (setupStep === 2) {
-      handleFinish();
-    } else if (setupStep === 3) {
+    
+    // Al final del paso de Detalles (2) o Diseño (3), guardamos la config básica
+    if ((setupStep === 2 && newInstType === 'manual') || 
+        (setupStep === 2 && newInstType !== 'manual' && newStrategyType === 'individual') ||
+        (setupStep === 3)) {
       handleFinish();
     } else if (setupStep === 4) {
       handleSaveGroups();
@@ -368,7 +379,7 @@ export function ConfigWizard({
         <div className="h-24 px-10 bg-slate-50 border-t flex items-center justify-between shrink-0">
           <Button variant="ghost" onClick={handleBack} disabled={setupStep === 0 || isScanning || isFinishing} className="font-black text-[10px] uppercase h-12 px-8 rounded-xl border-2">Anterior</Button>
           <Button className="bg-primary px-10 h-12 font-black text-[10px] uppercase rounded-xl text-white shadow-lg min-w-[140px]" onClick={handleNext} disabled={(setupStep === 0 && (!newIndicatorCode || !newIndicatorDescription)) || (setupStep === 2 && !newColName) || isScanning || isFinishing}>
-            {isFinishing ? <Loader2 className="h-4 w-4 animate-spin" /> : (setupStep === 4 || (setupStep === 2 && newInstType === 'manual') || (setupStep === 3 && newStrategyType !== 'grupal') ? "Finalizar y Guardar" : "Siguiente")}
+            {isFinishing ? <Loader2 className="h-4 w-4 animate-spin" /> : (setupStep === 4 || (setupStep === 2 && newInstType === 'manual') || (setupStep === 2 && newInstType !== 'manual' && newStrategyType === 'individual') || (setupStep === 3) ? "Finalizar y Guardar" : "Siguiente")}
           </Button>
         </div>
       </DialogContent>
