@@ -37,8 +37,7 @@ import { GroupConfig } from "./strategies/GroupConfig"
 
 import { useFirestore } from "@/firebase"
 import { doc, setDoc, serverTimestamp } from "firebase/firestore"
-import { errorEmitter } from "@/firebase/error-emitter"
-import { FirestorePermissionError } from "@/firebase/errors"
+import { toast } from "@/hooks/use-toast"
 
 const INST_LABELS: Record<string, string> = {
   manual: 'Nota Directa',
@@ -97,9 +96,11 @@ export function ConfigWizard({
 }: ConfigWizardProps) {
   
   const firestore = useFirestore()
+  const [isFinishing, setIsFinishing] = React.useState(false)
 
   const handleFinish = async () => {
-    // Solo guardamos en Firebase si es Gamificación (quizz)
+    setIsFinishing(true)
+    
     if (newStrategyType === 'quizz') {
       const evalId = `eval-${Date.now()}`
       const evalRef = doc(firestore, 'evaluaciones_config', evalId)
@@ -119,24 +120,26 @@ export function ConfigWizard({
         creado_el: serverTimestamp()
       }
       
-      console.log("[FIREBASE] Intentando guardar configuración en Firestore:", evalId);
+      console.log("[FIREBASE] Intentando guardar en Firestore:", evalId);
 
-      setDoc(evalRef, configData)
-        .then(() => {
-          console.info("[FIREBASE SUCCESS] Configuración guardada en la nube:", evalId);
-        })
-        .catch(async (serverError) => {
-          console.error("[FIREBASE ERROR] No se pudo guardar en Firestore:", serverError);
-          const error = new FirestorePermissionError({ 
-            path: evalRef.path, 
-            operation: 'create', 
-            requestResourceData: configData 
-          });
-          errorEmitter.emit('permission-error', error);
+      try {
+        await setDoc(evalRef, configData);
+        console.info("[FIREBASE SUCCESS] Configuración guardada en la nube:", evalId);
+        toast({ title: "Guardado en Firebase", description: "La configuración de gamificación está lista." });
+      } catch (serverError: any) {
+        console.error("[FIREBASE ERROR CRÍTICO]:", serverError);
+        toast({ 
+          variant: "destructive", 
+          title: "Error de Firebase", 
+          description: "No se pudo guardar en la nube. Revisa las reglas o la consola." 
         });
+        setIsFinishing(false);
+        return; // No cerramos si falló el guardado importante
+      }
     }
     
-    addColumn() 
+    addColumn()
+    setIsFinishing(false)
   }
 
   const handleNext = () => {
@@ -174,7 +177,7 @@ export function ConfigWizard({
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={(o) => { setIsOpen(o); if(!o) resetEditor(); }}>
+    <Dialog open={isOpen} onOpenChange={(o) => { if(!isFinishing) { setIsOpen(o); if(!o) resetEditor(); } }}>
       <DialogContent className="max-w-5xl p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl flex flex-col h-[90vh]">
         <div className="bg-primary h-28 flex flex-col justify-center px-10 text-white shrink-0">
           <DialogTitle className="text-2xl font-black uppercase tracking-tight">Registro de Evaluación Técnica</DialogTitle>
@@ -376,13 +379,13 @@ export function ConfigWizard({
         </div>
 
         <div className="h-24 px-10 bg-slate-50 border-t flex items-center justify-between shrink-0">
-          <Button variant="ghost" onClick={handleBack} disabled={setupStep === 0 || isScanning} className="font-black text-[10px] uppercase h-12 px-8 rounded-xl border-2">Anterior</Button>
-          <Button className="bg-primary px-10 h-12 font-black text-[10px] uppercase rounded-xl text-white shadow-lg" onClick={handleNext} disabled={
+          <Button variant="ghost" onClick={handleBack} disabled={setupStep === 0 || isScanning || isFinishing} className="font-black text-[10px] uppercase h-12 px-8 rounded-xl border-2">Anterior</Button>
+          <Button className="bg-primary px-10 h-12 font-black text-[10px] uppercase rounded-xl text-white shadow-lg min-w-[140px]" onClick={handleNext} disabled={
             (setupStep === 0 && (!newIndicatorCode || !newIndicatorDescription)) || 
             (setupStep === 2 && !newColName) || 
-            isScanning
+            isScanning || isFinishing
           }>
-            {setupStep === 4 || (setupStep === 2 && newInstType === 'manual') || (setupStep === 3 && newStrategyType !== 'grupal') ? "Finalizar y Crear" : "Siguiente"}
+            {isFinishing ? <Loader2 className="h-4 w-4 animate-spin" /> : (setupStep === 4 || (setupStep === 2 && newInstType === 'manual') || (setupStep === 3 && newStrategyType !== 'grupal') ? "Finalizar y Crear" : "Siguiente")}
           </Button>
         </div>
       </DialogContent>

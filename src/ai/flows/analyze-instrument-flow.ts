@@ -1,6 +1,6 @@
 'use server';
 /**
- * @fileOverview AI flow to analyze any type of pedagogical assessment instrument using Gemini 2.5 Flash.
+ * @fileOverview AI flow to analyze pedagogical assessment instruments using Gemini 2.5 Flash.
  */
 
 import {ai} from '@/ai/genkit';
@@ -68,27 +68,15 @@ ANALIZA LA IMAGEN Y DETECTA:
 
 INSTRUCCIONES CRÍTICAS:
 - Responde siempre en ESPAÑOL.
-- Si la imagen es borrosa o difícil de leer, haz tu mejor esfuerzo por reconstruir criterios pedagógicamente coherentes con el título.
 - Asegúrate de que el objeto JSON sea válido y completo.
 
 Imagen: {{media url=photoDataUri}}`,
 });
 
-const analyzeInstrumentFlow = ai.defineFlow(
-  {
-    name: 'analyzeInstrumentFlow',
-    inputSchema: AnalyzeInstrumentInputSchema,
-    outputSchema: AnalyzeInstrumentOutputSchema,
-  },
-  async (input) => {
-    const { output } = await analyzeInstrumentPrompt(input);
-    if (!output) {
-      throw new Error("La IA no pudo procesar la imagen correctamente. Asegúrate de que sea clara.");
-    }
-    return output;
-  }
-);
-
 export async function analyzeInstrument(input: AnalyzeInstrumentInput): Promise<AnalyzeInstrumentOutput> {
-  return analyzeInstrumentFlow(input);
+  const { output } = await analyzeInstrumentPrompt(input);
+  if (!output) {
+    throw new Error("La IA no pudo procesar la imagen correctamente.");
+  }
+  return output;
 }
