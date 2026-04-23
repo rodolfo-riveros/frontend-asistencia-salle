@@ -1,18 +1,21 @@
+
 "use client"
 
 import * as React from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { 
   ArrowLeft, Play, Users, Trophy, Gamepad2, Sparkles, 
-  Loader2, Save, Zap, AlertCircle, CloudUpload
+  Loader2, Save, Zap, AlertCircle, CloudUpload, Radio
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { QuestionEditor } from "@/components/quiz/QuestionEditor"
 import { toast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
 import { generateQuiz } from "@/ai/flows/generate-quiz-flow"
+import { useMutation, useQuery } from "convex/react"
+import { api as convexApi } from "@/../convex/_generated/api"
 
 export default function InstructorQuizPage() {
   const params = useParams()
@@ -22,17 +25,18 @@ export default function InstructorQuizPage() {
 
   const [loadingConfig, setLoadingConfig] = React.useState(true)
   const [isGenerating, setIsGenerating] = React.useState(false)
-  const [isSyncing, setIsSyncing] = React.useState(false)
-  
   const [config, setConfig] = React.useState<any>(null)
   const [questions, setQuestions] = React.useState<any[]>([])
+  const [roomCode, setRoomCode] = React.useState<string | null>(null)
+
+  // Convex Mutations
+  const createRoom = useMutation(convexApi.rooms.createRoom)
+  const room = useQuery(convexApi.rooms.getRoom, roomCode ? { roomCode } : "skip")
 
   React.useEffect(() => {
     const fetchConfig = async () => {
       try {
-        // Carga configuraciones desde FastAPI
         const data = await api.get<any[]>(`/evaluaciones/config/${params.id}/${periodoId}`)
-        // Buscamos la evaluación que tiene criterios definidos
         const quizConfig = data.find((c: any) => c.configuracion_json?.criteria)
         if (quizConfig) {
           setConfig({
@@ -61,7 +65,7 @@ export default function InstructorQuizPage() {
         subjectName: config.nombre
       })
       setQuestions(result.questions)
-      toast({ title: "Quizz Generado", description: "Preguntas creadas con éxito basándose en tus criterios SQL." })
+      toast({ title: "Quizz Generado", description: "Preguntas creadas con éxito." })
     } catch (e: any) {
       toast({ variant: "destructive", title: "Error de IA", description: e.message })
     } finally {
@@ -69,17 +73,28 @@ export default function InstructorQuizPage() {
     }
   }
 
-  const handleSyncGrades = async () => {
-    // Aquí el docente subiría un Excel o ingresaría notas de una app externa
-    // o el backend gestionaría el socket. Por ahora, preparamos la conexión SQL.
-    toast({ title: "Modo SQL Activo", description: "La gamificación se sincronizará vía FastAPI." })
+  const handleLaunchRoom = async () => {
+    if (questions.length === 0) return
+    try {
+      const code = Math.floor(100000 + Math.random() * 900000).toString()
+      await createRoom({
+        roomCode: code,
+        questions,
+        configId: config.id,
+        unidadId: params.id as string
+      })
+      setRoomCode(code)
+      toast({ title: "Sala Abierta", description: `PIN de acceso: ${code}` })
+    } catch (e) {
+      toast({ variant: "destructive", title: "Error", description: "No se pudo crear la sala en tiempo real." })
+    }
   }
 
   if (loadingConfig) {
     return (
       <div className="h-screen flex flex-col items-center justify-center gap-4">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        <p className="font-black uppercase text-xs tracking-widest text-slate-400">Sincronizando con FastAPI...</p>
+        <p className="font-black uppercase text-xs tracking-widest text-slate-400">Cargando...</p>
       </div>
     )
   }
@@ -97,32 +112,65 @@ export default function InstructorQuizPage() {
             </div>
             <div>
               <h2 className="text-4xl font-headline font-black tracking-tight text-slate-900 uppercase italic">Gamificación</h2>
-              <p className="text-slate-500 font-medium italic">Evaluaciones Interactivas vía FastAPI</p>
+              <p className="text-slate-500 font-medium italic">Evaluaciones Interactivas con Convex</p>
             </div>
           </div>
         </div>
 
         <div className="flex gap-3">
-          <Button onClick={handleAiGenerate} disabled={isGenerating} variant="outline" className="h-16 px-8 border-2 border-accent text-accent hover:bg-accent hover:text-white rounded-2xl font-black uppercase text-xs tracking-widest gap-3">
-            {isGenerating ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />} Auto-Generar con IA
-          </Button>
-          <Button onClick={handleSyncGrades} disabled={questions.length === 0} className="h-16 px-10 bg-primary hover:bg-primary/90 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-primary/20 gap-3">
-            <CloudUpload className="h-5 w-5" /> Sincronizar Notas
-          </Button>
+          {!roomCode ? (
+            <>
+              <Button onClick={handleAiGenerate} disabled={isGenerating} variant="outline" className="h-16 px-8 border-2 border-accent text-accent hover:bg-accent hover:text-white rounded-2xl font-black uppercase text-xs tracking-widest gap-3">
+                {isGenerating ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />} Auto-Generar con IA
+              </Button>
+              <Button onClick={handleLaunchRoom} disabled={questions.length === 0} className="h-16 px-10 bg-primary hover:bg-primary/90 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-primary/20 gap-3">
+                <Radio className="h-5 w-5" /> Abrir Sala Live
+              </Button>
+            </>
+          ) : (
+            <div className="flex items-center gap-4 bg-slate-900 px-8 py-4 rounded-2xl text-white">
+              <div className="flex flex-col">
+                <span className="text-[10px] font-black uppercase text-blue-300">Sala Activa PIN</span>
+                <span className="text-3xl font-black font-mono tracking-widest">{roomCode}</span>
+              </div>
+              <Button variant="outline" className="text-white border-white/20 h-12" onClick={() => setRoomCode(null)}>Cerrar</Button>
+            </div>
+          )}
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
         <div className="lg:col-span-2">
-          <QuestionEditor questions={questions} onUpdate={setQuestions} />
+          {roomCode ? (
+            <Card className="p-10 border-none shadow-2xl bg-white rounded-[3rem]">
+              <div className="flex items-center justify-between mb-8">
+                <h3 className="text-2xl font-black uppercase tracking-tighter italic">Monitor de Participantes</h3>
+                <Badge className="bg-emerald-100 text-emerald-700 h-8 px-4 font-black">EN VIVO</Badge>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {room?.participants?.map((p: any, i: number) => (
+                  <div key={i} className="p-4 bg-slate-50 rounded-2xl border-2 border-slate-100 flex flex-col items-center gap-2">
+                     <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-black">{p.name[0]}</div>
+                     <span className="text-xs font-black uppercase text-slate-700 truncate w-full text-center">{p.name}</span>
+                  </div>
+                ))}
+                {(!room?.participants || room.participants.length === 0) && (
+                  <div className="col-span-full py-20 text-center text-slate-300 uppercase font-black text-xs tracking-[0.2em]">Esperando a los alumnos...</div>
+                )}
+              </div>
+            </Card>
+          ) : (
+            <QuestionEditor questions={questions} onUpdate={setQuestions} />
+          )}
         </div>
+        
         <div className="space-y-6">
           <Card className="p-8 border-none shadow-xl bg-slate-900 text-white rounded-[2.5rem]">
-            <h4 className="text-lg font-black uppercase tracking-tighter mb-4 flex items-center gap-2"><Zap className="text-yellow-400 h-5 w-5" /> Datos del Backend</h4>
+            <h4 className="text-lg font-black uppercase tracking-tighter mb-4 flex items-center gap-2"><Zap className="text-yellow-400 h-5 w-5" /> Configuración SQL</h4>
             {!config ? (
               <div className="p-6 bg-red-500/10 rounded-2xl border border-red-500/20 flex gap-3 text-red-200">
                 <AlertCircle className="h-5 w-5 shrink-0" />
-                <p className="text-[10px] font-bold uppercase leading-relaxed">No se encontraron criterios registrados en la base de datos SQL para esta unidad.</p>
+                <p className="text-[10px] font-bold uppercase leading-relaxed">No se encontraron criterios registrados para esta unidad.</p>
               </div>
             ) : (
               <div className="space-y-4">
