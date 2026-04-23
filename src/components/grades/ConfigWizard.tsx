@@ -125,7 +125,7 @@ export function ConfigWizard({
         setEditorCriteria(analysis.checklistCriteria.map((c: any) => ({ id: Math.random().toString(), description: c.description })))
       }
       
-      setSetupStep(setupStep + 1) 
+      setSetupStep(3) // Saltar al diseño para revisar lo escaneado
     } catch (err: any) {
       console.error(err)
     } finally {
@@ -137,19 +137,34 @@ export function ConfigWizard({
   const handleFinish = async () => {
     const evalId = `eval-${Date.now()}`
     const evalRef = doc(firestore, 'evaluaciones_config', evalId)
+    
+    // Preparamos el objeto a guardar
     const configData = {
-      id: evalId, unidad_id: unidadId, periodo_id: periodoId, nombre: newColName,
-      tipo_instrumento: newInstType, estrategia: newStrategyType, criterios: editorCriteria,
-      indicador_codigo: newIndicatorCode, indicador_peso: newIndicatorWeight,
-      instrumento_peso: newInstrumentWeight, max_puntos: newMaxPoints, creado_el: serverTimestamp()
+      id: evalId,
+      unidad_id: unidadId,
+      periodo_id: periodoId,
+      nombre: newColName,
+      tipo_instrumento: newInstType,
+      estrategia: newStrategyType,
+      criterios: editorCriteria, // AQUÍ SE GUARDAN LOS CRITERIOS ESCANEADOS O EDITADOS
+      indicador_codigo: newIndicatorCode,
+      indicador_peso: newIndicatorWeight,
+      instrumento_peso: newInstrumentWeight,
+      max_puntos: newMaxPoints,
+      creado_el: serverTimestamp()
     }
     
+    // Persistencia en Firebase Firestore (No bloqueante)
     setDoc(evalRef, configData).catch(async () => {
-      const error = new FirestorePermissionError({ path: evalRef.path, operation: 'create', requestResourceData: configData });
+      const error = new FirestorePermissionError({ 
+        path: evalRef.path, 
+        operation: 'create', 
+        requestResourceData: configData 
+      });
       errorEmitter.emit('permission-error', error);
     });
     
-    addColumn()
+    addColumn() // Actualiza el estado local en la tabla
   }
 
   const handleNext = () => {
@@ -224,19 +239,19 @@ export function ConfigWizard({
                       </div>
                       <div className="space-y-2">
                         <Label className="font-black text-slate-400 text-[10px] uppercase tracking-[0.2em] ml-1">Descripción del Indicador</Label>
-                        <Textarea value={newIndicatorDescription} onChange={e => setNewIndicatorDescription(e.target.value)} placeholder="Logro esperado..." className="h-28 border-none shadow-inner rounded-2xl bg-white resize-none" />
+                        <Textarea value={newIndicatorDescription} onChange={e => setNewIndicatorDescription(e.target.value)} placeholder="Logro esperado..." className="h-24 border-none shadow-inner rounded-2xl bg-white resize-none" />
                       </div>
                     </div>
                   </div>
                   <div className="space-y-6">
                     <div className="flex items-center gap-4"><div className="w-12 h-12 rounded-2xl bg-primary/5 flex items-center justify-center text-primary"><History className="h-6 w-6" /></div><h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Biblioteca</h4></div>
-                    <div className="bg-white rounded-[2rem] border-2 border-dashed border-slate-200 p-6 min-h-[300px]">
+                    <div className="bg-white rounded-[2rem] border-2 border-dashed border-slate-200 p-6 min-h-[250px]">
                       {existingIndicators.length > 0 ? existingIndicators.map((ind: any, i: number) => (
                         <button key={i} className="flex flex-col items-start p-4 rounded-2xl border-2 border-slate-50 hover:border-primary/30 hover:bg-primary/5 mb-3 w-full text-left transition-all" onClick={() => { setNewIndicatorCode(ind.code); setNewIndicatorDescription(ind.desc); setNewIndicatorWeight(ind.weight); }}>
                           <div className="flex justify-between w-full font-black text-sm text-primary mb-1"><span>{ind.code}</span><Badge variant="outline" className="text-[10px]">{ind.weight}%</Badge></div>
                           <p className="text-[11px] text-slate-500 line-clamp-2">{ind.desc}</p>
                         </button>
-                      )) : <p className="text-center text-slate-400 font-bold uppercase text-[10px] py-24">No hay indicadores previos</p>}
+                      )) : <p className="text-center text-slate-400 font-bold uppercase text-[10px] py-20">No hay indicadores previos</p>}
                     </div>
                   </div>
                 </div>
@@ -269,20 +284,17 @@ export function ConfigWizard({
                         {[
                           { id: 'individual', label: 'Evaluación Individual', icon: User, desc: 'Calificación personalizada.' },
                           { id: 'grupal', label: 'Evaluación Grupal', icon: Users, desc: 'Trabajo en equipo.' },
-                          { id: 'quizz', label: 'Gamificación', icon: Gamepad2, desc: 'Interactiva en vivo.', beta: true }
+                          { id: 'quizz', label: 'Gamificación', icon: Gamepad2, desc: 'Interactiva en vivo.' }
                         ].map((s) => (
                           <Button 
                             key={s.id} 
                             variant="outline" 
-                            disabled={s.beta}
                             className={cn(
                               "h-auto p-6 flex-col gap-3 rounded-[2rem] border-2 text-left items-start transition-all relative overflow-hidden w-full max-w-[280px]", 
-                              newStrategyType === s.id ? 'border-primary bg-primary/5 ring-2 ring-primary/20' : 'hover:border-slate-200',
-                              s.beta && "opacity-60 grayscale bg-slate-50 cursor-not-allowed"
+                              newStrategyType === s.id ? 'border-primary bg-primary/5 ring-2 ring-primary/20' : 'hover:border-slate-200'
                             )} 
-                            onClick={() => !s.beta && setNewStrategyType(s.id as any)}
+                            onClick={() => setNewStrategyType(s.id as any)}
                           >
-                            {s.beta && <div className="absolute top-2 right-2 bg-amber-500 text-white text-[8px] font-black px-2 py-0.5 rounded-full flex items-center gap-1"><Lock className="h-2 w-2" /> BETA</div>}
                             <div className="flex justify-between items-center w-full">
                               <s.icon className={`h-8 w-8 ${newStrategyType === s.id ? 'text-primary' : 'text-slate-300'}`} />
                               {newStrategyType === s.id && <CheckCircle2 className="h-5 w-5 text-primary" />}
