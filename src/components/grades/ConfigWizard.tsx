@@ -91,7 +91,7 @@ export function ConfigWizard({
 }: ConfigWizardProps) {
   
   const handleNext = () => {
-    // Lógica inteligente para Nota Directa: si es manual, la estrategia es siempre individual
+    // Lógica inteligente para Nota Directa: si es manual, salta estrategia y va a detalles
     if (setupStep === 1 && newInstType === 'manual') {
       setNewStrategyType('individual');
       setSetupStep(2);
@@ -209,7 +209,7 @@ export function ConfigWizard({
                         { id: 'escala', label: 'Escala Valorativa', icon: Star },
                         { id: 'guia', label: 'Guía Observación', icon: Quote }
                       ].map((t) => (
-                        <Button key={t.id} variant="outline" className={cn("h-auto py-6 md:py-8 flex-col gap-3 md:gap-4 rounded-2xl md:rounded-3xl border-2 transition-all", newInstType === t.id ? 'border-primary bg-primary/5 shadow-lg' : 'hover:border-slate-200')} onClick={() => setNewInstType(t.id as any)}>
+                        <Button key={t.id} variant="outline" className={cn("h-auto py-6 md:py-8 flex-col gap-3 md:gap-4 rounded-2xl md:rounded-3xl border-2 transition-all", newInstType === t.id ? 'border-primary bg-primary/5 shadow-lg' : 'hover:border-slate-200')} onClick={() => { setNewInstType(t.id as any); if(t.id === 'manual') setNewStrategyType('individual'); }}>
                           <t.icon className={`h-6 w-6 md:h-8 md:w-8 ${newInstType === t.id ? 'text-primary' : 'text-slate-300'}`} />
                           <span className="font-black text-[9px] md:text-[10px] uppercase tracking-tighter text-center">{t.label}</span>
                         </Button>
@@ -240,7 +240,7 @@ export function ConfigWizard({
                           >
                             {s.beta && (
                               <div className="absolute top-2 right-2 bg-amber-500 text-white text-[8px] font-black px-2 py-0.5 rounded-full flex items-center gap-1">
-                                <Lock className="h-2 w-2" /> PRÓXIMAMENTE
+                                <Lock className="h-2 w-2" /> BETA
                               </div>
                             )}
                             <div className="flex justify-between items-center w-full">
