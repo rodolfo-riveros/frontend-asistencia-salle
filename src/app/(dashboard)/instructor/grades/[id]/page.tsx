@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -181,26 +182,12 @@ export default function AcademicGradebookPage() {
     overrideComment?: string
   ) => {
     const column = columns.find(c => c.id === columnId)
-    const max = column?.maxPoints || 20
+    if (!column) return
+    const max = column.maxPoints || 20
     
-    // Si el valor es vacío, limpiamos el estado local
-    if (value === "") {
-       setGrades(prev => {
-         const next = { ...prev };
-         if (next[studentId]) {
-           const studentGrades = { ...next[studentId] };
-           delete studentGrades[columnId];
-           next[studentId] = studentGrades;
-         }
-         return next;
-       });
-       return;
-    }
-
-    const numValue = Math.min(max, Math.max(0, parseFloat(value) || 0))
-    
+    // Identificar IDs objetivo (el alumno actual + compañeros de grupo si aplica)
     const targetStudentIds = [studentId];
-    if (column?.strategy === 'grupal' && column.groups) {
+    if (column.strategy === 'grupal' && column.groups) {
       const groupName = column.groups[studentId];
       if (groupName) {
         Object.entries(column.groups).forEach(([id, name]) => {
@@ -211,6 +198,28 @@ export default function AcademicGradebookPage() {
       }
     }
 
+    // Caso: Limpieza de nota (input vacío)
+    if (value === "") {
+       setGrades(prev => {
+         const next = { ...prev };
+         targetStudentIds.forEach(id => {
+           if (next[id]) {
+             const studentGrades = { ...next[id] };
+             delete studentGrades[columnId];
+             next[id] = studentGrades;
+           }
+         });
+         return next;
+       });
+       // En limpieza no enviamos nada al backend o enviamos puntaje 0 si el backend lo requiere.
+       // Por ahora evitamos la llamada si es limpieza manual.
+       return;
+    }
+
+    const numValue = Math.min(max, Math.max(0, parseFloat(value)));
+    if (isNaN(numValue)) return;
+    
+    // Actualizar estados locales para todo el grupo
     setGrades(prev => {
       const next = { ...prev };
       targetStudentIds.forEach(id => {
@@ -239,6 +248,7 @@ export default function AcademicGradebookPage() {
       });
     }
 
+    // El backend se encarga de la replicación masiva, solo llamamos una vez
     try {
       await api.post('/evaluaciones/calificar/', {
         evaluacion_id: columnId,
@@ -365,7 +375,7 @@ export default function AcademicGradebookPage() {
                                       type="number" 
                                       placeholder="-"
                                       className={cn(
-                                        "w-11 md:w-12 h-8 md:h-9 text-center font-bold text-sm md:text-base border-none shadow-inner rounded-lg p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none", 
+                                        "w-11 md:w-12 h-8 md:h-9 text-center font-bold text-xs md:text-sm border-none shadow-inner rounded-lg p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none", 
                                         (gradeValue !== undefined && gradeValue < 13) ? 'text-red-600 bg-red-50' : 'text-emerald-700 bg-emerald-50',
                                         gradeValue === undefined && 'bg-slate-50 text-slate-300'
                                       )} 
@@ -373,9 +383,16 @@ export default function AcademicGradebookPage() {
                                       onChange={e => handleGradeChange(s.id, c.id, e.target.value)} 
                                     />
                                     {(c.type !== 'manual' && c.type !== 'quizz') && (
-                                      <Button size="icon" variant="ghost" className="h-7 w-7 md:h-8 md:w-8 rounded-lg hover:bg-primary/10 text-primary border-2 border-primary/5 shrink-0" onClick={() => { setActiveEval({ student: s, column: c }); setEvalData(evalDetails[s.id]?.[c.id] || {}); setEvalComment(comments[s.id]?.[c.id] || ""); }}>
+                                      <button 
+                                        className="h-7 w-7 md:h-8 md:w-8 rounded-lg hover:bg-primary/10 text-primary border-2 border-primary/5 shrink-0 flex items-center justify-center transition-colors" 
+                                        onClick={() => { 
+                                          setActiveEval({ student: s, column: c }); 
+                                          setEvalData(evalDetails[s.id]?.[c.id] || {}); 
+                                          setEvalComment(comments[s.id]?.[c.id] || ""); 
+                                        }}
+                                      >
                                         <Target className="h-3.5 w-3.5" />
-                                      </Button>
+                                      </button>
                                     )}
                                   </div>
                                 </TableCell>
