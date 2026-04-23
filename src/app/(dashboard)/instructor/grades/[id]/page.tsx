@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -113,20 +114,18 @@ export default function AcademicGradebookPage() {
       const studentData = await api.get<any[]>(`/me/unidades/${params.id}/alumnos`)
       setStudents(studentData)
 
-      try {
-        const configData = await api.get<any>(`/evaluaciones/config/${params.id}/${periodoId}`)
-        if (configData && configData.columns) {
-          setColumns(configData.columns)
-          setInstruments(configData.instruments)
-          setGrades(configData.grades || {})
-          setEvalDetails(configData.details || {})
-          setComments(configData.comments || {})
-        }
-      } catch (e) {
-        console.log("Iniciando registro en blanco.")
+      // Carga completa desde el nuevo endpoint de FastAPI
+      const configData = await api.get<any>(`/evaluaciones/config/${params.id}/${periodoId}`)
+      if (configData) {
+        if (configData.columns) setColumns(configData.columns)
+        if (configData.instruments) setInstruments(configData.instruments)
+        if (configData.grades) setGrades(configData.grades)
+        if (configData.details) setEvalDetails(configData.details)
+        if (configData.comments) setComments(configData.comments)
       }
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Error", description: "No se pudieron cargar los datos." })
+      console.error("Error al cargar datos:", err)
+      toast({ variant: "destructive", title: "Estado Inicial", description: "No se encontraron configuraciones previas." })
     } finally {
       setIsLoading(false)
     }
@@ -167,29 +166,7 @@ export default function AcademicGradebookPage() {
   }
 
   const addColumn = () => {
-    if ((newInstType === 'cotejo' || newInstType === 'guia') && totalPointsStep !== 20) {
-      toast({ variant: "destructive", title: "Atención", description: "La suma debe ser 20." })
-      return
-    }
-    const colId = `col-${Date.now()}`
-    const instId = `inst-${Date.now()}`
-    const existingInd = existingIndicators.find(ind => ind.code === newIndicatorCode)
-    const newInstrument: Instrument = {
-      id: instId, name: newColName, type: newInstType, criteria: editorCriteria,
-      scaleLevels: newInstType === 'escala' ? editorScaleLevels : undefined,
-      maxPoints: newInstType === 'manual' ? newMaxPoints : 20
-    }
-    const newColumn: Column = {
-      id: colId, name: newColName, indicatorId: existingInd?.id, indicatorCode: newIndicatorCode,
-      indicatorDescription: newIndicatorDescription, indicatorWeight: newIndicatorWeight,
-      instrumentWeight: newInstrumentWeight, type: newInstType, strategy: newStrategyType,
-      instrumentId: instId, maxPoints: newInstType === 'manual' ? newMaxPoints : 20,
-      groups: newStrategyType === 'grupal' ? studentGroups : undefined
-    }
-    setInstruments(prev => ({ ...prev, [instId]: newInstrument }))
-    setColumns(prev => [...prev, newColumn])
-    setIsNewColOpen(false)
-    resetEditor()
+    fetchFullGradebook() // Recargar todo desde el backend después de una nueva configuración
   }
 
   const resetEditor = () => {
@@ -198,26 +175,29 @@ export default function AcademicGradebookPage() {
     setNewMaxPoints(20); setEditorCriteria([]); setStudentGroups({})
   }
 
-  const handleGradeChange = (studentId: string, columnId: string, value: string) => {
+  const handleGradeChange = async (studentId: string, columnId: string, value: string) => {
     const column = columns.find(c => c.id === columnId)
     const max = column?.maxPoints || 20
-    const numValue = Math.min(max, Math.max(0, parseInt(value) || 0))
-    setGrades(prev => {
-      const next = { ...prev }
-      if (!next[studentId]) next[studentId] = {}
-      if (column?.strategy === 'grupal' && column.groups?.[studentId]) {
-        const studentGroup = column.groups[studentId]
-        students.forEach(s => {
-          if (column.groups?.[s.id] === studentGroup) {
-            if (!next[s.id]) next[s.id] = {}
-            next[s.id][columnId] = numValue
-          }
-        })
-      } else {
-        next[studentId][columnId] = numValue
-      }
-      return next
-    })
+    const numValue = Math.min(max, Math.max(0, parseFloat(value) || 0))
+    
+    // Actualización optimista en UI
+    setGrades(prev => ({
+      ...prev,
+      [studentId]: { ...(prev[studentId] || {}), [columnId]: numValue }
+    }))
+
+    // Persistencia en FastAPI
+    try {
+      await api.post('/evaluaciones/calificar/', {
+        evaluacion_id: columnId,
+        alumno_id: studentId,
+        puntaje: numValue,
+        observacion: comments[studentId]?.[columnId] || "",
+        detalles_json: evalDetails[studentId]?.[columnId] || null
+      })
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Error al calificar", description: "No se pudo guardar la nota en el servidor." })
+    }
   }
 
   const calculateFinal = (studentId: string) => {

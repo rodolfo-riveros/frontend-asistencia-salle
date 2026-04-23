@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -10,11 +11,12 @@ import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { MessageSquare } from "lucide-react"
+import { MessageSquare, Loader2 } from "lucide-react"
 import { ChecklistEvaluator } from "./ChecklistEvaluator"
 import { RubricEvaluator } from "./RubricEvaluator"
 import { ScaleEvaluator } from "./ScaleEvaluator"
 import { GuideEvaluator } from "./GuideEvaluator"
+import { toast } from "@/hooks/use-toast"
 
 interface EvaluationModalProps {
   activeEval: any
@@ -48,6 +50,8 @@ export function EvaluationModal({
   instruments, handleGradeChange, setEvalDetails, setComments 
 }: EvaluationModalProps) {
   
+  const [isApplying, setIsApplying] = React.useState(false)
+
   if (!activeEval) return null;
   const column = activeEval.column;
   const student = activeEval.student;
@@ -56,7 +60,8 @@ export function EvaluationModal({
   const calculateScore = () => {
     if (!instrument) return 0;
     if (column.type === 'cotejo' || column.type === 'guia') {
-      return Math.round(Object.entries(evalData).reduce((acc, [idx, val]) => val === true ? acc + (instrument.criteria[parseInt(idx)].points || (20/instrument.criteria.length)) : acc, 0));
+      const criteria = instrument.criteria || [];
+      return Math.round(Object.entries(evalData).reduce((acc, [idx, val]) => val === true ? acc + (criteria[parseInt(idx)]?.points || (20/(criteria.length || 1))) : acc, 0));
     }
     if (column.type === 'escala') {
       if (!instrument.scaleLevels) return 0;
@@ -68,12 +73,24 @@ export function EvaluationModal({
     return Object.values(evalData).reduce((acc, v) => acc + (v as number), 0);
   };
 
-  const handleApply = () => {
+  const handleApply = async () => {
+    setIsApplying(true);
     const score = calculateScore();
-    handleGradeChange(student.id, column.id, score.toString());
-    setEvalDetails((prev: any) => ({ ...prev, [student.id]: { ...prev[student.id], [column.id]: evalData } }));
-    if (evalComment) setComments((prev: any) => ({ ...prev, [student.id]: { ...prev[student.id], [column.id]: evalComment } }));
-    onClose();
+    
+    try {
+      // Sincronización con FastAPI vía handleGradeChange que ya invoca al API
+      await handleGradeChange(student.id, column.id, score.toString());
+      
+      setEvalDetails((prev: any) => ({ ...prev, [student.id]: { ...prev[student.id], [column.id]: evalData } }));
+      if (evalComment) setComments((prev: any) => ({ ...prev, [student.id]: { ...prev[student.id], [column.id]: evalComment } }));
+      
+      toast({ title: "Nota Aplicada", description: `Se ha registrado ${score} para ${student.nombre}.` });
+      onClose();
+    } catch (e) {
+      toast({ variant: "destructive", title: "Error", description: "No se pudo guardar la calificación." });
+    } finally {
+      setIsApplying(false);
+    }
   };
 
   return (
@@ -123,7 +140,10 @@ export function EvaluationModal({
         
         <div className="p-4 md:p-10 bg-white border-t flex flex-row justify-end gap-3 md:gap-4 shrink-0">
           <Button variant="ghost" className="flex-1 sm:flex-none font-black text-slate-400 uppercase text-[10px] md:text-xs px-4 md:px-12 h-12 md:h-16 rounded-xl md:rounded-2xl border-2 hover:bg-slate-50" onClick={onClose}>Descartar</Button>
-          <Button className="flex-1 sm:flex-none bg-primary font-black uppercase text-[10px] md:text-xs px-4 md:px-12 h-12 md:h-16 rounded-xl md:rounded-2xl shadow-xl text-white" onClick={handleApply}>Aplicar Nota</Button>
+          <Button disabled={isApplying} className="flex-1 sm:flex-none bg-primary font-black uppercase text-[10px] md:text-xs px-4 md:px-12 h-12 md:h-16 rounded-xl md:rounded-2xl shadow-xl text-white" onClick={handleApply}>
+            {isApplying ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+            Aplicar Nota
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

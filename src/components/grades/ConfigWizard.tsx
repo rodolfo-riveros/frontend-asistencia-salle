@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -95,47 +96,77 @@ export function ConfigWizard({
 }: ConfigWizardProps) {
   
   const [isFinishing, setIsFinishing] = React.useState(false)
+  const [evalIdCreated, setEvalIdCreated] = React.useState<string | null>(null)
 
   const handleFinish = async () => {
     setIsFinishing(true)
     
     const payload = {
-      indicador: {
-        unidad_id: unidadId,
-        periodo_id: periodoId,
-        codigo: newIndicatorCode,
-        descripcion: newIndicatorDescription,
-        peso_porcentaje: newIndicatorWeight
-      },
-      evaluacion: {
-        nombre: newColName,
-        tipo: newInstType,
-        peso_instrumento: newInstrumentWeight,
-        puntaje_maximo: newMaxPoints,
-        periodo_id: periodoId,
-        configuracion_json: {
-          criteria: editorCriteria,
-          strategy: newStrategyType
-        }
-      },
-      grupos: newStrategyType === 'grupal' ? studentGroups : null
+      unidad_id: unidadId,
+      periodo_id: periodoId,
+      indicador_codigo: newIndicatorCode,
+      indicador_desc: newIndicatorDescription,
+      indicador_peso: newIndicatorWeight,
+      nombre: newColName,
+      tipo: newInstType,
+      peso_instrumento: newInstrumentWeight,
+      puntaje_maximo: newMaxPoints,
+      configuracion_json: {
+        criteria: editorCriteria,
+        strategy: newStrategyType
+      }
     }
 
     try {
-      // Envío exclusivo a FastAPI
-      await api.post('/evaluaciones/config/', payload);
-      toast({ title: "Registro Exitoso", description: "Configuración guardada en la base de datos SQL." });
+      // Envío Paso 1+2+3 según imagen
+      const response = await api.post<any>('/evaluaciones/config/', payload);
+      const evalId = response.id;
+      setEvalIdCreated(evalId);
+      
+      toast({ title: "Evaluación Registrada", description: "Configuración guardada exitosamente." });
+      
+      if (newStrategyType === 'grupal') {
+        setSetupStep(4);
+      } else {
+        addColumn();
+        setIsOpen(false);
+        resetEditor();
+      }
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Error", description: err.message || "No se pudo sincronizar con el servidor." });
+    } finally {
+      setIsFinishing(false)
+    }
+  }
+
+  const handleSaveGroups = async () => {
+    if (!evalIdCreated) return;
+    setIsFinishing(true);
+
+    const groupsMap: Record<string, string[]> = {};
+    Object.entries(studentGroups).forEach(([studentId, groupName]) => {
+      if (!groupsMap[groupName]) groupsMap[groupName] = [];
+      groupsMap[groupName].push(studentId);
+    });
+
+    const payload = {
+      evaluacion_id: evalIdCreated,
+      grupos: Object.entries(groupsMap).map(([name, ids]) => ({
+        nombre_group: name,
+        integrantes: ids
+      }))
+    };
+
+    try {
+      await api.post('/evaluaciones/grupos/', payload);
+      toast({ title: "Equipos Guardados", description: "La conformación de grupos ha sido registrada." });
       addColumn();
       setIsOpen(false);
       resetEditor();
-    } catch (err: any) {
-      toast({ 
-        variant: "destructive", 
-        title: "Error de Guardado", 
-        description: "No se pudo sincronizar con FastAPI." 
-      });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Error de Grupos", description: "No se pudieron guardar los equipos." });
     } finally {
-      setIsFinishing(false)
+      setIsFinishing(false);
     }
   }
 
@@ -146,13 +177,11 @@ export function ConfigWizard({
       return;
     }
     if (setupStep === 2) {
-      if (newInstType === 'manual') handleFinish();
-      else setSetupStep(3);
-    } else if (setupStep === 3) {
-      if (newStrategyType === 'grupal') setSetupStep(4);
-      else handleFinish();
-    } else if (setupStep === 4) {
       handleFinish();
+    } else if (setupStep === 3) {
+      handleFinish();
+    } else if (setupStep === 4) {
+      handleSaveGroups();
     } else {
       setSetupStep(setupStep + 1);
     }
