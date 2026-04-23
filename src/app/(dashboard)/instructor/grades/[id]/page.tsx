@@ -1,9 +1,8 @@
-
 "use client"
 
 import * as React from "react"
-import { useParams, useRouter, useSearchParams } from "next/navigation"
-import { Target, FileText, LayoutList, Star, Quote, Play } from "lucide-react"
+import { useParams, useSearchParams } from "next/navigation"
+import { Target, FileText, LayoutList, Star, Quote } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -16,7 +15,7 @@ import { getInitials, cn } from "@/lib/utils"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import { analyzeInstrument } from "@/ai/flows/analyze-instrument-flow"
 
-// Componentes Modulares
+// Modular Components
 import { GradebookHeader } from "@/components/grades/GradebookHeader"
 import { GradebookToolbar } from "@/components/grades/GradebookToolbar"
 import { ConfigWizard } from "@/components/grades/ConfigWizard"

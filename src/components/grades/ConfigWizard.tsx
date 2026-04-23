@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -28,7 +27,6 @@ import {
   CheckCircle2, 
   Sparkles, 
   Loader2,
-  ClipboardCheck,
   Lock
 } from "lucide-react"
 import { cn } from "@/lib/utils"
