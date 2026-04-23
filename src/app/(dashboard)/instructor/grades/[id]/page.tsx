@@ -104,7 +104,6 @@ export default function AcademicGradebookPage() {
         setIndicators(configData.indicadores || []);
 
         const mappedCols: Column[] = configData.evaluaciones.map((ev: any) => {
-          // Construir mapa de grupos para esta evaluación específica
           const groupMap: Record<string, string> = {};
           const evalGroups = configData.grupos?.filter((g: any) => g.evaluacion_id === ev.id) || [];
           evalGroups.forEach((g: any) => {
@@ -117,18 +116,23 @@ export default function AcademicGradebookPage() {
             id: ev.id,
             name: ev.nombre,
             indicatorId: ev.indicador_id,
-            indicatorCode: ev.indicador_codigo,
-            indicatorDescription: ev.indicador_desc,
-            indicatorWeight: ev.indicador_peso,
-            instrumentWeight: ev.peso_instrumento,
+            indicatorCode: ev.indicador_codigo || "N/A",
+            indicatorDescription: ev.indicador_desc || "",
+            indicatorWeight: ev.indicador_peso || 0,
+            instrumentWeight: ev.peso_instrumento || 0,
             type: ev.tipo as InstrumentType,
             strategy: ev.configuracion_json?.strategy || 'individual',
             instrumentId: ev.id,
-            maxPoints: ev.puntaje_maximo,
+            maxPoints: ev.puntaje_maximo || 20,
             groups: groupMap
           };
         });
-        setColumns(mappedCols);
+
+        // ORDENAMIENTO POR CÓDIGO DE INDICADOR (C1, C2, etc)
+        const sortedCols = [...mappedCols].sort((a, b) => 
+          a.indicatorCode.localeCompare(b.indicatorCode, undefined, { numeric: true, sensitivity: 'base' })
+        );
+        setColumns(sortedCols);
 
         const instMap: Record<string, any> = {};
         configData.evaluaciones.forEach((ev: any) => {
@@ -180,14 +184,23 @@ export default function AcademicGradebookPage() {
   ) => {
     const column = columns.find(c => c.id === columnId)
     const max = column?.maxPoints || 20
+    
+    // Si el valor es vacío, no procesamos como número aún, solo limpiamos el estado local
+    if (value === "") {
+       setGrades(prev => {
+         const next = { ...prev };
+         if (next[studentId]) delete next[studentId][columnId];
+         return next;
+       });
+       return;
+    }
+
     const numValue = Math.min(max, Math.max(0, parseFloat(value) || 0))
     
-    // Identificar a quiénes afectar (si es grupal, a todo el equipo)
     const targetStudentIds = [studentId];
     if (column?.strategy === 'grupal' && column.groups) {
       const groupName = column.groups[studentId];
       if (groupName) {
-        // Encontrar a todos los que tengan el mismo nombre de grupo en esta columna
         Object.entries(column.groups).forEach(([id, name]) => {
           if (name === groupName && id !== studentId) {
             targetStudentIds.push(id);
@@ -196,7 +209,6 @@ export default function AcademicGradebookPage() {
       }
     }
 
-    // Actualización reactiva del estado local para todos los afectados
     setGrades(prev => {
       const next = { ...prev };
       targetStudentIds.forEach(id => {
@@ -253,10 +265,12 @@ export default function AcademicGradebookPage() {
       let weightedSum = 0
       let weightFactor = 0
       cols.forEach(c => {
-        const rawScore = studentGrades[c.id] || 0
-        const normalized = (rawScore / c.maxPoints) * 20
-        weightedSum += normalized * (c.instrumentWeight / 100)
-        weightFactor += (c.instrumentWeight / 100)
+        const rawScore = studentGrades[c.id]
+        if (rawScore !== undefined) {
+          const normalized = (rawScore / c.maxPoints) * 20
+          weightedSum += normalized * (c.instrumentWeight / 100)
+          weightFactor += (c.instrumentWeight / 100)
+        }
       })
       const indicatorAvg = weightFactor > 0 ? weightedSum / weightFactor : 0
       finalSum += indicatorAvg * (weight / 100)
@@ -311,13 +325,13 @@ export default function AcademicGradebookPage() {
                         Alumno
                       </TableHead>
                       {columns.map(c => (
-                        <TableHead key={c.id} className="text-center font-black text-[10px] uppercase text-slate-400 tracking-widest px-4 md:px-6 border-l min-w-[150px] md:min-w-[180px]">
+                        <TableHead key={c.id} className="text-center font-black text-[10px] uppercase text-slate-400 tracking-widest px-4 md:px-6 border-l min-w-[120px] md:min-w-[140px]">
                           <div className="flex flex-col items-center gap-1">
                             <div className="flex items-center gap-1">
                               <div className="text-primary/60">{getInstrumentIcon(c.type)}</div>
                               <Badge variant="outline" className="border-primary/20 text-primary text-[8px] font-black">{c.indicatorCode}</Badge>
                             </div>
-                            <span className="text-slate-900 truncate w-32 md:w-36 font-extrabold">{c.name}</span>
+                            <span className="text-slate-900 truncate w-24 md:w-32 font-extrabold text-[11px]">{c.name}</span>
                           </div>
                         </TableHead>
                       ))}
@@ -334,34 +348,42 @@ export default function AcademicGradebookPage() {
                           <TableRow key={s.id} className="hover:bg-slate-50/50 transition-all group border-b">
                             <TableCell className="pl-6 md:pl-10 py-4 md:py-6 sticky left-0 z-20 bg-white group-hover:bg-slate-50/50 border-r shadow-[2px_0_5px_rgba(0,0,0,0.02)]">
                               <div className="flex items-center gap-3 md:gap-4">
-                                <Avatar className="h-8 w-8 md:h-10 md:w-10 border-2 border-white shadow-sm">
+                                <Avatar className="h-8 w-8 md:h-9 md:w-9 border-2 border-white shadow-sm">
                                   <AvatarFallback className="bg-primary/5 text-primary font-black text-[10px] md:text-xs">{getInitials(s.nombre)}</AvatarFallback>
                                 </Avatar>
                                 <div className="flex flex-col overflow-hidden">
-                                  <span className="font-bold text-xs md:text-sm text-slate-800 uppercase truncate w-32 md:w-48">{s.nombre}</span>
+                                  <span className="font-bold text-xs text-slate-800 uppercase truncate w-32 md:w-48">{s.nombre}</span>
                                   <span className="text-[8px] md:text-[9px] text-slate-400 font-mono">DNI: {s.dni}</span>
                                 </div>
                               </div>
                             </TableCell>
-                            {columns.map(c => (
-                              <TableCell key={c.id} className="text-center px-4 md:px-6 border-l">
-                                <div className="flex items-center justify-center gap-2">
-                                  <Input 
-                                    type="number" 
-                                    className={cn("w-12 md:w-14 h-9 md:h-10 text-center font-black text-base md:text-lg border-none shadow-inner rounded-lg", (grades[s.id]?.[c.id] || 0) < 13 ? 'text-red-600 bg-red-50' : 'text-emerald-700 bg-emerald-50')} 
-                                    value={grades[s.id]?.[c.id] || 0} 
-                                    onChange={e => handleGradeChange(s.id, c.id, e.target.value)} 
-                                  />
-                                  {(c.type !== 'manual' && c.type !== 'quizz') && (
-                                    <Button size="icon" variant="ghost" className="h-8 w-8 md:h-10 md:w-10 rounded-lg md:rounded-xl hover:bg-primary/10 text-primary border-2 border-primary/5" onClick={() => { setActiveEval({ student: s, column: c }); setEvalData(evalDetails[s.id]?.[c.id] || {}); setEvalComment(comments[s.id]?.[c.id] || ""); }}>
-                                      <Target className="h-4 w-4" />
-                                    </Button>
-                                  )}
-                                </div>
-                              </TableCell>
-                            ))}
+                            {columns.map(c => {
+                              const gradeValue = grades[s.id]?.[c.id];
+                              return (
+                                <TableCell key={c.id} className="text-center px-2 md:px-4 border-l">
+                                  <div className="flex items-center justify-center gap-1.5">
+                                    <Input 
+                                      type="number" 
+                                      placeholder="-"
+                                      className={cn(
+                                        "w-11 md:w-12 h-8 md:h-9 text-center font-bold text-sm md:text-base border-none shadow-inner rounded-lg p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none", 
+                                        (gradeValue !== undefined && gradeValue < 13) ? 'text-red-600 bg-red-50' : 'text-emerald-700 bg-emerald-50',
+                                        gradeValue === undefined && 'bg-slate-50 text-slate-300'
+                                      )} 
+                                      value={gradeValue === undefined ? "" : gradeValue} 
+                                      onChange={e => handleGradeChange(s.id, c.id, e.target.value)} 
+                                    />
+                                    {(c.type !== 'manual' && c.type !== 'quizz') && (
+                                      <Button size="icon" variant="ghost" className="h-7 w-7 md:h-8 md:w-8 rounded-lg hover:bg-primary/10 text-primary border-2 border-primary/5 shrink-0" onClick={() => { setActiveEval({ student: s, column: c }); setEvalData(evalDetails[s.id]?.[c.id] || {}); setEvalComment(comments[s.id]?.[c.id] || ""); }}>
+                                        <Target className="h-3.5 w-3.5" />
+                                      </Button>
+                                    )}
+                                  </div>
+                                </TableCell>
+                              );
+                            })}
                             <TableCell className="text-center bg-primary/5 border-l py-4 md:py-6 sticky right-0 z-20 group-hover:bg-primary/10 backdrop-blur-sm shadow-[-2px_0_5px_rgba(0,0,0,0.02)]">
-                              <span className={cn("text-lg md:text-xl font-black font-mono", finalScore < 13 ? 'text-red-600' : 'text-primary')}>{finalScore.toString().padStart(2, '0')}</span>
+                              <span className={cn("text-base md:text-lg font-black font-mono", finalScore < 13 ? 'text-red-600' : 'text-primary')}>{finalScore.toString().padStart(2, '0')}</span>
                             </TableCell>
                           </TableRow>
                         );
