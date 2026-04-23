@@ -2,12 +2,13 @@
 /**
  * @fileOverview AI flow to analyze any type of pedagogical assessment instrument.
  * 
- * - analyzeInstrument - Digitaliza instrumentos de evaluación desde imágenes.
+ * - analyzeInstrument - Digitaliza instrumentos de evaluación a partir de imágenes.
+ * - AnalyzeInstrumentInput - Esquema de entrada (Data URI de la imagen).
+ * - AnalyzeInstrumentOutput - Esquema de salida (Instrumento estructurado).
  */
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import {googleAI} from '@genkit-ai/google-genai';
 
 const ChecklistItemSchema = z.object({
   description: z.string().describe('The description of the criterion or question.'),
@@ -26,7 +27,7 @@ const RubricDimensionSchema = z.object({
 });
 
 const AnalyzeInstrumentInputSchema = z.object({
-  photoDataUri: z.string().describe("Data URI of the image (base64)."),
+  photoDataUri: z.string().describe("Data URI of the image (base64). Expected format: 'data:<mimetype>;base64,<encoded_data>'."),
 });
 export type AnalyzeInstrumentInput = z.infer<typeof AnalyzeInstrumentInputSchema>;
 
@@ -46,8 +47,12 @@ export type AnalyzeInstrumentOutput = z.infer<typeof AnalyzeInstrumentOutputSche
 
 const analyzeInstrumentPrompt = ai.definePrompt({
   name: 'analyzeInstrumentPrompt',
+  model: 'googleai/gemini-1.5-flash',
   input: { schema: AnalyzeInstrumentInputSchema },
   output: { schema: AnalyzeInstrumentOutputSchema },
+  config: {
+    temperature: 0.1,
+  },
   prompt: `Eres un Consultor Pedagógico Senior para el IES LA SALLE URUBAMBA. 
 Tu misión es digitalizar instrumentos de evaluación a partir de imágenes.
 
@@ -80,12 +85,12 @@ const analyzeInstrumentFlow = ai.defineFlow(
     outputSchema: AnalyzeInstrumentOutputSchema,
   },
   async (input) => {
-    const { output } = await ai.generate({
-      model: googleAI.model('gemini-1.5-flash'),
-      prompt: analyzeInstrumentPrompt(input),
-    });
+    const { output } = await analyzeInstrumentPrompt(input);
     
-    if (!output) throw new Error("La IA no pudo procesar la imagen correctamente.");
+    if (!output) {
+      throw new Error("La IA no pudo procesar la imagen correctamente. Asegúrate de que sea clara y contenga un instrumento de evaluación.");
+    }
+    
     return output;
   }
 );
