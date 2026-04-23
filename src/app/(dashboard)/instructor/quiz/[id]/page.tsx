@@ -5,7 +5,7 @@ import * as React from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { 
   ArrowLeft, Play, Users, Trophy, Gamepad2, Sparkles, QrCode, 
-  Loader2, ChevronRight, Save, Zap, AlertCircle
+  Loader2, ChevronRight, Save, Zap, AlertCircle, CheckCircle2, CloudUpload
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -16,7 +16,7 @@ import { toast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
 import { generateQuiz } from "@/ai/flows/generate-quiz-flow"
 import { useFirestore } from "@/firebase"
-import { doc, setDoc, onSnapshot, collection, query, where, updateDoc } from "firebase/firestore"
+import { doc, setDoc, onSnapshot, collection, updateDoc } from "firebase/firestore"
 import { errorEmitter } from "@/firebase/error-emitter"
 import { FirestorePermissionError } from "@/firebase/errors"
 
@@ -31,6 +31,7 @@ export default function InstructorQuizPage() {
   const [loadingConfig, setLoadingConfig] = React.useState(true)
   const [isGenerating, setIsGenerating] = React.useState(false)
   const [isLaunching, setIsLaunching] = React.useState(false)
+  const [isSyncing, setIsSyncing] = React.useState(false)
   
   const [config, setConfig] = React.useState<any>(null)
   const [questions, setQuestions] = React.useState<any[]>([])
@@ -42,7 +43,7 @@ export default function InstructorQuizPage() {
     const fetchConfig = async () => {
       try {
         const data = await api.get<any[]>(`/evaluaciones/config/${params.id}/${periodoId}`)
-        // Buscamos la configuración de gamificación más reciente
+        // Buscamos la configuración de gamificación vinculada a esta unidad
         const quizConfig = data.find((c: any) => c.estrategia === 'quizz')
         if (quizConfig) {
           setConfig(quizConfig)
@@ -100,9 +101,7 @@ export default function InstructorQuizPage() {
       .then(() => {
         setView('game')
         setIsLaunching(false)
-        // Suscribirse a cambios en la sala
         onSnapshot(roomRef, (snapshot) => setRoomData(snapshot.data()))
-        // Suscribirse a participantes
         onSnapshot(collection(firestore, 'quizz_rooms', roomId, 'participants'), (snapshot) => {
           setParticipants(snapshot.docs.map(d => ({ id: d.id, ...d.data() })))
         })
@@ -131,9 +130,48 @@ export default function InstructorQuizPage() {
     
     if (nextIndex >= questions.length) {
       updateDoc(roomRef, { status: 'finished' })
-      toast({ title: "Quizz Finalizado", description: "Calculando promedios para el registro auxiliar." })
+      toast({ title: "Quizz Finalizado", description: "Ya puedes sincronizar las notas con el servidor." })
     } else {
       updateDoc(roomRef, { currentQuestionIndex: nextIndex })
+    }
+  }
+
+  // 4. Sincronizar notas con FastAPI
+  const handleSyncGrades = async () => {
+    if (participants.length === 0) return
+    setIsSyncing(true)
+    
+    try {
+      // Calcular nota vigesimal basada en el porcentaje de aciertos
+      const maxPossibleScore = questions.length * 10 
+      const gradesPayload = participants.map(p => ({
+        alumno_id: p.studentId || p.id, // Suponiendo que el ID de participante es el ID de alumno
+        nota: Math.round(((p.score || 0) / maxPossibleScore) * 20),
+        feedback: `Gamificación: ${p.score} pts obtenidos en ${questions.length} preguntas.`
+      }))
+
+      const payload = {
+        unidad_id: params.id,
+        periodo_id: periodoId,
+        config_id: config.id,
+        notas: gradesPayload
+      }
+
+      await api.post('/evaluaciones/notas-gamificacion/', payload)
+      
+      toast({ 
+        title: "¡Notas Sincronizadas!", 
+        description: "El registro auxiliar ha sido actualizado correctamente." 
+      })
+      setView('setup')
+    } catch (e: any) {
+      toast({ 
+        variant: "destructive", 
+        title: "Error de Sincronización", 
+        description: "No se pudieron enviar las notas a FastAPI." 
+      })
+    } finally {
+      setIsSyncing(false)
     }
   }
 
@@ -263,9 +301,21 @@ export default function InstructorQuizPage() {
                 <div className="p-6 bg-white/20 rounded-full animate-bounce">
                   <Trophy className="h-20 w-20" />
                 </div>
-                <h3 className="text-4xl font-black uppercase italic">¡Quizz Terminado!</h3>
-                <p className="text-emerald-50/80 font-medium">Las respuestas se han procesado. Puedes ver los promedios calculados por alumno.</p>
-                <Button onClick={() => setView('setup')} variant="outline" className="h-14 px-10 border-white text-white hover:bg-white/10 rounded-xl font-black uppercase text-xs">Finalizar Sesión</Button>
+                <div className="space-y-2">
+                  <h3 className="text-4xl font-black uppercase italic">¡Quizz Terminado!</h3>
+                  <p className="text-emerald-50/80 font-medium">Las respuestas se han procesado correctamente.</p>
+                </div>
+                
+                <Button 
+                  onClick={handleSyncGrades} 
+                  disabled={isSyncing}
+                  className="h-16 px-10 bg-white text-emerald-700 hover:bg-emerald-50 rounded-2xl font-black uppercase text-xs gap-3 shadow-xl"
+                >
+                  {isSyncing ? <Loader2 className="h-5 w-5 animate-spin" /> : <CloudUpload className="h-5 w-5" />}
+                  Sincronizar con Registro
+                </Button>
+                
+                <Button onClick={() => setView('setup')} variant="ghost" className="text-white/60 hover:text-white font-bold uppercase text-[10px]">Cancelar y Volver</Button>
               </Card>
             )}
 
@@ -283,7 +333,7 @@ export default function InstructorQuizPage() {
                         <div className="h-8 w-8 rounded-full bg-primary/5 text-primary font-black text-xs flex items-center justify-center uppercase">{p.name[0]}</div>
                         <span className="font-bold text-slate-700 text-sm truncate uppercase tracking-tight">{p.name}</span>
                       </div>
-                      {roomData?.status === 'finished' && <Badge className="bg-emerald-100 text-emerald-700 font-black">{p.score || 0} pts</Badge>}
+                      <Badge className={p.score > 0 ? "bg-emerald-100 text-emerald-700 font-black" : "bg-slate-100 text-slate-400"}>{p.score || 0} pts</Badge>
                     </div>
                   ))}
                </div>

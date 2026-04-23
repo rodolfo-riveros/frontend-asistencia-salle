@@ -1,7 +1,7 @@
 
 'use server';
 /**
- * @fileOverview AI flow to generate multiple choice quiz questions based on pedagogical criteria.
+ * @fileOverview AI flow to generate multiple choice quiz questions based on pedagogical criteria using Gemini 2.5 Flash.
  */
 
 import {ai} from '@/ai/genkit';
