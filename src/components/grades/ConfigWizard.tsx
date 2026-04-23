@@ -103,6 +103,9 @@ export function ConfigWizard({
   const [registeredIndicatorId, setRegisteredIndicatorId] = React.useState<string | null>(null)
   const [registeredEvalId, setRegisteredEvalId] = React.useState<string | null>(null)
 
+  // Guardar valores originales para detectar si hubo cambios reales
+  const [originalIndicator, setOriginalIndicator] = React.useState<any>(null)
+
   const handleAiScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -153,6 +156,19 @@ export function ConfigWizard({
   };
 
   const registerStep0 = async () => {
+    // Si es un indicador existente de la biblioteca y los valores son los mismos, no llamar a PATCH
+    if (registeredIndicatorId && originalIndicator) {
+      const hasChanged = 
+        originalIndicator.codigo !== newIndicatorCode || 
+        originalIndicator.descripcion !== newIndicatorDescription || 
+        originalIndicator.peso_porcentaje !== newIndicatorWeight;
+
+      if (!hasChanged) {
+        setSetupStep(1);
+        return;
+      }
+    }
+
     setIsFinishing(true)
     try {
       const payload = {
@@ -171,10 +187,15 @@ export function ConfigWizard({
       }
       
       setRegisteredIndicatorId(res.id)
+      setOriginalIndicator({
+        codigo: newIndicatorCode,
+        descripcion: newIndicatorDescription,
+        peso_porcentaje: newIndicatorWeight
+      })
       setSetupStep(1)
       toast({ title: "Indicador Registrado" })
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Error", description: e.message })
+      toast({ variant: "destructive", title: "Atención", description: e.message })
     } finally {
       setIsFinishing(false)
     }
@@ -293,7 +314,7 @@ export function ConfigWizard({
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={(o) => { if(!isFinishing) { setIsOpen(o); if(!o) { resetEditor(); setRegisteredIndicatorId(null); setRegisteredEvalId(null); } } }}>
+    <Dialog open={isOpen} onOpenChange={(o) => { if(!isFinishing) { setIsOpen(o); if(!o) { resetEditor(); setRegisteredIndicatorId(null); setRegisteredEvalId(null); setOriginalIndicator(null); } } }}>
       <DialogContent className="max-w-5xl p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl flex flex-col h-[90vh]">
         <div className="bg-primary h-28 flex flex-col justify-center px-10 text-white shrink-0">
           <DialogTitle className="text-2xl font-black uppercase tracking-tight">Registro de Evaluación Técnica</DialogTitle>
@@ -356,7 +377,12 @@ export function ConfigWizard({
                               setNewIndicatorCode(ind.codigo); 
                               setNewIndicatorDescription(ind.descripcion); 
                               setNewIndicatorWeight(ind.peso_porcentaje); 
-                              setRegisteredIndicatorId(ind.id); 
+                              setRegisteredIndicatorId(ind.id);
+                              setOriginalIndicator({
+                                codigo: ind.codigo,
+                                descripcion: ind.descripcion,
+                                peso_porcentaje: ind.peso_porcentaje
+                              });
                             }}
                           >
                             <div className="flex justify-between w-full font-black text-sm text-primary mb-1">
