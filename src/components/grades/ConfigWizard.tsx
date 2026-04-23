@@ -125,9 +125,9 @@ export function ConfigWizard({
         setEditorCriteria(analysis.checklistCriteria.map((c: any) => ({ id: Math.random().toString(), description: c.description })))
       }
       
-      setSetupStep(3) 
+      setSetupStep(setupStep + 1) 
     } catch (err: any) {
-      errorEmitter.emit('permission-error', new Error(err.message));
+      console.error(err)
     } finally {
       setLocalIsScanning(false)
       if (fileInputRef.current) fileInputRef.current.value = "" 
@@ -143,12 +143,12 @@ export function ConfigWizard({
       indicador_codigo: newIndicatorCode, indicador_peso: newIndicatorWeight,
       instrumento_peso: newInstrumentWeight, max_puntos: newMaxPoints, creado_el: serverTimestamp()
     }
-    try {
-      setDoc(evalRef, configData).catch(async (e) => {
-        const error = new FirestorePermissionError({ path: evalRef.path, operation: 'create', requestResourceData: configData });
-        errorEmitter.emit('permission-error', error);
-      });
-    } catch (err) {}
+    
+    setDoc(evalRef, configData).catch(async () => {
+      const error = new FirestorePermissionError({ path: evalRef.path, operation: 'create', requestResourceData: configData });
+      errorEmitter.emit('permission-error', error);
+    });
+    
     addColumn()
   }
 
@@ -188,11 +188,11 @@ export function ConfigWizard({
 
   return (
     <Dialog open={isOpen} onOpenChange={(o) => { setIsOpen(o); if(!o) resetEditor(); }}>
-      <DialogContent className="max-w-5xl p-0 overflow-hidden rounded-[1.5rem] md:rounded-[2.5rem] border-none shadow-2xl flex flex-col h-[95vh] md:h-[90vh]">
-        <div className="bg-primary p-6 md:p-8 text-white shrink-0">
-          <DialogTitle className="text-xl md:text-2xl font-black uppercase tracking-tight">Nueva Evaluación Técnica</DialogTitle>
-          <DialogDescription className="text-blue-100/80 font-bold uppercase text-[9px] md:text-[10px] tracking-[0.2em] mt-1">
-            Paso {setupStep + 1}: {
+      <DialogContent className="max-w-5xl p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl flex flex-col h-[90vh]">
+        <div className="bg-primary h-28 flex flex-col justify-center px-10 text-white shrink-0">
+          <DialogTitle className="text-2xl font-black uppercase tracking-tight">Registro de Evaluación Técnica</DialogTitle>
+          <DialogDescription className="text-blue-100/80 font-bold uppercase text-[10px] tracking-[0.2em] mt-1">
+            PASO {setupStep + 1}: {
               setupStep === 0 ? "Indicador de Logro" :
               setupStep === 1 ? (newInstType === 'manual' ? "Instrumento de Evaluación" : "Instrumento y Estrategia") :
               setupStep === 2 ? "Detalles de Actividad" :
@@ -201,52 +201,52 @@ export function ConfigWizard({
           </DialogDescription>
         </div>
 
-        <div className="flex-grow overflow-hidden flex flex-col">
+        <div className="flex-grow overflow-hidden flex flex-col bg-white">
           <ScrollArea className="flex-grow">
-            <div className="p-5 md:p-10 bg-white min-h-full flex flex-col items-center">
+            <div className="p-10 flex flex-col items-center">
               {setupStep === 0 && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-10 w-full max-w-4xl">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 w-full max-w-4xl">
                   <div className="space-y-6">
-                    <div className="flex items-center gap-4 mb-4">
-                      <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl bg-primary/10 flex items-center justify-center text-primary"><BookOpen className="h-5 w-5 md:h-6 md:w-6" /></div>
-                      <div className="flex flex-col"><h4 className="text-lg md:text-xl font-black text-slate-900 uppercase tracking-tighter">Indicador de Logro</h4><p className="text-slate-500 text-[9px] md:text-[10px] font-bold uppercase tracking-widest">Criterio Curricular</p></div>
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary"><BookOpen className="h-6 w-6" /></div>
+                      <div className="flex flex-col"><h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Indicador de Logro</h4><p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Criterio Curricular</p></div>
                     </div>
-                    <div className="bg-slate-50/50 p-6 rounded-[1.5rem] md:rounded-[2rem] border-2 border-slate-100 space-y-6">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="bg-slate-50/50 p-8 rounded-[2rem] border-2 border-slate-100 space-y-6">
+                      <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label className="font-black text-slate-400 text-[9px] uppercase tracking-[0.2em]">Código ILC</Label>
+                          <Label className="font-black text-slate-400 text-[10px] uppercase tracking-[0.2em] ml-1">Código ILC</Label>
                           <Input value={newIndicatorCode} onChange={e => setNewIndicatorCode(e.target.value.toUpperCase())} placeholder="Ej: C1.I1" className="h-12 border-none shadow-inner rounded-xl font-black text-lg bg-white" />
                         </div>
                         <div className="space-y-2">
-                          <Label className="font-black text-slate-400 text-[9px] uppercase tracking-[0.2em]">Peso (%)</Label>
+                          <Label className="font-black text-slate-400 text-[10px] uppercase tracking-[0.2em] ml-1">Peso (%)</Label>
                           <Input type="number" value={newIndicatorWeight || ""} onChange={e => setNewIndicatorWeight(parseInt(e.target.value) || 0)} className="h-12 border-none shadow-inner rounded-xl font-black text-center text-lg bg-white" />
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <Label className="font-black text-slate-400 text-[9px] uppercase tracking-[0.2em]">Descripción de la Capacidad</Label>
-                        <Textarea value={newIndicatorDescription} onChange={e => setNewIndicatorDescription(e.target.value)} placeholder="Logro esperado..." className="h-32 border-none shadow-inner rounded-2xl bg-white" />
+                        <Label className="font-black text-slate-400 text-[10px] uppercase tracking-[0.2em] ml-1">Descripción del Indicador</Label>
+                        <Textarea value={newIndicatorDescription} onChange={e => setNewIndicatorDescription(e.target.value)} placeholder="Logro esperado..." className="h-28 border-none shadow-inner rounded-2xl bg-white resize-none" />
                       </div>
                     </div>
                   </div>
                   <div className="space-y-6">
-                    <div className="flex items-center gap-4 mb-4"><div className="w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl bg-primary/5 flex items-center justify-center text-primary"><History className="h-5 w-5 md:h-6 md:w-6" /></div><h4 className="text-lg md:text-xl font-black text-slate-900 uppercase tracking-tighter">Biblioteca</h4></div>
-                    <div className="bg-white rounded-[1.5rem] md:rounded-[2rem] border-2 border-dashed border-slate-200 p-4 md:p-6 min-h-[250px]">
+                    <div className="flex items-center gap-4"><div className="w-12 h-12 rounded-2xl bg-primary/5 flex items-center justify-center text-primary"><History className="h-6 w-6" /></div><h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Biblioteca</h4></div>
+                    <div className="bg-white rounded-[2rem] border-2 border-dashed border-slate-200 p-6 min-h-[300px]">
                       {existingIndicators.length > 0 ? existingIndicators.map((ind: any, i: number) => (
-                        <button key={i} className="flex flex-col items-start p-4 rounded-xl md:rounded-2xl border-2 border-slate-50 hover:border-primary/30 hover:bg-primary/5 mb-3 w-full text-left transition-all" onClick={() => { setNewIndicatorCode(ind.code); setNewIndicatorDescription(ind.desc); setNewIndicatorWeight(ind.weight); }}>
+                        <button key={i} className="flex flex-col items-start p-4 rounded-2xl border-2 border-slate-50 hover:border-primary/30 hover:bg-primary/5 mb-3 w-full text-left transition-all" onClick={() => { setNewIndicatorCode(ind.code); setNewIndicatorDescription(ind.desc); setNewIndicatorWeight(ind.weight); }}>
                           <div className="flex justify-between w-full font-black text-sm text-primary mb-1"><span>{ind.code}</span><Badge variant="outline" className="text-[10px]">{ind.weight}%</Badge></div>
-                          <p className="text-[10px] md:text-[11px] text-slate-500 line-clamp-2">{ind.desc}</p>
+                          <p className="text-[11px] text-slate-500 line-clamp-2">{ind.desc}</p>
                         </button>
-                      )) : <p className="text-center text-slate-400 font-bold uppercase text-[10px] py-20">No hay indicadores previos</p>}
+                      )) : <p className="text-center text-slate-400 font-bold uppercase text-[10px] py-24">No hay indicadores previos</p>}
                     </div>
                   </div>
                 </div>
               )}
 
               {setupStep === 1 && (
-                <div className="space-y-12 animate-in fade-in slide-in-from-right-4 w-full max-w-4xl flex flex-col items-center py-4">
-                  <div className="space-y-6 md:space-y-8 w-full">
-                    <div className="flex items-center justify-center gap-3"><div className="h-2 w-2 rounded-full bg-primary" /><h4 className="font-black text-[10px] uppercase text-primary tracking-[0.2em]">Selecciona el Instrumento</h4><div className="h-2 w-2 rounded-full bg-primary" /></div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 md:gap-4 justify-center">
+                <div className="space-y-12 animate-in fade-in slide-in-from-right-4 w-full max-w-4xl flex flex-col items-center">
+                  <div className="space-y-8 w-full">
+                    <div className="flex items-center justify-center gap-3"><div className="h-2 w-2 rounded-full bg-primary" /><h4 className="font-black text-[10px] uppercase text-primary tracking-[0.2em]">Instrumento de Evaluación</h4><div className="h-2 w-2 rounded-full bg-primary" /></div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
                       {[
                         { id: 'manual', label: 'Nota Directa', icon: FileText },
                         { id: 'cotejo', label: 'Lista de Cotejo', icon: LayoutList },
@@ -254,46 +254,42 @@ export function ConfigWizard({
                         { id: 'escala', label: 'Escala Valorativa', icon: Star },
                         { id: 'guia', label: 'Guía Observación', icon: Quote }
                       ].map((t) => (
-                        <Button key={t.id} variant="outline" className={cn("h-auto py-6 md:py-8 flex-col gap-3 md:gap-4 rounded-2xl md:rounded-3xl border-2 transition-all w-full", newInstType === t.id ? 'border-primary bg-primary/5 shadow-lg ring-2 ring-primary/20' : 'hover:border-slate-200')} onClick={() => { setNewInstType(t.id as any); if(t.id === 'manual') setNewStrategyType('individual'); }}>
-                          <t.icon className={`h-6 w-6 md:h-8 md:w-8 ${newInstType === t.id ? 'text-primary' : 'text-slate-300'}`} />
-                          <span className="font-black text-[9px] md:text-[10px] uppercase tracking-tighter text-center">{t.label}</span>
+                        <Button key={t.id} variant="outline" className={cn("h-auto py-8 flex-col gap-4 rounded-3xl border-2 transition-all w-full", newInstType === t.id ? 'border-primary bg-primary/5 shadow-lg ring-2 ring-primary/20' : 'hover:border-slate-200')} onClick={() => { setNewInstType(t.id as any); if(t.id === 'manual') setNewStrategyType('individual'); }}>
+                          <t.icon className={`h-8 w-8 ${newInstType === t.id ? 'text-primary' : 'text-slate-300'}`} />
+                          <span className="font-black text-[10px] uppercase tracking-tighter text-center">{t.label}</span>
                         </Button>
                       ))}
                     </div>
                   </div>
                   
                   {newInstType !== 'manual' && (
-                    <div className="space-y-6 md:space-y-8 pt-10 border-t border-slate-50 w-full">
+                    <div className="space-y-8 pt-10 border-t border-slate-50 w-full flex flex-col items-center">
                       <div className="flex items-center justify-center gap-3"><div className="h-2 w-2 rounded-full bg-primary" /><h4 className="font-black text-[10px] uppercase text-primary tracking-[0.2em]">Define la Estrategia</h4><div className="h-2 w-2 rounded-full bg-primary" /></div>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4 justify-center">
+                      <div className="flex flex-wrap justify-center gap-4 w-full">
                         {[
-                          { id: 'individual', label: 'Individual', icon: User, desc: 'Evaluación personalizada.' },
-                          { id: 'grupal', label: 'Trabajo Grupal', icon: Users, desc: 'Califica equipos.' },
-                          { id: 'quizz', label: 'Gamificación', icon: Gamepad2, desc: 'Evaluación interactiva en vivo.', beta: true }
+                          { id: 'individual', label: 'Evaluación Individual', icon: User, desc: 'Calificación personalizada.' },
+                          { id: 'grupal', label: 'Evaluación Grupal', icon: Users, desc: 'Trabajo en equipo.' },
+                          { id: 'quizz', label: 'Gamificación', icon: Gamepad2, desc: 'Interactiva en vivo.', beta: true }
                         ].map((s) => (
                           <Button 
                             key={s.id} 
                             variant="outline" 
                             disabled={s.beta}
                             className={cn(
-                              "h-auto p-4 md:p-6 flex-col gap-3 rounded-2xl md:rounded-[2rem] border-2 text-left items-start transition-all relative overflow-hidden w-full", 
+                              "h-auto p-6 flex-col gap-3 rounded-[2rem] border-2 text-left items-start transition-all relative overflow-hidden w-full max-w-[280px]", 
                               newStrategyType === s.id ? 'border-primary bg-primary/5 ring-2 ring-primary/20' : 'hover:border-slate-200',
                               s.beta && "opacity-60 grayscale bg-slate-50 cursor-not-allowed"
                             )} 
                             onClick={() => !s.beta && setNewStrategyType(s.id as any)}
                           >
-                            {s.beta && (
-                              <div className="absolute top-2 right-2 bg-amber-500 text-white text-[8px] font-black px-2 py-0.5 rounded-full flex items-center gap-1">
-                                <Lock className="h-2 w-2" /> BETA
-                              </div>
-                            )}
+                            {s.beta && <div className="absolute top-2 right-2 bg-amber-500 text-white text-[8px] font-black px-2 py-0.5 rounded-full flex items-center gap-1"><Lock className="h-2 w-2" /> BETA</div>}
                             <div className="flex justify-between items-center w-full">
-                              <s.icon className={`h-6 w-6 md:h-8 md:w-8 ${newStrategyType === s.id ? 'text-primary' : 'text-slate-300'}`} />
-                              {newStrategyType === s.id && <CheckCircle2 className="h-4 w-4 md:h-5 md:w-5 text-primary" />}
+                              <s.icon className={`h-8 w-8 ${newStrategyType === s.id ? 'text-primary' : 'text-slate-300'}`} />
+                              {newStrategyType === s.id && <CheckCircle2 className="h-5 w-5 text-primary" />}
                             </div>
                             <div className="space-y-1">
-                              <p className="font-black text-[10px] md:text-[11px] uppercase tracking-tighter">{s.label}</p>
-                              <p className="text-[9px] md:text-[10px] text-slate-400 leading-tight font-medium">{s.desc}</p>
+                              <p className="font-black text-[11px] uppercase tracking-tighter">{s.label}</p>
+                              <p className="text-[10px] text-slate-400 leading-tight font-medium">{s.desc}</p>
                             </div>
                           </Button>
                         ))}
@@ -304,45 +300,42 @@ export function ConfigWizard({
               )}
 
               {setupStep === 2 && (
-                <div className="space-y-10 animate-in fade-in slide-in-from-right-4 w-full max-w-4xl">
-                  <div className="bg-slate-50 p-6 md:p-10 rounded-2xl md:rounded-[3rem] border-2 border-slate-100 space-y-8">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+                <div className="space-y-10 animate-in fade-in slide-in-from-right-4 w-full max-w-2xl">
+                  <div className="bg-slate-50 p-10 rounded-[3rem] border-2 border-slate-100 space-y-8">
+                    <div className="space-y-6">
                       <div className="space-y-3">
-                        <Label className="font-black text-slate-400 text-[9px] uppercase tracking-[0.2em] ml-1">Nombre de la Actividad</Label>
-                        <Input value={newColName} onChange={e => setNewColName(e.target.value)} placeholder="Ej. Exposición de Proyectos" className="h-14 md:h-16 rounded-xl md:rounded-2xl text-lg md:text-xl font-bold border-none shadow-inner bg-white" />
+                        <Label className="font-black text-slate-500 text-sm uppercase tracking-[0.2em] ml-1">Nombre de la Actividad</Label>
+                        <Input value={newColName} onChange={e => setNewColName(e.target.value)} placeholder="Ej. Exposición de Proyectos" className="h-16 rounded-2xl text-xl font-bold border-none shadow-inner bg-white" />
                       </div>
-                      <div className="grid grid-cols-2 gap-4 md:gap-6">
+                      
+                      <div className="grid grid-cols-2 gap-6">
                         <div className="space-y-3">
-                          <Label className="font-black text-slate-400 text-[9px] uppercase tracking-[0.2em] ml-1">Peso (%)</Label>
-                          <Input type="number" value={newInstrumentWeight || ""} onChange={e => setNewInstrumentWeight(parseInt(e.target.value) || 0)} className="h-14 md:h-16 rounded-xl md:rounded-2xl text-center text-lg md:text-xl font-black border-none shadow-inner bg-white" />
+                          <Label className="font-black text-slate-500 text-sm uppercase tracking-[0.2em] ml-1">Peso (%)</Label>
+                          <Input type="number" value={newInstrumentWeight || ""} onChange={e => setNewInstrumentWeight(parseInt(e.target.value) || 0)} className="h-16 rounded-2xl text-center text-xl font-black border-none shadow-inner bg-white" />
                         </div>
                         <div className="space-y-3">
-                          <Label className="font-black text-slate-400 text-[9px] uppercase tracking-[0.2em] ml-1">Máx. Puntos</Label>
-                          <Input type="number" value={newMaxPoints} onChange={e => setNewMaxPoints(parseInt(e.target.value) || 20)} disabled={newInstType !== 'manual'} className="h-14 md:h-16 rounded-xl md:rounded-2xl text-center text-lg md:text-xl font-black border-none shadow-inner bg-white disabled:opacity-50" />
+                          <Label className="font-black text-slate-500 text-sm uppercase tracking-[0.2em] ml-1">Puntaje Máximo</Label>
+                          <Input type="number" value={newMaxPoints} onChange={e => setNewMaxPoints(parseInt(e.target.value) || 20)} disabled={newInstType !== 'manual'} className="h-16 rounded-2xl text-center text-xl font-black border-none shadow-inner bg-white disabled:opacity-50" />
                         </div>
                       </div>
                     </div>
 
                     {newInstType !== 'manual' && (
-                      <div className="pt-6 border-t border-slate-200">
-                         <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
-                            <div className="space-y-1 text-center sm:text-left">
-                              <h5 className="font-black text-[10px] uppercase text-slate-800 tracking-widest">Digitalizador con IA</h5>
-                              <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Escanea tu instrumento físico al instante.</p>
-                            </div>
-                            <div className="relative w-full sm:w-auto">
-                              <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleAiScan} />
-                              <Button 
-                                variant="outline" 
-                                onClick={() => fileInputRef.current?.click()} 
-                                disabled={localIsScanning} 
-                                className="w-full sm:w-auto h-12 md:h-14 px-8 gap-3 rounded-xl md:rounded-2xl border-2 border-dashed border-accent text-accent hover:bg-accent hover:text-white transition-all font-black uppercase text-[9px] md:text-[10px] tracking-widest"
-                              >
-                                {localIsScanning ? <Loader2 className="h-4 w-4 md:h-5 md:w-5 animate-spin" /> : <Sparkles className="h-4 w-4 md:h-5 md:w-5" />}
-                                {localIsScanning ? "Escaneando..." : "Digitalizar con IA"}
-                              </Button>
-                            </div>
+                      <div className="pt-8 border-t border-slate-200 flex flex-col items-center space-y-4">
+                         <div className="text-center space-y-1">
+                            <h5 className="font-black text-[10px] uppercase text-slate-800 tracking-widest">Digitalizador con IA</h5>
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Digitaliza instrumentos físicos automáticamente</p>
                          </div>
+                         <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleAiScan} />
+                         <Button 
+                            variant="outline" 
+                            onClick={() => fileInputRef.current?.click()} 
+                            disabled={localIsScanning} 
+                            className="h-14 px-10 gap-3 rounded-2xl border-2 border-dashed border-accent text-accent hover:bg-accent hover:text-white transition-all font-black uppercase text-[10px] tracking-widest shadow-sm"
+                         >
+                            {localIsScanning ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                            {localIsScanning ? "Escaneando..." : "Digitalizar con IA"}
+                         </Button>
                       </div>
                     )}
                   </div>
@@ -351,16 +344,16 @@ export function ConfigWizard({
 
               {setupStep === 3 && (
                 <div className="space-y-8 animate-in fade-in slide-in-from-right-4 w-full max-w-4xl">
-                  <div className="flex flex-col sm:flex-row justify-between items-center bg-slate-50 p-6 md:p-8 rounded-2xl md:rounded-[2.5rem] border-2 border-slate-100 gap-6">
-                    <div className="flex items-center gap-4 md:gap-6 text-center sm:text-left">
-                      <div className="hidden sm:block p-4 md:p-5 bg-primary text-white rounded-2xl md:rounded-3xl shadow-xl">{getInstrumentIcon(newInstType)}</div>
+                  <div className="flex flex-col md:flex-row justify-between items-center bg-slate-50 p-8 rounded-[2.5rem] border-2 border-slate-100 gap-6">
+                    <div className="flex items-center gap-6">
+                      <div className="p-5 bg-primary text-white rounded-3xl shadow-xl">{getInstrumentIcon(newInstType)}</div>
                       <div>
                         <Badge variant="outline" className="font-black text-[8px] uppercase tracking-widest border-primary/20 text-primary mb-1">{INST_LABELS[newInstType].toUpperCase()}</Badge>
-                        <div className="font-black text-slate-900 text-xl md:text-3xl tracking-tighter uppercase">{newColName || "Actividad Pedagógica"}</div>
+                        <div className="font-black text-slate-900 text-3xl tracking-tighter uppercase">{newColName || "Actividad Pedagógica"}</div>
                       </div>
                     </div>
                     {(newInstType === 'cotejo' || newInstType === 'guia') && (
-                      <div className={cn("px-6 md:px-8 py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-lg md:text-xl shadow-inner border-2", totalPointsStep === 20 ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-red-50 text-red-700 border-red-100')}>
+                      <div className={cn("px-8 py-4 rounded-2xl font-black text-xl shadow-inner border-2", totalPointsStep === 20 ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-red-50 text-red-700 border-red-100')}>
                         {totalPointsStep} / 20 PTS
                       </div>
                     )}
@@ -375,13 +368,13 @@ export function ConfigWizard({
 
               {setupStep === 4 && (
                 <div className="space-y-8 animate-in fade-in slide-in-from-right-4 w-full max-w-4xl">
-                  <div className="flex items-center gap-4 md:gap-6 bg-primary p-6 md:p-8 rounded-2xl md:rounded-[2.5rem] text-white shadow-xl shadow-primary/10">
-                    <div className="hidden sm:block p-4 md:p-5 bg-white/20 rounded-2xl md:rounded-3xl backdrop-blur-md border border-white/10">
-                      <Users className="h-6 w-6 md:h-8 md:w-8" />
+                  <div className="flex items-center gap-6 bg-primary p-8 rounded-[2.5rem] text-white shadow-xl">
+                    <div className="p-5 bg-white/20 rounded-3xl backdrop-blur-md border border-white/10">
+                      <Users className="h-8 w-8" />
                     </div>
                     <div>
                       <Badge className="bg-white/20 text-white border-none font-black uppercase text-[8px] tracking-widest mb-1">Estrategia Grupal</Badge>
-                      <div className="font-black text-xl md:text-3xl tracking-tighter uppercase">{newColName || "Trabajo en Equipo"}</div>
+                      <div className="font-black text-3xl tracking-tighter uppercase">{newColName || "Trabajo en Equipo"}</div>
                     </div>
                   </div>
                   <GroupConfig 
@@ -398,9 +391,9 @@ export function ConfigWizard({
           </ScrollArea>
         </div>
 
-        <div className="p-4 md:p-8 bg-slate-50 border-t flex flex-row justify-between gap-3 items-center shrink-0">
-          <Button variant="ghost" onClick={handleBack} disabled={setupStep === 0 || localIsScanning} className="flex-1 sm:flex-none font-black text-[10px] uppercase h-11 px-4 md:px-8 rounded-lg md:rounded-xl border-2">Anterior</Button>
-          <Button className="flex-1 sm:flex-none bg-primary px-4 md:px-10 h-11 font-black text-[10px] uppercase rounded-lg md:rounded-xl text-white" onClick={handleNext} disabled={
+        <div className="h-24 px-10 bg-slate-50 border-t flex items-center justify-between shrink-0">
+          <Button variant="ghost" onClick={handleBack} disabled={setupStep === 0 || localIsScanning} className="font-black text-[10px] uppercase h-12 px-8 rounded-xl border-2">Anterior</Button>
+          <Button className="bg-primary px-10 h-12 font-black text-[10px] uppercase rounded-xl text-white shadow-lg" onClick={handleNext} disabled={
             (setupStep === 0 && (!newIndicatorCode || !newIndicatorDescription)) || 
             (setupStep === 2 && !newColName) || 
             localIsScanning
