@@ -265,68 +265,85 @@ export default function AcademicGradebookPage() {
           isSaving={isSaving} 
         />
         
-        <CardContent className="p-0">
+        <CardContent className="p-0 overflow-hidden">
           <ScrollArea className="w-full">
-            <Table>
-              <TableHeader className="bg-slate-50/30">
-                <TableRow className="border-none">
-                  <TableHead className="pl-6 md:pl-10 font-black text-[10px] uppercase text-slate-400 tracking-widest w-[200px] md:w-[300px] py-4 md:py-6 sticky left-0 z-20 bg-slate-50/90 backdrop-blur-sm border-r">Alumno</TableHead>
-                  {columns.map(c => (
-                    <TableHead key={c.id} className="text-center font-black text-[10px] uppercase text-slate-400 tracking-widest px-4 md:px-6 border-l min-w-[150px] md:min-w-[180px]">
-                      <div className="flex flex-col items-center gap-1">
-                        <div className="flex items-center gap-1">
-                          <div className="text-primary/60">{getInstrumentIcon(c.type)}</div>
-                          <Badge variant="outline" className="border-primary/20 text-primary text-[8px] font-black">{c.indicatorCode}</Badge>
-                        </div>
-                        <span className="text-slate-900 truncate w-32 md:w-36 font-extrabold">{c.name}</span>
-                      </div>
-                    </TableHead>
-                  ))}
-                  <TableHead className="text-center font-black text-[10px] uppercase text-primary tracking-widest bg-primary/5 w-[100px] md:w-[120px] border-l sticky right-0 z-20 bg-primary/5 backdrop-blur-sm">Final</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map((s) => {
-                  const finalScore = calculateFinal(s.id);
-                  return (
-                    <TableRow key={s.id} className="hover:bg-slate-50/50 transition-all group border-b">
-                      <TableCell className="pl-6 md:pl-10 py-4 md:py-6 sticky left-0 z-10 bg-white group-hover:bg-slate-50/50 border-r">
-                        <div className="flex items-center gap-3 md:gap-4">
-                          <Avatar className="h-8 w-8 md:h-10 md:w-10 border-2 border-white shadow-sm">
-                            <AvatarFallback className="bg-primary/5 text-primary font-black text-[10px] md:text-xs">{getInitials(s.nombre)}</AvatarFallback>
-                          </Avatar>
-                          <div className="flex flex-col">
-                            <span className="font-bold text-xs md:text-sm text-slate-800 uppercase truncate w-32 md:w-48">{s.nombre}</span>
-                            <span className="text-[8px] md:text-[9px] text-slate-400 font-mono">DNI: {s.dni}</span>
-                          </div>
-                        </div>
-                      </TableCell>
+            <div className="min-w-full inline-block align-middle">
+              <div className="overflow-x-auto">
+                <Table className="relative border-collapse">
+                  <TableHeader className="bg-slate-50/30">
+                    <TableRow className="border-none">
+                      <TableHead className="pl-6 md:pl-10 font-black text-[10px] uppercase text-slate-400 tracking-widest w-[250px] md:w-[350px] py-4 md:py-6 sticky left-0 z-30 bg-slate-50 backdrop-blur-sm border-r shadow-[2px_0_5px_rgba(0,0,0,0.02)]">
+                        Alumno
+                      </TableHead>
                       {columns.map(c => (
-                        <TableCell key={c.id} className="text-center px-4 md:px-6 border-l">
-                          <div className="flex items-center justify-center gap-2">
-                            <Input 
-                              type="number" 
-                              className={cn("w-12 md:w-14 h-9 md:h-10 text-center font-black text-base md:text-lg border-none shadow-inner rounded-lg", (grades[s.id]?.[c.id] || 0) < 13 ? 'text-red-600 bg-red-50' : 'text-emerald-700 bg-emerald-50')} 
-                              value={grades[s.id]?.[c.id] || 0} 
-                              onChange={e => handleGradeChange(s.id, c.id, e.target.value)} 
-                            />
-                            {(c.type !== 'manual' && c.type !== 'quizz') && (
-                              <Button size="icon" variant="ghost" className="h-8 w-8 md:h-10 md:w-10 rounded-lg md:rounded-xl hover:bg-primary/10 text-primary border-2 border-primary/5" onClick={() => { setActiveEval({ student: s, column: c }); setEvalData(evalDetails[s.id]?.[c.id] || {}); setEvalComment(comments[s.id]?.[c.id] || ""); }}>
-                                <Target className="h-4 w-4" />
-                              </Button>
-                            )}
+                        <TableHead key={c.id} className="text-center font-black text-[10px] uppercase text-slate-400 tracking-widest px-4 md:px-6 border-l min-w-[150px] md:min-w-[180px]">
+                          <div className="flex flex-col items-center gap-1">
+                            <div className="flex items-center gap-1">
+                              <div className="text-primary/60">{getInstrumentIcon(c.type)}</div>
+                              <Badge variant="outline" className="border-primary/20 text-primary text-[8px] font-black">{c.indicatorCode}</Badge>
+                            </div>
+                            <span className="text-slate-900 truncate w-32 md:w-36 font-extrabold">{c.name}</span>
                           </div>
-                        </TableCell>
+                        </TableHead>
                       ))}
-                      <TableCell className="text-center bg-primary/5 border-l py-4 md:py-6 sticky right-0 z-10 group-hover:bg-primary/10 backdrop-blur-sm">
-                        <span className={cn("text-lg md:text-xl font-black font-mono", finalScore < 13 ? 'text-red-600' : 'text-primary')}>{finalScore.toString().padStart(2, '0')}</span>
-                      </TableCell>
+                      <TableHead className="text-center font-black text-[10px] uppercase text-primary tracking-widest w-[100px] md:w-[120px] border-l sticky right-0 z-30 bg-primary/5 backdrop-blur-sm shadow-[-2px_0_5px_rgba(0,0,0,0.02)]">
+                        Final
+                      </TableHead>
                     </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {filtered.length > 0 ? (
+                      filtered.map((s) => {
+                        const finalScore = calculateFinal(s.id);
+                        return (
+                          <TableRow key={s.id} className="hover:bg-slate-50/50 transition-all group border-b">
+                            <TableCell className="pl-6 md:pl-10 py-4 md:py-6 sticky left-0 z-20 bg-white group-hover:bg-slate-50/50 border-r shadow-[2px_0_5px_rgba(0,0,0,0.02)]">
+                              <div className="flex items-center gap-3 md:gap-4">
+                                <Avatar className="h-8 w-8 md:h-10 md:w-10 border-2 border-white shadow-sm">
+                                  <AvatarFallback className="bg-primary/5 text-primary font-black text-[10px] md:text-xs">{getInitials(s.nombre)}</AvatarFallback>
+                                </Avatar>
+                                <div className="flex flex-col overflow-hidden">
+                                  <span className="font-bold text-xs md:text-sm text-slate-800 uppercase truncate w-32 md:w-48">{s.nombre}</span>
+                                  <span className="text-[8px] md:text-[9px] text-slate-400 font-mono">DNI: {s.dni}</span>
+                                </div>
+                              </div>
+                            </TableCell>
+                            {columns.map(c => (
+                              <TableCell key={c.id} className="text-center px-4 md:px-6 border-l">
+                                <div className="flex items-center justify-center gap-2">
+                                  <Input 
+                                    type="number" 
+                                    className={cn("w-12 md:w-14 h-9 md:h-10 text-center font-black text-base md:text-lg border-none shadow-inner rounded-lg", (grades[s.id]?.[c.id] || 0) < 13 ? 'text-red-600 bg-red-50' : 'text-emerald-700 bg-emerald-50')} 
+                                    value={grades[s.id]?.[c.id] || 0} 
+                                    onChange={e => handleGradeChange(s.id, c.id, e.target.value)} 
+                                  />
+                                  {(c.type !== 'manual' && c.type !== 'quizz') && (
+                                    <Button size="icon" variant="ghost" className="h-8 w-8 md:h-10 md:w-10 rounded-lg md:rounded-xl hover:bg-primary/10 text-primary border-2 border-primary/5" onClick={() => { setActiveEval({ student: s, column: c }); setEvalData(evalDetails[s.id]?.[c.id] || {}); setEvalComment(comments[s.id]?.[c.id] || ""); }}>
+                                      <Target className="h-4 w-4" />
+                                    </Button>
+                                  )}
+                                </div>
+                              </TableCell>
+                            ))}
+                            <TableCell className="text-center bg-primary/5 border-l py-4 md:py-6 sticky right-0 z-20 group-hover:bg-primary/10 backdrop-blur-sm shadow-[-2px_0_5px_rgba(0,0,0,0.02)]">
+                              <span className={cn("text-lg md:text-xl font-black font-mono", finalScore < 13 ? 'text-red-600' : 'text-primary')}>{finalScore.toString().padStart(2, '0')}</span>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={columns.length + 2} className="h-64 text-center text-slate-400 font-black uppercase text-xs tracking-widest">
+                          No se encontraron estudiantes
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
             <ScrollBar orientation="horizontal" />
+            <ScrollBar orientation="vertical" />
           </ScrollArea>
         </CardContent>
       </Card>
