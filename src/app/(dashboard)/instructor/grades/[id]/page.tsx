@@ -58,7 +58,7 @@ const DEFAULT_SCALE_LEVELS = [
 export default function AcademicGradebookPage() {
   const params = useParams()
   const searchParams = useSearchParams()
-  const periodoId = searchParams.get('periodo_id')
+  const periodoId = searchParams.get('periodo_id') || "ACTUAL"
   
   const [students, setStudents] = React.useState<any[]>([])
   const [columns, setColumns] = React.useState<Column[]>([])
@@ -340,6 +340,7 @@ export default function AcademicGradebookPage() {
 
       <ConfigWizard 
         isOpen={isNewColOpen} setIsOpen={setIsNewColOpen}
+        unidadId={params.id as string} periodoId={periodoId}
         setupStep={setupStep} setSetupStep={setSetupStep}
         newIndicatorCode={newIndicatorCode} setNewIndicatorCode={setNewIndicatorCode}
         newIndicatorDescription={newIndicatorDescription} setNewIndicatorDescription={setNewIndicatorDescription}

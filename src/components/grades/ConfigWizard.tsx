@@ -36,6 +36,12 @@ import { ScaleConfig } from "./editor/ScaleConfig"
 import { GuideConfig } from "./editor/GuideConfig"
 import { GroupConfig } from "./strategies/GroupConfig"
 
+// Firebase
+import { useFirestore } from "@/firebase"
+import { doc, setDoc, serverTimestamp } from "firebase/firestore"
+import { errorEmitter } from "@/firebase/error-emitter"
+import { FirestorePermissionError } from "@/firebase/errors"
+
 const INST_LABELS: Record<string, string> = {
   manual: 'Nota Directa',
   cotejo: 'Lista de Cotejo',
@@ -47,6 +53,8 @@ const INST_LABELS: Record<string, string> = {
 interface ConfigWizardProps {
   isOpen: boolean
   setIsOpen: (open: boolean) => void
+  unidadId: string
+  periodoId: string
   setupStep: number
   setSetupStep: (step: number) => void
   newIndicatorCode: string
@@ -82,7 +90,7 @@ interface ConfigWizardProps {
 }
 
 export function ConfigWizard({ 
-  isOpen, setIsOpen, setupStep, setSetupStep, newIndicatorCode, setNewIndicatorCode,
+  isOpen, setIsOpen, unidadId, periodoId, setupStep, setSetupStep, newIndicatorCode, setNewIndicatorCode,
   newIndicatorDescription, setNewIndicatorDescription, newIndicatorWeight, setNewIndicatorWeight,
   existingIndicators, newInstType, setNewInstType, newStrategyType, setNewStrategyType,
   newColName, setNewColName, newInstrumentWeight, setNewInstrumentWeight, newMaxPoints, setNewMaxPoints,
@@ -90,8 +98,42 @@ export function ConfigWizard({
   students, groupSize, setGroupSize, studentGroups, setStudentGroups, addColumn, resetEditor
 }: ConfigWizardProps) {
   
+  const firestore = useFirestore()
+
+  const handleFinish = () => {
+    // 1. Guardar en Firebase para futura gamificación
+    const evalId = `eval-${Date.now()}`
+    const evalRef = doc(firestore, 'evaluaciones_config', evalId)
+    
+    const configData = {
+      id: evalId,
+      unidad_id: unidadId,
+      periodo_id: periodoId,
+      nombre: newColName,
+      tipo_instrumento: newInstType,
+      estrategia: newStrategyType,
+      criterios: editorCriteria,
+      indicador_codigo: newIndicatorCode,
+      indicador_peso: newIndicatorWeight,
+      instrumento_peso: newInstrumentWeight,
+      max_puntos: newMaxPoints,
+      creado_el: serverTimestamp()
+    }
+
+    setDoc(evalRef, configData).catch(async (err) => {
+      const permissionError = new FirestorePermissionError({
+        path: evalRef.path,
+        operation: 'create',
+        requestResourceData: configData,
+      });
+      errorEmitter.emit('permission-error', permissionError);
+    })
+
+    // 2. Ejecutar lógica local del registro
+    addColumn()
+  }
+
   const handleNext = () => {
-    // Si es Nota Directa en el paso 1, forzamos individual y saltamos a detalles
     if (setupStep === 1 && newInstType === 'manual') {
       setNewStrategyType('individual');
       setSetupStep(2);
@@ -101,15 +143,15 @@ export function ConfigWizard({
     if (setupStep === 2) {
       if (newInstType === 'manual') {
         if (newStrategyType === 'grupal') setSetupStep(4);
-        else addColumn();
+        else handleFinish();
       } else {
         setSetupStep(3);
       }
     } else if (setupStep === 3) {
       if (newStrategyType === 'grupal') setSetupStep(4);
-      else addColumn();
+      else handleFinish();
     } else if (setupStep === 4) {
-      addColumn();
+      handleFinish();
     } else {
       setSetupStep(setupStep + 1);
     }
@@ -198,9 +240,9 @@ export function ConfigWizard({
               )}
 
               {setupStep === 1 && (
-                <div className="space-y-12 animate-in fade-in slide-in-from-right-4">
+                <div className="space-y-12 animate-in fade-in slide-in-from-right-4 max-w-4xl mx-auto">
                   <div className="space-y-6 md:space-y-8">
-                    <div className="flex items-center gap-3"><div className="h-2 w-2 rounded-full bg-primary" /><h4 className="font-black text-[10px] uppercase text-primary tracking-[0.2em]">Selecciona el Instrumento</h4></div>
+                    <div className="flex items-center justify-center gap-3"><div className="h-2 w-2 rounded-full bg-primary" /><h4 className="font-black text-[10px] uppercase text-primary tracking-[0.2em]">Selecciona el Instrumento</h4><div className="h-2 w-2 rounded-full bg-primary" /></div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 md:gap-4">
                       {[
                         { id: 'manual', label: 'Nota Directa', icon: FileText },
@@ -209,7 +251,7 @@ export function ConfigWizard({
                         { id: 'escala', label: 'Escala Valorativa', icon: Star },
                         { id: 'guia', label: 'Guía Observación', icon: Quote }
                       ].map((t) => (
-                        <Button key={t.id} variant="outline" className={cn("h-auto py-6 md:py-8 flex-col gap-3 md:gap-4 rounded-2xl md:rounded-3xl border-2 transition-all", newInstType === t.id ? 'border-primary bg-primary/5 shadow-lg' : 'hover:border-slate-200')} onClick={() => { setNewInstType(t.id as any); if(t.id === 'manual') setNewStrategyType('individual'); }}>
+                        <Button key={t.id} variant="outline" className={cn("h-auto py-6 md:py-8 flex-col gap-3 md:gap-4 rounded-2xl md:rounded-3xl border-2 transition-all", newInstType === t.id ? 'border-primary bg-primary/5 shadow-lg ring-2 ring-primary/20' : 'hover:border-slate-200')} onClick={() => { setNewInstType(t.id as any); if(t.id === 'manual') setNewStrategyType('individual'); }}>
                           <t.icon className={`h-6 w-6 md:h-8 md:w-8 ${newInstType === t.id ? 'text-primary' : 'text-slate-300'}`} />
                           <span className="font-black text-[9px] md:text-[10px] uppercase tracking-tighter text-center">{t.label}</span>
                         </Button>
@@ -219,7 +261,7 @@ export function ConfigWizard({
                   
                   {newInstType !== 'manual' && (
                     <div className="space-y-6 md:space-y-8 pt-10 border-t border-slate-50">
-                      <div className="flex items-center gap-3"><div className="h-2 w-2 rounded-full bg-primary" /><h4 className="font-black text-[10px] uppercase text-primary tracking-[0.2em]">Define la Estrategia</h4></div>
+                      <div className="flex items-center justify-center gap-3"><div className="h-2 w-2 rounded-full bg-primary" /><h4 className="font-black text-[10px] uppercase text-primary tracking-[0.2em]">Define la Estrategia</h4><div className="h-2 w-2 rounded-full bg-primary" /></div>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
                         {[
                           { id: 'individual', label: 'Individual', icon: User, desc: 'Evaluación personalizada.' },
@@ -232,7 +274,7 @@ export function ConfigWizard({
                             disabled={s.beta}
                             className={cn(
                               "h-auto p-4 md:p-6 flex-col gap-3 rounded-2xl md:rounded-[2rem] border-2 text-left items-start transition-all relative overflow-hidden", 
-                              newStrategyType === s.id ? 'border-primary bg-primary/5' : 'hover:border-slate-200',
+                              newStrategyType === s.id ? 'border-primary bg-primary/5 ring-2 ring-primary/20' : 'hover:border-slate-200',
                               s.beta && "opacity-60 grayscale bg-slate-50 cursor-not-allowed"
                             )} 
                             onClick={() => !s.beta && setNewStrategyType(s.id as any)}
