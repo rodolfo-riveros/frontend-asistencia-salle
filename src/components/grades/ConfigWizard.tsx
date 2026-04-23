@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -100,9 +99,7 @@ export function ConfigWizard({
   const handleFinish = async () => {
     setIsFinishing(true)
     
-    // Payload optimizado para el esquema SQL proporcionado
     const payload = {
-      // Datos para la tabla 'indicadores_logro'
       indicador: {
         unidad_id: unidadId,
         periodo_id: periodoId,
@@ -110,43 +107,32 @@ export function ConfigWizard({
         descripcion: newIndicatorDescription,
         peso_porcentaje: newIndicatorWeight
       },
-      // Datos para la tabla 'evaluaciones'
       evaluacion: {
         nombre: newColName,
         tipo: newInstType,
         peso_instrumento: newInstrumentWeight,
         puntaje_maximo: newMaxPoints,
         periodo_id: periodoId,
-        // Los criterios se guardan aquí para que el backend los meta en 'configuracion_json'
         configuracion_json: {
           criteria: editorCriteria,
-          strategy: newStrategyType,
-          scaleLevels: newInstType === 'escala' ? [
-            { label: 'Excelente', points: 4 },
-            { label: 'Bueno', points: 3 },
-            { label: 'Regular', points: 2 },
-            { label: 'Deficiente', points: 1 }
-          ] : undefined
+          strategy: newStrategyType
         }
       },
-      // Datos para 'evaluacion_grupos' si aplica
       grupos: newStrategyType === 'grupal' ? studentGroups : null
     }
 
     try {
-      console.log(`[FASTAPI] Enviando configuración completa...`);
+      // Envío exclusivo a FastAPI
       await api.post('/evaluaciones/config/', payload);
-      
-      toast({ title: "Configuración Guardada", description: "El instrumento y el indicador se han sincronizado con el backend." });
+      toast({ title: "Registro Exitoso", description: "Configuración guardada en la base de datos SQL." });
       addColumn();
       setIsOpen(false);
       resetEditor();
     } catch (err: any) {
-      console.error("[ERROR CONEXIÓN]", err);
       toast({ 
         variant: "destructive", 
-        title: "Error de Servidor", 
-        description: "Asegúrate de que tu backend tenga el endpoint POST /evaluaciones/config/ habilitado." 
+        title: "Error de Guardado", 
+        description: "No se pudo sincronizar con FastAPI." 
       });
     } finally {
       setIsFinishing(false)
@@ -283,7 +269,7 @@ export function ConfigWizard({
                         {[
                           { id: 'individual', label: 'Evaluación Individual', icon: User, desc: 'Calificación personalizada.' },
                           { id: 'grupal', label: 'Evaluación Grupal', icon: Users, desc: 'Trabajo colaborativo.' },
-                          { id: 'quizz', label: 'Gamificación', icon: Gamepad2, desc: 'Evaluación interactiva en vivo.' }
+                          { id: 'quizz', label: 'Gamificación', icon: Gamepad2, desc: 'Evaluación interactiva vía IA.' }
                         ].map((s) => (
                           <Button key={s.id} variant="outline" className={cn("h-auto p-6 flex-col gap-3 rounded-[2rem] border-2 text-left items-start transition-all w-full max-w-[280px]", newStrategyType === s.id ? 'border-primary bg-primary/5 ring-2 ring-primary/20' : 'hover:border-slate-200')} onClick={() => setNewStrategyType(s.id as any)}>
                             <div className="flex justify-between items-center w-full"><s.icon className={`h-8 w-8 ${newStrategyType === s.id ? 'text-primary' : 'text-slate-300'}`} />{newStrategyType === s.id && <CheckCircle2 className="h-5 w-5 text-primary" />}</div>
@@ -353,7 +339,7 @@ export function ConfigWizard({
         <div className="h-24 px-10 bg-slate-50 border-t flex items-center justify-between shrink-0">
           <Button variant="ghost" onClick={handleBack} disabled={setupStep === 0 || isScanning || isFinishing} className="font-black text-[10px] uppercase h-12 px-8 rounded-xl border-2">Anterior</Button>
           <Button className="bg-primary px-10 h-12 font-black text-[10px] uppercase rounded-xl text-white shadow-lg min-w-[140px]" onClick={handleNext} disabled={(setupStep === 0 && (!newIndicatorCode || !newIndicatorDescription)) || (setupStep === 2 && !newColName) || isScanning || isFinishing}>
-            {isFinishing ? <Loader2 className="h-4 w-4 animate-spin" /> : (setupStep === 4 || (setupStep === 2 && newInstType === 'manual') || (setupStep === 3 && newStrategyType !== 'grupal') ? "Finalizar y Crear" : "Siguiente")}
+            {isFinishing ? <Loader2 className="h-4 w-4 animate-spin" /> : (setupStep === 4 || (setupStep === 2 && newInstType === 'manual') || (setupStep === 3 && newStrategyType !== 'grupal') ? "Finalizar y Guardar" : "Siguiente")}
           </Button>
         </div>
       </DialogContent>
