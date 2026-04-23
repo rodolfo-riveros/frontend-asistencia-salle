@@ -120,21 +120,30 @@ export function ConfigWizard({
         creado_el: serverTimestamp()
       }
       
-      console.log("[FIREBASE] Intentando guardar en Firestore:", evalId);
+      console.group("[FIREBASE DIAGNOSTIC]");
+      console.log("Project ID:", firestore.app.options.projectId);
+      console.log("Attempting write to path:", evalRef.path);
+      console.log("Payload:", configData);
+      console.groupEnd();
 
       try {
         await setDoc(evalRef, configData);
-        console.info("[FIREBASE SUCCESS] Configuración guardada en la nube:", evalId);
-        toast({ title: "Guardado en Firebase", description: "La configuración de gamificación está lista." });
+        console.log("%c[FIREBASE SUCCESS] ¡DATOS GUARDADOS CORRECTAMENTE!", "color: #10b981; font-weight: bold; font-size: 14px;");
+        toast({ title: "Guardado en Firebase", description: "La configuración de gamificación está lista en la nube." });
       } catch (serverError: any) {
-        console.error("[FIREBASE ERROR CRÍTICO]:", serverError);
+        console.error("%c[FIREBASE ERROR CRÍTICO]", "color: #ef4444; font-weight: bold; font-size: 14px;", serverError);
+        
+        const isBlocked = serverError.message?.includes("Failed to load resource") || serverError.code === "unavailable";
+        
         toast({ 
           variant: "destructive", 
-          title: "Error de Firebase", 
-          description: "No se pudo guardar en la nube. Revisa las reglas o la consola." 
+          title: isBlocked ? "Conexión Bloqueada" : "Error de Firebase", 
+          description: isBlocked 
+            ? "Tu navegador (AdBlocker) está bloqueando la conexión con Firebase. Desactiva uBlock/AdBlock." 
+            : "No se pudo guardar en la nube. Revisa las reglas o la consola." 
         });
         setIsFinishing(false);
-        return; // No cerramos si falló el guardado importante
+        return; 
       }
     }
     
