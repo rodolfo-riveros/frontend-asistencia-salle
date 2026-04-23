@@ -386,7 +386,7 @@ export default function AcademicGradebookPage() {
                         <div className="flex items-center gap-1">
                           <div className="text-primary/60">{getInstrumentIcon(c.type)}</div>
                           <Badge variant="outline" className="border-primary/20 text-primary text-[8px] font-black">{c.indicatorCode}</Badge>
-                          {c.strategy !== 'individual' && <Badge className={cn("text-[8px] font-black uppercase", c.strategy === 'grupal' ? 'bg-indigo-600' : 'bg-yellow-500')}>{c.strategy === 'grupal' ? 'GP' : 'QZ'}</Badge>}
+                          {c.strategy !== 'individual' && <Badge className={cn("text-[8px] font-black uppercase", c.strategy === 'grupal' ? 'bg-primary' : 'bg-yellow-500')}>{c.strategy === 'grupal' ? 'GP' : 'QZ'}</Badge>}
                         </div>
                         <span className="text-slate-900 truncate w-36 font-extrabold">{c.name}</span>
                       </div>
@@ -688,7 +688,7 @@ function IndicatorStep({ newIndicatorCode, setNewIndicatorCode, newIndicatorWeig
         </div>
       </div>
       <div className="space-y-6">
-        <div className="flex items-center gap-4 mb-4"><div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600"><History className="h-6 w-6" /></div><h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Biblioteca</h4></div>
+        <div className="flex items-center gap-4 mb-4"><div className="w-12 h-12 rounded-2xl bg-primary/5 flex items-center justify-center text-primary"><History className="h-6 w-6" /></div><h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Biblioteca</h4></div>
         <div className="bg-white rounded-[2rem] border-2 border-dashed border-slate-200 p-6 min-h-[300px]">
           {existingIndicators.length > 0 ? existingIndicators.map((ind: any, i: number) => (
             <button key={i} className="flex flex-col items-start p-4 rounded-2xl border-2 border-slate-50 border-slate-50 hover:border-primary/30 hover:bg-primary/5 mb-3 w-full text-left" onClick={() => { setNewIndicatorCode(ind.code); setNewIndicatorDescription(ind.desc); setNewIndicatorWeight(ind.weight); }}>
@@ -727,15 +727,15 @@ function SelectionStep({ newInstType, setNewInstType, newStrategyType, setNewStr
       
       {!isManual && (
         <div className="space-y-8 pt-10 border-t border-slate-50">
-          <div className="flex items-center gap-3"><div className="h-2 w-2 rounded-full bg-indigo-500" /><h4 className="font-black text-[10px] uppercase text-indigo-600 tracking-[0.2em]">Define la Estrategia (El QUÉ hacen)</h4></div>
+          <div className="flex items-center gap-3"><div className="h-2 w-2 rounded-full bg-primary" /><h4 className="font-black text-[10px] uppercase text-primary tracking-[0.2em]">Define la Estrategia (El QUÉ hacen)</h4></div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {[
               { id: 'individual', label: 'Individual', icon: User, desc: 'Evaluación personalizada por estudiante.' },
               { id: 'grupal', label: 'Trabajo Grupal', icon: Users, desc: 'Califica equipos con una misma nota.' },
               { id: 'quizz', label: 'Gamificación', icon: Gamepad2, desc: 'Lanza una sala interactiva en vivo.' }
             ].map((s) => (
-              <Button key={s.id} variant="outline" className={cn("h-auto p-6 flex-col gap-3 rounded-[2rem] border-2 text-left items-start transition-all", newStrategyType === s.id ? 'border-indigo-600 bg-indigo-50/30' : 'hover:border-slate-200')} onClick={() => setNewStrategyType(s.id as any)}>
-                <div className="flex justify-between items-center w-full"><s.icon className={`h-8 w-8 ${newStrategyType === s.id ? 'text-indigo-600' : 'text-slate-300'}`} />{newStrategyType === s.id && <CheckCircle2 className="h-5 w-5 text-indigo-600" />}</div>
+              <Button key={s.id} variant="outline" className={cn("h-auto p-6 flex-col gap-3 rounded-[2rem] border-2 text-left items-start transition-all", newStrategyType === s.id ? 'border-primary bg-primary/5' : 'hover:border-slate-200')} onClick={() => setNewStrategyType(s.id as any)}>
+                <div className="flex justify-between items-center w-full"><s.icon className={`h-8 w-8 ${newStrategyType === s.id ? 'text-primary' : 'text-slate-300'}`} />{newStrategyType === s.id && <CheckCircle2 className="h-5 w-5 text-primary" />}</div>
                 <div className="space-y-1"><p className="font-black text-[11px] uppercase tracking-tighter">{s.label}</p><p className="text-[10px] text-slate-400 leading-tight font-medium">{s.desc}</p></div>
               </Button>
             ))}
@@ -803,9 +803,9 @@ function ActivityStep({ newColName, setNewColName, newInstrumentWeight, setNewIn
         )}
       </div>
       
-      <div className="bg-blue-50 border border-blue-100 p-6 rounded-2xl flex gap-4 items-center">
-        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 shrink-0"><ClipboardCheck className="h-5 w-5" /></div>
-        <p className="text-[11px] text-blue-700 font-bold uppercase tracking-tight leading-relaxed">
+      <div className="bg-primary/5 border border-primary/10 p-6 rounded-2xl flex gap-4 items-center">
+        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0"><ClipboardCheck className="h-5 w-5" /></div>
+        <p className="text-[11px] text-primary/80 font-bold uppercase tracking-tight leading-relaxed">
           {newInstType === 'manual' 
             ? "Nota Directa: Omitiremos el diseño de criterios para que califiques directamente." 
             : "Define tus criterios manualmente o usa el digitalizador IA para cargar tu plantilla física."}
@@ -846,7 +846,7 @@ function DetailedConfigStep({ newInstType, newColName, totalPointsStep, editorCr
 function TeamsStep({ students, groupSize, setGroupSize, studentGroups, setStudentGroups, newColName }: any) {
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
-      <div className="flex items-center gap-6 bg-indigo-600 p-8 rounded-[2.5rem] text-white shadow-xl shadow-indigo-100">
+      <div className="flex items-center gap-6 bg-primary p-8 rounded-[2.5rem] text-white shadow-xl shadow-primary/10">
         <div className="p-5 bg-white/20 rounded-3xl backdrop-blur-md border border-white/10">
           <Users className="h-8 w-8" />
         </div>
@@ -903,7 +903,7 @@ function EvaluationModal({ activeEval, setActiveEval, evalData, setEvalData, eva
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <Badge className="bg-white/20 text-white font-black uppercase text-[10px]">{column.type ? INST_LABELS[column.type].toUpperCase() : "EVALUACIÓN"}</Badge>
-              <Badge className="bg-indigo-600/50 text-white font-black uppercase text-[10px]">{STRAT_LABELS[column.strategy].toUpperCase()}</Badge>
+              <Badge className="bg-primary/20 text-white font-black uppercase text-[10px]">{STRAT_LABELS[column.strategy].toUpperCase()}</Badge>
             </div>
             <h3 className="text-3xl font-black uppercase tracking-tighter">{student.nombre} {column.strategy === 'grupal' && <span className="text-blue-300 ml-4">[{column.groups?.[student.id]}]</span>}</h3>
             <p className="text-blue-100/80 font-bold uppercase text-[10px] tracking-widest">{column.name}</p>
