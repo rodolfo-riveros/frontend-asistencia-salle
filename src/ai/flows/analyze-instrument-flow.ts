@@ -9,7 +9,6 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { googleAI } from '@genkit-ai/google-genai';
 
 const ChecklistItemSchema = z.object({
   description: z.string().describe('The description of the criterion or question.'),
@@ -48,7 +47,7 @@ export type AnalyzeInstrumentOutput = z.infer<typeof AnalyzeInstrumentOutputSche
 
 const analyzeInstrumentPrompt = ai.definePrompt({
   name: 'analyzeInstrumentPrompt',
-  model: googleAI.model('gemini-1.5-flash'),
+  model: 'googleai/gemini-2.0-flash',
   input: { schema: AnalyzeInstrumentInputSchema },
   output: { schema: AnalyzeInstrumentOutputSchema },
   config: {
