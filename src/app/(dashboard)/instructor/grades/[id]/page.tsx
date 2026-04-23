@@ -103,19 +103,31 @@ export default function AcademicGradebookPage() {
       if (configData) {
         setIndicators(configData.indicadores || []);
 
-        const mappedCols: Column[] = configData.evaluaciones.map((ev: any) => ({
-          id: ev.id,
-          name: ev.nombre,
-          indicatorId: ev.indicador_id,
-          indicatorCode: ev.indicador_codigo,
-          indicatorDescription: ev.indicador_desc,
-          indicatorWeight: ev.indicador_peso,
-          instrumentWeight: ev.peso_instrumento,
-          type: ev.tipo as InstrumentType,
-          strategy: ev.configuracion_json?.strategy || 'individual',
-          instrumentId: ev.id,
-          maxPoints: ev.puntaje_maximo
-        }));
+        const mappedCols: Column[] = configData.evaluaciones.map((ev: any) => {
+          // Construir mapa de grupos para esta evaluación específica
+          const groupMap: Record<string, string> = {};
+          const evalGroups = configData.grupos?.filter((g: any) => g.evaluacion_id === ev.id) || [];
+          evalGroups.forEach((g: any) => {
+            g.integrantes?.forEach((studentId: string) => {
+              groupMap[studentId] = g.nombre_grupo;
+            });
+          });
+
+          return {
+            id: ev.id,
+            name: ev.nombre,
+            indicatorId: ev.indicador_id,
+            indicatorCode: ev.indicador_codigo,
+            indicatorDescription: ev.indicador_desc,
+            indicatorWeight: ev.indicador_peso,
+            instrumentWeight: ev.peso_instrumento,
+            type: ev.tipo as InstrumentType,
+            strategy: ev.configuracion_json?.strategy || 'individual',
+            instrumentId: ev.id,
+            maxPoints: ev.puntaje_maximo,
+            groups: groupMap
+          };
+        });
         setColumns(mappedCols);
 
         const instMap: Record<string, any> = {};
@@ -170,23 +182,47 @@ export default function AcademicGradebookPage() {
     const max = column?.maxPoints || 20
     const numValue = Math.min(max, Math.max(0, parseFloat(value) || 0))
     
-    setGrades(prev => ({
-      ...prev,
-      [studentId]: { ...(prev[studentId] || {}), [columnId]: numValue }
-    }))
+    // Identificar a quiénes afectar (si es grupal, a todo el equipo)
+    const targetStudentIds = [studentId];
+    if (column?.strategy === 'grupal' && column.groups) {
+      const groupName = column.groups[studentId];
+      if (groupName) {
+        // Encontrar a todos los que tengan el mismo nombre de grupo en esta columna
+        Object.entries(column.groups).forEach(([id, name]) => {
+          if (name === groupName && id !== studentId) {
+            targetStudentIds.push(id);
+          }
+        });
+      }
+    }
+
+    // Actualización reactiva del estado local para todos los afectados
+    setGrades(prev => {
+      const next = { ...prev };
+      targetStudentIds.forEach(id => {
+        next[id] = { ...(next[id] || {}), [columnId]: numValue };
+      });
+      return next;
+    });
 
     if (overrideDetails) {
-      setEvalDetails(prev => ({
-        ...prev,
-        [studentId]: { ...(prev[studentId] || {}), [columnId]: overrideDetails }
-      }))
+      setEvalDetails(prev => {
+        const next = { ...prev };
+        targetStudentIds.forEach(id => {
+          next[id] = { ...(next[id] || {}), [columnId]: overrideDetails };
+        });
+        return next;
+      });
     }
 
     if (overrideComment !== undefined) {
-      setComments(prev => ({
-        ...prev,
-        [studentId]: { ...(prev[studentId] || {}), [columnId]: overrideComment }
-      }))
+      setComments(prev => {
+        const next = { ...prev };
+        targetStudentIds.forEach(id => {
+          next[id] = { ...(next[id] || {}), [columnId]: overrideComment };
+        });
+        return next;
+      });
     }
 
     try {
