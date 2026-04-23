@@ -2,53 +2,148 @@
 "use client"
 
 import * as React from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { 
-  ArrowLeft, 
-  Play, 
-  Users, 
-  Trophy, 
-  Gamepad2, 
-  Sparkles, 
-  QrCode,
-  Loader2,
-  ChevronRight
+  ArrowLeft, Play, Users, Trophy, Gamepad2, Sparkles, QrCode, 
+  Loader2, ChevronRight, Save, Zap, AlertCircle
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { QuizHeader } from "@/components/quiz/QuizHeader"
 import { QuestionEditor } from "@/components/quiz/QuestionEditor"
 import { toast } from "@/hooks/use-toast"
-
-// Firebase Mock - En producción usaría initializeFirebase()
-const mockRoom = {
-  id: "room-123",
-  code: "7452",
-  status: "lobby",
-  participants: [
-    { name: "Juan Perez", score: 0 },
-    { name: "Maria Gomez", score: 0 },
-    { name: "Marcos Ttito", score: 0 }
-  ]
-}
+import { api } from "@/lib/api"
+import { generateQuiz } from "@/ai/flows/generate-quiz-flow"
+import { useFirestore } from "@/firebase"
+import { doc, setDoc, onSnapshot, collection, query, where, updateDoc } from "firebase/firestore"
+import { errorEmitter } from "@/firebase/error-emitter"
+import { FirestorePermissionError } from "@/firebase/errors"
 
 export default function InstructorQuizPage() {
   const params = useParams()
+  const searchParams = useSearchParams()
   const router = useRouter()
-  const [view, setView] = React.useState<'setup' | 'game'>('setup')
-  const [questions, setQuestions] = React.useState<any[]>([
-    { id: "1", text: "¿Qué significa SQL?", options: ["Structured Query Language", "Strong Quick Link", "Style Question List", "System Quality Log"], correctIndex: 0, timeLimit: 20 }
-  ])
-  const [isLaunching, setIsLaunching] = React.useState(false)
+  const firestore = useFirestore()
+  const periodoId = searchParams.get('periodo_id') || "ACTUAL"
 
+  const [view, setView] = React.useState<'setup' | 'game'>('setup')
+  const [loadingConfig, setLoadingConfig] = React.useState(true)
+  const [isGenerating, setIsGenerating] = React.useState(false)
+  const [isLaunching, setIsLaunching] = React.useState(false)
+  
+  const [config, setConfig] = React.useState<any>(null)
+  const [questions, setQuestions] = React.useState<any[]>([])
+  const [roomData, setRoomData] = React.useState<any>(null)
+  const [participants, setParticipants] = React.useState<any[]>([])
+
+  // 1. Cargar configuración de evaluación desde FastAPI
+  React.useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const data = await api.get<any[]>(`/evaluaciones/config/${params.id}/${periodoId}`)
+        // Buscamos la configuración de gamificación más reciente
+        const quizConfig = data.find((c: any) => c.estrategia === 'quizz')
+        if (quizConfig) {
+          setConfig(quizConfig)
+        }
+      } catch (e) {
+        console.error("Error al cargar config:", e)
+      } finally {
+        setLoadingConfig(false)
+      }
+    }
+    fetchConfig()
+  }, [params.id, periodoId])
+
+  // 2. Generar preguntas con IA basadas en los criterios
+  const handleAiGenerate = async () => {
+    if (!config?.criterios?.length) {
+      return toast({ variant: "destructive", title: "Sin Criterios", description: "Primero digitaliza un instrumento con criterios." })
+    }
+    setIsGenerating(true)
+    try {
+      const result = await generateQuiz({
+        criteria: config.criterios.map((c: any, i: number) => ({ id: i.toString(), description: c.description })),
+        subjectName: config.nombre
+      })
+      setQuestions(result.questions)
+      toast({ title: "Quizz Generado", description: "Preguntas creadas con éxito basándose en tus criterios." })
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Error de IA", description: e.message })
+    } finally {
+      setIsGenerating(false)
+    }
+  }
+
+  // 3. Lanzar sala en Firestore
   const handleLaunch = async () => {
-    if (questions.length === 0) return toast({ variant: "destructive", title: "Quizz Vacío", description: "Añade al menos una pregunta." })
+    if (questions.length === 0) return toast({ variant: "destructive", title: "Quizz Vacío", description: "Genera o añade preguntas." })
     setIsLaunching(true)
-    // Simulación de creación en Firestore
-    await new Promise(r => setTimeout(r, 1000))
-    setView('game')
-    setIsLaunching(false)
-    toast({ title: "Quizz Iniciado", description: "Comparte el código con tus alumnos." })
+    
+    const pin = Math.floor(1000 + Math.random() * 9000).toString()
+    const roomId = `room-${params.id}-${Date.now()}`
+    
+    const initialRoom = {
+      id: roomId,
+      pin,
+      unitId: params.id,
+      status: 'lobby',
+      currentQuestionIndex: -1,
+      questions,
+      createdAt: new Date().toISOString()
+    }
+
+    const roomRef = doc(firestore, 'quizz_rooms', roomId)
+    
+    setDoc(roomRef, initialRoom)
+      .then(() => {
+        setView('game')
+        setIsLaunching(false)
+        // Suscribirse a cambios en la sala
+        onSnapshot(roomRef, (snapshot) => setRoomData(snapshot.data()))
+        // Suscribirse a participantes
+        onSnapshot(collection(firestore, 'quizz_rooms', roomId, 'participants'), (snapshot) => {
+          setParticipants(snapshot.docs.map(d => ({ id: d.id, ...d.data() })))
+        })
+      })
+      .catch(async (error) => {
+        const permissionError = new FirestorePermissionError({
+          path: roomRef.path,
+          operation: 'create',
+          requestResourceData: initialRoom
+        })
+        errorEmitter.emit('permission-error', permissionError)
+        setIsLaunching(false)
+      })
+  }
+
+  const handleStartGame = async () => {
+    if (!roomData) return
+    const roomRef = doc(firestore, 'quizz_rooms', roomData.id)
+    updateDoc(roomRef, { status: 'active', currentQuestionIndex: 0 })
+  }
+
+  const handleNextQuestion = async () => {
+    if (!roomData) return
+    const nextIndex = roomData.currentQuestionIndex + 1
+    const roomRef = doc(firestore, 'quizz_rooms', roomData.id)
+    
+    if (nextIndex >= questions.length) {
+      updateDoc(roomRef, { status: 'finished' })
+      toast({ title: "Quizz Finalizado", description: "Calculando promedios para el registro auxiliar." })
+    } else {
+      updateDoc(roomRef, { currentQuestionIndex: nextIndex })
+    }
+  }
+
+  if (loadingConfig) {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center gap-4">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="font-black uppercase text-xs tracking-widest text-slate-400">Cargando Estrategia...</p>
+      </div>
+    )
   }
 
   return (
@@ -63,21 +158,32 @@ export default function InstructorQuizPage() {
               <Gamepad2 className="h-10 w-10" />
             </div>
             <div>
-              <h2 className="text-4xl font-headline font-black tracking-tight text-slate-900">Gamificación</h2>
+              <h2 className="text-4xl font-headline font-black tracking-tight text-slate-900 uppercase italic">Gamificación</h2>
               <p className="text-slate-500 font-medium italic">Evaluaciones Interactivas La Salle</p>
             </div>
           </div>
         </div>
 
         {view === 'setup' && (
-          <Button 
-            onClick={handleLaunch} 
-            disabled={isLaunching}
-            className="h-16 px-10 bg-primary hover:bg-primary/90 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-primary/20 gap-3"
-          >
-            {isLaunching ? <Loader2 className="h-5 w-5 animate-spin" /> : <Play className="h-5 w-5" />}
-            Lanzar Sala de Quizz
-          </Button>
+          <div className="flex gap-3">
+             <Button 
+              onClick={handleAiGenerate} 
+              disabled={isGenerating}
+              variant="outline"
+              className="h-16 px-8 border-2 border-accent text-accent hover:bg-accent hover:text-white rounded-2xl font-black uppercase text-xs tracking-widest gap-3"
+            >
+              {isGenerating ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
+              Auto-Generar con IA
+            </Button>
+            <Button 
+              onClick={handleLaunch} 
+              disabled={isLaunching || questions.length === 0}
+              className="h-16 px-10 bg-primary hover:bg-primary/90 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-primary/20 gap-3"
+            >
+              {isLaunching ? <Loader2 className="h-5 w-5 animate-spin" /> : <Play className="h-5 w-5" />}
+              Lanzar Sala
+            </Button>
+          </div>
         )}
       </div>
 
@@ -89,61 +195,103 @@ export default function InstructorQuizPage() {
           <div className="space-y-6">
             <Card className="p-8 border-none shadow-xl bg-slate-900 text-white rounded-[2.5rem]">
               <h4 className="text-lg font-black uppercase tracking-tighter mb-4 flex items-center gap-2">
-                <Sparkles className="text-yellow-400 h-5 w-5" /> Configuración
+                <Zap className="text-yellow-400 h-5 w-5" /> Configuración Activa
               </h4>
               <div className="space-y-6">
-                <div className="p-6 bg-white/5 rounded-2xl border border-white/10 space-y-4">
-                   <p className="text-[11px] text-blue-200/70 leading-relaxed font-medium">
-                     "Los alumnos se unirán mediante un código QR o ingresando el PIN de la sala en tiempo real."
-                   </p>
-                   <div className="flex items-center gap-3 text-emerald-400">
-                     <Users className="h-4 w-4" />
-                     <span className="text-[10px] font-black uppercase tracking-widest">Soporta hasta 50 alumnos</span>
+                {!config ? (
+                   <div className="p-6 bg-red-500/10 rounded-2xl border border-red-500/20 flex gap-3 text-red-200">
+                     <AlertCircle className="h-5 w-5 shrink-0" />
+                     <p className="text-[10px] font-bold uppercase leading-relaxed">No se detectó un instrumento digitalizado. Por favor, usa el asistente de evaluación primero.</p>
                    </div>
-                </div>
-                <div className="space-y-2">
-                   <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Tema del Quizz</span>
-                   <div className="h-12 bg-white/10 rounded-xl flex items-center px-4 font-bold text-sm">
-                     Evaluación de Unidad I
-                   </div>
-                </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="p-6 bg-white/5 rounded-2xl border border-white/10 space-y-2">
+                       <span className="text-[9px] font-black text-blue-300 uppercase tracking-widest">Actividad Vinculada</span>
+                       <p className="text-sm font-black uppercase">{config.nombre}</p>
+                    </div>
+                    <div className="p-6 bg-white/5 rounded-2xl border border-white/10 space-y-3">
+                       <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">Criterios a Evaluar</span>
+                       <div className="space-y-2">
+                          {config.criterios.map((c: any, i: number) => (
+                            <div key={i} className="flex gap-2 text-[10px] text-white/60 items-start">
+                               <span className="font-black text-white/90 shrink-0">{i + 1}.</span>
+                               <span className="line-clamp-2 italic">{c.description}</span>
+                            </div>
+                          ))}
+                       </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </Card>
           </div>
         </div>
       ) : (
         <div className="space-y-10 animate-in fade-in zoom-in-95 duration-500">
-          <QuizHeader roomCode={mockRoom.code} participantCount={mockRoom.participants.length} status="lobby" />
+          <QuizHeader roomCode={roomData?.pin || "----"} participantCount={participants.length} status={roomData?.status || 'lobby'} />
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-            <Card className="p-10 border-none shadow-2xl rounded-[3rem] bg-white flex flex-col items-center justify-center text-center gap-8 min-h-[400px]">
-              <div className="p-8 bg-slate-50 rounded-[2.5rem] border-4 border-dashed border-slate-100">
-                <QrCode className="h-48 w-48 text-slate-300" />
-              </div>
-              <div className="space-y-2">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Acceso Directo</p>
-                <h3 className="text-2xl font-black text-slate-800 uppercase tracking-tighter">Escanea para Unirte</h3>
-              </div>
-            </Card>
+            {roomData?.status === 'lobby' ? (
+              <Card className="p-10 border-none shadow-2xl rounded-[3rem] bg-white flex flex-col items-center justify-center text-center gap-8 min-h-[400px]">
+                <div className="p-8 bg-slate-50 rounded-[2.5rem] border-4 border-dashed border-slate-100">
+                  <QrCode className="h-48 w-48 text-slate-300" />
+                </div>
+                <div className="space-y-2">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Acceso Directo</p>
+                  <h3 className="text-2xl font-black text-slate-800 uppercase tracking-tighter">Escanea para Unirte</h3>
+                </div>
+              </Card>
+            ) : roomData?.status === 'active' ? (
+              <Card className="p-10 border-none shadow-2xl rounded-[3rem] bg-white flex flex-col gap-8 min-h-[400px]">
+                <div className="space-y-2">
+                   <Badge className="bg-primary text-white font-black">PREGUNTA {roomData.currentQuestionIndex + 1} DE {questions.length}</Badge>
+                   <h3 className="text-3xl font-black text-slate-900 leading-tight uppercase italic">{questions[roomData.currentQuestionIndex].text}</h3>
+                </div>
+                <div className="grid gap-3">
+                   {questions[roomData.currentQuestionIndex].options.map((opt: string, i: number) => (
+                     <div key={i} className={`p-5 rounded-2xl border-2 font-bold text-lg ${i === questions[roomData.currentQuestionIndex].correctIndex ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-100 text-slate-400'}`}>
+                        {opt} {i === questions[roomData.currentQuestionIndex].correctIndex && "✓"}
+                     </div>
+                   ))}
+                </div>
+                <Button onClick={handleNextQuestion} className="h-16 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest gap-2">
+                  Siguiente Paso <ChevronRight className="h-5 w-5" />
+                </Button>
+              </Card>
+            ) : (
+              <Card className="p-10 border-none shadow-2xl rounded-[3rem] bg-emerald-600 text-white flex flex-col items-center justify-center text-center gap-6 min-h-[400px]">
+                <div className="p-6 bg-white/20 rounded-full animate-bounce">
+                  <Trophy className="h-20 w-20" />
+                </div>
+                <h3 className="text-4xl font-black uppercase italic">¡Quizz Terminado!</h3>
+                <p className="text-emerald-50/80 font-medium">Las respuestas se han procesado. Puedes ver los promedios calculados por alumno.</p>
+                <Button onClick={() => setView('setup')} variant="outline" className="h-14 px-10 border-white text-white hover:bg-white/10 rounded-xl font-black uppercase text-xs">Finalizar Sesión</Button>
+              </Card>
+            )}
 
             <Card className="p-10 border-none shadow-2xl rounded-[3rem] bg-slate-50 flex flex-col gap-6">
                <div className="flex justify-between items-center px-2">
                   <h4 className="text-lg font-black uppercase tracking-tighter flex items-center gap-2">
                     <Users className="h-5 w-5 text-primary" /> Alumnos en Sala
                   </h4>
-                  <Badge className="bg-primary/10 text-primary font-black">{mockRoom.participants.length}</Badge>
+                  <Badge className="bg-primary/10 text-primary font-black">{participants.length}</Badge>
                </div>
                <div className="grid grid-cols-2 gap-3 overflow-y-auto max-h-[350px] pr-2">
-                  {mockRoom.participants.map((p, i) => (
-                    <div key={i} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-3 animate-in slide-in-from-bottom-2">
-                      <div className="h-8 w-8 rounded-full bg-primary/5 text-primary font-black text-xs flex items-center justify-center">{p.name[0]}</div>
-                      <span className="font-bold text-slate-700 text-sm truncate uppercase tracking-tight">{p.name}</span>
+                  {participants.map((p, i) => (
+                    <div key={i} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between group animate-in slide-in-from-bottom-2">
+                      <div className="flex items-center gap-3">
+                        <div className="h-8 w-8 rounded-full bg-primary/5 text-primary font-black text-xs flex items-center justify-center uppercase">{p.name[0]}</div>
+                        <span className="font-bold text-slate-700 text-sm truncate uppercase tracking-tight">{p.name}</span>
+                      </div>
+                      {roomData?.status === 'finished' && <Badge className="bg-emerald-100 text-emerald-700 font-black">{p.score || 0} pts</Badge>}
                     </div>
                   ))}
                </div>
-               <Button className="mt-auto h-16 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black uppercase text-xs gap-3 shadow-xl shadow-emerald-200">
-                  <Play className="h-5 w-5" /> Iniciar Primera Pregunta
-               </Button>
+               {roomData?.status === 'lobby' && (
+                 <Button onClick={handleStartGame} disabled={participants.length === 0} className="mt-auto h-16 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black uppercase text-xs gap-3 shadow-xl shadow-emerald-200">
+                    <Play className="h-5 w-5" /> Comenzar Desafío
+                 </Button>
+               )}
             </Card>
           </div>
         </div>

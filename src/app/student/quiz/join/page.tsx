@@ -8,9 +8,12 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { toast } from "@/hooks/use-toast"
+import { useFirestore } from "@/firebase"
+import { collection, query, where, getDocs, doc, setDoc } from "firebase/firestore"
 
 export default function StudentJoinPage() {
   const router = useRouter()
+  const firestore = useFirestore()
   const [pin, setPin] = React.useState("")
   const [name, setName] = React.useState("")
   const [isLoading, setIsLoading] = React.useState(false)
@@ -21,15 +24,43 @@ export default function StudentJoinPage() {
     if (!name) return toast({ variant: "destructive", title: "Nombre Requerido", description: "¿Cómo te identificaremos?" })
     
     setIsLoading(true)
-    // Simulación de unión en Firestore
-    await new Promise(r => setTimeout(r, 1500))
-    toast({ title: "¡Unido con éxito!", description: "Espera a que el docente inicie el Quizz." })
-    router.push(`/student/quiz/room-123`)
+    try {
+      // 1. Buscar la sala por PIN
+      const roomsRef = collection(firestore, 'quizz_rooms')
+      const q = query(roomsRef, where('pin', '==', pin), where('status', '==', 'lobby'))
+      const snapshot = await getDocs(q)
+
+      if (snapshot.empty) {
+        toast({ variant: "destructive", title: "Sala no encontrada", description: "Verifica el PIN o espera a que el docente abra la sala." })
+        setIsLoading(false)
+        return
+      }
+
+      const roomDoc = snapshot.docs[0]
+      const roomId = roomDoc.id
+      const studentId = `student-${Date.now()}`
+
+      // 2. Registrar participante
+      await setDoc(doc(firestore, 'quizz_rooms', roomId, 'participants', studentId), {
+        id: studentId,
+        name: name.toUpperCase(),
+        score: 0,
+        joinedAt: new Date().toISOString()
+      })
+
+      localStorage.setItem('quiz_student_id', studentId)
+      toast({ title: "¡Unido con éxito!", description: "Prepárate para comenzar." })
+      router.push(`/student/quiz/${roomId}`)
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Error de Conexión", description: "No se pudo unir a la sala." })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 relative overflow-hidden">
-      {/* Background Decor */}
+      {/* Decoración de fondo */}
       <div className="absolute -top-24 -left-24 w-96 h-96 bg-primary rounded-full blur-3xl opacity-20" />
       <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-accent rounded-full blur-3xl opacity-20" />
 
@@ -38,14 +69,14 @@ export default function StudentJoinPage() {
           <div className="inline-flex items-center justify-center p-4 bg-white/5 border border-white/10 rounded-[2rem] shadow-2xl mb-4">
              <GraduationCap className="h-12 w-12 text-white" />
           </div>
-          <h1 className="text-4xl font-black text-white uppercase tracking-tighter italic">Quizz Live</h1>
+          <h1 className="text-4xl font-black text-white uppercase tracking-tighter italic leading-none">Quizz Live</h1>
           <p className="text-blue-200/50 font-bold uppercase text-[10px] tracking-[0.3em]">IES La Salle Urubamba</p>
         </div>
 
         <Card className="border-none shadow-2xl bg-white rounded-[3rem] p-8 overflow-hidden">
           <form onSubmit={handleJoin} className="space-y-6">
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Pin de Juego</label>
+              <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Pin de Sala</label>
               <Input 
                 value={pin}
                 onChange={e => setPin(e.target.value.toUpperCase())}
@@ -62,7 +93,7 @@ export default function StudentJoinPage() {
                 value={name}
                 onChange={e => setName(e.target.value)}
                 placeholder="Ej. Juan Perez"
-                className="h-14 border-none bg-slate-100 rounded-xl shadow-inner font-bold text-lg px-6"
+                className="h-14 border-none bg-slate-100 rounded-xl shadow-inner font-bold text-lg px-6 uppercase"
                 required
               />
             </div>
@@ -73,13 +104,13 @@ export default function StudentJoinPage() {
               className="w-full h-16 bg-primary hover:bg-primary/90 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-primary/20 gap-3 mt-4"
             >
               {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : <LogIn className="h-6 w-6" />}
-              Entrar a la Sala
+              Entrar a la Arena
             </Button>
           </form>
         </Card>
 
         <div className="text-center">
-          <p className="text-[10px] text-white/30 uppercase font-black tracking-widest">Espera las instrucciones de tu docente</p>
+          <p className="text-[10px] text-white/30 uppercase font-black tracking-widest">Ingresa el PIN proyectado por tu docente</p>
         </div>
       </div>
     </div>
