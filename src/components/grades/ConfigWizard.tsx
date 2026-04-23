@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -39,6 +38,7 @@ import { GroupConfig } from "./strategies/GroupConfig"
 
 import { api } from "@/lib/api"
 import { toast } from "@/hooks/use-toast"
+import { analyzeInstrument } from "@/ai/flows/analyze-instrument-flow"
 
 const INST_LABELS: Record<string, string> = {
   manual: 'Nota Directa',
@@ -84,7 +84,6 @@ interface ConfigWizardProps {
   setStudentGroups: (val: Record<string, string>) => void
   addColumn: () => void
   resetEditor: () => void
-  handleAiScan: (e: React.ChangeEvent<HTMLInputElement>) => Promise<void>
 }
 
 export function ConfigWizard({ 
@@ -92,12 +91,48 @@ export function ConfigWizard({
   newIndicatorDescription, setNewIndicatorDescription, newIndicatorWeight, setNewIndicatorWeight,
   existingIndicators, newInstType, setNewInstType, newStrategyType, setNewStrategyType,
   newColName, setNewColName, newInstrumentWeight, setNewInstrumentWeight, newMaxPoints, setNewMaxPoints,
-  editorCriteria, setEditorCriteria, isScanning, fileInputRef, totalPointsStep,
-  students, groupSize, setGroupSize, studentGroups, setStudentGroups, addColumn, resetEditor, handleAiScan
+  editorCriteria, setEditorCriteria, isScanning: parentIsScanning, fileInputRef, totalPointsStep,
+  students, groupSize, setGroupSize, studentGroups, setStudentGroups, addColumn, resetEditor
 }: ConfigWizardProps) {
   
   const [isFinishing, setIsFinishing] = React.useState(false)
+  const [isScanning, setIsScanning] = React.useState(false)
   const [evalIdCreated, setEvalIdCreated] = React.useState<string | null>(null)
+
+  const handleAiScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setIsScanning(true)
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as string)
+        reader.readAsDataURL(file)
+      })
+      const analysis = await analyzeInstrument({ photoDataUri: base64 })
+      if (!analysis) throw new Error("La IA no pudo interpretar el documento.")
+      
+      if (analysis.type) setNewInstType(analysis.type)
+      if (analysis.name) setNewColName(analysis.name)
+      if (analysis.suggestedWeight) setNewInstrumentWeight(analysis.suggestedWeight)
+      
+      if ((analysis.type === 'cotejo' || analysis.type === 'guia') && analysis.checklistCriteria) {
+        setEditorCriteria(analysis.checklistCriteria.map((c: any) => ({ id: Math.random().toString(), ...c })))
+      } else if (analysis.type === 'rubrica' && analysis.rubricDimensions) {
+        setEditorCriteria(analysis.rubricDimensions.map((d: any) => ({ id: Math.random().toString(), ...d })))
+      } else if (analysis.type === 'escala' && analysis.checklistCriteria) {
+        setEditorCriteria(analysis.checklistCriteria.map((c: any) => ({ id: Math.random().toString(), description: c.description })))
+      }
+      
+      setSetupStep(3) 
+      toast({ title: "Digitalización Exitosa" })
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Error", description: err.message })
+    } finally {
+      setIsScanning(false)
+      if (fileInputRef.current) fileInputRef.current.value = "" 
+    }
+  }
 
   const handleFinish = async () => {
     if (isFinishing) return
@@ -186,7 +221,6 @@ export function ConfigWizard({
       return;
     }
     
-    // Al final del paso de Detalles (2) o Diseño (3), guardamos la config básica
     if ((setupStep === 2 && newInstType === 'manual') || 
         (setupStep === 2 && newInstType !== 'manual' && newStrategyType === 'individual') ||
         (setupStep === 3)) {
