@@ -5,6 +5,9 @@ import * as React from "react"
 import { 
   Dialog, 
   DialogContent, 
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -17,6 +20,7 @@ import { RubricEvaluator } from "./RubricEvaluator"
 import { ScaleEvaluator } from "./ScaleEvaluator"
 import { GuideEvaluator } from "./GuideEvaluator"
 import { toast } from "@/hooks/use-toast"
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden"
 
 interface EvaluationModalProps {
   activeEval: any
@@ -78,7 +82,6 @@ export function EvaluationModal({
     const score = calculateScore();
     
     try {
-      // Sincronización con FastAPI vía handleGradeChange que ya invoca al API
       await handleGradeChange(student.id, column.id, score.toString());
       
       setEvalDetails((prev: any) => ({ ...prev, [student.id]: { ...prev[student.id], [column.id]: evalData } }));
@@ -96,6 +99,11 @@ export function EvaluationModal({
   return (
     <Dialog open={!!activeEval} onOpenChange={(o) => { if(!o) onClose(); }}>
       <DialogContent className="max-w-6xl p-0 overflow-hidden border-none shadow-2xl rounded-[1.5rem] md:rounded-[3rem] flex flex-col h-[95vh] md:h-[90vh]">
+        <DialogHeader className="hidden">
+          <DialogTitle>Evaluación de {student.nombre}</DialogTitle>
+          <DialogDescription>Calificación detallada del instrumento {column.name}</DialogDescription>
+        </DialogHeader>
+
         <div className="bg-primary p-6 md:p-10 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-6 shrink-0">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
