@@ -27,6 +27,25 @@
         "configuracion_json": { "type": "object" }
       }
     },
+    "EvaluationConfig": {
+      "title": "Configuración de Evaluación",
+      "description": "Configuración pedagógica de una evaluación, incluyendo criterios e instrumentos digitalizados.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "unidad_id": { "type": "string" },
+        "periodo_id": { "type": "string" },
+        "nombre": { "type": "string" },
+        "tipo_instrumento": { "type": "string" },
+        "estrategia": { "type": "string" },
+        "criterios": { "type": "array" },
+        "indicador_codigo": { "type": "string" },
+        "indicador_peso": { "type": "number" },
+        "instrumento_peso": { "type": "number" },
+        "max_puntos": { "type": "number" },
+        "creado_el": { "type": "object" }
+      }
+    },
     "QuizRoom": {
       "title": "Sala de Quiz (Real-time)",
       "description": "Estado de una sesión de quiz activa en Firebase.",
@@ -45,6 +64,10 @@
     "providers": ["email", "google"]
   },
   "firestore": {
+    "/evaluaciones_config/{evalId}": {
+      "schema": "EvaluationConfig",
+      "description": "Repositorio de instrumentos digitalizados y configuraciones para gamificación."
+    },
     "/quiz_rooms/{roomId}": {
       "schema": "QuizRoom",
       "description": "Salas de quiz activas para interacción en tiempo real."

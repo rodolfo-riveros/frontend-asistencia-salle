@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -125,7 +126,7 @@ export function ConfigWizard({
         setEditorCriteria(analysis.checklistCriteria.map((c: any) => ({ id: Math.random().toString(), description: c.description })))
       }
       
-      setSetupStep(3) // Saltar al diseño para revisar lo escaneado
+      setSetupStep(3) 
     } catch (err: any) {
       console.error(err)
     } finally {
@@ -135,36 +136,40 @@ export function ConfigWizard({
   }
 
   const handleFinish = async () => {
-    const evalId = `eval-${Date.now()}`
-    const evalRef = doc(firestore, 'evaluaciones_config', evalId)
-    
-    // Preparamos el objeto a guardar
-    const configData = {
-      id: evalId,
-      unidad_id: unidadId,
-      periodo_id: periodoId,
-      nombre: newColName,
-      tipo_instrumento: newInstType,
-      estrategia: newStrategyType,
-      criterios: editorCriteria, // AQUÍ SE GUARDAN LOS CRITERIOS ESCANEADOS O EDITADOS
-      indicador_codigo: newIndicatorCode,
-      indicador_peso: newIndicatorWeight,
-      instrumento_peso: newInstrumentWeight,
-      max_puntos: newMaxPoints,
-      creado_el: serverTimestamp()
+    // PERSISTENCIA EN FIREBASE: Solo si es Gamificación (Quizz)
+    if (newStrategyType === 'quizz') {
+      const evalId = `eval-${Date.now()}`
+      const evalRef = doc(firestore, 'evaluaciones_config', evalId)
+      
+      const configData = {
+        id: evalId,
+        unidad_id: unidadId,
+        periodo_id: periodoId,
+        nombre: newColName,
+        tipo_instrumento: newInstType,
+        estrategia: newStrategyType,
+        criterios: editorCriteria,
+        indicador_codigo: newIndicatorCode,
+        indicador_peso: newIndicatorWeight,
+        instrumento_peso: newInstrumentWeight,
+        max_puntos: newMaxPoints,
+        creado_el: serverTimestamp()
+      }
+      
+      // Guardado no bloqueante (Optimista)
+      setDoc(evalRef, configData).catch(async (serverError) => {
+        const error = new FirestorePermissionError({ 
+          path: evalRef.path, 
+          operation: 'create', 
+          requestResourceData: configData 
+        });
+        errorEmitter.emit('permission-error', error);
+      });
+      
+      console.info(`[FIREBASE] Configuración de Gamificación guardada: ${evalId}`);
     }
     
-    // Persistencia en Firebase Firestore (No bloqueante)
-    setDoc(evalRef, configData).catch(async () => {
-      const error = new FirestorePermissionError({ 
-        path: evalRef.path, 
-        operation: 'create', 
-        requestResourceData: configData 
-      });
-      errorEmitter.emit('permission-error', error);
-    });
-    
-    addColumn() // Actualiza el estado local en la tabla
+    addColumn() 
   }
 
   const handleNext = () => {
