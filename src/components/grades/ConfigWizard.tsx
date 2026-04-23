@@ -116,38 +116,64 @@ export function ConfigWizard({
       });
       const analysis = await analyzeInstrument({ photoDataUri: base64 });
       
-      // MAPEO DE TIPO PARA EL BACKEND (FastAPI espera 'anecdotario' no 'guia')
       const mappedType = analysis.type === 'guia' ? 'anecdotario' : analysis.type;
       
       if (mappedType) setNewInstType(mappedType);
       if (analysis.name) setNewColName(analysis.name);
       if (analysis.suggestedWeight) setNewInstrumentWeight(analysis.suggestedWeight);
       
+      let parsedCriteria: any[] = [];
       if (analysis.type === 'cotejo' || analysis.type === 'guia') {
         if (analysis.checklistCriteria) {
-          setEditorCriteria(analysis.checklistCriteria.map(c => ({ 
+          parsedCriteria = analysis.checklistCriteria.map(c => ({ 
             id: Math.random().toString(), 
             description: c.description, 
             points: c.points 
-          })));
+          }));
         }
       } else if (analysis.type === 'rubrica') {
         if (analysis.rubricDimensions) {
-          setEditorCriteria(analysis.rubricDimensions.map(d => ({
+          parsedCriteria = analysis.rubricDimensions.map(d => ({
             id: Math.random().toString(),
             category: d.category,
             levels: d.levels
-          })));
+          }));
         }
       } else if (analysis.type === 'escala') {
         if (analysis.checklistCriteria) {
-          setEditorCriteria(analysis.checklistCriteria.map(c => ({
+          parsedCriteria = analysis.checklistCriteria.map(c => ({
             id: Math.random().toString(),
             description: c.description
-          })));
+          }));
         }
       }
+      
+      setEditorCriteria(parsedCriteria);
       toast({ title: "Digitalización Exitosa", description: "El instrumento ha sido interpretado por la IA." });
+
+      // AUTOMATIZACIÓN: Registro y avance inmediato para no agotar la IA
+      if (registeredIndicatorId) {
+        const payload = {
+          indicador_id: registeredIndicatorId,
+          periodo_id: periodoId,
+          nombre: analysis.name || newColName || "Nueva Actividad",
+          tipo: mappedType,
+          peso_instrumento: analysis.suggestedWeight || newInstrumentWeight || 0,
+          puntaje_maximo: newMaxPoints,
+          configuracion_json: { strategy: newStrategyType, criteria: [] }
+        };
+
+        let res: any;
+        if (registeredEvalId) {
+          res = await api.patch(`/evaluaciones/${registeredEvalId}`, payload);
+        } else {
+          res = await api.post('/evaluaciones/', payload);
+        }
+
+        setRegisteredEvalId(res.id);
+        setSetupStep(3); // Avanza directamente al Paso 3 para editar criterios
+      }
+
     } catch (err: any) {
       toast({ variant: "destructive", title: "Error de IA", description: err.message });
     } finally {
