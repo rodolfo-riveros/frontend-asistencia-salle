@@ -3,44 +3,24 @@
 
 import * as React from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
-import { 
-  ArrowLeft, Search, Save, Target, ChevronRight, ClipboardCheck, LayoutList, 
-  FileText, Trash2, PlusCircle, BookOpen, Sparkles, Loader2, 
-  MessageSquare, Star, Quote, History, FileSpreadsheet, RefreshCcw, 
-  Users, Gamepad2, Play, Plus, User, CheckCircle2, Download
-} from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { Target, FileText, LayoutList, Star, Quote, Play } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription,
-  DialogTitle
-} from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
+import { Button } from "@/components/ui/button"
 import { toast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
 import { getInitials, cn } from "@/lib/utils"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import { analyzeInstrument } from "@/ai/flows/analyze-instrument-flow"
 
-// Componentes Modulares de Evaluación
-import { ChecklistEvaluator } from "@/components/grades/ChecklistEvaluator"
-import { RubricEvaluator } from "@/components/grades/RubricEvaluator"
-import { ScaleEvaluator } from "@/components/grades/ScaleEvaluator"
-import { GuideEvaluator } from "@/components/grades/GuideEvaluator"
-
-// Componentes Modulares de Configuración (Editor)
-import { RubricConfig } from "@/components/grades/editor/RubricConfig"
-import { ChecklistConfig } from "@/components/grades/editor/ChecklistConfig"
-import { ScaleConfig } from "@/components/grades/editor/ScaleConfig"
-import { GuideConfig } from "@/components/grades/editor/GuideConfig"
-import { GroupConfig } from "@/components/grades/strategies/GroupConfig"
+// Componentes Modulares
+import { GradebookHeader } from "@/components/grades/GradebookHeader"
+import { GradebookToolbar } from "@/components/grades/GradebookToolbar"
+import { ConfigWizard } from "@/components/grades/ConfigWizard"
+import { EvaluationModal } from "@/components/grades/EvaluationModal"
 
 type InstrumentType = 'manual' | 'cotejo' | 'rubrica' | 'escala' | 'guia'
 type StrategyType = 'individual' | 'grupal' | 'quizz'
@@ -69,20 +49,6 @@ interface Column {
   groups?: Record<string, string> 
 }
 
-const INST_LABELS: Record<string, string> = {
-  manual: 'Nota Directa',
-  cotejo: 'Lista de Cotejo',
-  rubrica: 'Rúbrica',
-  escala: 'Escala Valorativa',
-  guia: 'Guía Observación'
-}
-
-const STRAT_LABELS: Record<string, string> = {
-  individual: 'Individual',
-  grupal: 'Trabajo Grupal',
-  quizz: 'Gamificación'
-}
-
 const DEFAULT_SCALE_LEVELS = [
   { label: 'Excelente', points: 4 },
   { label: 'Bueno', points: 3 },
@@ -92,7 +58,6 @@ const DEFAULT_SCALE_LEVELS = [
 
 export default function AcademicGradebookPage() {
   const params = useParams()
-  const router = useRouter()
   const searchParams = useSearchParams()
   const periodoId = searchParams.get('periodo_id')
   
@@ -107,13 +72,11 @@ export default function AcademicGradebookPage() {
   const [isSaving, setIsSaving] = React.useState(false)
   const [searchTerm, setSearchTerm] = React.useState("")
   
-  // Modals
   const [isNewColOpen, setIsNewColOpen] = React.useState(false)
   const [activeEval, setActiveEval] = React.useState<{ student: any, column: Column } | null>(null)
   const [evalData, setEvalData] = React.useState<Record<string, any>>({})
   const [evalComment, setEvalComment] = React.useState("")
 
-  // Multi-step Editor State
   const [setupStep, setSetupStep] = React.useState(0)
   const [newIndicatorCode, setNewIndicatorCode] = React.useState("")
   const [newIndicatorDescription, setNewIndicatorDescription] = React.useState("")
@@ -126,11 +89,9 @@ export default function AcademicGradebookPage() {
   const [editorCriteria, setEditorCriteria] = React.useState<any[]>([])
   const [editorScaleLevels, setEditorScaleLevels] = React.useState<any[]>(DEFAULT_SCALE_LEVELS)
 
-  // Groups Logic
   const [groupSize, setGroupSize] = React.useState(3)
   const [studentGroups, setStudentGroups] = React.useState<Record<string, string>>({})
 
-  // AI Scanner State
   const [isScanning, setIsScanning] = React.useState(false)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
@@ -177,51 +138,29 @@ export default function AcademicGradebookPage() {
   const handleAiScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-
-    if (newInstrumentWeight <= 0) {
-      toast({ 
-        variant: "destructive", 
-        title: "Atención", 
-        description: "Por favor, asigna un peso (%) al instrumento antes de digitalizar." 
-      })
-      if (fileInputRef.current) fileInputRef.current.value = ""
-      return
-    }
-
     setIsScanning(true)
     try {
       const base64 = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader()
         reader.onload = () => resolve(reader.result as string)
-        reader.onerror = () => reject(new Error("Error al leer el archivo."))
         reader.readAsDataURL(file)
       })
-
       const analysis = await analyzeInstrument({ photoDataUri: base64 })
-      
       if (!analysis) throw new Error("La IA no pudo interpretar el documento.")
-
       if (analysis.type) setNewInstType(analysis.type)
       if (analysis.name) setNewColName(analysis.name)
       if (analysis.suggestedWeight) setNewInstrumentWeight(analysis.suggestedWeight)
-      
       if ((analysis.type === 'cotejo' || analysis.type === 'guia') && analysis.checklistCriteria) {
         setEditorCriteria(analysis.checklistCriteria.map((c: any) => ({ id: Math.random().toString(), ...c })))
       } else if (analysis.type === 'rubrica' && analysis.rubricDimensions) {
         setEditorCriteria(analysis.rubricDimensions.map((d: any) => ({ id: Math.random().toString(), ...d })))
       } else if (analysis.type === 'escala' && analysis.checklistCriteria) {
         setEditorCriteria(analysis.checklistCriteria.map((c: any) => ({ id: Math.random().toString(), description: c.description })))
-        if (analysis.scaleLevels) setEditorScaleLevels(analysis.scaleLevels)
       }
-      
       setSetupStep(3) 
-      toast({ title: "Digitalización Exitosa", description: "Revisa los criterios extraídos por la IA." })
+      toast({ title: "Digitalización Exitosa" })
     } catch (err: any) {
-      toast({ 
-        variant: "destructive", 
-        title: "Error", 
-        description: err.message || "No se pudo procesar la imagen." 
-      })
+      toast({ variant: "destructive", title: "Error", description: err.message })
     } finally {
       setIsScanning(false)
       if (fileInputRef.current) fileInputRef.current.value = "" 
@@ -230,65 +169,40 @@ export default function AcademicGradebookPage() {
 
   const addColumn = () => {
     if ((newInstType === 'cotejo' || newInstType === 'guia') && totalPointsStep !== 20) {
-      toast({ variant: "destructive", title: "Atención", description: "La suma de los criterios debe ser exactamente 20." })
+      toast({ variant: "destructive", title: "Atención", description: "La suma debe ser 20." })
       return
     }
-
     const colId = `col-${Date.now()}`
     const instId = `inst-${Date.now()}`
     const existingInd = existingIndicators.find(ind => ind.code === newIndicatorCode)
-
     const newInstrument: Instrument = {
-      id: instId,
-      name: newColName,
-      type: newInstType,
-      criteria: editorCriteria,
+      id: instId, name: newColName, type: newInstType, criteria: editorCriteria,
       scaleLevels: newInstType === 'escala' ? editorScaleLevels : undefined,
       maxPoints: newInstType === 'manual' ? newMaxPoints : 20
     }
-
     const newColumn: Column = {
-      id: colId,
-      name: newColName,
-      indicatorId: existingInd?.id,
-      indicatorCode: newIndicatorCode,
-      indicatorDescription: newIndicatorDescription,
-      indicatorWeight: newIndicatorWeight,
-      instrumentWeight: newInstrumentWeight,
-      type: newInstType,
-      strategy: newStrategyType,
-      instrumentId: instId,
-      maxPoints: newInstType === 'manual' ? newMaxPoints : 20,
+      id: colId, name: newColName, indicatorId: existingInd?.id, indicatorCode: newIndicatorCode,
+      indicatorDescription: newIndicatorDescription, indicatorWeight: newIndicatorWeight,
+      instrumentWeight: newInstrumentWeight, type: newInstType, strategy: newStrategyType,
+      instrumentId: instId, maxPoints: newInstType === 'manual' ? newMaxPoints : 20,
       groups: newStrategyType === 'grupal' ? studentGroups : undefined
     }
-
     setInstruments(prev => ({ ...prev, [instId]: newInstrument }))
     setColumns(prev => [...prev, newColumn])
-    setGrades(prev => {
-      const next = { ...prev }
-      students.forEach(s => { 
-        if(!next[s.id]) next[s.id] = {}
-        next[s.id][colId] = 0 
-      })
-      return next
-    })
-
     setIsNewColOpen(false)
     resetEditor()
-    toast({ title: "Evaluación Registrada" })
   }
 
   const resetEditor = () => {
     setSetupStep(0); setNewIndicatorCode(""); setNewIndicatorDescription(""); setNewIndicatorWeight(0)
     setNewInstrumentWeight(0); setNewColName(""); setNewInstType('manual'); setNewStrategyType('individual')
-    setNewMaxPoints(20); setEditorCriteria([]); setStudentGroups({}); setEditorScaleLevels(DEFAULT_SCALE_LEVELS)
+    setNewMaxPoints(20); setEditorCriteria([]); setStudentGroups({})
   }
 
   const handleGradeChange = (studentId: string, columnId: string, value: string) => {
     const column = columns.find(c => c.id === columnId)
     const max = column?.maxPoints || 20
     const numValue = Math.min(max, Math.max(0, parseInt(value) || 0))
-    
     setGrades(prev => {
       const next = { ...prev }
       if (!next[studentId]) next[studentId] = {}
@@ -315,35 +229,23 @@ export default function AcademicGradebookPage() {
       if (!indicatorsMap.has(c.indicatorCode)) indicatorsMap.set(c.indicatorCode, { weight: c.indicatorWeight, cols: [] })
       indicatorsMap.get(c.indicatorCode)!.cols.push(c)
     })
-    
     let finalSum = 0
     let totalIndicatorWeight = 0
-
     indicatorsMap.forEach((data) => {
       const { cols, weight } = data
-      let indicatorAvg = 0
-      const totalInstrumentWeight = cols.reduce((sum, c) => sum + c.instrumentWeight, 0)
-      
-      if (totalInstrumentWeight > 0) {
-        let weightedSum = 0
-        let weightFactor = 0
-        cols.forEach(c => {
-          const rawScore = studentGrades[c.id] || 0
-          const normalized = (rawScore / c.maxPoints) * 20
-          weightedSum += normalized * (c.instrumentWeight / 100)
-          weightFactor += (c.instrumentWeight / 100)
-        })
-        indicatorAvg = weightFactor > 0 ? weightedSum / weightFactor : 0
-      } else {
-        const sum = cols.reduce((s, c) => s + (studentGrades[c.id] || 0) / c.maxPoints * 20, 0)
-        indicatorAvg = sum / cols.length
-      }
-
+      let weightedSum = 0
+      let weightFactor = 0
+      cols.forEach(c => {
+        const rawScore = studentGrades[c.id] || 0
+        const normalized = (rawScore / c.maxPoints) * 20
+        weightedSum += normalized * (c.instrumentWeight / 100)
+        weightFactor += (c.instrumentWeight / 100)
+      })
+      const indicatorAvg = weightFactor > 0 ? weightedSum / weightFactor : 0
       finalSum += indicatorAvg * (weight / 100)
       totalIndicatorWeight += (weight / 100)
     })
-
-    return Math.round(totalIndicatorWeight > 0 ? finalSum / totalIndicatorWeight : finalSum / (indicatorsMap.size || 1))
+    return Math.round(totalIndicatorWeight > 0 ? finalSum / totalIndicatorWeight : finalSum)
   }
 
   const getInstrumentIcon = (type: InstrumentType) => {
@@ -359,66 +261,73 @@ export default function AcademicGradebookPage() {
   const filtered = students.filter(s => s.nombre.toLowerCase().includes(searchTerm.toLowerCase()))
 
   return (
-    <div className="space-y-8 pb-20">
-      <HeaderSection router={router} setIsNewColOpen={setIsNewColOpen} />
+    <div className="space-y-6 md:space-y-10 pb-20">
+      <GradebookHeader onNewEval={() => setIsNewColOpen(true)} />
 
-      <Card className="border-none shadow-2xl overflow-hidden bg-white rounded-[2.5rem]">
-        <TableToolbar 
+      <Card className="border-none shadow-2xl overflow-hidden bg-white rounded-2xl md:rounded-[2.5rem]">
+        <GradebookToolbar 
           searchTerm={searchTerm} 
           setSearchTerm={setSearchTerm} 
-          fetchFullGradebook={fetchFullGradebook} 
+          onReload={fetchFullGradebook} 
+          onSave={() => { setIsSaving(true); setTimeout(() => setIsSaving(false), 1000); }} 
           isSaving={isSaving} 
-          handleSaveAll={() => { 
-            setIsSaving(true); 
-            setTimeout(() => { setIsSaving(false); toast({ title: "Sincronizado" }); }, 1000); 
-          }} 
         />
         
         <CardContent className="p-0">
-          <ScrollArea className="w-full h-[600px]">
+          <ScrollArea className="w-full">
             <Table>
-              <TableHeader className="bg-slate-50/30 sticky top-0 z-10 backdrop-blur-md">
+              <TableHeader className="bg-slate-50/30">
                 <TableRow className="border-none">
-                  <TableHead className="pl-10 font-black text-[10px] uppercase text-slate-400 tracking-widest w-[300px] py-6 bg-slate-50/30">Alumno</TableHead>
+                  <TableHead className="pl-6 md:pl-10 font-black text-[10px] uppercase text-slate-400 tracking-widest w-[200px] md:w-[300px] py-4 md:py-6 sticky left-0 z-20 bg-slate-50/90 backdrop-blur-sm border-r">Alumno</TableHead>
                   {columns.map(c => (
-                    <TableHead key={c.id} className="text-center font-black text-[10px] uppercase text-slate-400 tracking-widest px-6 border-l min-w-[180px] bg-slate-50/30">
+                    <TableHead key={c.id} className="text-center font-black text-[10px] uppercase text-slate-400 tracking-widest px-4 md:px-6 border-l min-w-[150px] md:min-w-[180px]">
                       <div className="flex flex-col items-center gap-1">
                         <div className="flex items-center gap-1">
                           <div className="text-primary/60">{getInstrumentIcon(c.type)}</div>
                           <Badge variant="outline" className="border-primary/20 text-primary text-[8px] font-black">{c.indicatorCode}</Badge>
-                          {c.strategy !== 'individual' && <Badge className={cn("text-[8px] font-black uppercase", c.strategy === 'grupal' ? 'bg-primary' : 'bg-yellow-500')}>{c.strategy === 'grupal' ? 'GP' : 'QZ'}</Badge>}
                         </div>
-                        <span className="text-slate-900 truncate w-36 font-extrabold">{c.name}</span>
+                        <span className="text-slate-900 truncate w-32 md:w-36 font-extrabold">{c.name}</span>
                       </div>
                     </TableHead>
                   ))}
-                  <TableHead className="text-center font-black text-[10px] uppercase text-primary tracking-widest bg-primary/5 w-[120px] border-l sticky right-0 z-10 backdrop-blur-md">Nota Final</TableHead>
+                  <TableHead className="text-center font-black text-[10px] uppercase text-primary tracking-widest bg-primary/5 w-[100px] md:w-[120px] border-l sticky right-0 z-20 bg-primary/5 backdrop-blur-sm">Final</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.map((s) => {
                   const finalScore = calculateFinal(s.id);
                   return (
-                    <TableRow key={s.id} className="hover:bg-slate-50/50 transition-all group">
-                      <TableCell className="pl-10 py-6">
-                        <StudentCell student={s} />
+                    <TableRow key={s.id} className="hover:bg-slate-50/50 transition-all group border-b">
+                      <TableCell className="pl-6 md:pl-10 py-4 md:py-6 sticky left-0 z-10 bg-white group-hover:bg-slate-50/50 border-r">
+                        <div className="flex items-center gap-3 md:gap-4">
+                          <Avatar className="h-8 w-8 md:h-10 md:w-10 border-2 border-white shadow-sm">
+                            <AvatarFallback className="bg-primary/5 text-primary font-black text-[10px] md:text-xs">{getInitials(s.nombre)}</AvatarFallback>
+                          </Avatar>
+                          <div className="flex flex-col">
+                            <span className="font-bold text-xs md:text-sm text-slate-800 uppercase truncate w-32 md:w-48">{s.nombre}</span>
+                            <span className="text-[8px] md:text-[9px] text-slate-400 font-mono">DNI: {s.dni}</span>
+                          </div>
+                        </div>
                       </TableCell>
                       {columns.map(c => (
-                        <GradeCell 
-                          key={c.id} 
-                          studentId={s.id} 
-                          column={c} 
-                          grade={grades[s.id]?.[c.id] || 0} 
-                          handleGradeChange={handleGradeChange} 
-                          onEvaluate={() => { 
-                            setActiveEval({ student: s, column: c }); 
-                            setEvalData(evalDetails[s.id]?.[c.id] || {}); 
-                            setEvalComment(comments[s.id]?.[c.id] || ""); 
-                          }} 
-                        />
+                        <TableCell key={c.id} className="text-center px-4 md:px-6 border-l">
+                          <div className="flex items-center justify-center gap-2">
+                            <Input 
+                              type="number" 
+                              className={cn("w-12 md:w-14 h-9 md:h-10 text-center font-black text-base md:text-lg border-none shadow-inner rounded-lg", (grades[s.id]?.[c.id] || 0) < 13 ? 'text-red-600 bg-red-50' : 'text-emerald-700 bg-emerald-50')} 
+                              value={grades[s.id]?.[c.id] || 0} 
+                              onChange={e => handleGradeChange(s.id, c.id, e.target.value)} 
+                            />
+                            {c.type !== 'manual' && (
+                              <Button size="icon" variant="ghost" className="h-8 w-8 md:h-10 md:w-10 rounded-lg md:rounded-xl hover:bg-primary/10 text-primary border-2 border-primary/5" onClick={() => { setActiveEval({ student: s, column: c }); setEvalData(evalDetails[s.id]?.[c.id] || {}); setEvalComment(comments[s.id]?.[c.id] || ""); }}>
+                                <Target className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
                       ))}
-                      <TableCell className="text-center bg-primary/5 border-l py-6 sticky right-0 z-10 backdrop-blur-md">
-                        <span className={cn("text-xl font-black font-mono", finalScore < 13 ? 'text-red-600' : 'text-primary')}>{finalScore.toString().padStart(2, '0')}</span>
+                      <TableCell className="text-center bg-primary/5 border-l py-4 md:py-6 sticky right-0 z-10 group-hover:bg-primary/10 backdrop-blur-sm">
+                        <span className={cn("text-lg md:text-xl font-black font-mono", finalScore < 13 ? 'text-red-600' : 'text-primary')}>{finalScore.toString().padStart(2, '0')}</span>
                       </TableCell>
                     </TableRow>
                   );
@@ -431,513 +340,32 @@ export default function AcademicGradebookPage() {
       </Card>
 
       <ConfigWizard 
-        isOpen={isNewColOpen} 
-        setIsOpen={setIsNewColOpen}
-        setupStep={setupStep}
-        setSetupStep={setSetupStep}
-        newIndicatorCode={newIndicatorCode}
-        setNewIndicatorCode={setNewIndicatorCode}
-        newIndicatorDescription={newIndicatorDescription}
-        setNewIndicatorDescription={setNewIndicatorDescription}
-        newIndicatorWeight={newIndicatorWeight}
-        setNewIndicatorWeight={setNewIndicatorWeight}
+        isOpen={isNewColOpen} setIsOpen={setIsNewColOpen}
+        setupStep={setupStep} setSetupStep={setSetupStep}
+        newIndicatorCode={newIndicatorCode} setNewIndicatorCode={setNewIndicatorCode}
+        newIndicatorDescription={newIndicatorDescription} setNewIndicatorDescription={setNewIndicatorDescription}
+        newIndicatorWeight={newIndicatorWeight} setNewIndicatorWeight={setNewIndicatorWeight}
         existingIndicators={existingIndicators}
-        newInstType={newInstType}
-        setNewInstType={setNewInstType}
-        newStrategyType={newStrategyType}
-        setNewStrategyType={setNewStrategyType}
-        newColName={newColName}
-        setNewColName={setNewColName}
-        newInstrumentWeight={newInstrumentWeight}
-        setNewInstrumentWeight={setNewInstrumentWeight}
-        newMaxPoints={newMaxPoints}
-        setNewMaxPoints={setNewMaxPoints}
-        editorCriteria={editorCriteria}
-        setEditorCriteria={setEditorCriteria}
-        isScanning={isScanning}
-        fileInputRef={fileInputRef}
-        handleAiScan={handleAiScan}
-        totalPointsStep={totalPointsStep}
-        students={students}
-        groupSize={groupSize}
-        setGroupSize={setGroupSize}
-        studentGroups={studentGroups}
-        setStudentGroups={setStudentGroups}
-        addColumn={addColumn}
-        resetEditor={resetEditor}
-        getInstrumentIcon={getInstrumentIcon}
+        newInstType={newInstType} setNewInstType={setNewInstType}
+        newStrategyType={newStrategyType} setNewStrategyType={setNewStrategyType}
+        newColName={newColName} setNewColName={setNewColName}
+        newInstrumentWeight={newInstrumentWeight} setNewInstrumentWeight={setNewInstrumentWeight}
+        newMaxPoints={newMaxPoints} setNewMaxPoints={setNewMaxPoints}
+        editorCriteria={editorCriteria} setEditorCriteria={setEditorCriteria}
+        isScanning={isScanning} fileInputRef={fileInputRef} handleAiScan={handleAiScan}
+        totalPointsStep={totalPointsStep} students={students}
+        groupSize={groupSize} setGroupSize={setGroupSize}
+        studentGroups={studentGroups} setStudentGroups={setStudentGroups}
+        addColumn={addColumn} resetEditor={resetEditor}
       />
 
       <EvaluationModal 
-        activeEval={activeEval}
-        setActiveEval={setActiveEval}
-        evalData={evalData}
-        setEvalData={setEvalData}
-        evalComment={evalComment}
-        setEvalComment={setEvalComment}
-        instruments={instruments}
-        handleGradeChange={handleGradeChange}
-        setEvalDetails={setEvalDetails}
-        setComments={setComments}
+        activeEval={activeEval} onClose={() => setActiveEval(null)}
+        evalData={evalData} setEvalData={setEvalData}
+        evalComment={evalComment} setEvalComment={setEvalComment}
+        instruments={instruments} handleGradeChange={handleGradeChange}
+        setEvalDetails={setEvalDetails} setComments={setComments}
       />
     </div>
-  )
-}
-
-function HeaderSection({ router, setIsNewColOpen }: any) {
-  return (
-    <div className="flex flex-col lg:flex-row justify-between items-start gap-6">
-      <div className="space-y-4">
-        <Button variant="ghost" onClick={() => router.back()} className="h-9 text-primary font-bold px-0 hover:bg-transparent uppercase tracking-widest text-[10px]">
-          <ArrowLeft className="mr-2 h-4 w-4" /> VOLVER AL PANEL
-        </Button>
-        <div className="flex items-center gap-4">
-          <div className="p-4 bg-primary rounded-3xl text-white shadow-2xl shadow-primary/20">
-            <ClipboardCheck className="h-10 w-10" />
-          </div>
-          <div>
-            <h2 className="text-4xl font-headline font-black tracking-tight text-slate-900">Registro Auxiliar</h2>
-            <p className="text-slate-500 font-medium italic">Gestión de Calificaciones y Digitalización Pedagógica</p>
-          </div>
-        </div>
-      </div>
-      <div className="flex flex-wrap gap-3 w-full lg:w-auto">
-        <Button variant="outline" className="h-14 px-6 gap-3 border-emerald-200 text-emerald-700 hover:bg-emerald-50 font-black rounded-2xl uppercase text-[11px] tracking-widest"><FileSpreadsheet className="h-5 w-5" /> Excel</Button>
-        <Button variant="outline" className="h-14 px-6 gap-3 border-red-200 text-red-700 hover:bg-red-50 font-black rounded-2xl uppercase text-[11px] tracking-widest"><FileText className="h-5 w-5" /> PDF</Button>
-        <Button className="h-14 px-8 gap-3 bg-primary hover:bg-primary/90 font-black shadow-xl shadow-primary/30 rounded-2xl uppercase text-[11px] tracking-widest text-white" onClick={() => setIsNewColOpen(true)}><PlusCircle className="h-5 w-5" /> Nueva Evaluación</Button>
-      </div>
-    </div>
-  )
-}
-
-function TableToolbar({ searchTerm, setSearchTerm, fetchFullGradebook, isSaving, handleSaveAll }: any) {
-  return (
-    <div className="p-8 bg-slate-50/50 border-b flex flex-col md:flex-row items-center justify-between gap-6">
-      <div className="relative w-full md:w-[450px]">
-        <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-        <Input placeholder="Buscar alumno..." className="pl-14 h-14 border-none shadow-inner rounded-2xl bg-white font-medium" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
-      </div>
-      <div className="flex gap-2">
-        <Button variant="outline" className="h-12 px-6 border-slate-200 rounded-xl font-bold gap-2" onClick={fetchFullGradebook}><RefreshCcw className="h-4 w-4" /> Recargar</Button>
-        <Button className="h-12 px-8 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg gap-2" onClick={handleSaveAll} disabled={isSaving}>
-          {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {isSaving ? "Guardando..." : "Guardar Registro"}
-        </Button>
-      </div>
-    </div>
-  )
-}
-
-function StudentCell({ student }: any) {
-  return (
-    <div className="flex items-center gap-4">
-      <Avatar className="h-10 w-10 border-2 border-white shadow-sm">
-        <AvatarFallback className="bg-primary/5 text-primary font-black text-xs">{getInitials(student.nombre)}</AvatarFallback>
-      </Avatar>
-      <div className="flex flex-col">
-        <span className="font-bold text-sm text-slate-800 uppercase truncate w-48">{student.nombre}</span>
-        <div className="flex items-center gap-2 mt-1">
-          <span className="text-[9px] text-slate-400 font-mono">DNI: {student.dni}</span>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function GradeCell({ studentId, column, grade, handleGradeChange, onEvaluate }: any) {
-  const isPassing = (grade / column.maxPoints) * 20 >= 13;
-  return (
-    <TableCell className="text-center px-6 border-l">
-      <div className="flex items-center justify-center gap-2">
-        <Input 
-          type="number" 
-          className={cn("w-14 h-10 text-center font-black text-lg border-none shadow-inner rounded-lg", !isPassing ? 'text-red-600 bg-red-50' : 'text-emerald-700 bg-emerald-50')} 
-          value={grade} 
-          onChange={e => handleGradeChange(studentId, column.id, e.target.value)} 
-        />
-        {column.type !== 'manual' && (
-          <Button size="icon" variant="ghost" className="h-10 w-10 rounded-xl hover:bg-primary/10 text-primary border-2 border-primary/5" onClick={onEvaluate}>
-            <Target className="h-4 w-4" />
-          </Button>
-        )}
-        {column.strategy === 'quizz' && (
-          <Button size="icon" variant="outline" className="h-10 w-10 rounded-xl border-yellow-500/20 text-yellow-600 hover:bg-yellow-50 shadow-sm">
-            <Play className="h-4 w-4" />
-          </Button>
-        )}
-      </div>
-    </TableCell>
-  )
-}
-
-function ConfigWizard({ 
-  isOpen, setIsOpen, setupStep, setSetupStep, newIndicatorCode, setNewIndicatorCode,
-  newIndicatorDescription, setNewIndicatorDescription, newIndicatorWeight, setNewIndicatorWeight,
-  existingIndicators, newInstType, setNewInstType, newStrategyType, setNewStrategyType,
-  newColName, setNewColName, newInstrumentWeight, setNewInstrumentWeight, newMaxPoints, setNewMaxPoints,
-  editorCriteria, setEditorCriteria, isScanning, fileInputRef, handleAiScan, totalPointsStep,
-  students, groupSize, setGroupSize, studentGroups, setStudentGroups, addColumn, resetEditor, getInstrumentIcon
-}: any) {
-  
-  const handleNext = () => {
-    if (setupStep === 2) {
-      if (newInstType === 'manual') {
-        if (newStrategyType === 'grupal') setSetupStep(4);
-        else addColumn();
-      } else {
-        setSetupStep(3);
-      }
-    } else if (setupStep === 3) {
-      if (newStrategyType === 'grupal') setSetupStep(4);
-      else addColumn();
-    } else if (setupStep === 4) {
-      addColumn();
-    } else {
-      setSetupStep(setupStep + 1);
-    }
-  }
-
-  const handleBack = () => {
-    if (setupStep === 4) {
-      if (newInstType === 'manual') setSetupStep(2);
-      else setSetupStep(3);
-    } else {
-      setSetupStep(Math.max(0, setupStep - 1));
-    }
-  }
-
-  let nextText = "Siguiente";
-  if (setupStep === 4) nextText = "Finalizar y Crear";
-  if (setupStep === 2 && newInstType === 'manual' && newStrategyType !== 'grupal') nextText = "Finalizar y Crear";
-  if (setupStep === 3 && newStrategyType !== 'grupal') nextText = "Finalizar y Crear";
-
-  return (
-    <Dialog open={isOpen} onOpenChange={(o) => { setIsOpen(o); if(!o) resetEditor(); }}>
-      <DialogContent className="max-w-5xl p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl flex flex-col h-[90vh]">
-        <div className="bg-primary p-8 text-white shrink-0">
-          <DialogTitle className="text-2xl font-black uppercase tracking-tight">Configuración Técnica</DialogTitle>
-          <DialogDescription className="text-blue-100/80 font-bold uppercase text-[10px] tracking-[0.2em] mt-1">
-            Paso {setupStep + 1}: {
-              setupStep === 0 ? "Indicador de Logro" :
-              setupStep === 1 ? "Instrumento y Estrategia" :
-              setupStep === 2 ? "Detalles de Actividad" :
-              setupStep === 3 ? "Diseño Pedagógico" : "Sorteo de Equipos"
-            }
-          </DialogDescription>
-        </div>
-
-        <div className="flex-grow overflow-hidden flex flex-col">
-          <ScrollArea className="flex-grow">
-            <div className="p-10 bg-white min-h-full">
-              {setupStep === 0 && (
-                <IndicatorStep newIndicatorCode={newIndicatorCode} setNewIndicatorCode={setNewIndicatorCode} newIndicatorWeight={newIndicatorWeight} setNewIndicatorWeight={setNewIndicatorWeight} newIndicatorDescription={newIndicatorDescription} setNewIndicatorDescription={setNewIndicatorDescription} existingIndicators={existingIndicators} />
-              )}
-              {setupStep === 1 && (
-                <SelectionStep newInstType={newInstType} setNewInstType={setNewInstType} newStrategyType={newStrategyType} setNewStrategyType={setNewStrategyType} />
-              )}
-              {setupStep === 2 && (
-                <ActivityStep newColName={newColName} setNewColName={setNewColName} newInstrumentWeight={newInstrumentWeight} setNewInstrumentWeight={setNewInstrumentWeight} newMaxPoints={newMaxPoints} setNewMaxPoints={setNewMaxPoints} newInstType={newInstType} isScanning={isScanning} fileInputRef={fileInputRef} handleAiScan={handleAiScan} />
-              )}
-              {setupStep === 3 && (
-                <DetailedConfigStep newInstType={newInstType} newColName={newColName} totalPointsStep={totalPointsStep} editorCriteria={editorCriteria} setEditorCriteria={setEditorCriteria} getInstrumentIcon={getInstrumentIcon} />
-              )}
-              {setupStep === 4 && (
-                <TeamsStep students={students} groupSize={groupSize} setGroupSize={setGroupSize} studentGroups={studentGroups} setStudentGroups={setStudentGroups} newColName={newColName} />
-              )}
-            </div>
-          </ScrollArea>
-        </div>
-
-        <div className="p-8 bg-slate-50 border-t flex justify-between gap-3 items-center shrink-0">
-          <Button variant="ghost" onClick={handleBack} disabled={setupStep === 0 || isScanning} className="font-black text-[10px] uppercase h-11 px-8 rounded-xl border-2">Anterior</Button>
-          <div className="flex gap-3">
-            <Button className="bg-primary px-10 h-11 font-black text-[10px] uppercase rounded-xl text-white" onClick={handleNext} disabled={
-              (setupStep === 0 && (!newIndicatorCode || !newIndicatorDescription)) || 
-              (setupStep === 2 && !newColName) || 
-              isScanning
-            }>{nextText}</Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
-function IndicatorStep({ newIndicatorCode, setNewIndicatorCode, newIndicatorWeight, setNewIndicatorWeight, newIndicatorDescription, setNewIndicatorDescription, existingIndicators }: any) {
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-      <div className="space-y-6">
-        <div className="flex items-center gap-4 mb-4">
-          <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary"><BookOpen className="h-6 w-6" /></div>
-          <div className="flex flex-col"><h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Indicador de Logro</h4><p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Fundamentación Curricular</p></div>
-        </div>
-        <div className="bg-slate-50/50 p-6 rounded-[2rem] border-2 border-slate-100 space-y-6">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label className="font-black text-slate-400 text-[9px] uppercase tracking-[0.2em]">Código ILC</Label>
-              <Input value={newIndicatorCode} onChange={e => setNewIndicatorCode(e.target.value.toUpperCase())} placeholder="Ej: C1.I1" className="h-12 border-none shadow-inner rounded-xl font-black text-lg bg-white" />
-            </div>
-            <div className="space-y-2">
-              <Label className="font-black text-slate-400 text-[9px] uppercase tracking-[0.2em]">Peso (%)</Label>
-              <Input type="number" value={newIndicatorWeight || ""} onChange={e => setNewIndicatorWeight(parseInt(e.target.value) || 0)} className="h-12 border-none shadow-inner rounded-xl font-black text-center text-lg bg-white" />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label className="font-black text-slate-400 text-[9px] uppercase tracking-[0.2em]">Descripción de la Capacidad</Label>
-            <Textarea value={newIndicatorDescription} onChange={e => setNewIndicatorDescription(e.target.value)} placeholder="Logro esperado..." className="h-32 border-none shadow-inner rounded-2xl bg-white" />
-          </div>
-        </div>
-      </div>
-      <div className="space-y-6">
-        <div className="flex items-center gap-4 mb-4"><div className="w-12 h-12 rounded-2xl bg-primary/5 flex items-center justify-center text-primary"><History className="h-6 w-6" /></div><h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Biblioteca</h4></div>
-        <div className="bg-white rounded-[2rem] border-2 border-dashed border-slate-200 p-6 min-h-[300px]">
-          {existingIndicators.length > 0 ? existingIndicators.map((ind: any, i: number) => (
-            <button key={i} className="flex flex-col items-start p-4 rounded-2xl border-2 border-slate-50 border-slate-50 hover:border-primary/30 hover:bg-primary/5 mb-3 w-full text-left" onClick={() => { setNewIndicatorCode(ind.code); setNewIndicatorDescription(ind.desc); setNewIndicatorWeight(ind.weight); }}>
-              <div className="flex justify-between w-full font-black text-sm text-primary mb-1"><span>{ind.code}</span><Badge variant="outline">{ind.weight}%</Badge></div>
-              <p className="text-[11px] text-slate-500 line-clamp-2">{ind.desc}</p>
-            </button>
-          )) : <p className="text-center text-slate-400 font-bold uppercase text-[10px] py-20">No hay indicadores previos</p>}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function SelectionStep({ newInstType, setNewInstType, newStrategyType, setNewStrategyType }: any) {
-  const isManual = newInstType === 'manual';
-
-  return (
-    <div className="space-y-12 animate-in fade-in slide-in-from-right-4">
-      <div className="space-y-8">
-        <div className="flex items-center gap-3"><div className="h-2 w-2 rounded-full bg-primary" /><h4 className="font-black text-[10px] uppercase text-primary tracking-[0.2em]">Selecciona el Instrumento (El CÓMO mides)</h4></div>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          {[
-            { id: 'manual', label: 'Nota Directa', icon: FileText },
-            { id: 'cotejo', label: 'Lista de Cotejo', icon: LayoutList },
-            { id: 'rubrica', label: 'Rúbrica', icon: Target },
-            { id: 'escala', label: 'Escala Valorativa', icon: Star },
-            { id: 'guia', label: 'Guía Observación', icon: Quote }
-          ].map((t) => (
-            <Button key={t.id} variant="outline" className={cn("h-auto py-8 flex-col gap-4 rounded-3xl border-2 transition-all", newInstType === t.id ? 'border-primary bg-primary/5 shadow-lg shadow-primary/5' : 'hover:border-slate-200')} onClick={() => { setNewInstType(t.id as any); if(t.id === 'manual') setNewStrategyType('individual'); }}>
-              <t.icon className={`h-8 w-8 ${newInstType === t.id ? 'text-primary' : 'text-slate-300'}`} />
-              <span className="font-black text-[10px] uppercase tracking-tighter text-center">{t.label}</span>
-            </Button>
-          ))}
-        </div>
-      </div>
-      
-      {!isManual && (
-        <div className="space-y-8 pt-10 border-t border-slate-50">
-          <div className="flex items-center gap-3"><div className="h-2 w-2 rounded-full bg-primary" /><h4 className="font-black text-[10px] uppercase text-primary tracking-[0.2em]">Define la Estrategia (El QUÉ hacen)</h4></div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {[
-              { id: 'individual', label: 'Individual', icon: User, desc: 'Evaluación personalizada por estudiante.' },
-              { id: 'grupal', label: 'Trabajo Grupal', icon: Users, desc: 'Califica equipos con una misma nota.' },
-              { id: 'quizz', label: 'Gamificación', icon: Gamepad2, desc: 'Lanza una sala interactiva en vivo.' }
-            ].map((s) => (
-              <Button key={s.id} variant="outline" className={cn("h-auto p-6 flex-col gap-3 rounded-[2rem] border-2 text-left items-start transition-all", newStrategyType === s.id ? 'border-primary bg-primary/5' : 'hover:border-slate-200')} onClick={() => setNewStrategyType(s.id as any)}>
-                <div className="flex justify-between items-center w-full"><s.icon className={`h-8 w-8 ${newStrategyType === s.id ? 'text-primary' : 'text-slate-300'}`} />{newStrategyType === s.id && <CheckCircle2 className="h-5 w-5 text-primary" />}</div>
-                <div className="space-y-1"><p className="font-black text-[11px] uppercase tracking-tighter">{s.label}</p><p className="text-[10px] text-slate-400 leading-tight font-medium">{s.desc}</p></div>
-              </Button>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function ActivityStep({ newColName, setNewColName, newInstrumentWeight, setNewInstrumentWeight, newMaxPoints, setNewMaxPoints, newInstType, isScanning, fileInputRef, handleAiScan }: any) {
-  const canScan = newInstrumentWeight > 0;
-  
-  return (
-    <div className="space-y-10 animate-in fade-in slide-in-from-right-4">
-      <div className="bg-slate-50 p-10 rounded-[3rem] border-2 border-slate-100 space-y-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="space-y-3">
-            <Label className="font-black text-slate-400 text-[9px] uppercase tracking-[0.2em] ml-1">Nombre de la Actividad</Label>
-            <Input value={newColName} onChange={e => setNewColName(e.target.value)} placeholder="Ej. Exposición de Proyectos Finales" className="h-16 rounded-2xl text-xl font-bold border-none shadow-inner bg-white" />
-          </div>
-          <div className="grid grid-cols-2 gap-6">
-            <div className="space-y-3">
-              <Label className="font-black text-slate-400 text-[9px] uppercase tracking-[0.2em] ml-1">Peso del Instrumento (%)</Label>
-              <Input type="number" value={newInstrumentWeight || ""} onChange={e => setNewInstrumentWeight(parseInt(e.target.value) || 0)} className="h-16 rounded-2xl text-center text-xl font-black border-none shadow-inner bg-white" />
-            </div>
-            <div className="space-y-3">
-              <Label className="font-black text-slate-400 text-[9px] uppercase tracking-[0.2em] ml-1">Puntaje Máximo</Label>
-              <Input type="number" value={newMaxPoints} onChange={e => setNewMaxPoints(parseInt(e.target.value) || 20)} disabled={newInstType !== 'manual'} className="h-16 rounded-2xl text-center text-xl font-black border-none shadow-inner bg-white disabled:opacity-50" />
-            </div>
-          </div>
-        </div>
-
-        {newInstType !== 'manual' && (
-          <div className="pt-6 border-t border-slate-200">
-             <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-                <div className="space-y-1">
-                  <h5 className="font-black text-[10px] uppercase text-slate-800 tracking-widest">Digitalizador con IA</h5>
-                  <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Digitaliza tu instrumento físico al instante.</p>
-                  {!canScan && <p className="text-[8px] text-red-500 font-bold uppercase tracking-tighter">Asigna peso (%) primero para activar</p>}
-                </div>
-                <div className="relative">
-                  <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleAiScan} />
-                  <Button 
-                    variant="outline" 
-                    onClick={() => {
-                      if (!canScan) {
-                        toast({ variant: "destructive", title: "Atención", description: "Asigna un peso (%) al instrumento antes de escanear." });
-                        return;
-                      }
-                      fileInputRef.current?.click();
-                    }} 
-                    disabled={isScanning} 
-                    className={cn(
-                      "h-14 px-8 gap-3 rounded-2xl border-2 border-dashed transition-all font-black uppercase text-[10px] tracking-widest",
-                      canScan ? "border-accent text-accent hover:bg-accent hover:text-white shadow-lg shadow-accent/5" : "border-slate-200 text-slate-300 opacity-50 cursor-not-allowed"
-                    )}
-                  >
-                    {isScanning ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
-                    {isScanning ? "Escaneando..." : "Digitalizar con IA"}
-                  </Button>
-                </div>
-             </div>
-          </div>
-        )}
-      </div>
-      
-      <div className="bg-primary/5 border border-primary/10 p-6 rounded-2xl flex gap-4 items-center">
-        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0"><ClipboardCheck className="h-5 w-5" /></div>
-        <p className="text-[11px] text-primary/80 font-bold uppercase tracking-tight leading-relaxed">
-          {newInstType === 'manual' 
-            ? "Nota Directa: Omitiremos el diseño de criterios para que califiques directamente." 
-            : "Define tus criterios manualmente o usa el digitalizador IA para cargar tu plantilla física."}
-        </p>
-      </div>
-    </div>
-  )
-}
-
-function DetailedConfigStep({ newInstType, newColName, totalPointsStep, editorCriteria, setEditorCriteria, getInstrumentIcon }: any) {
-  return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
-      <div className="flex justify-between items-center bg-slate-50 p-8 rounded-[2.5rem] border-2 border-slate-100">
-        <div className="flex items-center gap-6">
-          <div className="p-5 bg-primary text-white rounded-3xl shadow-xl shadow-primary/20">{getInstrumentIcon(newInstType)}</div>
-          <div>
-            <div className="flex items-center gap-3 mb-1">
-              <Badge variant="outline" className="font-black text-[8px] uppercase tracking-widest border-primary/20 text-primary">{INST_LABELS[newInstType].toUpperCase()}</Badge>
-            </div>
-            <div className="font-black text-slate-900 text-3xl tracking-tighter uppercase">{newColName || "Actividad Pedagógica"}</div>
-          </div>
-        </div>
-        {(newInstType === 'cotejo' || newInstType === 'guia') && (
-          <div className={cn("px-8 py-4 rounded-2xl font-black text-xl shadow-inner border-2", totalPointsStep === 20 ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-red-50 text-red-700 border-red-100')}>
-            PUNTOS: {totalPointsStep} / 20
-          </div>
-        )}
-      </div>
-
-      {newInstType === 'cotejo' && <ChecklistConfig criteria={editorCriteria} setCriteria={setEditorCriteria} />}
-      {newInstType === 'rubrica' && <RubricConfig criteria={editorCriteria} setCriteria={setEditorCriteria} />}
-      {newInstType === 'escala' && <ScaleConfig criteria={editorCriteria} setCriteria={setEditorCriteria} />}
-      {newInstType === 'guia' && <GuideConfig criteria={editorCriteria} setCriteria={setEditorCriteria} />}
-    </div>
-  )
-}
-
-function TeamsStep({ students, groupSize, setGroupSize, studentGroups, setStudentGroups, newColName }: any) {
-  return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
-      <div className="flex items-center gap-6 bg-primary p-8 rounded-[2.5rem] text-white shadow-xl shadow-primary/10">
-        <div className="p-5 bg-white/20 rounded-3xl backdrop-blur-md border border-white/10">
-          <Users className="h-8 w-8" />
-        </div>
-        <div>
-          <Badge className="bg-white/20 text-white border-none font-black uppercase text-[8px] tracking-widest mb-1">Estrategia Grupal</Badge>
-          <div className="font-black text-3xl tracking-tighter uppercase">{newColName || "Trabajo en Equipo"}</div>
-        </div>
-      </div>
-      <GroupConfig 
-        students={students} 
-        groupSize={groupSize} 
-        setGroupSize={setGroupSize} 
-        studentGroups={studentGroups} 
-        setStudentGroups={setStudentGroups} 
-        newColName={newColName}
-      />
-    </div>
-  )
-}
-
-function EvaluationModal({ activeEval, setActiveEval, evalData, setEvalData, evalComment, setEvalComment, instruments, handleGradeChange, setEvalDetails, setComments }: any) {
-  if (!activeEval) return null;
-  const column = activeEval.column;
-  const student = activeEval.student;
-  const instrument = instruments[column.instrumentId];
-
-  const calculateScore = () => {
-    if (!instrument) return 0;
-    if (column.type === 'cotejo' || column.type === 'guia') {
-      return Math.round(Object.entries(evalData).reduce((acc, [idx, val]) => val === true ? acc + (instrument.criteria[parseInt(idx)].points || (20/instrument.criteria.length)) : acc, 0));
-    }
-    if (column.type === 'escala') {
-      if (!instrument.scaleLevels) return 0;
-      const maxPts = Math.max(...instrument.scaleLevels!.map((l: any) => l.points));
-      const totalPossible = instrument.criteria.length * maxPts;
-      const obtained = Object.values(evalData).reduce((acc, v) => acc + (v as number), 0);
-      return Math.round((obtained / (totalPossible || 1)) * 20);
-    }
-    return Object.values(evalData).reduce((acc, v) => acc + (v as number), 0);
-  };
-
-  const handleApply = () => {
-    const score = calculateScore();
-    handleGradeChange(student.id, column.id, score.toString());
-    setEvalDetails((prev: any) => ({ ...prev, [student.id]: { ...prev[student.id], [column.id]: evalData } }));
-    if (evalComment) setComments((prev: any) => ({ ...prev, [student.id]: { ...prev[student.id], [column.id]: evalComment } }));
-    setActiveEval(null); setEvalData({}); setEvalComment("");
-  };
-
-  return (
-    <Dialog open={!!activeEval} onOpenChange={(o) => { if(!o) setActiveEval(null); }}>
-      <DialogContent className="max-w-6xl p-0 overflow-hidden border-none shadow-2xl rounded-[3rem] flex flex-col h-[90vh]">
-        <div className="bg-primary p-10 text-white flex justify-between items-center shrink-0">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Badge className="bg-white/20 text-white font-black uppercase text-[10px]">{column.type ? INST_LABELS[column.type].toUpperCase() : "EVALUACIÓN"}</Badge>
-              <Badge className="bg-primary/20 text-white font-black uppercase text-[10px]">{STRAT_LABELS[column.strategy].toUpperCase()}</Badge>
-            </div>
-            <h3 className="text-3xl font-black uppercase tracking-tighter">{student.nombre} {column.strategy === 'grupal' && <span className="text-blue-300 ml-4">[{column.groups?.[student.id]}]</span>}</h3>
-            <p className="text-blue-100/80 font-bold uppercase text-[10px] tracking-widest">{column.name}</p>
-          </div>
-          <div className="bg-white/10 p-6 rounded-2xl border-2 border-white/10 text-center min-w-[140px]">
-            <p className="text-[9px] font-black uppercase text-blue-200 mb-1">Nota Calculada</p>
-            <p className="text-5xl font-black font-mono">{calculateScore()}</p>
-          </div>
-        </div>
-        <div className="flex-grow flex overflow-hidden">
-          <ScrollArea className="p-10 bg-slate-50/50 flex-grow">
-            {instrument && (
-              <>
-                {column.type === 'cotejo' && <ChecklistEvaluator criteria={instrument.criteria} evalData={evalData} onUpdate={setEvalData} />}
-                {column.type === 'rubrica' && <RubricEvaluator criteria={instrument.criteria} evalData={evalData} onUpdate={setEvalData} />}
-                {column.type === 'escala' && <ScaleEvaluator criteria={instrument.criteria} scaleLevels={instrument.scaleLevels!} evalData={evalData} onUpdate={setEvalData} />}
-                {column.type === 'guia' && <GuideEvaluator criteria={instrument.criteria} evalData={evalData} onUpdate={setEvalData} />}
-              </>
-            )}
-          </ScrollArea>
-          {(column.type === 'cotejo' || column.type === 'guia') && (
-            <div className="w-[400px] p-10 bg-white border-l flex flex-col gap-6">
-              <div className="space-y-3 flex-1 flex flex-col">
-                <Label className="font-black text-xs uppercase text-slate-400 flex items-center gap-2 shrink-0"><MessageSquare className="h-4 w-4" /> Observaciones del Logro</Label>
-                <Textarea value={evalComment} onChange={e => setEvalComment(e.target.value)} placeholder="Comentarios..." className="flex-1 rounded-2xl border-2 resize-none p-6 font-medium italic text-slate-600 shadow-inner bg-slate-50/30" />
-              </div>
-            </div>
-          )}
-        </div>
-        <div className="p-10 bg-white border-t flex justify-end gap-4 shrink-0">
-          <Button variant="ghost" className="font-black text-slate-400 uppercase text-xs px-12 h-16 rounded-2xl border-2 hover:bg-slate-50 min-w-[180px]" onClick={() => setActiveEval(null)}>Descartar</Button>
-          <Button className="bg-primary font-black uppercase text-xs px-12 h-16 rounded-2xl shadow-xl text-white min-w-[180px]" onClick={handleApply}>Aplicar Nota {column.strategy === 'grupal' ? 'al Grupo' : ''}</Button>
-        </div>
-      </DialogContent>
-    </Dialog>
   )
 }

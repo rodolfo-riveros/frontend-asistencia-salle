@@ -1,0 +1,132 @@
+
+"use client"
+
+import * as React from "react"
+import { 
+  Dialog, 
+  DialogContent, 
+} from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { MessageSquare, Target } from "lucide-react"
+import { ChecklistEvaluator } from "./ChecklistEvaluator"
+import { RubricEvaluator } from "./RubricEvaluator"
+import { ScaleEvaluator } from "./ScaleEvaluator"
+import { GuideEvaluator } from "./GuideEvaluator"
+
+interface EvaluationModalProps {
+  activeEval: any
+  onClose: () => void
+  evalData: any
+  setEvalData: (data: any) => void
+  evalComment: string
+  setEvalComment: (comment: string) => void
+  instruments: Record<string, any>
+  handleGradeChange: (studentId: string, columnId: string, value: string) => void
+  setEvalDetails: (details: any) => void
+  setComments: (comments: any) => void
+}
+
+const INST_LABELS: Record<string, string> = {
+  manual: 'Nota Directa',
+  cotejo: 'Lista de Cotejo',
+  rubrica: 'Rúbrica',
+  escala: 'Escala Valorativa',
+  guia: 'Guía Observación'
+}
+
+const STRAT_LABELS: Record<string, string> = {
+  individual: 'Individual',
+  grupal: 'Trabajo Grupal',
+  quizz: 'Gamificación'
+}
+
+export function EvaluationModal({ 
+  activeEval, onClose, evalData, setEvalData, evalComment, setEvalComment, 
+  instruments, handleGradeChange, setEvalDetails, setComments 
+}: EvaluationModalProps) {
+  
+  if (!activeEval) return null;
+  const column = activeEval.column;
+  const student = activeEval.student;
+  const instrument = instruments[column.instrumentId];
+
+  const calculateScore = () => {
+    if (!instrument) return 0;
+    if (column.type === 'cotejo' || column.type === 'guia') {
+      return Math.round(Object.entries(evalData).reduce((acc, [idx, val]) => val === true ? acc + (instrument.criteria[parseInt(idx)].points || (20/instrument.criteria.length)) : acc, 0));
+    }
+    if (column.type === 'escala') {
+      if (!instrument.scaleLevels) return 0;
+      const maxPts = Math.max(...instrument.scaleLevels!.map((l: any) => l.points));
+      const totalPossible = instrument.criteria.length * maxPts;
+      const obtained = Object.values(evalData).reduce((acc, v) => acc + (v as number), 0);
+      return Math.round((obtained / (totalPossible || 1)) * 20);
+    }
+    return Object.values(evalData).reduce((acc, v) => acc + (v as number), 0);
+  };
+
+  const handleApply = () => {
+    const score = calculateScore();
+    handleGradeChange(student.id, column.id, score.toString());
+    setEvalDetails((prev: any) => ({ ...prev, [student.id]: { ...prev[student.id], [column.id]: evalData } }));
+    if (evalComment) setComments((prev: any) => ({ ...prev, [student.id]: { ...prev[student.id], [column.id]: evalComment } }));
+    onClose();
+  };
+
+  return (
+    <Dialog open={!!activeEval} onOpenChange={(o) => { if(!o) onClose() }}>
+      <DialogContent className="max-w-6xl p-0 overflow-hidden border-none shadow-2xl rounded-[1.5rem] md:rounded-[3rem] flex flex-col h-[95vh] md:h-[90vh]">
+        <div className="bg-primary p-6 md:p-10 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-6 shrink-0">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Badge className="bg-white/20 text-white font-black uppercase text-[9px] md:text-[10px]">{column.type ? INST_LABELS[column.type].toUpperCase() : "EVALUACIÓN"}</Badge>
+              <Badge className="bg-primary/20 text-white font-black uppercase text-[9px] md:text-[10px]">{STRAT_LABELS[column.strategy].toUpperCase()}</Badge>
+            </div>
+            <h3 className="text-xl md:text-3xl font-black uppercase tracking-tighter leading-tight">{student.nombre} {column.strategy === 'grupal' && <span className="text-blue-300 block md:inline md:ml-4">[{column.groups?.[student.id]}]</span>}</h3>
+            <p className="text-blue-100/80 font-bold uppercase text-[9px] md:text-[10px] tracking-widest">{column.name}</p>
+          </div>
+          <div className="bg-white/10 p-4 md:p-6 rounded-xl md:rounded-2xl border-2 border-white/10 text-center min-w-[120px] md:min-w-[140px] w-full md:w-auto self-end md:self-auto">
+            <p className="text-[8px] md:text-[9px] font-black uppercase text-blue-200 mb-1">Nota Calculada</p>
+            <p className="text-4xl md:text-5xl font-black font-mono">{calculateScore()}</p>
+          </div>
+        </div>
+        
+        <div className="flex-grow flex flex-col lg:flex-row overflow-hidden">
+          <ScrollArea className="p-4 md:p-10 bg-slate-50/50 flex-grow">
+            {instrument && (
+              <div className="max-w-full">
+                {column.type === 'cotejo' && <ChecklistEvaluator criteria={instrument.criteria} evalData={evalData} onUpdate={setEvalData} />}
+                {column.type === 'rubrica' && <RubricEvaluator criteria={instrument.criteria} evalData={evalData} onUpdate={setEvalData} />}
+                {column.type === 'escala' && <ScaleEvaluator criteria={instrument.criteria} scaleLevels={instrument.scaleLevels!} evalData={evalData} onUpdate={setEvalData} />}
+                {column.type === 'guia' && <GuideEvaluator criteria={instrument.criteria} evalData={evalData} onUpdate={setEvalData} />}
+              </div>
+            )}
+          </ScrollArea>
+          
+          {(column.type === 'cotejo' || column.type === 'guia') && (
+            <div className="w-full lg:w-[400px] p-6 md:p-10 bg-white border-t lg:border-t-0 lg:border-l flex flex-col gap-6 shrink-0">
+              <div className="space-y-3 flex-1 flex flex-col">
+                <Label className="font-black text-xs uppercase text-slate-400 flex items-center gap-2 shrink-0"><MessageSquare className="h-4 w-4" /> Observaciones del Logro</Label>
+                <Textarea 
+                  value={evalComment} 
+                  onChange={e => setEvalComment(e.target.value)} 
+                  placeholder="Comentarios pedagógicos..." 
+                  className="flex-1 min-h-[120px] rounded-xl md:rounded-2xl border-2 resize-none p-4 md:p-6 font-medium italic text-slate-600 shadow-inner bg-slate-50/30" 
+                />
+              </div>
+            </div>
+          )}
+        </div>
+        
+        <div className="p-4 md:p-10 bg-white border-t flex flex-row justify-end gap-3 md:gap-4 shrink-0">
+          <Button variant="ghost" className="flex-1 sm:flex-none font-black text-slate-400 uppercase text-[10px] md:text-xs px-4 md:px-12 h-12 md:h-16 rounded-xl md:rounded-2xl border-2 hover:bg-slate-50" onClick={onClose}>Descartar</Button>
+          <Button className="flex-1 sm:flex-none bg-primary font-black uppercase text-[10px] md:text-xs px-4 md:px-12 h-12 md:h-16 rounded-xl md:rounded-2xl shadow-xl text-white" onClick={handleApply}>Aplicar Nota</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
