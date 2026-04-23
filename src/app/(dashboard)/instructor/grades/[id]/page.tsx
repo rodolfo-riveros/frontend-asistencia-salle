@@ -3,7 +3,7 @@
 
 import * as React from "react"
 import { useParams, useSearchParams } from "next/navigation"
-import { Target, FileText, LayoutList, Star, Quote } from "lucide-react"
+import { Target, FileText, LayoutList, Star, Quote, Loader2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -14,7 +14,6 @@ import { toast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
 import { getInitials, cn } from "@/lib/utils"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
-import { analyzeInstrument } from "@/ai/flows/analyze-instrument-flow"
 
 // Modular Components
 import { GradebookHeader } from "@/components/grades/GradebookHeader"
@@ -22,17 +21,8 @@ import { GradebookToolbar } from "@/components/grades/GradebookToolbar"
 import { ConfigWizard } from "@/components/grades/ConfigWizard"
 import { EvaluationModal } from "@/components/grades/EvaluationModal"
 
-type InstrumentType = 'manual' | 'cotejo' | 'rubrica' | 'escala' | 'guia'
+type InstrumentType = 'manual' | 'cotejo' | 'rubrica' | 'escala' | 'guia' | 'quizz'
 type StrategyType = 'individual' | 'grupal' | 'quizz'
-
-interface Instrument {
-  id: string
-  name: string
-  type: InstrumentType
-  criteria: any[] 
-  scaleLevels?: { label: string, points: number }[]
-  maxPoints?: number
-}
 
 interface Column {
   id: string
@@ -63,7 +53,7 @@ export default function AcademicGradebookPage() {
   
   const [students, setStudents] = React.useState<any[]>([])
   const [columns, setColumns] = React.useState<Column[]>([])
-  const [instruments, setInstruments] = React.useState<Record<string, Instrument>>({})
+  const [instruments, setInstruments] = React.useState<Record<string, any>>({})
   const [grades, setGrades] = React.useState<Record<string, Record<string, number>>>({})
   const [evalDetails, setEvalDetails] = React.useState<Record<string, Record<string, any>>>({})
   const [comments, setComments] = React.useState<Record<string, Record<string, string>>>({})
@@ -87,7 +77,6 @@ export default function AcademicGradebookPage() {
   const [newColName, setNewColName] = React.useState("")
   const [newMaxPoints, setNewMaxPoints] = React.useState(20)
   const [editorCriteria, setEditorCriteria] = React.useState<any[]>([])
-  const [editorScaleLevels, setEditorScaleLevels] = React.useState<any[]>(DEFAULT_SCALE_LEVELS)
 
   const [groupSize, setGroupSize] = React.useState(3)
   const [studentGroups, setStudentGroups] = React.useState<Record<string, string>>({})
@@ -111,69 +100,72 @@ export default function AcademicGradebookPage() {
   const fetchFullGradebook = React.useCallback(async () => {
     setIsLoading(true)
     try {
-      const studentData = await api.get<any[]>(`/me/unidades/${params.id}/alumnos`)
+      const [studentData, configData] = await Promise.all([
+        api.get<any[]>(`/me/unidades/${params.id}/alumnos`),
+        api.get<any>(`/evaluaciones/config/${params.id}/${periodoId}`)
+      ]);
+
       setStudents(studentData)
 
-      // Carga completa desde el nuevo endpoint de FastAPI
-      const configData = await api.get<any>(`/evaluaciones/config/${params.id}/${periodoId}`)
       if (configData) {
-        if (configData.columns) setColumns(configData.columns)
-        if (configData.instruments) setInstruments(configData.instruments)
-        if (configData.grades) setGrades(configData.grades)
-        if (configData.details) setEvalDetails(configData.details)
-        if (configData.comments) setComments(configData.comments)
+        // Mapear evaluaciones del backend a columnas del frontend
+        const mappedCols: Column[] = configData.evaluaciones.map((ev: any) => ({
+          id: ev.id,
+          name: ev.nombre,
+          indicatorId: ev.indicador_id,
+          indicatorCode: ev.indicador_codigo,
+          indicatorDescription: ev.indicador_desc,
+          indicatorWeight: ev.indicador_peso,
+          instrumentWeight: ev.peso_instrumento,
+          type: ev.tipo as InstrumentType,
+          strategy: ev.configuracion_json?.strategy || 'individual',
+          instrumentId: ev.id,
+          maxPoints: ev.puntaje_maximo
+        }));
+        setColumns(mappedCols);
+
+        // Mapear instrumentos (criterios)
+        const instMap: Record<string, any> = {};
+        configData.evaluaciones.forEach((ev: any) => {
+          instMap[ev.id] = {
+            id: ev.id,
+            name: ev.nombre,
+            type: ev.tipo,
+            criteria: ev.configuracion_json?.criteria || [],
+            scaleLevels: DEFAULT_SCALE_LEVELS // Por ahora default
+          }
+        });
+        setInstruments(instMap);
+
+        // Mapear notas existentes
+        const gradesMap: Record<string, Record<string, number>> = {};
+        const detailsMap: Record<string, Record<string, any>> = {};
+        const commentsMap: Record<string, Record<string, string>> = {};
+
+        configData.calificaciones?.forEach((cal: any) => {
+          if (!gradesMap[cal.alumno_id]) gradesMap[cal.alumno_id] = {};
+          gradesMap[cal.alumno_id][cal.evaluacion_id] = cal.puntaje;
+
+          if (!detailsMap[cal.alumno_id]) detailsMap[cal.alumno_id] = {};
+          detailsMap[cal.alumno_id][cal.evaluacion_id] = cal.detalles_json;
+
+          if (!commentsMap[cal.alumno_id]) commentsMap[cal.alumno_id] = {};
+          commentsMap[cal.alumno_id][cal.evaluacion_id] = cal.observacion;
+        });
+
+        setGrades(gradesMap);
+        setEvalDetails(detailsMap);
+        setComments(commentsMap);
       }
     } catch (err: any) {
       console.error("Error al cargar datos:", err)
-      toast({ variant: "destructive", title: "Estado Inicial", description: "No se encontraron configuraciones previas." })
+      toast({ variant: "destructive", title: "Estado Inicial", description: "No se pudieron sincronizar las notas del servidor." })
     } finally {
       setIsLoading(false)
     }
   }, [params.id, periodoId])
 
   React.useEffect(() => { fetchFullGradebook() }, [fetchFullGradebook])
-
-  const handleAiScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setIsScanning(true)
-    try {
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload = () => resolve(reader.result as string)
-        reader.readAsDataURL(file)
-      })
-      const analysis = await analyzeInstrument({ photoDataUri: base64 })
-      if (!analysis) throw new Error("La IA no pudo interpretar el documento.")
-      if (analysis.type) setNewInstType(analysis.type)
-      if (analysis.name) setNewColName(analysis.name)
-      if (analysis.suggestedWeight) setNewInstrumentWeight(analysis.suggestedWeight)
-      if ((analysis.type === 'cotejo' || analysis.type === 'guia') && analysis.checklistCriteria) {
-        setEditorCriteria(analysis.checklistCriteria.map((c: any) => ({ id: Math.random().toString(), ...c })))
-      } else if (analysis.type === 'rubrica' && analysis.rubricDimensions) {
-        setEditorCriteria(analysis.rubricDimensions.map((d: any) => ({ id: Math.random().toString(), ...d })))
-      } else if (analysis.type === 'escala' && analysis.checklistCriteria) {
-        setEditorCriteria(analysis.checklistCriteria.map((c: any) => ({ id: Math.random().toString(), description: c.description })))
-      }
-      setSetupStep(3) 
-      toast({ title: "Digitalización Exitosa" })
-    } catch (err: any) {
-      toast({ variant: "destructive", title: "Error", description: err.message })
-    } finally {
-      setIsScanning(false)
-      if (fileInputRef.current) fileInputRef.current.value = "" 
-    }
-  }
-
-  const addColumn = () => {
-    fetchFullGradebook() // Recargar todo desde el backend después de una nueva configuración
-  }
-
-  const resetEditor = () => {
-    setSetupStep(0); setNewIndicatorCode(""); setNewIndicatorDescription(""); setNewIndicatorWeight(0)
-    setNewInstrumentWeight(0); setNewColName(""); setNewInstType('manual'); setNewStrategyType('individual')
-    setNewMaxPoints(20); setEditorCriteria([]); setStudentGroups({})
-  }
 
   const handleGradeChange = async (studentId: string, columnId: string, value: string) => {
     const column = columns.find(c => c.id === columnId)
@@ -233,11 +225,21 @@ export default function AcademicGradebookPage() {
       case 'rubrica': return <Target className="h-3 w-3" />;
       case 'escala': return <Star className="h-3 w-3" />;
       case 'guia': return <Quote className="h-3 w-3" />;
+      case 'quizz': return <Gamepad2 className="h-3 w-3" />;
       default: return <FileText className="h-3 w-3" />;
     }
   }
 
   const filtered = students.filter(s => s.nombre.toLowerCase().includes(searchTerm.toLowerCase()))
+
+  if (isLoading && students.length === 0) {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center gap-4">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="font-black uppercase text-xs tracking-widest text-slate-400">Sincronizando Registro Auxiliar...</p>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6 md:space-y-10 pb-20">
@@ -297,7 +299,7 @@ export default function AcademicGradebookPage() {
                               value={grades[s.id]?.[c.id] || 0} 
                               onChange={e => handleGradeChange(s.id, c.id, e.target.value)} 
                             />
-                            {c.type !== 'manual' && (
+                            {(c.type !== 'manual' && c.type !== 'quizz') && (
                               <Button size="icon" variant="ghost" className="h-8 w-8 md:h-10 md:w-10 rounded-lg md:rounded-xl hover:bg-primary/10 text-primary border-2 border-primary/5" onClick={() => { setActiveEval({ student: s, column: c }); setEvalData(evalDetails[s.id]?.[c.id] || {}); setEvalComment(comments[s.id]?.[c.id] || ""); }}>
                                 <Target className="h-4 w-4" />
                               </Button>
@@ -332,11 +334,15 @@ export default function AcademicGradebookPage() {
         newInstrumentWeight={newInstrumentWeight} setNewInstrumentWeight={setNewInstrumentWeight}
         newMaxPoints={newMaxPoints} setNewMaxPoints={setNewMaxPoints}
         editorCriteria={editorCriteria} setEditorCriteria={setEditorCriteria}
-        isScanning={isScanning} fileInputRef={fileInputRef} handleAiScan={handleAiScan}
+        isScanning={isScanning} fileInputRef={fileInputRef} 
         totalPointsStep={totalPointsStep} students={students}
         groupSize={groupSize} setGroupSize={setGroupSize}
         studentGroups={studentGroups} setStudentGroups={setStudentGroups}
-        addColumn={addColumn} resetEditor={resetEditor}
+        addColumn={fetchFullGradebook} resetEditor={() => {
+          setSetupStep(0); setNewIndicatorCode(""); setNewIndicatorDescription(""); setNewIndicatorWeight(0)
+          setNewInstrumentWeight(0); setNewColName(""); setNewInstType('manual'); setNewStrategyType('individual')
+          setNewMaxPoints(20); setEditorCriteria([]); setStudentGroups({})
+        }}
       />
 
       <EvaluationModal 

@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -138,6 +139,9 @@ export function ConfigWizard({
     if (isFinishing) return
     setIsFinishing(true)
     
+    // Si la estrategia es Gamificación, el tipo debe ser QUIZZ para el backend
+    const finalType = newStrategyType === 'quizz' ? 'quizz' : newInstType;
+
     const payload = {
       unidad_id: unidadId,
       periodo_id: periodoId,
@@ -145,7 +149,7 @@ export function ConfigWizard({
       indicador_desc: newIndicatorDescription,
       indicador_peso: newIndicatorWeight,
       nombre: newColName,
-      tipo: newInstType,
+      tipo: finalType,
       peso_instrumento: newInstrumentWeight,
       puntaje_maximo: newMaxPoints,
       configuracion_json: {
@@ -155,28 +159,28 @@ export function ConfigWizard({
     }
 
     try {
+      // El backend devuelve { indicador: IndicadorOut, evaluacion: EvaluacionOut }
       const response = await api.post<any>('/evaluaciones/config/', payload);
-      const evalId = response.id;
+      const evalId = response.evaluacion.id;
       setEvalIdCreated(evalId);
-      
-      toast({ title: "Evaluación Registrada", description: "Configuración guardada exitosamente." });
       
       if (newStrategyType === 'grupal') {
         setSetupStep(4);
       } else {
+        toast({ title: "Evaluación Registrada", description: "La actividad ha sido guardada en el servidor." });
         addColumn();
         setIsOpen(false);
         resetEditor();
       }
     } catch (err: any) {
-      if (err.message.includes('409') || err.message.includes('existe')) {
+      if (err.message.includes('409')) {
         toast({ 
           variant: "destructive", 
-          title: "Registro Duplicado", 
-          description: "La actividad o el indicador ya existen. Intenta con un nombre diferente." 
+          title: "Conflicto de Datos", 
+          description: "Ya existe una actividad con este nombre para el indicador seleccionado." 
         });
       } else {
-        toast({ variant: "destructive", title: "Error", description: err.message || "No se pudo sincronizar con el servidor." });
+        toast({ variant: "destructive", title: "Error", description: err.message || "Fallo en la sincronización con el servidor." });
       }
     } finally {
       setIsFinishing(false)
@@ -221,9 +225,13 @@ export function ConfigWizard({
       return;
     }
     
-    if ((setupStep === 2 && newInstType === 'manual') || 
-        (setupStep === 2 && newInstType !== 'manual' && newStrategyType === 'individual') ||
-        (setupStep === 3)) {
+    const isReadyToSave = (
+      (setupStep === 2 && newInstType === 'manual') || 
+      (setupStep === 2 && newInstType !== 'manual' && newStrategyType === 'individual') ||
+      (setupStep === 3)
+    );
+
+    if (isReadyToSave) {
       handleFinish();
     } else if (setupStep === 4) {
       handleSaveGroups();
