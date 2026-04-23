@@ -1,12 +1,13 @@
 import {genkit} from 'genkit';
 import {googleAI} from '@genkit-ai/google-genai';
 
+/**
+ * @fileOverview Configuración central de Genkit.
+ * Se utiliza el plugin oficial de Google AI con soporte para Gemini 1.5 Flash.
+ */
 export const ai = genkit({
   plugins: [
-    googleAI({ 
-      // Genkit buscará automáticamente GOOGLE_GENAI_API_KEY en las variables de entorno
-      apiKey: process.env.GOOGLE_GENAI_API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY 
-    })
+    googleAI() // El plugin buscará automáticamente GOOGLE_GENAI_API_KEY
   ],
-  model: 'googleai/gemini-1.5-flash', // Versión con mayor compatibilidad regional y de cuota
+  model: 'googleai/gemini-1.5-flash',
 });

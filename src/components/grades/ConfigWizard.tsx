@@ -91,7 +91,7 @@ export function ConfigWizard({
 }: ConfigWizardProps) {
   
   const handleNext = () => {
-    // Lógica inteligente para Nota Directa: si es manual, salta estrategia y va a detalles
+    // Si es Nota Directa en el paso 1, forzamos individual y saltamos a detalles
     if (setupStep === 1 && newInstType === 'manual') {
       setNewStrategyType('individual');
       setSetupStep(2);
@@ -149,7 +149,7 @@ export function ConfigWizard({
           <DialogDescription className="text-blue-100/80 font-bold uppercase text-[9px] md:text-[10px] tracking-[0.2em] mt-1">
             Paso {setupStep + 1}: {
               setupStep === 0 ? "Indicador de Logro" :
-              setupStep === 1 ? "Instrumento y Estrategia" :
+              setupStep === 1 ? (newInstType === 'manual' ? "Tipo de Instrumento" : "Instrumento y Estrategia") :
               setupStep === 2 ? "Detalles de Actividad" :
               setupStep === 3 ? "Diseño Pedagógico" : "Sorteo de Equipos"
             }
@@ -217,7 +217,6 @@ export function ConfigWizard({
                     </div>
                   </div>
                   
-                  {/* SI SE SELECCIONA NOTA DIRECTA, SE OCULTA LA ESTRATEGIA */}
                   {newInstType !== 'manual' && (
                     <div className="space-y-6 md:space-y-8 pt-10 border-t border-slate-50">
                       <div className="flex items-center gap-3"><div className="h-2 w-2 rounded-full bg-primary" /><h4 className="font-black text-[10px] uppercase text-primary tracking-[0.2em]">Define la Estrategia</h4></div>
