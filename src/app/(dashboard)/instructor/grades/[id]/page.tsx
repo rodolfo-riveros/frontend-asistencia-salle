@@ -7,7 +7,7 @@ import {
   ArrowLeft, Search, Save, Target, ChevronRight, ClipboardCheck, LayoutList, 
   FileText, Trash2, PlusCircle, BookOpen, Sparkles, Loader2, 
   MessageSquare, Star, Quote, History, FileSpreadsheet, RefreshCcw, 
-  Users, Gamepad2, Play, Plus, User, CheckCircle2
+  Users, Gamepad2, Play, Plus, User, CheckCircle2, Download
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -178,11 +178,10 @@ export default function AcademicGradebookPage() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    // Validación obligatoria de peso antes de escanear
     if (newInstrumentWeight <= 0) {
       toast({ 
         variant: "destructive", 
-        title: "Peso requerido", 
+        title: "Atención", 
         description: "Por favor, asigna un peso (%) al instrumento antes de digitalizar." 
       })
       if (fileInputRef.current) fileInputRef.current.value = ""
@@ -191,24 +190,19 @@ export default function AcademicGradebookPage() {
 
     setIsScanning(true)
     try {
-      // Leer archivo como Data URI de forma robusta
       const base64 = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader()
         reader.onload = () => resolve(reader.result as string)
-        reader.onerror = () => reject(new Error("Error al leer el archivo físico."))
+        reader.onerror = () => reject(new Error("Error al leer el archivo."))
         reader.readAsDataURL(file)
       })
 
-      // Llamada al flujo Genkit
       const analysis = await analyzeInstrument({ photoDataUri: base64 })
       
       if (!analysis) throw new Error("La IA no pudo interpretar el documento.")
 
-      // Mapeo inteligente de resultados al estado del editor
       if (analysis.type) setNewInstType(analysis.type)
       if (analysis.name) setNewColName(analysis.name)
-      
-      // Solo actualizamos el peso si la IA encontró uno específico, de lo contrario dejamos el que puso el usuario
       if (analysis.suggestedWeight) setNewInstrumentWeight(analysis.suggestedWeight)
       
       if ((analysis.type === 'cotejo' || analysis.type === 'guia') && analysis.checklistCriteria) {
@@ -220,15 +214,13 @@ export default function AcademicGradebookPage() {
         if (analysis.scaleLevels) setEditorScaleLevels(analysis.scaleLevels)
       }
       
-      // Saltar directamente al paso de diseño para revisión
       setSetupStep(3) 
       toast({ title: "Digitalización Exitosa", description: "Revisa los criterios extraídos por la IA." })
     } catch (err: any) {
-      console.error("[SCAN ERROR]", err)
       toast({ 
         variant: "destructive", 
-        title: "Fallo en Digitalización", 
-        description: err.message || "No se pudo procesar la imagen. Reintenta." 
+        title: "Error", 
+        description: err.message || "No se pudo procesar la imagen." 
       })
     } finally {
       setIsScanning(false)
@@ -238,7 +230,7 @@ export default function AcademicGradebookPage() {
 
   const addColumn = () => {
     if ((newInstType === 'cotejo' || newInstType === 'guia') && totalPointsStep !== 20) {
-      toast({ variant: "destructive", title: "Puntaje Inválido", description: "La suma de los criterios debe ser exactamente 20." })
+      toast({ variant: "destructive", title: "Atención", description: "La suma de los criterios debe ser exactamente 20." })
       return
     }
 
@@ -283,7 +275,7 @@ export default function AcademicGradebookPage() {
 
     setIsNewColOpen(false)
     resetEditor()
-    toast({ title: "Evaluación Agregada" })
+    toast({ title: "Evaluación Registrada" })
   }
 
   const resetEditor = () => {
@@ -409,7 +401,7 @@ export default function AcademicGradebookPage() {
                   return (
                     <TableRow key={s.id} className="hover:bg-slate-50/50 transition-all group">
                       <TableCell className="pl-10 py-6">
-                        <StudentCell student={s} columns={columns} />
+                        <StudentCell student={s} />
                       </TableCell>
                       {columns.map(c => (
                         <GradeCell 
@@ -535,7 +527,7 @@ function TableToolbar({ searchTerm, setSearchTerm, fetchFullGradebook, isSaving,
   )
 }
 
-function StudentCell({ student, columns }: any) {
+function StudentCell({ student }: any) {
   return (
     <div className="flex items-center gap-4">
       <Avatar className="h-10 w-10 border-2 border-white shadow-sm">
@@ -545,11 +537,6 @@ function StudentCell({ student, columns }: any) {
         <span className="font-bold text-sm text-slate-800 uppercase truncate w-48">{student.nombre}</span>
         <div className="flex items-center gap-2 mt-1">
           <span className="text-[9px] text-slate-400 font-mono">DNI: {student.dni}</span>
-          {columns.some((c: any) => c.strategy === 'grupal' && c.groups?.[student.id]) && (
-            <Badge variant="outline" className="h-4 px-1.5 text-[8px] font-black border-indigo-100 text-indigo-400 uppercase">
-              {columns.find((c: any) => c.strategy === 'grupal' && c.groups?.[student.id])?.groups?.[student.id]}
-            </Badge>
-          )}
         </div>
       </div>
     </div>
@@ -704,7 +691,7 @@ function IndicatorStep({ newIndicatorCode, setNewIndicatorCode, newIndicatorWeig
         <div className="flex items-center gap-4 mb-4"><div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600"><History className="h-6 w-6" /></div><h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Biblioteca</h4></div>
         <div className="bg-white rounded-[2rem] border-2 border-dashed border-slate-200 p-6 min-h-[300px]">
           {existingIndicators.length > 0 ? existingIndicators.map((ind: any, i: number) => (
-            <button key={i} className="flex flex-col items-start p-4 rounded-2xl border-2 border-slate-50 hover:border-primary/30 hover:bg-primary/5 mb-3 w-full text-left" onClick={() => { setNewIndicatorCode(ind.code); setNewIndicatorDescription(ind.desc); setNewIndicatorWeight(ind.weight); }}>
+            <button key={i} className="flex flex-col items-start p-4 rounded-2xl border-2 border-slate-50 border-slate-50 hover:border-primary/30 hover:bg-primary/5 mb-3 w-full text-left" onClick={() => { setNewIndicatorCode(ind.code); setNewIndicatorDescription(ind.desc); setNewIndicatorWeight(ind.weight); }}>
               <div className="flex justify-between w-full font-black text-sm text-primary mb-1"><span>{ind.code}</span><Badge variant="outline">{ind.weight}%</Badge></div>
               <p className="text-[11px] text-slate-500 line-clamp-2">{ind.desc}</p>
             </button>
@@ -716,10 +703,12 @@ function IndicatorStep({ newIndicatorCode, setNewIndicatorCode, newIndicatorWeig
 }
 
 function SelectionStep({ newInstType, setNewInstType, newStrategyType, setNewStrategyType }: any) {
+  const isManual = newInstType === 'manual';
+
   return (
     <div className="space-y-12 animate-in fade-in slide-in-from-right-4">
       <div className="space-y-8">
-        <div className="flex items-center gap-3"><div className="h-2 w-2 rounded-full bg-primary" /><h4 className="font-black text-xs uppercase text-primary tracking-widest">¿Cómo medirás el desempeño? (Instrumento)</h4></div>
+        <div className="flex items-center gap-3"><div className="h-2 w-2 rounded-full bg-primary" /><h4 className="font-black text-[10px] uppercase text-primary tracking-[0.2em]">Selecciona el Instrumento (El CÓMO mides)</h4></div>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           {[
             { id: 'manual', label: 'Nota Directa', icon: FileText },
@@ -728,7 +717,7 @@ function SelectionStep({ newInstType, setNewInstType, newStrategyType, setNewStr
             { id: 'escala', label: 'Escala Valorativa', icon: Star },
             { id: 'guia', label: 'Guía Observación', icon: Quote }
           ].map((t) => (
-            <Button key={t.id} variant="outline" className={cn("h-auto py-8 flex-col gap-4 rounded-3xl border-2 transition-all", newInstType === t.id ? 'border-primary bg-primary/5 shadow-lg shadow-primary/5' : 'hover:border-slate-200')} onClick={() => setNewInstType(t.id as any)}>
+            <Button key={t.id} variant="outline" className={cn("h-auto py-8 flex-col gap-4 rounded-3xl border-2 transition-all", newInstType === t.id ? 'border-primary bg-primary/5 shadow-lg shadow-primary/5' : 'hover:border-slate-200')} onClick={() => { setNewInstType(t.id as any); if(t.id === 'manual') setNewStrategyType('individual'); }}>
               <t.icon className={`h-8 w-8 ${newInstType === t.id ? 'text-primary' : 'text-slate-300'}`} />
               <span className="font-black text-[10px] uppercase tracking-tighter text-center">{t.label}</span>
             </Button>
@@ -736,21 +725,23 @@ function SelectionStep({ newInstType, setNewInstType, newStrategyType, setNewStr
         </div>
       </div>
       
-      <div className="space-y-8 pt-10 border-t border-slate-50">
-        <div className="flex items-center gap-3"><div className="h-2 w-2 rounded-full bg-indigo-500" /><h4 className="font-black text-xs uppercase text-indigo-600 tracking-widest">¿Cuál es la modalidad de la actividad? (Estrategia)</h4></div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {[
-            { id: 'individual', label: 'Individual', icon: User, desc: 'Evaluación personalizada por cada estudiante.' },
-            { id: 'grupal', label: 'Grupal', icon: Users, desc: 'Califica a un integrante y replica al equipo.' },
-            { id: 'quizz', label: 'Gamificación', icon: Gamepad2, desc: 'Lanza una sala interactiva en tiempo real.' }
-          ].map((s) => (
-            <Button key={s.id} variant="outline" className={cn("h-auto p-6 flex-col gap-3 rounded-[2rem] border-2 text-left items-start transition-all", newStrategyType === s.id ? 'border-indigo-600 bg-indigo-50/30' : 'hover:border-slate-200')} onClick={() => setNewStrategyType(s.id as any)}>
-              <div className="flex justify-between items-center w-full"><s.icon className={`h-8 w-8 ${newStrategyType === s.id ? 'text-indigo-600' : 'text-slate-300'}`} />{newStrategyType === s.id && <CheckCircle2 className="h-5 w-5 text-indigo-600" />}</div>
-              <div className="space-y-1"><p className="font-black text-[11px] uppercase tracking-tighter">{s.label}</p><p className="text-[10px] text-slate-400 leading-tight font-medium">{s.desc}</p></div>
-            </Button>
-          ))}
+      {!isManual && (
+        <div className="space-y-8 pt-10 border-t border-slate-50">
+          <div className="flex items-center gap-3"><div className="h-2 w-2 rounded-full bg-indigo-500" /><h4 className="font-black text-[10px] uppercase text-indigo-600 tracking-[0.2em]">Define la Estrategia (El QUÉ hacen)</h4></div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {[
+              { id: 'individual', label: 'Individual', icon: User, desc: 'Evaluación personalizada por estudiante.' },
+              { id: 'grupal', label: 'Trabajo Grupal', icon: Users, desc: 'Califica equipos con una misma nota.' },
+              { id: 'quizz', label: 'Gamificación', icon: Gamepad2, desc: 'Lanza una sala interactiva en vivo.' }
+            ].map((s) => (
+              <Button key={s.id} variant="outline" className={cn("h-auto p-6 flex-col gap-3 rounded-[2rem] border-2 text-left items-start transition-all", newStrategyType === s.id ? 'border-indigo-600 bg-indigo-50/30' : 'hover:border-slate-200')} onClick={() => setNewStrategyType(s.id as any)}>
+                <div className="flex justify-between items-center w-full"><s.icon className={`h-8 w-8 ${newStrategyType === s.id ? 'text-indigo-600' : 'text-slate-300'}`} />{newStrategyType === s.id && <CheckCircle2 className="h-5 w-5 text-indigo-600" />}</div>
+                <div className="space-y-1"><p className="font-black text-[11px] uppercase tracking-tighter">{s.label}</p><p className="text-[10px] text-slate-400 leading-tight font-medium">{s.desc}</p></div>
+              </Button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }
@@ -763,16 +754,16 @@ function ActivityStep({ newColName, setNewColName, newInstrumentWeight, setNewIn
       <div className="bg-slate-50 p-10 rounded-[3rem] border-2 border-slate-100 space-y-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="space-y-3">
-            <Label className="font-black text-[11px] uppercase text-primary tracking-widest ml-1">Nombre de la Actividad</Label>
+            <Label className="font-black text-slate-400 text-[9px] uppercase tracking-[0.2em] ml-1">Nombre de la Actividad</Label>
             <Input value={newColName} onChange={e => setNewColName(e.target.value)} placeholder="Ej. Exposición de Proyectos Finales" className="h-16 rounded-2xl text-xl font-bold border-none shadow-inner bg-white" />
           </div>
           <div className="grid grid-cols-2 gap-6">
             <div className="space-y-3">
-              <Label className="font-black text-[11px] uppercase text-indigo-600 tracking-widest ml-1">Peso del Instrumento (%)</Label>
+              <Label className="font-black text-slate-400 text-[9px] uppercase tracking-[0.2em] ml-1">Peso del Instrumento (%)</Label>
               <Input type="number" value={newInstrumentWeight || ""} onChange={e => setNewInstrumentWeight(parseInt(e.target.value) || 0)} className="h-16 rounded-2xl text-center text-xl font-black border-none shadow-inner bg-white" />
             </div>
             <div className="space-y-3">
-              <Label className="font-black text-[11px] uppercase text-primary tracking-widest ml-1">Puntaje Máximo</Label>
+              <Label className="font-black text-slate-400 text-[9px] uppercase tracking-[0.2em] ml-1">Puntaje Máximo</Label>
               <Input type="number" value={newMaxPoints} onChange={e => setNewMaxPoints(parseInt(e.target.value) || 20)} disabled={newInstType !== 'manual'} className="h-16 rounded-2xl text-center text-xl font-black border-none shadow-inner bg-white disabled:opacity-50" />
             </div>
           </div>
@@ -782,9 +773,9 @@ function ActivityStep({ newColName, setNewColName, newInstrumentWeight, setNewIn
           <div className="pt-6 border-t border-slate-200">
              <div className="flex flex-col md:flex-row items-center justify-between gap-6">
                 <div className="space-y-1">
-                  <h5 className="font-black text-sm uppercase text-slate-800">Digitalizador con IA</h5>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Digitaliza tu instrumento físico al instante.</p>
-                  {!canScan && <p className="text-[9px] text-red-500 font-bold uppercase">Requiere asignar peso (%) primero</p>}
+                  <h5 className="font-black text-[10px] uppercase text-slate-800 tracking-widest">Digitalizador con IA</h5>
+                  <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Digitaliza tu instrumento físico al instante.</p>
+                  {!canScan && <p className="text-[8px] text-red-500 font-bold uppercase tracking-tighter">Asigna peso (%) primero para activar</p>}
                 </div>
                 <div className="relative">
                   <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleAiScan} />
@@ -792,19 +783,19 @@ function ActivityStep({ newColName, setNewColName, newInstrumentWeight, setNewIn
                     variant="outline" 
                     onClick={() => {
                       if (!canScan) {
-                        toast({ variant: "destructive", title: "Atención", description: "Por favor, asigna un peso (%) al instrumento antes de escanear." });
+                        toast({ variant: "destructive", title: "Atención", description: "Asigna un peso (%) al instrumento antes de escanear." });
                         return;
                       }
                       fileInputRef.current?.click();
                     }} 
                     disabled={isScanning} 
                     className={cn(
-                      "h-14 px-8 gap-3 rounded-2xl border-2 border-dashed transition-all font-black uppercase text-[10px] tracking-widest shadow-lg shadow-accent/5",
-                      canScan ? "border-accent text-accent hover:bg-accent hover:text-white" : "border-slate-200 text-slate-300"
+                      "h-14 px-8 gap-3 rounded-2xl border-2 border-dashed transition-all font-black uppercase text-[10px] tracking-widest",
+                      canScan ? "border-accent text-accent hover:bg-accent hover:text-white shadow-lg shadow-accent/5" : "border-slate-200 text-slate-300 opacity-50 cursor-not-allowed"
                     )}
                   >
                     {isScanning ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
-                    {isScanning ? "Escaneando..." : "Escanear Instrumento con IA"}
+                    {isScanning ? "Escaneando..." : "Digitalizar con IA"}
                   </Button>
                 </div>
              </div>
@@ -814,10 +805,10 @@ function ActivityStep({ newColName, setNewColName, newInstrumentWeight, setNewIn
       
       <div className="bg-blue-50 border border-blue-100 p-6 rounded-2xl flex gap-4 items-center">
         <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 shrink-0"><ClipboardCheck className="h-5 w-5" /></div>
-        <p className="text-xs text-blue-700 font-medium leading-relaxed">
+        <p className="text-[11px] text-blue-700 font-bold uppercase tracking-tight leading-relaxed">
           {newInstType === 'manual' 
-            ? "Has seleccionado Nota Directa. No se requiere configuración adicional de criterios." 
-            : "Puedes redactar tus criterios manualmente o usar el digitalizador para ahorrar tiempo."}
+            ? "Nota Directa: Omitiremos el diseño de criterios para que califiques directamente." 
+            : "Define tus criterios manualmente o usa el digitalizador IA para cargar tu plantilla física."}
         </p>
       </div>
     </div>
@@ -834,12 +825,12 @@ function DetailedConfigStep({ newInstType, newColName, totalPointsStep, editorCr
             <div className="flex items-center gap-3 mb-1">
               <Badge variant="outline" className="font-black text-[8px] uppercase tracking-widest border-primary/20 text-primary">{INST_LABELS[newInstType].toUpperCase()}</Badge>
             </div>
-            <div className="font-black text-slate-900 text-3xl tracking-tighter">{newColName || "Sin Nombre"}</div>
+            <div className="font-black text-slate-900 text-3xl tracking-tighter uppercase">{newColName || "Actividad Pedagógica"}</div>
           </div>
         </div>
         {(newInstType === 'cotejo' || newInstType === 'guia') && (
           <div className={cn("px-8 py-4 rounded-2xl font-black text-xl shadow-inner border-2", totalPointsStep === 20 ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-red-50 text-red-700 border-red-100')}>
-            TOTAL: {totalPointsStep} / 20
+            PUNTOS: {totalPointsStep} / 20
           </div>
         )}
       </div>
@@ -861,7 +852,7 @@ function TeamsStep({ students, groupSize, setGroupSize, studentGroups, setStuden
         </div>
         <div>
           <Badge className="bg-white/20 text-white border-none font-black uppercase text-[8px] tracking-widest mb-1">Estrategia Grupal</Badge>
-          <div className="font-black text-3xl tracking-tighter">{newColName || "Trabajo en Equipo"}</div>
+          <div className="font-black text-3xl tracking-tighter uppercase">{newColName || "Trabajo en Equipo"}</div>
         </div>
       </div>
       <GroupConfig 
@@ -870,6 +861,7 @@ function TeamsStep({ students, groupSize, setGroupSize, studentGroups, setStuden
         setGroupSize={setGroupSize} 
         studentGroups={studentGroups} 
         setStudentGroups={setStudentGroups} 
+        newColName={newColName}
       />
     </div>
   )
