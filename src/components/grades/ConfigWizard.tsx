@@ -29,7 +29,8 @@ import {
   CheckCircle2, 
   Sparkles, 
   Loader2,
-  AlertCircle
+  AlertCircle,
+  RefreshCcw
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ChecklistConfig } from "./editor/ChecklistConfig"
@@ -151,7 +152,7 @@ export function ConfigWizard({
       setEditorCriteria(parsedCriteria);
       toast({ title: "Digitalización Exitosa", description: "El instrumento ha sido interpretado por la IA." });
 
-      // AUTOMATIZACIÓN: Registro y avance inmediato para no agotar la IA
+      // AUTOMATIZACIÓN: Registro y avance inmediato
       if (registeredIndicatorId) {
         const payload = {
           indicador_id: registeredIndicatorId,
@@ -160,7 +161,7 @@ export function ConfigWizard({
           tipo: mappedType,
           peso_instrumento: analysis.suggestedWeight || newInstrumentWeight || 0,
           puntaje_maximo: newMaxPoints,
-          configuracion_json: { strategy: newStrategyType, criteria: [] }
+          configuracion_json: { strategy: newStrategyType, criteria: parsedCriteria }
         };
 
         let res: any;
@@ -171,7 +172,7 @@ export function ConfigWizard({
         }
 
         setRegisteredEvalId(res.id);
-        setSetupStep(3); // Avanza directamente al Paso 3 para editar criterios
+        setSetupStep(3); 
       }
 
     } catch (err: any) {
@@ -183,6 +184,8 @@ export function ConfigWizard({
   };
 
   const registerStep0 = async () => {
+    // Si ya está registrado de la biblioteca y no hay cambios (está inhabilitado)
+    // Simplemente avanzamos sin llamar a la API
     if (registeredIndicatorId && originalIndicator) {
       const hasChanged = 
         originalIndicator.codigo !== newIndicatorCode || 
@@ -258,11 +261,7 @@ export function ConfigWizard({
         toast({ title: "Actividad Registrada" })
       }
     } catch (e: any) {
-      if (e.message.includes('409')) {
-        toast({ variant: "destructive", title: "Nombre Duplicado", description: "Ya existe una actividad con ese nombre para este indicador." });
-      } else {
-        toast({ variant: "destructive", title: "Error", description: e.message })
-      }
+      toast({ variant: "destructive", title: "Error", description: e.message })
     } finally {
       setIsFinishing(false)
     }
@@ -368,25 +367,64 @@ export function ConfigWizard({
                       <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
                         <BookOpen className="h-6 w-6" />
                       </div>
-                      <div className="flex flex-col">
+                      <div className="flex-grow flex flex-col">
                         <h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Indicador de Logro</h4>
                         <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Criterio Curricular</p>
                       </div>
+                      {registeredIndicatorId && (
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="h-8 rounded-xl text-[9px] font-black uppercase tracking-widest border-primary/20 text-primary gap-1.5"
+                          onClick={() => {
+                            setRegisteredIndicatorId(null);
+                            setOriginalIndicator(null);
+                            setNewIndicatorCode("");
+                            setNewIndicatorDescription("");
+                            setNewIndicatorWeight(0);
+                          }}
+                        >
+                          <RefreshCcw className="h-3 w-3" /> Usar Nuevo
+                        </Button>
+                      )}
                     </div>
-                    <div className="bg-slate-50/50 p-8 rounded-[2rem] border-2 border-slate-100 space-y-6">
+                    <div className="bg-slate-50/50 p-8 rounded-[2rem] border-2 border-slate-100 space-y-6 relative">
+                      {registeredIndicatorId && (
+                        <div className="absolute inset-0 z-10 bg-slate-50/20 backdrop-blur-[1px] rounded-[2rem] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          {/* Overlay informativo opcional */}
+                        </div>
+                      )}
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label className="font-black text-slate-400 text-[10px] uppercase tracking-[0.2em] ml-1">Código ILC</Label>
-                          <Input value={newIndicatorCode} onChange={e => setNewIndicatorCode(e.target.value.toUpperCase())} placeholder="Ej: C1.I1" className="h-12 border-none shadow-inner rounded-xl font-black text-lg bg-white" />
+                          <Input 
+                            value={newIndicatorCode} 
+                            onChange={e => setNewIndicatorCode(e.target.value.toUpperCase())} 
+                            placeholder="Ej: C1.I1" 
+                            disabled={!!registeredIndicatorId}
+                            className="h-12 border-none shadow-inner rounded-xl font-black text-lg bg-white disabled:opacity-70 disabled:bg-slate-50" 
+                          />
                         </div>
                         <div className="space-y-2">
                           <Label className="font-black text-slate-400 text-[10px] uppercase tracking-[0.2em] ml-1">Peso (%)</Label>
-                          <Input type="number" value={newIndicatorWeight || ""} onChange={e => setNewIndicatorWeight(parseInt(e.target.value) || 0)} className="h-12 border-none shadow-inner rounded-xl font-black text-center text-lg bg-white" />
+                          <Input 
+                            type="number" 
+                            value={newIndicatorWeight || ""} 
+                            onChange={e => setNewIndicatorWeight(parseInt(e.target.value) || 0)} 
+                            disabled={!!registeredIndicatorId}
+                            className="h-12 border-none shadow-inner rounded-xl font-black text-center text-lg bg-white disabled:opacity-70 disabled:bg-slate-50" 
+                          />
                         </div>
                       </div>
                       <div className="space-y-2">
                         <Label className="font-black text-slate-400 text-[10px] uppercase tracking-[0.2em] ml-1">Descripción del Indicador</Label>
-                        <Textarea value={newIndicatorDescription} onChange={e => setNewIndicatorDescription(e.target.value)} placeholder="Logro esperado..." className="h-24 border-none shadow-inner rounded-2xl bg-white resize-none" />
+                        <Textarea 
+                          value={newIndicatorDescription} 
+                          onChange={e => setNewIndicatorDescription(e.target.value)} 
+                          placeholder="Logro esperado..." 
+                          disabled={!!registeredIndicatorId}
+                          className="h-24 border-none shadow-inner rounded-2xl bg-white resize-none disabled:opacity-70 disabled:bg-slate-50" 
+                        />
                       </div>
                     </div>
                   </div>
