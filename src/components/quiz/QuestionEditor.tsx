@@ -31,7 +31,7 @@ export function QuestionEditor({ questions, onUpdate }: { questions: any[], onUp
   return (
     <div className="space-y-6">
       {questions.map((q, idx) => (
-        <Card key={q.id || `temp-${idx}`} className="p-8 border-2 border-slate-100 rounded-[2rem] shadow-sm hover:border-primary/20 transition-all bg-white overflow-hidden relative">
+        <Card key={q.id || `q-key-${idx}`} className="p-8 border-2 border-slate-100 rounded-[2rem] shadow-sm hover:border-primary/20 transition-all bg-white overflow-hidden relative">
           <div className="absolute top-0 left-0 h-full w-2 bg-primary/10" />
           <div className="flex justify-between items-start mb-6">
             <Badge variant="outline" className="bg-primary/5 text-primary border-primary/10 font-black uppercase text-[10px] tracking-widest px-3 py-1">PREGUNTA {idx + 1}</Badge>

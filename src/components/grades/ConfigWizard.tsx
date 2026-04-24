@@ -30,8 +30,7 @@ import {
   CheckCircle2, 
   Sparkles, 
   Loader2,
-  RefreshCcw,
-  Radio
+  RefreshCcw
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ChecklistConfig } from "./editor/ChecklistConfig"
@@ -45,8 +44,6 @@ import { api } from "@/lib/api"
 import { toast } from "@/hooks/use-toast"
 import { analyzeInstrument } from "@/ai/flows/analyze-instrument-flow"
 import { generateQuiz } from "@/ai/flows/generate-quiz-flow"
-import { useMutation } from "convex/react"
-import { api as convexApi } from "@convex/_generated/api"
 
 const INST_LABELS: Record<string, string> = {
   manual: 'Nota Directa',
@@ -112,8 +109,6 @@ export function ConfigWizard({
   const [isScanning, setIsScanning] = React.useState(false)
   const [quizQuestions, setQuizQuestions] = React.useState<any[]>([])
 
-  const createRoom = useMutation(convexApi.rooms.createRoom)
-
   const handleAiScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -157,32 +152,8 @@ export function ConfigWizard({
           }));
         }
       }
-      
       setEditorCriteria(parsedCriteria);
       toast({ title: "Digitalización Exitosa", description: "Instrumento interpretado por la IA." });
-
-      if (registeredIndicatorId) {
-        const payload = {
-          indicador_id: registeredIndicatorId,
-          periodo_id: periodoId,
-          nombre: analysis.name || newColName || "Nueva Actividad",
-          tipo: mappedType,
-          peso_instrumento: analysis.suggestedWeight || newInstrumentWeight || 0,
-          puntaje_maximo: newMaxPoints,
-          configuracion_json: { strategy: newStrategyType, criteria: parsedCriteria }
-        };
-
-        let res: any;
-        if (registeredEvalId) {
-          res = await api.patch(`/evaluaciones/${registeredEvalId}`, payload);
-        } else {
-          res = await api.post('/evaluaciones/', payload);
-        }
-
-        setRegisteredEvalId(res.id);
-        setSetupStep(3); 
-      }
-
     } catch (err: any) {
       toast({ variant: "destructive", title: "Error de IA", description: err.message });
     } finally {
@@ -202,7 +173,7 @@ export function ConfigWizard({
         subjectName: newColName
       });
       setQuizQuestions(result.questions);
-      toast({ title: "Preguntas Generadas", description: "Cuestionario técnico de alta exigencia creado." });
+      toast({ title: "Preguntas Generadas", description: "Cuestionario técnico con rigor académico creado." });
     } catch (e: any) {
       toast({ variant: "destructive", title: "Error de IA", description: e.message });
     } finally {
@@ -211,18 +182,6 @@ export function ConfigWizard({
   }
 
   const registerStep0 = async () => {
-    if (registeredIndicatorId && originalIndicator) {
-      const hasChanged = 
-        originalIndicator.codigo !== newIndicatorCode || 
-        originalIndicator.descripcion !== newIndicatorDescription || 
-        originalIndicator.peso_porcentaje !== newIndicatorWeight;
-
-      if (!hasChanged) {
-        setSetupStep(1);
-        return;
-      }
-    }
-
     setIsFinishing(true)
     try {
       const payload = {
@@ -232,20 +191,14 @@ export function ConfigWizard({
         descripcion: newIndicatorDescription,
         peso_porcentaje: newIndicatorWeight
       }
-      
       let res: any;
       if (registeredIndicatorId) {
         res = await api.patch(`/evaluaciones/indicadores/${registeredIndicatorId}`, payload)
       } else {
         res = await api.post('/evaluaciones/indicadores/', payload)
       }
-      
       setRegisteredIndicatorId(res.id)
-      setOriginalIndicator({
-        codigo: newIndicatorCode,
-        descripcion: newIndicatorDescription,
-        peso_porcentaje: newIndicatorWeight
-      })
+      setOriginalIndicator(payload)
       setSetupStep(1)
       toast({ title: "Indicador Registrado" })
     } catch (e: any) {
@@ -268,16 +221,8 @@ export function ConfigWizard({
         puntaje_maximo: newMaxPoints,
         configuracion_json: { strategy: newStrategyType, criteria: [] }
       }
-
-      let res: any;
-      if (registeredEvalId) {
-        res = await api.patch(`/evaluaciones/${registeredEvalId}`, payload)
-      } else {
-        res = await api.post('/evaluaciones/', payload)
-      }
-
+      let res: any = await api.post('/evaluaciones/', payload)
       setRegisteredEvalId(res.id)
-      
       if (newInstType === 'manual') {
         toast({ title: "Registro Auxiliar Actualizado" })
         addColumn(); setIsOpen(false); resetEditor();
@@ -297,18 +242,12 @@ export function ConfigWizard({
     setIsFinishing(true)
     try {
       const payload = {
-        configuracion_json: {
-          strategy: newStrategyType,
-          criteria: editorCriteria
-        }
+        configuracion_json: { strategy: newStrategyType, criteria: editorCriteria }
       }
       await api.patch(`/evaluaciones/${registeredEvalId}`, payload)
-      
-      if (newStrategyType === 'grupal') {
-        setSetupStep(4)
-      } else if (newStrategyType === 'quizz') {
-        setSetupStep(5)
-      } else {
+      if (newStrategyType === 'grupal') setSetupStep(4)
+      else if (newStrategyType === 'quizz') setSetupStep(5)
+      else {
         toast({ title: "Diseño Guardado" })
         addColumn(); setIsOpen(false); resetEditor();
       }
@@ -328,16 +267,10 @@ export function ConfigWizard({
         if (!groupsMap[groupName]) groupsMap[groupName] = [];
         groupsMap[groupName].push(studentId);
       });
-
-      const payload = {
+      await api.post('/evaluaciones/grupos/', {
         evaluacion_id: registeredEvalId,
-        grupos: Object.entries(groupsMap).map(([name, ids]) => ({
-          nombre_grupo: name,
-          integrantes: ids
-        }))
-      };
-
-      await api.post('/evaluaciones/grupos/', payload);
+        grupos: Object.entries(groupsMap).map(([name, ids]) => ({ nombre_grupo: name, integrantes: ids }))
+      });
       toast({ title: "Equipos Registrados" });
       addColumn(); setIsOpen(false); resetEditor();
     } catch (e: any) {
@@ -351,35 +284,15 @@ export function ConfigWizard({
     if (!registeredEvalId || quizQuestions.length === 0) return;
     setIsFinishing(true);
     try {
-      const sessionRes = await api.post<any>('/gamificacion/sesion/', {
+      // Guardamos la configuración final en FastAPI (incluyendo preguntas generadas)
+      await api.post<any>('/gamificacion/sesion/', {
         evaluacion_id: registeredEvalId,
-        configuracion_json: {
-          strategy: 'quizz',
-          criteria: editorCriteria,
-          questions: quizQuestions
-        }
+        configuracion_json: { strategy: 'quizz', criteria: editorCriteria, questions: quizQuestions }
       });
-
-      const { room_code } = sessionRes;
-
-      await createRoom({
-        roomCode: room_code,
-        questions: quizQuestions,
-        configId: registeredEvalId,
-        unidadId: unidadId
-      });
-
-      toast({ 
-        title: "Gamificación Lista", 
-        description: `Sala activa con PIN: ${room_code}. Redirigiendo...` 
-      });
-
-      addColumn(); 
-      setIsOpen(false); 
-      resetEditor();
-      router.push(`/instructor/quiz/${unidadId}?periodo_id=${periodoId}`);
+      toast({ title: "Configuración Guardada", description: "El Quizz ha sido registrado exitosamente." });
+      addColumn(); setIsOpen(false); resetEditor();
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Error de Registro", description: e.message || "Fallo al crear la sala." });
+      toast({ variant: "destructive", title: "Error de Registro", description: e.message || "Fallo al guardar la sesión." });
     } finally {
       setIsFinishing(false);
     }
@@ -394,33 +307,15 @@ export function ConfigWizard({
     else if (setupStep === 5) registerStep5();
   }
 
-  const handleBack = () => {
-    setSetupStep(Math.max(0, setupStep - 1));
-  }
-
-  const getInstrumentIcon = (type: string) => {
-    switch (type) {
-      case 'cotejo': return <LayoutList className="h-6 w-6" />;
-      case 'rubrica': return <Target className="h-6 w-6" />;
-      case 'escala': return <Star className="h-6 w-6" />;
-      case 'anecdotario': return <Quote className="h-6 w-6" />;
-      default: return <FileText className="h-6 w-6" />;
-    }
-  }
+  const handleBack = () => setSetupStep(Math.max(0, setupStep - 1));
 
   return (
-    <Dialog open={isOpen} onOpenChange={(o) => { if(!isFinishing) { setIsOpen(o); if(!o) { resetEditor(); setRegisteredIndicatorId(null); setRegisteredEvalId(null); setOriginalIndicator(null); } } }}>
+    <Dialog open={isOpen} onOpenChange={(o) => { if(!isFinishing) { setIsOpen(o); if(!o) { resetEditor(); setRegisteredIndicatorId(null); setRegisteredEvalId(null); } } }}>
       <DialogContent className="max-w-5xl p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl flex flex-col h-[90vh]">
         <DialogHeader className="bg-primary h-28 flex flex-col justify-center px-10 text-white shrink-0">
           <DialogTitle className="text-2xl font-black uppercase tracking-tight">Configuración de Evaluación</DialogTitle>
           <DialogDescription className="text-blue-100/80 font-bold uppercase text-[10px] tracking-[0.2em] mt-1">
-            PASO {setupStep + 1}: {
-              setupStep === 0 ? "Indicador de Logro" :
-              setupStep === 1 ? "Instrumento y Estrategia" :
-              setupStep === 2 ? "Detalles de Actividad" :
-              setupStep === 3 ? "Diseño Pedagógico" : 
-              setupStep === 4 ? "Sorteo de Equipos" : "Gamificación con IA"
-            }
+            PASO {setupStep + 1}: {setupStep === 0 ? "Indicador de Logro" : setupStep === 1 ? "Instrumento" : setupStep === 2 ? "Actividad" : setupStep === 3 ? "Diseño" : setupStep === 4 ? "Equipos" : "Gamificación"}
           </DialogDescription>
         </DialogHeader>
 
@@ -431,62 +326,23 @@ export function ConfigWizard({
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 w-full max-w-4xl">
                   <div className="space-y-6">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
-                        <BookOpen className="h-6 w-6" />
-                      </div>
-                      <div className="flex-grow flex flex-col">
-                        <h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Criterio de Logro</h4>
-                        <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Definición de Indicador</p>
-                      </div>
-                      {registeredIndicatorId && (
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="h-8 rounded-xl text-[9px] font-black uppercase tracking-widest border-primary/20 text-primary gap-1.5"
-                          onClick={() => {
-                            setRegisteredIndicatorId(null);
-                            setOriginalIndicator(null);
-                            setNewIndicatorCode("");
-                            setNewIndicatorDescription("");
-                            setNewIndicatorWeight(0);
-                          }}
-                        >
-                          <RefreshCcw className="h-3 w-3" /> Usar Nuevo
-                        </Button>
-                      )}
+                      <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary"><BookOpen className="h-6 w-6" /></div>
+                      <h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Criterio de Logro</h4>
                     </div>
-                    <div className="bg-slate-50/50 p-8 rounded-[2rem] border-2 border-slate-100 space-y-6 relative">
+                    <div className="bg-slate-50/50 p-8 rounded-[2rem] border-2 border-slate-100 space-y-6">
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label className="font-black text-slate-400 text-[10px] uppercase tracking-[0.2em] ml-1">Código</Label>
-                          <Input 
-                            value={newIndicatorCode} 
-                            onChange={e => setNewIndicatorCode(e.target.value.toUpperCase())} 
-                            placeholder="Ej: C1.I1" 
-                            disabled={!!registeredIndicatorId}
-                            className="h-12 border-none shadow-inner rounded-xl font-black text-lg bg-white disabled:opacity-70 disabled:bg-slate-50" 
-                          />
+                          <Input value={newIndicatorCode} onChange={e => setNewIndicatorCode(e.target.value.toUpperCase())} placeholder="Ej: C1.I1" className="h-12 border-none shadow-inner rounded-xl font-black text-lg bg-white" />
                         </div>
                         <div className="space-y-2">
                           <Label className="font-black text-slate-400 text-[10px] uppercase tracking-[0.2em] ml-1">Peso %</Label>
-                          <Input 
-                            type="number" 
-                            value={newIndicatorWeight || ""} 
-                            onChange={e => setNewIndicatorWeight(parseInt(e.target.value) || 0)} 
-                            disabled={!!registeredIndicatorId}
-                            className="h-12 border-none shadow-inner rounded-xl font-black text-center text-lg bg-white disabled:opacity-70 disabled:bg-slate-50" 
-                          />
+                          <Input type="number" value={newIndicatorWeight || ""} onChange={e => setNewIndicatorWeight(parseInt(e.target.value) || 0)} className="h-12 border-none shadow-inner rounded-xl font-black text-center text-lg bg-white" />
                         </div>
                       </div>
                       <div className="space-y-2">
                         <Label className="font-black text-slate-400 text-[10px] uppercase tracking-[0.2em] ml-1">Logro de Aprendizaje</Label>
-                        <Textarea 
-                          value={newIndicatorDescription} 
-                          onChange={e => setNewIndicatorDescription(e.target.value)} 
-                          placeholder="Describe el resultado esperado..." 
-                          disabled={!!registeredIndicatorId}
-                          className="h-24 border-none shadow-inner rounded-2xl bg-white resize-none disabled:opacity-70 disabled:bg-slate-50" 
-                        />
+                        <Textarea value={newIndicatorDescription} onChange={e => setNewIndicatorDescription(e.target.value)} placeholder="Describe el resultado esperado..." className="h-24 border-none shadow-inner rounded-2xl bg-white resize-none" />
                       </div>
                     </div>
                   </div>
@@ -495,138 +351,87 @@ export function ConfigWizard({
                       <div className="w-12 h-12 rounded-2xl bg-primary/5 flex items-center justify-center text-primary"><History className="h-6 w-6" /></div>
                       <h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Biblioteca</h4>
                     </div>
-                    <div className="bg-white rounded-[2rem] border-2 border-dashed border-slate-200 p-6 min-h-[250px]">
-                      {existingIndicators.length > 0 ? (
-                        existingIndicators.map((ind: any, i: number) => {
-                          const isSelected = registeredIndicatorId === ind.id;
-                          return (
-                            <button 
-                              key={ind.id || `bib-${i}`} 
-                              className={cn(
-                                "flex flex-col items-start p-4 rounded-2xl border-2 mb-3 w-full text-left transition-all",
-                                isSelected 
-                                  ? "border-primary bg-primary/5 shadow-md ring-2 ring-primary/10" 
-                                  : "border-slate-50 hover:border-primary/30 hover:bg-primary/5"
-                              )} 
-                              onClick={() => { 
-                                setNewIndicatorCode(ind.codigo); 
-                                setNewIndicatorDescription(ind.descripcion); 
-                                setNewIndicatorWeight(ind.peso_porcentaje); 
-                                setRegisteredIndicatorId(ind.id);
-                                setOriginalIndicator({
-                                  codigo: ind.codigo,
-                                  descripcion: ind.descripcion,
-                                  peso_porcentaje: ind.peso_porcentaje
-                                });
-                              }}
-                            >
-                              <div className="flex justify-between w-full font-black text-sm text-primary mb-1">
-                                <div className="flex items-center gap-2">
-                                  {isSelected && <CheckCircle2 className="h-3 w-3" />}
-                                  <span>{ind.codigo}</span>
-                                </div>
-                                <Badge variant={isSelected ? "default" : "outline"} className="text-[10px]">{ind.peso_porcentaje}%</Badge>
-                              </div>
-                              <p className={cn("text-[11px] line-clamp-2", isSelected ? "text-primary/70 font-medium" : "text-slate-500")}>
-                                {ind.descripcion}
-                              </p>
-                            </button>
-                          );
-                        })
-                      ) : (
-                        <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-4 py-20">
-                          <p className="text-center font-bold uppercase text-[10px] tracking-widest">No hay registros previos</p>
-                        </div>
-                      )}
+                    <div className="bg-white rounded-[2rem] border-2 border-dashed border-slate-200 p-6 min-h-[250px] space-y-3">
+                      {existingIndicators.map((ind: any) => {
+                        const isSelected = registeredIndicatorId === ind.id;
+                        return (
+                          <button key={ind.id} onClick={() => { setNewIndicatorCode(ind.codigo); setNewIndicatorDescription(ind.descripcion); setNewIndicatorWeight(ind.peso_porcentaje); setRegisteredIndicatorId(ind.id); }} className={cn("flex flex-col items-start p-4 rounded-2xl border-2 w-full text-left transition-all", isSelected ? "border-primary bg-primary/5 shadow-md ring-2 ring-primary/10" : "border-slate-50 hover:border-primary/30")}>
+                            <div className="flex justify-between w-full font-black text-sm text-primary mb-1">
+                               <span className="flex items-center gap-2">{isSelected && <CheckCircle2 className="h-3 w-3" />}{ind.codigo}</span>
+                               <Badge variant={isSelected ? "default" : "outline"} className="text-[10px]">{ind.peso_porcentaje}%</Badge>
+                            </div>
+                            <p className={cn("text-[11px] line-clamp-2", isSelected ? "text-primary/70 font-medium" : "text-slate-500")}>{ind.descripcion}</p>
+                          </button>
+                        )
+                      })}
                     </div>
                   </div>
                 </div>
               )}
 
               {setupStep === 1 && (
-                <div className="space-y-12 animate-in fade-in slide-in-from-right-4 w-full max-w-4xl flex flex-col items-center">
-                  <div className="space-y-8 w-full">
-                    <div className="flex items-center justify-center gap-3"><div className="h-2 w-2 rounded-full bg-primary" /><h4 className="font-black text-[10px] uppercase text-primary tracking-[0.2em]">Selecciona el Instrumento</h4><div className="h-2 w-2 rounded-full bg-primary" /></div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
-                      {[
-                        { id: 'manual', label: 'Nota Directa', icon: FileText },
-                        { id: 'cotejo', label: 'Lista de Cotejo', icon: LayoutList },
-                        { id: 'rubrica', label: 'Rúbrica', icon: Target },
-                        { id: 'escala', label: 'Escala Valorativa', icon: Star },
-                        { id: 'anecdotario', label: 'Guía Observación', icon: Quote }
-                      ].map((t) => (
-                        <Button key={t.id} variant="outline" className={cn("h-auto py-8 flex-col gap-4 rounded-3xl border-2 transition-all w-full", newInstType === t.id ? 'border-primary bg-primary/5 shadow-lg ring-2 ring-primary/20' : 'hover:border-slate-200')} onClick={() => { setNewInstType(t.id as any); if(t.id === 'manual') setNewStrategyType('individual'); }}>
-                          <t.icon className={`h-8 w-8 ${newInstType === t.id ? 'text-primary' : 'text-slate-300'}`} />
-                          <span className="font-black text-[10px] uppercase tracking-tighter text-center">{t.label}</span>
-                        </Button>
-                      ))}
-                    </div>
+                <div className="space-y-12 w-full max-w-4xl flex flex-col items-center">
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4 w-full">
+                    {[
+                      { id: 'manual', label: 'Nota Directa', icon: FileText },
+                      { id: 'cotejo', label: 'Lista de Cotejo', icon: LayoutList },
+                      { id: 'rubrica', label: 'Rúbrica', icon: Target },
+                      { id: 'escala', label: 'Escala Valorativa', icon: Star },
+                      { id: 'anecdotario', label: 'Guía Observación', icon: Quote }
+                    ].map((t) => (
+                      <Button key={t.id} variant="outline" className={cn("h-auto py-8 flex-col gap-4 rounded-3xl border-2 transition-all w-full", newInstType === t.id ? 'border-primary bg-primary/5 shadow-lg ring-2 ring-primary/20' : 'hover:border-slate-200')} onClick={() => { setNewInstType(t.id as any); if(t.id === 'manual') setNewStrategyType('individual'); }}>
+                        <t.icon className={`h-8 w-8 ${newInstType === t.id ? 'text-primary' : 'text-slate-300'}`} />
+                        <span className="font-black text-[10px] uppercase text-center">{t.label}</span>
+                      </Button>
+                    ))}
                   </div>
                   {newInstType !== 'manual' && (
-                    <div className="space-y-8 pt-6 border-t border-slate-50 w-full flex flex-col items-center">
-                      <div className="flex items-center justify-center gap-3"><div className="h-2 w-2 rounded-full bg-primary" /><h4 className="font-black text-[10px] uppercase text-primary tracking-[0.2em]">Elige la Estrategia</h4><div className="h-2 w-2 rounded-full bg-primary" /></div>
-                      <div className="flex flex-wrap justify-center gap-4 w-full">
-                        {[
-                          { id: 'individual', label: 'Individual', icon: User, desc: 'Evaluación personalizada.' },
-                          { id: 'grupal', label: 'Equipos', icon: Users, desc: 'Trabajo colaborativo.' },
-                          { id: 'quizz', label: 'Gamificación', icon: Gamepad2, desc: 'Desafío en tiempo real.' }
-                        ].map((s) => (
-                          <Button key={s.id} variant="outline" className={cn("h-auto p-6 flex-col gap-3 rounded-[2rem] border-2 text-left items-start transition-all w-full max-w-[280px]", newStrategyType === s.id ? 'border-primary bg-primary/5 ring-2 ring-primary/20' : 'hover:border-slate-200')} onClick={() => setNewStrategyType(s.id as any)}>
-                            <div className="flex justify-between items-center w-full"><s.icon className={`h-8 w-8 ${newStrategyType === s.id ? 'text-primary' : 'text-slate-300'}`} />{newStrategyType === s.id && <CheckCircle2 className="h-5 w-5 text-primary" />}</div>
-                            <p className="font-black text-[11px] uppercase tracking-tighter">{s.label}</p>
-                            <p className="text-[10px] text-slate-400 font-medium">{s.desc}</p>
-                          </Button>
-                        ))}
-                      </div>
+                    <div className="flex flex-wrap justify-center gap-4 w-full pt-8 border-t border-slate-50">
+                      {[
+                        { id: 'individual', label: 'Individual', icon: User, desc: 'Evaluación personalizada.' },
+                        { id: 'grupal', label: 'Equipos', icon: Users, desc: 'Trabajo colaborativo.' },
+                        { id: 'quizz', label: 'Gamificación', icon: Gamepad2, desc: 'Desafío en tiempo real.' }
+                      ].map((s) => (
+                        <Button key={s.id} variant="outline" className={cn("h-auto p-6 flex-col gap-3 rounded-[2rem] border-2 text-left items-start transition-all w-full max-w-[280px]", newStrategyType === s.id ? 'border-primary bg-primary/5 ring-2 ring-primary/20' : 'hover:border-slate-200')} onClick={() => setNewStrategyType(s.id as any)}>
+                          <div className="flex justify-between items-center w-full"><s.icon className={`h-8 w-8 ${newStrategyType === s.id ? 'text-primary' : 'text-slate-300'}`} />{newStrategyType === s.id && <CheckCircle2 className="h-5 w-5 text-primary" />}</div>
+                          <p className="font-black text-[11px] uppercase">{s.label}</p>
+                          <p className="text-[10px] text-slate-400 font-medium">{s.desc}</p>
+                        </Button>
+                      ))}
                     </div>
                   )}
                 </div>
               )}
 
               {setupStep === 2 && (
-                <div className="space-y-10 animate-in fade-in slide-in-from-right-4 w-full max-w-2xl">
-                  <div className="bg-slate-50 p-10 rounded-[3rem] border-2 border-slate-100 space-y-8">
-                    <div className="space-y-3">
-                      <Label className="font-black text-slate-500 text-sm uppercase tracking-[0.2em] ml-1">Nombre de la Actividad</Label>
-                      <Input value={newColName} onChange={e => setNewColName(e.target.value)} placeholder="Ej. Exposición de Proyectos" className="h-16 rounded-2xl text-xl font-bold border-none shadow-inner bg-white" />
-                    </div>
-                    <div className="grid grid-cols-2 gap-6">
-                      <div className="space-y-3">
-                        <Label className="font-black text-slate-500 text-sm uppercase tracking-[0.2em] ml-1">Peso %</Label>
-                        <Input type="number" value={newInstrumentWeight || ""} onChange={e => setNewInstrumentWeight(parseInt(e.target.value) || 0)} className="h-16 rounded-2xl text-center text-xl font-black border-none shadow-inner bg-white" />
-                      </div>
-                      <div className="space-y-3">
-                        <Label className="font-black text-slate-500 text-sm uppercase tracking-[0.2em] ml-1">Puntaje Máximo</Label>
-                        <Input type="number" value={newMaxPoints} onChange={e => setNewMaxPoints(parseInt(e.target.value) || 20)} disabled={newInstType !== 'manual'} className="h-16 rounded-2xl text-center text-xl font-black border-none shadow-inner bg-white" />
-                      </div>
-                    </div>
-                    {newInstType !== 'manual' && (
-                      <div className="pt-8 border-t border-slate-200 flex flex-col items-center space-y-4">
-                         <div className="text-center space-y-1">
-                           <h5 className="font-black text-[10px] uppercase text-slate-800 tracking-widest">Asistente de Digitalización</h5>
-                           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Escanea instrumentos físicos con IA</p>
-                         </div>
-                         <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleAiScan} />
-                         <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isScanning} className="h-14 px-10 gap-3 rounded-2xl border-2 border-dashed border-accent text-accent hover:bg-accent hover:text-white font-black uppercase text-[10px] tracking-widest shadow-sm">
-                            {isScanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />} {isScanning ? "Procesando Imagen..." : "Digitalizar con IA"}
-                         </Button>
-                      </div>
-                    )}
+                <div className="space-y-10 w-full max-w-2xl bg-slate-50 p-10 rounded-[3rem] border-2 border-slate-100">
+                  <div className="space-y-3">
+                    <Label className="font-black text-slate-500 text-sm uppercase tracking-[0.2em] ml-1">Nombre de la Actividad</Label>
+                    <Input value={newColName} onChange={e => setNewColName(e.target.value)} placeholder="Ej. Exposición de Proyectos" className="h-16 rounded-2xl text-xl font-bold border-none shadow-inner bg-white" />
                   </div>
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="space-y-3">
+                      <Label className="font-black text-slate-500 text-sm uppercase tracking-[0.2em] ml-1">Peso %</Label>
+                      <Input type="number" value={newInstrumentWeight || ""} onChange={e => setNewInstrumentWeight(parseInt(e.target.value) || 0)} className="h-16 rounded-2xl text-center text-xl font-black border-none shadow-inner bg-white" />
+                    </div>
+                    <div className="space-y-3">
+                      <Label className="font-black text-slate-500 text-sm uppercase tracking-[0.2em] ml-1">Puntaje Máximo</Label>
+                      <Input type="number" value={newMaxPoints} onChange={e => setNewMaxPoints(parseInt(e.target.value) || 20)} disabled={newInstType !== 'manual'} className="h-16 rounded-2xl text-center text-xl font-black border-none shadow-inner bg-white" />
+                    </div>
+                  </div>
+                  {newInstType !== 'manual' && (
+                    <div className="pt-8 border-t border-slate-200 flex flex-col items-center space-y-4">
+                       <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleAiScan} />
+                       <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isScanning} className="h-14 px-10 gap-3 rounded-2xl border-2 border-dashed border-accent text-accent hover:bg-accent hover:text-white font-black uppercase text-[10px] tracking-widest shadow-sm">
+                          {isScanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />} Digitalizar con IA
+                       </Button>
+                    </div>
+                  )}
                 </div>
               )}
 
               {setupStep === 3 && (
-                <div className="space-y-8 animate-in fade-in slide-in-from-right-4 w-full max-w-4xl">
-                  <div className="flex flex-col md:flex-row justify-between items-center bg-slate-50 p-8 rounded-[2.5rem] border-2 border-slate-100 gap-6">
-                    <div className="flex items-center gap-6">
-                      <div className="p-5 bg-primary text-white rounded-3xl shadow-xl">{getInstrumentIcon(newInstType)}</div>
-                      <div>
-                        <Badge variant="outline" className="font-black text-[8px] uppercase tracking-widest border-primary/20 text-primary mb-1">{INST_LABELS[newInstType].toUpperCase()}</Badge>
-                        <div className="font-black text-slate-900 text-3xl tracking-tighter uppercase">{newColName || "Sin Título"}</div>
-                      </div>
-                    </div>
-                  </div>
+                <div className="space-y-8 w-full max-w-4xl">
                   {newInstType === 'cotejo' && <ChecklistConfig criteria={editorCriteria} setCriteria={setEditorCriteria} />}
                   {newInstType === 'rubrica' && <RubricConfig criteria={editorCriteria} setCriteria={setEditorCriteria} />}
                   {newInstType === 'escala' && <ScaleConfig criteria={editorCriteria} setCriteria={setEditorCriteria} />}
@@ -634,21 +439,10 @@ export function ConfigWizard({
                 </div>
               )}
 
-              {setupStep === 4 && (
-                <div className="space-y-8 animate-in fade-in slide-in-from-right-4 w-full max-w-4xl">
-                  <div className="flex items-center gap-6 bg-primary p-8 rounded-[2.5rem] text-white shadow-xl">
-                    <div className="p-5 bg-white/20 rounded-3xl backdrop-blur-md border border-white/10"><Users className="h-8 w-8" /></div>
-                    <div>
-                      <Badge className="bg-white/20 text-white border-none font-black uppercase text-[8px] tracking-widest mb-1">Estrategia Grupal</Badge>
-                      <div className="font-black text-3xl tracking-tighter uppercase">{newColName}</div>
-                    </div>
-                  </div>
-                  <GroupConfig students={students} groupSize={groupSize} setGroupSize={setGroupSize} studentGroups={studentGroups} setStudentGroups={setStudentGroups} newColName={newColName} />
-                </div>
-              )}
+              {setupStep === 4 && <GroupConfig students={students} groupSize={groupSize} setGroupSize={setGroupSize} studentGroups={studentGroups} setStudentGroups={setStudentGroups} newColName={newColName} />}
 
               {setupStep === 5 && (
-                <div className="space-y-8 animate-in fade-in slide-in-from-right-4 w-full max-w-4xl">
+                <div className="space-y-8 w-full max-w-4xl">
                   <div className="flex flex-col md:flex-row justify-between items-center bg-slate-50 p-10 rounded-[3rem] border-2 border-slate-100 gap-8">
                     <div className="flex items-center gap-6">
                       <div className="p-5 bg-accent rounded-3xl shadow-xl text-white"><Gamepad2 className="h-10 w-10" /></div>
@@ -658,12 +452,10 @@ export function ConfigWizard({
                       </div>
                     </div>
                     <Button onClick={handleGenerateQuizQuestions} disabled={isGeneratingQuiz} className="bg-accent hover:bg-accent/90 h-16 px-10 rounded-2xl font-black uppercase text-xs tracking-widest gap-3 shadow-xl shadow-accent/20 text-white">
-                      {isGeneratingQuiz ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-4 w-4" />} {isGeneratingQuiz ? "Generando..." : "Generar con IA"}
+                      {isGeneratingQuiz ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-4 w-4" />} Generar con IA
                     </Button>
                   </div>
-                  <div className="bg-white p-10 rounded-[3rem] border-2 border-slate-100">
-                    <QuestionEditor questions={quizQuestions} onUpdate={setQuizQuestions} />
-                  </div>
+                  <QuestionEditor questions={quizQuestions} onUpdate={setQuizQuestions} />
                 </div>
               )}
             </div>
@@ -673,15 +465,7 @@ export function ConfigWizard({
         <div className="h-24 px-10 bg-slate-50 border-t flex items-center justify-between shrink-0">
           <Button variant="ghost" onClick={handleBack} disabled={setupStep === 0 || isScanning || isFinishing} className="font-black text-[10px] uppercase h-12 px-8 rounded-xl border-2">Atrás</Button>
           <Button className="bg-primary px-10 h-12 font-black text-[10px] uppercase rounded-xl text-white shadow-lg min-w-[140px]" onClick={handleNext} disabled={isScanning || isFinishing}>
-            {isFinishing ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              setupStep === 0 ? "Registrar Indicador" :
-              setupStep === 1 ? "Continuar" :
-              setupStep === 2 ? (newInstType === 'manual' ? "Registrar Actividad" : "Guardar Detalles") :
-              setupStep === 3 ? (newStrategyType === 'grupal' ? "Continuar a Equipos" : newStrategyType === 'quizz' ? "Continuar a Quizz" : "Finalizar Registro") :
-              setupStep === 4 ? "Finalizar Equipos" : "Finalizar y Crear Sala"
-            )}
+            {isFinishing ? <Loader2 className="h-4 w-4 animate-spin" /> : (setupStep === 5 ? "Finalizar Registro" : setupStep === 3 && newStrategyType === 'individual' ? "Finalizar" : "Continuar")}
           </Button>
         </div>
       </DialogContent>
