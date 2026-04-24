@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -40,25 +41,30 @@ export default function InstructorQuizPage() {
   const room = useQuery(convexApi.rooms.getRoom, roomCode ? { roomCode } : "skip")
 
   const fetchSession = React.useCallback(async () => {
-    if (!params.id || params.id === "undefined") return;
+    const evalId = params.id as string;
+    if (!evalId || evalId === "undefined") return;
+    
     setLoadingConfig(true)
     try {
-      const quizEval = await api.get<any>(`/evaluaciones/${params.id}`)
+      const quizEval = await api.get<any>(`/evaluaciones/${evalId}`)
       if (quizEval) {
         setConfig(quizEval)
         try {
+          // Intentar recuperar sesión activa para esta evaluación
           const activeSession = await api.get<any>(`/gamificacion/sesion/${quizEval.id}/`)
           if (activeSession && activeSession.room_code) {
             setRoomCode(activeSession.room_code)
             const sid = activeSession.id || activeSession.sesion_id || activeSession.sesion?.id;
-            setSessionId(sid || null)
+            if (sid && sid !== "undefined") {
+              setSessionId(sid);
+            }
           }
         } catch (e) { 
-          // Silencioso si no hay sesión activa
+          // No hay sesión activa, es normal
         }
       }
     } catch (e: any) {
-      console.error("Error loading config:", e)
+      console.error("Error cargando configuración:", e)
     } finally {
       setLoadingConfig(false)
     }
@@ -72,7 +78,7 @@ export default function InstructorQuizPage() {
   const handleLaunchRoom = async () => {
     const questions = config?.configuracion_json?.questions;
     if (!config || !questions?.length) {
-      return toast({ variant: "destructive", title: "Sin preguntas generadas" })
+      return toast({ variant: "destructive", title: "Sin preguntas", description: "Genera el banco de preguntas en el registro auxiliar primero." })
     }
     
     setIsSyncing(true)
@@ -83,7 +89,7 @@ export default function InstructorQuizPage() {
       })
 
       const finalSessionId = session?.id || session?.sesion_id || session?.sesion?.id;
-      if (!session?.room_code || !finalSessionId) throw new Error("PIN o ID de sesión no generado")
+      if (!session?.room_code || !finalSessionId) throw new Error("No se pudo generar el PIN o ID de sesión")
 
       await createRoom({
         roomCode: session.room_code,
@@ -135,7 +141,7 @@ export default function InstructorQuizPage() {
       await updateStatus({ roomCode, status: 'finished' })
       toast({ title: "Desafío Finalizado" })
     } catch (e) {
-      console.error("Error finalizando en Convex:", e)
+      console.error("Error finalizando juego:", e)
     }
   }
 
@@ -145,34 +151,42 @@ export default function InstructorQuizPage() {
   }
 
   const handleCloseAndPersist = async () => {
-    if (!room?.participants || !config || !config.id) {
-      toast({ variant: "destructive", title: "Error crítico", description: "Datos de evaluación no válidos." });
+    const finalEvalId = config?.id || params.id;
+    
+    if (!finalEvalId || finalEvalId === "undefined") {
+      toast({ variant: "destructive", title: "Error técnico", description: "ID de evaluación no válido para sincronización." });
+      return;
+    }
+
+    if (!room?.participants?.length) {
+      toast({ variant: "destructive", title: "Sin participantes", description: "No hay alumnos para calificar." });
       return;
     }
     
     setIsClosing(true)
     try {
-      const totalQuestions = config.configuracion_json?.questions?.length || 20;
-      const maxScore = config.puntaje_maximo || 20;
+      const totalQuestions = config?.configuracion_json?.questions?.length || 20;
+      const maxScore = config?.puntaje_maximo || 20;
 
-      // Filtrar participantes con ID técnico verificado
+      // Filtrado riguroso de participantes con identidad verificada (UUID real)
       const validParticipants = room.participants.filter(p => 
         p.studentId && 
         p.studentId !== "undefined" && 
-        p.studentId.length > 10
+        p.studentId !== "null" &&
+        p.studentId.length > 20 // Un UUID tiene 36 caracteres
       );
 
       if (validParticipants.length === 0) {
-        throw new Error("No hay participantes con identidad verificada para calificar.");
+        throw new Error("No hay participantes con ID técnico verificado. No se pueden pasar las notas.");
       }
 
-      // Sincronización masiva paralela hacia FastAPI
+      // Sincronización masiva hacia FastAPI
       const gradePromises = validParticipants.map(p => {
         const correctAnswers = p.answers?.filter((a: any) => a.isCorrect).length || 0;
         const academicGrade = Math.round((correctAnswers / totalQuestions) * maxScore);
         
         return api.post('/evaluaciones/calificar/', {
-          evaluacion_id: config.id,
+          evaluacion_id: finalEvalId,
           alumno_id: p.studentId,
           puntaje: academicGrade,
           observacion: `Rank-UP: ${correctAnswers}/${totalQuestions} correctas. (${p.score} pts)`,
@@ -188,23 +202,30 @@ export default function InstructorQuizPage() {
         });
       });
 
-      const results = await Promise.allSettled(gradePromises);
+      await Promise.allSettled(gradePromises);
       
-      // Cerrar sesión en backend si existe
-      if (sessionId && sessionId !== "undefined") {
+      // Intentar cerrar la sesión en el backend si el ID es válido
+      if (sessionId && sessionId !== "undefined" && sessionId !== "null" && sessionId.length > 20) {
         try {
           await api.post(`/gamificacion/sesion/${sessionId}/finalizar/`, { notas: [] });
         } catch (e) {
-          console.warn("Sesión no cerrada formalmente.");
+          console.warn("Sesión no se pudo marcar como finalizada en Render.");
         }
       }
 
-      toast({ title: "Sincronización Completada", description: `Se han procesado ${validParticipants.length} calificaciones.` });
+      toast({ 
+        title: "Sincronización Exitosa", 
+        description: `Se han registrado las notas de ${validParticipants.length} alumnos en el Registro Auxiliar.` 
+      });
       
-      const targetPeriodId = config.periodo_id || searchParams.get('periodo_id') || 'ACTUAL';
-      router.push(`/instructor/grades/${config.unidad_id}?periodo_id=${targetPeriodId}`);
+      const targetPeriodId = config?.periodo_id || searchParams.get('periodo_id') || 'ACTUAL';
+      router.push(`/instructor/grades/${config?.unidad_id || "SALLE"}?periodo_id=${targetPeriodId}`);
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Error de Sincronización", description: e.message });
+      toast({ 
+        variant: "destructive", 
+        title: "Error de Sincronización", 
+        description: e.message || "Ocurrió un error al intentar guardar las notas." 
+      });
     } finally {
       setIsClosing(false);
     }
@@ -231,7 +252,7 @@ export default function InstructorQuizPage() {
           <div className="space-y-2">
             <Badge className="bg-emerald-100 text-emerald-700 border-none font-black uppercase text-[9px] px-3 tracking-widest">Desafío Completado</Badge>
             <h2 className="text-4xl font-black text-slate-900 uppercase italic tracking-tighter leading-none">Resumen Académico</h2>
-            <p className="text-slate-400 font-medium italic">Conversión automática a escala vigesimal</p>
+            <p className="text-slate-400 font-medium italic">Conversión automática a escala vigesimal (0-20)</p>
           </div>
           <Button 
             onClick={handleCloseAndPersist} 
@@ -256,10 +277,10 @@ export default function InstructorQuizPage() {
             </TableHeader>
             <TableBody>
               {sortedParticipants.map((p: any) => {
-                const totalQ = config.configuracion_json?.questions?.length || 20;
+                const totalQ = config?.configuracion_json?.questions?.length || 20;
                 const corrects = p.answers?.filter((a: any) => a.isCorrect).length || 0;
-                const grade = Math.round((corrects / totalQ) * (config.puntaje_maximo || 20));
-                const isIdentified = p.studentId && p.studentId !== "undefined";
+                const grade = Math.round((corrects / totalQ) * (config?.puntaje_maximo || 20));
+                const isIdentified = p.studentId && p.studentId !== "undefined" && p.studentId !== "null" && p.studentId.length > 20;
                 
                 return (
                   <TableRow key={p._id} className={cn("hover:bg-slate-50 transition-colors", !isIdentified && "bg-amber-50/30")}>
@@ -271,7 +292,7 @@ export default function InstructorQuizPage() {
                           </Avatar>
                           <div className="flex flex-col">
                             <span className="font-bold text-slate-900 uppercase text-sm truncate w-64">{p.name}</span>
-                            {!isIdentified && <span className="text-[8px] font-black text-amber-600 uppercase">Sin Identidad Técnica</span>}
+                            {!isIdentified && <span className="text-[8px] font-black text-amber-600 uppercase">Sin Identidad Verificada</span>}
                           </div>
                         </div>
                     </TableCell>

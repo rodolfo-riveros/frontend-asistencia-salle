@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -32,10 +33,9 @@ function JoinForm() {
     if (cleanDni.length === 8) {
       setIsValidating(true)
       try {
-        // Obtenemos toda la información oficial: UUID, Programa, Semestre
         const student = await api.get<any>(`/alumnos/publico/${cleanDni}`)
         
-        if (student && student.id) {
+        if (student && student.id && student.id !== "undefined") {
           setStudentData(student)
           setAvatarSeed(student.nombre.split(',')[0])
           toast({ title: "Identidad Verificada", description: `Bienvenido, aspirante ${student.nombre}` })
@@ -57,11 +57,15 @@ function JoinForm() {
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault()
     const cleanPin = pin.trim().toUpperCase();
-    if (!cleanPin || !dni || !studentData) return
+    
+    // Validación de seguridad final antes de enviar a Convex
+    if (!cleanPin || !dni || !studentData || !studentData.id || studentData.id === "undefined") {
+      toast({ variant: "destructive", title: "Error de Identidad", description: "Vuelva a ingresar su DNI." });
+      return;
+    }
     
     setIsJoining(true)
     try {
-      // Mandamos toda la data de identidad a Convex de una vez
       const participantId = await joinRoom({ 
         roomCode: cleanPin, 
         name: studentData.nombre,
