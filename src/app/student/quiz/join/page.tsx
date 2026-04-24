@@ -3,7 +3,7 @@
 
 import * as React from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Loader2, Play, Fingerprint, ShieldCheck, Zap, Sparkles, AlertCircle } from "lucide-react"
+import { Loader2, Play, Fingerprint, ShieldCheck, Zap, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
@@ -31,15 +31,8 @@ function JoinForm() {
     if (cleanDni.length === 8) {
       setIsValidating(true)
       try {
-        // Consultar el padrón oficial en FastAPI
-        // RECOMENDACIÓN: El docente debe habilitar este endpoint como público en el backend
-        const response = await api.get<any>('/alumnos/')
-        const studentList = Array.isArray(response) ? response : (response?.alumnos || [])
-        
-        const student = studentList.find((s: any) => {
-          const dbDni = String(s.dni || "").trim()
-          return dbDni === cleanDni
-        })
+        // Se utiliza el nuevo endpoint público habilitado en FastAPI para evitar errores de autorización en móviles
+        const student = await api.get<any>(`/alumnos/publico/${cleanDni}`)
         
         if (student && student.nombre) {
           setStudentName(student.nombre)
@@ -54,10 +47,14 @@ function JoinForm() {
         }
       } catch (e: any) {
         setStudentName(null)
+        // Manejo elegante si el backend devuelve error (ej. 404 o problema de red)
+        const isNotFound = e.message.includes('404') || e.message.includes('Not Found');
         toast({ 
           variant: "destructive", 
-          title: "Error de Conexión", 
-          description: "No se pudo validar el DNI. El servidor podría requerir autorización." 
+          title: isNotFound ? "DNI no encontrado" : "Error de Conexión", 
+          description: isNotFound 
+            ? "Verifica tu número de documento." 
+            : "No se pudo conectar con el servidor institucional." 
         })
       } finally {
         setIsValidating(false)
@@ -169,7 +166,7 @@ export default function StudentJoinPage() {
   return (
     <div className="min-h-screen bg-[#f8f9fa] flex flex-col items-center justify-between p-6 relative overflow-hidden font-body">
       <div className="absolute -top-24 -left-24 w-96 h-96 bg-primary rounded-full blur-[120px] opacity-10 pointer-events-none" />
-      <React.Suspense fallback={<Loader2 className="h-10 w-10 animate-spin text-primary my-auto" />}>
+      <React.Suspense fallback={<div className="my-auto flex flex-col items-center gap-4"><Loader2 className="h-10 w-10 animate-spin text-primary" /><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cargando Arena...</p></div>}>
         <JoinForm />
       </React.Suspense>
       <footer className="w-full text-center space-y-2 pb-8 pt-10 px-6 z-10">
