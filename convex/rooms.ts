@@ -1,5 +1,5 @@
 
-import { mutation, query } from "./server";
+import { mutation, query } from "convex/server";
 import { v } from "convex/values";
 
 /**
@@ -13,7 +13,7 @@ export const createRoom = mutation({
     unidadId: v.string(),
   },
   handler: async (ctx, args) => {
-    // Eliminar sala previa con el mismo código si existe para evitar colisiones
+    // Buscar si ya existe una sala con ese código para limpiarla
     const existing = await ctx.db
       .query("rooms")
       .withIndex("by_roomCode", (q) => q.eq("roomCode", args.roomCode))

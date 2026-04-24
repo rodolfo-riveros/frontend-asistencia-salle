@@ -47,7 +47,7 @@ import { toast } from "@/hooks/use-toast"
 import { analyzeInstrument } from "@/ai/flows/analyze-instrument-flow"
 import { generateQuiz } from "@/ai/flows/generate-quiz-flow"
 import { useMutation } from "convex/react"
-import { api as convexApi } from "@/../convex/_generated/api"
+import { api as convexApi } from "@convex/_generated/api"
 
 const INST_LABELS: Record<string, string> = {
   manual: 'Nota Directa',
@@ -112,7 +112,6 @@ export function ConfigWizard({
   const [isScanning, setIsScanning] = React.useState(false)
   const [quizQuestions, setQuizQuestions] = React.useState<any[]>([])
 
-  // Usamos el API de Convex para mutaciones de sala
   const createRoom = useMutation(convexApi.rooms.createRoom)
 
   const handleAiScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -162,7 +161,6 @@ export function ConfigWizard({
       setEditorCriteria(parsedCriteria);
       toast({ title: "Digitalización Exitosa", description: "Instrumento interpretado por la IA." });
 
-      // Registro automático tras escaneo exitoso
       if (registeredIndicatorId) {
         const payload = {
           indicador_id: registeredIndicatorId,
@@ -182,7 +180,7 @@ export function ConfigWizard({
         }
 
         setRegisteredEvalId(res.id);
-        setSetupStep(3); // Avanzar directamente al diseño de criterios
+        setSetupStep(3); 
       }
 
     } catch (err: any) {
@@ -204,7 +202,7 @@ export function ConfigWizard({
         subjectName: newColName
       });
       setQuizQuestions(result.questions);
-      toast({ title: "Preguntas Generadas", description: "Desafío técnico creado con éxito." });
+      toast({ title: "Preguntas Generadas", description: "Desafío técnico de alta exigencia creado." });
     } catch (e: any) {
       toast({ variant: "destructive", title: "Error de IA", description: e.message });
     } finally {
@@ -353,7 +351,6 @@ export function ConfigWizard({
     if (!registeredEvalId || quizQuestions.length === 0) return;
     setIsFinishing(true);
     try {
-      // 1. Guardar configuración completa en FastAPI (Permanente)
       await api.patch(`/evaluaciones/${registeredEvalId}`, {
         configuracion_json: {
           strategy: 'quizz',
@@ -362,7 +359,6 @@ export function ConfigWizard({
         }
       });
 
-      // 2. Crear sala live en Convex (Tiempo Real)
       const roomCode = Math.floor(100000 + Math.random() * 900000).toString();
       await createRoom({
         roomCode,
@@ -374,7 +370,7 @@ export function ConfigWizard({
       toast({ title: "Gamificación Lista", description: `Sala creada con el PIN: ${roomCode}` });
       addColumn(); setIsOpen(false); resetEditor();
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Error de Registro", description: "Verifica la conexión con Convex y FastAPI." });
+      toast({ variant: "destructive", title: "Error de Registro", description: "Fallo al crear sala en Convex o guardar en FastAPI." });
     } finally {
       setIsFinishing(false);
     }
@@ -656,7 +652,9 @@ export function ConfigWizard({
                       {isGeneratingQuiz ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />} Auto-Generar con IA
                     </Button>
                   </div>
-                  <QuestionEditor questions={quizQuestions} onUpdate={setQuizQuestions} />
+                  <div className="bg-white p-10 rounded-[3rem] border-2 border-slate-100">
+                    <QuestionEditor questions={quizQuestions} onUpdate={setQuizQuestions} />
+                  </div>
                 </div>
               )}
             </div>
