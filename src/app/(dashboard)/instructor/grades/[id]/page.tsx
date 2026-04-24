@@ -371,7 +371,7 @@ export default function AcademicGradebookPage() {
                               <span className="text-slate-900 truncate w-24 md:w-32 font-extrabold text-[11px]">{c.name}</span>
                               {c.strategy === 'quizz' && (
                                 <button 
-                                  onClick={() => router.push(`/instructor/quiz/${params.id}?periodo_id=${periodoId}`)}
+                                  onClick={() => router.push(`/instructor/quiz/${c.id}`)}
                                   className="h-6 w-6 rounded-full bg-accent text-white flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
                                 >
                                   <Play className="h-3 w-3" />
