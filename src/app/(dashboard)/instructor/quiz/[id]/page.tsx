@@ -37,9 +37,11 @@ export default function InstructorQuizPage() {
   const fetchSession = React.useCallback(async () => {
     setLoadingConfig(true)
     try {
+      // 1. Cargar la evaluación seleccionada
       const quizEval = await api.get<any>(`/evaluaciones/${params.id}`)
       if (quizEval) {
         setConfig(quizEval)
+        // 2. Intentar recuperar si hay sesión activa para este quiz
         try {
           const activeSession = await api.get<any>(`/gamificacion/sesion/${quizEval.id}/`)
           if (activeSession && activeSession.room_code) {
@@ -47,11 +49,11 @@ export default function InstructorQuizPage() {
             setSessionId(activeSession.sesion_id)
           }
         } catch (e) {
-          console.log("No hay sesión activa.")
+          console.log("Aún no hay sesión lanzada para este quiz.")
         }
       }
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Error de Carga", description: "No se pudo recuperar la configuración." })
+      toast({ variant: "destructive", title: "Error de Carga", description: "No se pudo recuperar la configuración del quiz." })
     } finally {
       setLoadingConfig(false)
     }
@@ -60,29 +62,33 @@ export default function InstructorQuizPage() {
   React.useEffect(() => { fetchSession() }, [fetchSession])
 
   const handleLaunchRoom = async () => {
-    if (!config || !config.configuracion_json?.questions) {
-      return toast({ variant: "destructive", title: "Sin preguntas", description: "Configura el banco de preguntas primero." })
+    const questions = config?.configuracion_json?.questions;
+    if (!config || !questions || questions.length === 0) {
+      return toast({ variant: "destructive", title: "Sin preguntas", description: "No se encontraron preguntas en la configuración." })
     }
+    
     setIsSyncing(true)
     try {
+      // Crear sesión en FastAPI/Supabase
       const session = await api.post<any>('/gamificacion/sesion/', {
         evaluacion_id: config.id,
         configuracion_json: config.configuracion_json
       })
 
-      if (!session || !session.room_code) throw new Error("Error al generar PIN.")
+      if (!session || !session.room_code) throw new Error("Fallo al generar código de sala.")
 
+      // Abrir sala en tiempo real (Convex)
       await createRoom({
         roomCode: session.room_code,
-        questions: config.configuracion_json.questions,
+        questions: questions,
         configId: config.id,
-        unidadId: config.unidad_id || "UD-GENKIT"
+        unidadId: config.unidad_id || "UD-SALLÉ"
       })
 
       setRoomCode(session.room_code)
       setSessionId(session.sesion_id)
       setIsFullscreen(true)
-      toast({ title: "¡Sala en Vivo!", description: `PIN: ${session.room_code}` })
+      toast({ title: "¡Sala en Vivo!", description: `PIN Generado: ${session.room_code}` })
     } catch (e: any) {
       toast({ variant: "destructive", title: "Error", description: e.message })
     } finally {
@@ -93,7 +99,7 @@ export default function InstructorQuizPage() {
   const handleStartGame = async () => {
     if (!roomCode) return
     await updateStatus({ roomCode, status: 'active' })
-    toast({ title: "¡Juego Iniciado!", description: "Los alumnos ya pueden responder." })
+    toast({ title: "¡Desafío Iniciado!", description: "Los alumnos ya pueden ver las preguntas." })
   }
 
   if (loadingConfig) {
@@ -114,8 +120,7 @@ export default function InstructorQuizPage() {
         <div className="h-2 bg-primary w-full" />
         
         <div className="flex-grow flex flex-col lg:flex-row">
-          {/* Panel de Acceso */}
-          <div className="w-full lg:w-1/3 bg-slate-50 p-12 flex flex-col justify-between border-r">
+          <div className="w-full lg:w-1/3 bg-slate-50 p-12 flex flex-col justify-between border-r border-slate-100">
             <div className="space-y-8">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-primary rounded-2xl text-white shadow-xl">
@@ -130,7 +135,7 @@ export default function InstructorQuizPage() {
               <div className="bg-white p-8 rounded-[2.5rem] border-4 border-primary/10 shadow-2xl space-y-6 text-center">
                  <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.3em]">PIN DE ACCESO</p>
                  <h3 className="text-7xl font-black text-primary font-mono tracking-widest">{roomCode}</h3>
-                 <div className="pt-6 border-t">
+                 <div className="pt-6 border-t border-slate-50">
                     <img 
                       src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${window.location.origin}/student/quiz/join?pin=${roomCode}`}
                       alt="QR Access"
@@ -143,41 +148,40 @@ export default function InstructorQuizPage() {
 
             <div className="space-y-4">
               <div className="flex items-center justify-between px-2">
-                <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Conectados</span>
-                <Badge className="bg-emerald-500 text-white font-black">{room?.participants?.length || 0}</Badge>
+                <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Alumnos Conectados</span>
+                <Badge className="bg-emerald-500 text-white font-black px-3">{room?.participants?.length || 0}</Badge>
               </div>
               <Button 
                 onClick={handleStartGame}
                 disabled={!room?.participants?.length}
-                className="w-full h-20 bg-primary hover:bg-primary/90 text-white rounded-3xl font-black uppercase text-lg shadow-2xl shadow-primary/30 gap-3 group"
+                className="w-full h-20 bg-primary hover:bg-primary/90 text-white rounded-3xl font-black uppercase text-lg shadow-2xl shadow-primary/30 gap-3 group transition-all"
               >
                 <Play className="h-6 w-6 group-hover:scale-110 transition-transform" /> INICIAR DESAFÍO
               </Button>
-              <Button variant="ghost" onClick={() => setIsFullscreen(false)} className="w-full text-slate-400 font-bold uppercase text-[10px]">Salir de pantalla completa</Button>
+              <Button variant="ghost" onClick={() => setIsFullscreen(false)} className="w-full text-slate-400 font-bold uppercase text-[10px] hover:bg-transparent hover:text-slate-600">Salir de pantalla completa</Button>
             </div>
           </div>
 
-          {/* Grilla de Estudiantes */}
-          <div className="flex-grow p-12 relative">
+          <div className="flex-grow p-12 relative bg-white overflow-y-auto">
              <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-6">
                 {room?.participants?.map((p: any) => (
                   <div key={p._id} className="flex flex-col items-center gap-3 animate-in zoom-in duration-300">
                     <div className="relative group">
-                      <div className="absolute inset-0 bg-primary rounded-[2rem] blur-xl opacity-0 group-hover:opacity-20 transition-opacity" />
-                      <Avatar className="h-20 w-20 border-4 border-white shadow-xl rounded-[2rem]">
-                        <AvatarFallback className="bg-blue-50 text-primary font-black text-xl">
+                      <div className="absolute inset-0 bg-primary rounded-[2rem] blur-xl opacity-0 group-hover:opacity-20 transition-all" />
+                      <Avatar className="h-24 w-24 border-4 border-white shadow-xl rounded-[2rem]">
+                        <AvatarFallback className="bg-blue-50 text-primary font-black text-2xl">
                           {getInitials(p.name)}
                         </AvatarFallback>
                       </Avatar>
                     </div>
-                    <span className="text-xs font-black uppercase text-slate-700 tracking-tight text-center truncate w-full px-2">{p.name.split(',')[0]}</span>
+                    <span className="text-[10px] font-black uppercase text-slate-700 tracking-tight text-center truncate w-full px-2">{p.name.split(',')[0]}</span>
                   </div>
                 ))}
                 {(!room?.participants || room.participants.length === 0) && (
                   <div className="col-span-full h-[60vh] flex flex-col items-center justify-center text-slate-300 gap-4">
-                    <div className="p-10 rounded-[3rem] border-4 border-dashed border-slate-100 flex flex-col items-center">
-                       <Users className="h-16 w-16 opacity-20 mb-4" />
-                       <p className="font-black uppercase tracking-widest text-sm">Esperando a la comunidad...</p>
+                    <div className="p-16 rounded-[4rem] border-4 border-dashed border-slate-50 flex flex-col items-center">
+                       <Users className="h-20 w-20 opacity-20 mb-4" />
+                       <p className="font-black uppercase tracking-[0.3em] text-xs">Esperando comunidad estudiantil...</p>
                     </div>
                   </div>
                 )}
@@ -199,18 +203,18 @@ export default function InstructorQuizPage() {
             <div className="p-4 bg-primary/10 rounded-3xl text-primary shadow-sm border border-primary/10"><Gamepad2 className="h-10 w-10" /></div>
             <div>
               <h2 className="text-3xl md:text-4xl font-headline font-black text-slate-900 uppercase italic">Control de Gamificación</h2>
-              <p className="text-slate-500 font-medium italic text-sm">Validación técnica y pedagógica</p>
+              <p className="text-slate-500 font-medium italic text-sm">Validación técnica y pedagógica de alta exigencia</p>
             </div>
           </div>
         </div>
 
         <div className="flex gap-3">
           {!roomCode ? (
-            <Button onClick={handleLaunchRoom} disabled={isSyncing} className="h-16 px-10 bg-primary hover:bg-primary/90 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-primary/20 gap-3">
+            <Button onClick={handleLaunchRoom} disabled={isSyncing} className="h-16 px-10 bg-primary hover:bg-primary/90 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-primary/20 gap-3 transition-all">
               {isSyncing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Radio className="h-5 w-5" />} Abrir Sala Live
             </Button>
           ) : (
-            <div className="flex items-center gap-4 bg-blue-50 border-2 border-primary/10 p-4 px-8 rounded-3xl text-primary shadow-sm">
+            <div className="flex items-center gap-4 bg-blue-50 border-2 border-primary/10 p-4 px-8 rounded-3xl text-primary shadow-sm animate-in slide-in-from-right-4">
               <div className="flex flex-col">
                 <span className="text-[9px] font-black uppercase text-primary/60 tracking-[0.2em] mb-1">PIN DE ACCESO</span>
                 <span className="text-4xl font-black font-mono tracking-[0.2em] leading-none">{roomCode}</span>
@@ -239,27 +243,33 @@ export default function InstructorQuizPage() {
             </div>
             
             <div className="space-y-6">
-              {questions.map((q: any, idx: number) => (
-                <div key={idx} className="p-8 bg-slate-50/50 rounded-[2.5rem] border-2 border-slate-100/50 space-y-6">
-                  <div className="flex justify-between items-start">
-                    <p className="text-lg font-black text-slate-800 leading-tight uppercase tracking-tight max-w-[85%]">{idx + 1}. {q.text}</p>
-                    <Badge className="bg-white text-primary border-2 border-primary/10 font-bold text-[9px] px-3 py-1">{q.timeLimit}s</Badge>
+              {questions.length > 0 ? (
+                questions.map((q: any, idx: number) => (
+                  <div key={q.id || idx} className="p-8 bg-slate-50/50 rounded-[2.5rem] border-2 border-slate-100/50 space-y-6">
+                    <div className="flex justify-between items-start">
+                      <p className="text-lg font-black text-slate-800 leading-tight uppercase tracking-tight max-w-[85%]">{idx + 1}. {q.text}</p>
+                      <Badge className="bg-white text-primary border-2 border-primary/10 font-bold text-[9px] px-3 py-1">{q.timeLimit}s</Badge>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {q.options.map((opt: string, oIdx: number) => (
+                        <div key={oIdx} className={cn(
+                          "p-4 rounded-2xl border-2 flex items-center justify-between transition-all",
+                          q.correctIndex === oIdx 
+                            ? "bg-emerald-50 border-emerald-200 text-emerald-700 shadow-sm" 
+                            : "bg-white border-slate-100 text-slate-400 opacity-60"
+                        )}>
+                          <span className="text-xs font-bold uppercase">{opt}</span>
+                          {q.correctIndex === oIdx && <CheckCircle2 className="h-4 w-4" />}
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {q.options.map((opt: string, oIdx: number) => (
-                      <div key={oIdx} className={cn(
-                        "p-4 rounded-2xl border-2 flex items-center justify-between transition-all",
-                        q.correctIndex === oIdx 
-                          ? "bg-emerald-50 border-emerald-200 text-emerald-700 shadow-sm" 
-                          : "bg-white border-slate-100 text-slate-400 opacity-60"
-                      )}>
-                        <span className="text-xs font-bold uppercase">{opt}</span>
-                        {q.correctIndex === oIdx && <CheckCircle2 className="h-4 w-4" />}
-                      </div>
-                    ))}
-                  </div>
+                ))
+              ) : (
+                <div className="p-20 text-center border-4 border-dashed border-slate-100 rounded-[3rem]">
+                   <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Cargando banco de preguntas...</p>
                 </div>
-              ))}
+              )}
             </div>
           </Card>
         </div>

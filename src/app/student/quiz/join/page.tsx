@@ -30,14 +30,19 @@ export default function StudentJoinPage() {
     if (val.length === 8) {
       setIsValidating(true)
       try {
-        const student = await api.get<any>(`/alumnos/by-dni/${val}`)
+        // Fallback: Si el endpoint específico por DNI falla o no existe, 
+        // listamos y filtramos localmente para garantizar la entrada del alumno
+        const students = await api.get<any[]>('/alumnos/')
+        const student = (students || []).find(s => String(s.dni) === val)
+        
         if (student && student.nombre) {
           setStudentName(student.nombre)
         } else {
-          toast({ variant: "destructive", title: "DNI no registrado", description: "No perteneces al padrón institucional." })
           setStudentName(null)
+          toast({ variant: "destructive", title: "DNI no registrado", description: "No perteneces al padrón de este ciclo." })
         }
       } catch (e) {
+        console.error("Error validando DNI:", e)
         setStudentName(null)
       } finally {
         setIsValidating(false)
@@ -56,7 +61,7 @@ export default function StudentJoinPage() {
       localStorage.setItem(`p_${pin}`, participantId)
       router.push(`/student/quiz/${pin}`)
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Error", description: e.message || "Fallo al unirse." })
+      toast({ variant: "destructive", title: "Error", description: e.message || "Fallo al unirse a la sala." })
     } finally {
       setIsJoining(false)
     }
