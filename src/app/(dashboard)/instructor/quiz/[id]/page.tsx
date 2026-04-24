@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -45,12 +46,15 @@ export default function InstructorQuizPage() {
       if (quizEval) {
         setConfig(quizEval)
         try {
+          // Intentamos recuperar una sesión activa para esta evaluación
           const activeSession = await api.get<any>(`/gamificacion/sesion/${quizEval.id}/`)
           if (activeSession && activeSession.room_code) {
             setRoomCode(activeSession.room_code)
             setSessionId(activeSession.id || activeSession.sesion_id)
           }
-        } catch (e) { /* Caso normal si no hay sesión activa */ }
+        } catch (e) { 
+          // Si no hay sesión, simplemente no cargamos el roomCode
+        }
       }
     } catch (e: any) {
       console.error("Error loading config:", e)
@@ -77,7 +81,8 @@ export default function InstructorQuizPage() {
         configuracion_json: config.configuracion_json
       })
 
-      if (!session?.room_code) throw new Error("PIN no generado")
+      const finalSessionId = session?.id || session?.sesion_id || session?.sesion?.id;
+      if (!session?.room_code || !finalSessionId) throw new Error("PIN o ID de sesión no generado")
 
       await createRoom({
         roomCode: session.room_code,
@@ -87,7 +92,7 @@ export default function InstructorQuizPage() {
       })
 
       setRoomCode(session.room_code)
-      setSessionId(session.id || session.sesion_id)
+      setSessionId(finalSessionId)
       setIsFullscreen(true)
     } catch (e: any) {
       toast({ variant: "destructive", title: "Fallo al abrir sala", description: e.message })
@@ -139,8 +144,8 @@ export default function InstructorQuizPage() {
   }
 
   const handleCloseAndPersist = async () => {
-    if (!sessionId || !room?.participants || !config) {
-      toast({ variant: "destructive", title: "Faltan datos", description: "No se pudo recuperar la sesión técnica para guardar." });
+    if (!room?.participants || !config) {
+      toast({ variant: "destructive", title: "Error", description: "No hay datos de participantes para sincronizar." });
       return;
     }
     
@@ -149,30 +154,58 @@ export default function InstructorQuizPage() {
       const totalQuestions = config.configuracion_json?.questions?.length || 20;
       const maxScore = config.puntaje_maximo || 20;
 
-      const results = room.participants
-        .filter(p => !!p.studentId) // Solo los que tienen ID vinculado
-        .map(p => {
-          const correctAnswers = p.answers?.filter((a: any) => a.isCorrect).length || 0;
-          const academicGrade = Math.round((correctAnswers / totalQuestions) * maxScore);
-          
-          return {
-            alumno_id: p.studentId, 
-            puntaje: academicGrade,
-            observacion: `Logro Rank-UP: ${correctAnswers}/${totalQuestions} correctas. Ranking: ${p.score} pts.`
-          }
-        })
+      // Filtramos solo los que tienen studentId (UUID real)
+      const validParticipants = room.participants.filter(p => !!p.studentId);
 
-      if (results.length === 0) {
-        throw new Error("No hay participantes válidos para sincronizar.");
+      if (validParticipants.length === 0) {
+        throw new Error("No hay participantes con identidad Salle verificada.");
       }
 
-      await api.post(`/gamificacion/sesion/${sessionId}/finalizar/`, { notas: results })
-      toast({ title: "Notas Sincronizadas", description: "Los resultados se han pasado al Registro Auxiliar." })
-      router.back()
+      // Proceso de sincronización individual para asegurar la persistencia en el Registro Auxiliar
+      let successCount = 0;
+      for (const p of validParticipants) {
+        const correctAnswers = p.answers?.filter((a: any) => a.isCorrect).length || 0;
+        const academicGrade = Math.round((correctAnswers / totalQuestions) * maxScore);
+        
+        try {
+          await api.post('/evaluaciones/calificar/', {
+            evaluacion_id: config.id,
+            alumno_id: p.studentId,
+            puntaje: academicGrade,
+            observacion: `Rank-UP: ${correctAnswers}/${totalQuestions} correctas. (${p.score} pts)`,
+            detalles_json: { 
+              ranking_pts: p.score, 
+              correctas: correctAnswers, 
+              totales: totalQuestions,
+              avatar: p.avatar 
+            }
+          });
+          successCount++;
+        } catch (e) {
+          console.error(`Error al calificar a ${p.name}:`, e);
+        }
+      }
+
+      // Cerramos la sesión en el backend si tenemos el ID
+      if (sessionId) {
+        try {
+          await api.post(`/gamificacion/sesion/${sessionId}/finalizar/`, { notas: [] });
+        } catch (e) {
+          console.warn("La sesión no pudo cerrarse en backend, pero las notas fueron enviadas.");
+        }
+      }
+
+      toast({ 
+        title: "Sincronización Finalizada", 
+        description: `Se han registrado las notas de ${successCount} alumnos en el Registro Auxiliar.` 
+      });
+      
+      // Volvemos al panel de evaluación de la unidad
+      router.push(`/instructor/grades/${config.unidad_id}?periodo_id=${config.periodo_id || 'ACTUAL'}`);
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Fallo al sincronizar", description: e.message })
+      toast({ variant: "destructive", title: "Fallo al sincronizar", description: e.message });
     } finally {
-      setIsClosing(false)
+      setIsClosing(false);
     }
   }
 
@@ -197,7 +230,7 @@ export default function InstructorQuizPage() {
           <div className="space-y-2">
             <Badge className="bg-emerald-100 text-emerald-700 border-none font-black uppercase text-[9px] px-3 tracking-widest">Desafío Completado</Badge>
             <h2 className="text-4xl font-black text-slate-900 uppercase italic tracking-tighter leading-none">Resumen Académico</h2>
-            <p className="text-slate-400 font-medium italic">Conversión de Ranking a Escala Vigésimal (0-20)</p>
+            <p className="text-slate-400 font-medium italic">Conversión de desempeño a escala {config.puntaje_maximo || 20} pts</p>
           </div>
           <Button 
             onClick={handleCloseAndPersist} 
@@ -338,8 +371,8 @@ export default function InstructorQuizPage() {
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_2px_2px,rgba(255,255,255,0.05)_2px,transparent_0)] bg-[size:64px_64px]" />
             
             {room.status === 'finished' ? (
-              <div className="h-full flex flex-col items-center animate-in zoom-in-95 relative z-10 pt-24">
-                <div className="text-center mb-24 space-y-2 z-[60]">
+              <div className="h-full flex flex-col items-center animate-in zoom-in-95 relative z-10 pt-32">
+                <div className="text-center mb-32 space-y-2 z-[60]">
                    <h2 className="text-5xl md:text-7xl font-black uppercase italic tracking-tighter text-white drop-shadow-[0_10px_10px_rgba(0,0,0,0.3)]">Podio de Campeones</h2>
                    <p className="text-yellow-400 font-black text-lg uppercase tracking-[0.5em] italic">Salle Rank-UP Challenge</p>
                 </div>
@@ -444,7 +477,7 @@ export default function InstructorQuizPage() {
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-8 relative z-10">
                 {room?.participants?.map((p: any) => (
-                  <div key={p._id} className={cn(
+                  <Card key={p._id} className={cn(
                     "flex flex-col items-center gap-6 p-10 rounded-[3.5rem] border-4 transition-all group relative bg-white shadow-2xl",
                     p.isCheating ? "border-red-500 animate-pulse bg-red-50" : "border-transparent hover:border-yellow-400/30"
                   )}>
@@ -470,7 +503,7 @@ export default function InstructorQuizPage() {
                         <p className="text-3xl font-black text-primary leading-none font-mono">{p.score}</p>
                       </div>
                     </div>
-                  </div>
+                  </Card>
                 ))}
               </div>
             )}
