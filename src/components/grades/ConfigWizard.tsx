@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -28,7 +29,8 @@ import {
   Gamepad2, 
   CheckCircle2, 
   Sparkles, 
-  Loader2
+  Loader2,
+  Plus
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ChecklistConfig } from "./editor/ChecklistConfig"
@@ -95,6 +97,7 @@ export function ConfigWizard({
   const [registeredEvalId, setRegisteredEvalId] = React.useState<string | null>(null)
   const [isScanning, setIsScanning] = React.useState(false)
   const [quizQuestions, setQuizQuestions] = React.useState<any[]>([])
+  const [isFromLibrary, setIsFromLibrary] = React.useState(false)
 
   const handleAiScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -176,6 +179,11 @@ export function ConfigWizard({
   }
 
   const registerStep0 = async () => {
+    if (isFromLibrary && registeredIndicatorId) {
+      setSetupStep(1)
+      return
+    }
+
     setIsFinishing(true)
     try {
       const payload = {
@@ -301,8 +309,16 @@ export function ConfigWizard({
 
   const handleBack = () => setSetupStep(Math.max(0, setupStep - 1));
 
+  const handleStartNewIndicator = () => {
+    setRegisteredIndicatorId(null);
+    setNewIndicatorCode("");
+    setNewIndicatorDescription("");
+    setNewIndicatorWeight(0);
+    setIsFromLibrary(false);
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={(o) => { if(!isFinishing) { setIsOpen(o); if(!o) { resetEditor(); setRegisteredIndicatorId(null); setRegisteredEvalId(null); } } }}>
+    <Dialog open={isOpen} onOpenChange={(o) => { if(!isFinishing) { setIsOpen(o); if(!o) { resetEditor(); setRegisteredIndicatorId(null); setRegisteredEvalId(null); setIsFromLibrary(false); } } }}>
       <DialogContent className="max-w-5xl p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl flex flex-col h-[90vh]">
         <DialogHeader className="bg-primary h-28 flex flex-col justify-center px-10 text-white shrink-0">
           <DialogTitle className="text-2xl font-black uppercase tracking-tight">Configuración de Evaluación</DialogTitle>
@@ -317,24 +333,49 @@ export function ConfigWizard({
               {setupStep === 0 && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 w-full max-w-4xl">
                   <div className="space-y-6">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary"><BookOpen className="h-6 w-6" /></div>
-                      <h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Criterio de Logro</h4>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary"><BookOpen className="h-6 w-6" /></div>
+                        <h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Criterio de Logro</h4>
+                      </div>
+                      {isFromLibrary && (
+                        <Button variant="outline" size="sm" onClick={handleStartNewIndicator} className="h-8 border-primary text-primary font-bold text-[10px] uppercase gap-1.5 px-3 rounded-full hover:bg-primary/5">
+                          <Plus className="h-3 w-3" /> Crear Nuevo
+                        </Button>
+                      )}
                     </div>
                     <div className="bg-slate-50/50 p-8 rounded-[2rem] border-2 border-slate-100 space-y-6">
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label className="font-black text-slate-400 text-[10px] uppercase tracking-[0.2em] ml-1">Código</Label>
-                          <Input value={newIndicatorCode} onChange={e => setNewIndicatorCode(e.target.value.toUpperCase())} placeholder="Ej: C1.I1" className="h-12 border-none shadow-inner rounded-xl font-black text-lg bg-white" />
+                          <Input 
+                            value={newIndicatorCode} 
+                            onChange={e => setNewIndicatorCode(e.target.value.toUpperCase())} 
+                            placeholder="Ej: C1.I1" 
+                            disabled={isFromLibrary}
+                            className="h-12 border-none shadow-inner rounded-xl font-black text-lg bg-white disabled:opacity-50" 
+                          />
                         </div>
                         <div className="space-y-2">
                           <Label className="font-black text-slate-400 text-[10px] uppercase tracking-[0.2em] ml-1">Peso %</Label>
-                          <Input type="number" value={newIndicatorWeight || ""} onChange={e => setNewIndicatorWeight(parseInt(e.target.value) || 0)} className="h-12 border-none shadow-inner rounded-xl font-black text-center text-lg bg-white" />
+                          <Input 
+                            type="number" 
+                            value={newIndicatorWeight || ""} 
+                            onChange={e => setNewIndicatorWeight(parseInt(e.target.value) || 0)} 
+                            disabled={isFromLibrary}
+                            className="h-12 border-none shadow-inner rounded-xl font-black text-center text-lg bg-white disabled:opacity-50" 
+                          />
                         </div>
                       </div>
                       <div className="space-y-2">
                         <Label className="font-black text-slate-400 text-[10px] uppercase tracking-[0.2em] ml-1">Logro de Aprendizaje</Label>
-                        <Textarea value={newIndicatorDescription} onChange={e => setNewIndicatorDescription(e.target.value)} placeholder="Describe el resultado esperado..." className="h-24 border-none shadow-inner rounded-2xl bg-white resize-none" />
+                        <Textarea 
+                          value={newIndicatorDescription} 
+                          onChange={e => setNewIndicatorDescription(e.target.value)} 
+                          placeholder="Describe el resultado esperado..." 
+                          disabled={isFromLibrary}
+                          className="h-24 border-none shadow-inner rounded-2xl bg-white resize-none disabled:opacity-50" 
+                        />
                       </div>
                     </div>
                   </div>
@@ -354,6 +395,7 @@ export function ConfigWizard({
                               setNewIndicatorDescription(ind.descripcion); 
                               setNewIndicatorWeight(ind.peso_porcentaje); 
                               setRegisteredIndicatorId(ind.id); 
+                              setIsFromLibrary(true);
                             }} 
                             className={cn(
                               "flex flex-col items-start p-4 rounded-2xl border-2 w-full text-left transition-all", 

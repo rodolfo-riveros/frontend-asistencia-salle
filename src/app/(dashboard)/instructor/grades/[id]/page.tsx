@@ -472,7 +472,7 @@ function GradebookContent() {
         newInstrumentWeight={newInstrumentWeight} setNewInstrumentWeight={setNewInstrumentWeight}
         newMaxPoints={newMaxPoints} setNewMaxPoints={setNewMaxPoints}
         editorCriteria={editorCriteria} setEditorCriteria={setEditorCriteria}
-        isScanning={isScanning} fileInputRef={fileInputRef} 
+        fileInputRef={fileInputRef} 
         totalPointsStep={totalPointsStep} students={students}
         groupSize={groupSize} setGroupSize={setGroupSize}
         studentGroups={studentGroups} setStudentGroups={setStudentGroups}
