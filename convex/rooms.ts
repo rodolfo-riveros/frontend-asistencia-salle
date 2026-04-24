@@ -53,15 +53,16 @@ export const joinRoom = mutation({
       
     if (!room) throw new Error("La sala no existe.");
 
-    // EVITAR DUPLICADOS: Si el nombre ya está en la sala, devolvemos el ID existente
+    // RECUPERACIÓN DE SESIÓN: Si el nombre ya está en la sala, devolvemos el ID existente para que no se duplique
     const existingParticipant = await ctx.db
       .query("participants")
       .withIndex("by_room", (q) => q.eq("roomId", room._id))
-      .filter((q) => q.eq(q.field("name"), args.name))
-      .first();
+      .collect();
 
-    if (existingParticipant) {
-      return existingParticipant._id;
+    const matched = existingParticipant.find(p => p.name.trim().toUpperCase() === args.name.trim().toUpperCase());
+    
+    if (matched) {
+      return matched._id;
     }
 
     if (room.status === "finished") throw new Error("El juego ya terminó.");
@@ -70,7 +71,7 @@ export const joinRoom = mutation({
 
     return await ctx.db.insert("participants", {
       roomId:  room._id,
-      name:    args.name,
+      name:    args.name.trim().toUpperCase(),
       score:   0,
       avatar:  randomAvatar,
       isCheating: false,
@@ -139,15 +140,10 @@ export const getRoom = query({
   args: { roomCode: v.string() },
   handler: async (ctx, args) => {
     const code = args.roomCode.toUpperCase();
-    let room = await ctx.db
+    const room = await ctx.db
       .query("rooms")
       .withIndex("by_roomCode", (q) => q.eq("roomCode", code))
       .first();
-
-    if (!room) {
-      const allRooms = await ctx.db.query("rooms").collect();
-      room = allRooms.find(r => r.roomCode === code) || null;
-    }
 
     if (!room) return null;
 

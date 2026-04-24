@@ -33,7 +33,7 @@ export default function StudentGameRoomPage() {
     return room.participants.find((p: any) => p._id === participantId)
   }, [room?.participants, participantId])
 
-  // Cargar sesión y sincronizar progreso
+  // Cargar sesión y sincronizar progreso (Persistencia real)
   React.useEffect(() => {
     const pId = localStorage.getItem(`p_${params.roomId}`)
     if (!pId) {
@@ -43,7 +43,7 @@ export default function StudentGameRoomPage() {
     }
   }, [params.roomId, router])
 
-  // Sincronizar indice de pregunta si ya respondió algunas (Re-ingreso)
+  // Sincronizar indice de pregunta si ya respondió algunas (Re-ingreso o reconexión)
   React.useEffect(() => {
     if (myData?.answers && room?.questions) {
       const nextIdx = myData.answers.length;
@@ -82,7 +82,7 @@ export default function StudentGameRoomPage() {
     }
   }, [localQuestionIndex, room?.status, room?.questions])
 
-  // Contador de Tiempo
+  // Contador de Tiempo Maestro
   React.useEffect(() => {
     if (room?.status !== 'active' || isQuizFinished || hasAnswered) return
 
@@ -90,7 +90,7 @@ export default function StudentGameRoomPage() {
       setTimeLeft((prev) => {
         if (prev <= 1) {
           clearInterval(timer)
-          handleAnswer(-1) // Tiempo agotado = Incorrecto
+          handleAnswer(-1) // Tiempo agotado = Marcar incorrecto y pasar
           return 0
         }
         return prev - 1
@@ -128,7 +128,7 @@ export default function StudentGameRoomPage() {
         isCorrect: isCorrect
       })
       
-      // Transición ultra rápida
+      // Transición ultra rápida tras feedback visual
       setTimeout(() => {
         if (localQuestionIndex + 1 < room.questions.length) {
           setLocalQuestionIndex(prev => prev + 1)
@@ -223,7 +223,7 @@ export default function StudentGameRoomPage() {
                     <Clock className="h-4 w-4" /> {timeLeft}s
                   </div>
                </div>
-               <h1 className="text-lg md:text-2xl font-black text-slate-900 leading-snug uppercase italic tracking-tight max-w-3xl mx-auto">
+               <h1 className="text-xl md:text-2xl font-black text-slate-900 leading-snug uppercase italic tracking-tight max-w-3xl mx-auto">
                  {currentQ?.text}
                </h1>
             </div>
@@ -236,19 +236,19 @@ export default function StudentGameRoomPage() {
                   onClick={() => handleAnswer(opt.originalIndex)}
                   variant="outline"
                   className={cn(
-                    "min-h-[80px] md:min-h-[100px] h-auto text-sm md:text-base font-bold uppercase rounded-2xl border-2 transition-all shadow-md whitespace-normal px-6 py-5 flex items-center justify-start text-left overflow-visible",
-                    !hasAnswered && "hover:border-primary/50 hover:bg-slate-50 hover:scale-[1.01] active:scale-95 group",
+                    "min-h-[100px] h-auto text-sm md:text-base font-bold uppercase rounded-3xl border-2 transition-all shadow-md whitespace-normal px-8 py-6 flex items-center justify-start text-left overflow-visible",
+                    !hasAnswered && "hover:border-primary hover:bg-white hover:scale-[1.02] active:scale-95 group",
                     hasAnswered && opt.originalIndex === currentQ?.correctIndex && "bg-emerald-500 text-white border-emerald-500 shadow-emerald-200",
                     hasAnswered && opt.originalIndex !== currentQ?.correctIndex && "opacity-40 grayscale"
                   )}
                 >
                   <div className={cn(
-                    "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border-2 font-black text-xs mr-4 transition-colors",
+                    "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border-2 font-black text-xs mr-5 transition-colors",
                     hasAnswered && opt.originalIndex === currentQ?.correctIndex ? "bg-white text-emerald-600 border-white" : "bg-slate-50 text-slate-400 border-slate-100 group-hover:border-primary/30"
                   )}>
                     {String.fromCharCode(65 + i)}
                   </div>
-                  <span className="flex-1 font-black leading-tight">{opt.text}</span>
+                  <span className="flex-1 font-black leading-tight text-slate-700 group-hover:text-primary transition-colors">{opt.text}</span>
                 </Button>
               ))}
             </div>
@@ -256,13 +256,13 @@ export default function StudentGameRoomPage() {
             {hasAnswered && (
               <div className="text-center animate-in slide-in-from-bottom-4 duration-300">
                 <div className={cn(
-                  "inline-flex items-center gap-3 h-14 px-8 rounded-xl uppercase font-black tracking-widest shadow-lg text-white text-xs",
+                  "inline-flex items-center gap-3 h-14 px-10 rounded-2xl uppercase font-black tracking-widest shadow-xl text-white text-sm",
                   lastAnswerCorrect ? "bg-emerald-600" : "bg-red-600"
                 )}>
                   {lastAnswerCorrect ? (
-                    <><CheckCircle2 className="h-5 w-5" /> ¡ACIERTO!</>
+                    <><CheckCircle2 className="h-6 w-6" /> ¡ACIERTO ÉPICO!</>
                   ) : (
-                    <><XCircle className="h-5 w-5" /> ¡FALLO!</>
+                    <><XCircle className="h-6 w-6" /> ¡FALLO TÉCNICO!</>
                   )}
                 </div>
               </div>
@@ -270,35 +270,41 @@ export default function StudentGameRoomPage() {
           </div>
         ) : (
           <div className="text-center space-y-10 animate-in zoom-in-95 w-full px-4 max-w-2xl mx-auto">
-            <div className="p-12 md:p-16 bg-white rounded-[4rem] border-t-[10px] border-emerald-500 shadow-2xl space-y-10 relative overflow-hidden">
-              <div className="absolute -top-12 -right-12 w-48 h-48 bg-primary/5 rounded-full blur-3xl" />
+            <div className="p-12 md:p-20 bg-white rounded-[4rem] border-t-[14px] border-emerald-500 shadow-2xl space-y-12 relative overflow-hidden">
+              <div className="absolute -top-12 -right-12 w-64 h-64 bg-primary/5 rounded-full blur-[100px]" />
               <div className="relative">
-                 <Trophy className="h-28 w-28 text-yellow-400 mx-auto animate-bounce drop-shadow-lg" />
-                 <Sparkles className="h-8 w-8 text-yellow-400 absolute top-0 right-1/4 animate-pulse" />
+                 <Trophy className="h-32 w-32 text-yellow-400 mx-auto animate-bounce drop-shadow-2xl" />
+                 <Sparkles className="h-10 w-10 text-yellow-400 absolute top-0 right-1/4 animate-pulse" />
               </div>
               
-              <div className="space-y-4">
-                <h2 className="text-4xl md:text-5xl font-black text-slate-900 uppercase italic tracking-tighter leading-none">Ascenso Terminado</h2>
-                <div className="bg-slate-50 rounded-3xl p-6 border-2 border-slate-100 inline-block">
-                   <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.3em] mb-2">PUNTAJE ACUMULADO</p>
-                   <span className="text-5xl font-black text-primary font-mono">{myData?.score || 0}</span>
+              <div className="space-y-6">
+                <h2 className="text-4xl md:text-6xl font-black text-slate-900 uppercase italic tracking-tighter leading-none">Desafío Terminado</h2>
+                <div className="bg-slate-50 rounded-[3rem] p-10 border-4 border-slate-100 inline-block shadow-inner">
+                   <p className="text-[12px] font-black uppercase text-slate-400 tracking-[0.4em] mb-4">PUNTAJE ACUMULADO</p>
+                   <span className="text-6xl md:text-8xl font-black text-primary font-mono tracking-tighter">{myData?.score || 0}</span>
                 </div>
-                <p className="text-slate-400 font-bold uppercase tracking-[0.2em] text-[10px] pt-4">
-                   Héroe Salle: {myData?.avatar || 'Desconocido'}
-                </p>
+                <div className="flex flex-col items-center gap-3 pt-6">
+                   <Avatar className="h-12 w-12 border-2 border-primary/20">
+                      <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(myData?.avatar || "salle")}`} />
+                      <AvatarFallback className="bg-primary/5 text-primary font-bold">{getInitials(myData?.name || "??")}</AvatarFallback>
+                   </Avatar>
+                   <p className="text-slate-500 font-bold uppercase tracking-[0.2em] text-[11px] italic">
+                      Héroe Salle: {myData?.avatar || 'Aspirante'}
+                   </p>
+                </div>
               </div>
 
               {room.status === 'finished' ? (
-                <Button onClick={() => router.push('/student/quiz/join')} className="w-full h-16 bg-primary hover:bg-primary/95 text-white rounded-3xl font-black uppercase text-xs tracking-widest shadow-xl transition-all active:scale-95">
-                  Volver al Inicio
+                <Button onClick={() => router.push('/student/quiz/join')} className="w-full h-20 bg-primary hover:bg-primary/95 text-white rounded-[2rem] font-black uppercase text-sm tracking-widest shadow-2xl transition-all active:scale-95 border-b-8 border-primary-dark">
+                  VOLVER AL INICIO
                 </Button>
               ) : (
-                <div className="p-5 bg-blue-50 rounded-2xl border border-blue-100 flex flex-col items-center gap-3">
-                  <div className="flex items-center gap-3">
-                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                    <p className="text-[10px] font-black text-primary uppercase tracking-widest">Esperando al docente...</p>
+                <div className="p-8 bg-blue-50 rounded-[2.5rem] border-2 border-blue-100 flex flex-col items-center gap-4 shadow-inner">
+                  <div className="flex items-center gap-4">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                    <p className="text-[11px] font-black text-primary uppercase tracking-[0.2em]">Esperando resultados oficiales...</p>
                   </div>
-                  <p className="text-[8px] font-bold text-blue-300 uppercase">NO CIERRES ESTA PANTALLA</p>
+                  <p className="text-[9px] font-black text-blue-300 uppercase tracking-widest">NO CIERRES ESTA PANTALLA, ASPIRANTE</p>
                 </div>
               )}
             </div>
@@ -306,11 +312,11 @@ export default function StudentGameRoomPage() {
         )}
       </main>
 
-      <footer className="w-full text-center space-y-2 pb-6 pt-8 px-4 opacity-50">
+      <footer className="w-full text-center space-y-2 pb-6 pt-8 px-4 opacity-40">
         <div className="flex items-center justify-center gap-2">
-          <ShieldCheck className="h-3 w-3 text-primary" />
-          <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest">
-            IES LA SALLE URUBAMBA
+          <ShieldCheck className="h-4 w-4 text-primary" />
+          <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">
+            IES LA SALLE URUBAMBA • SISTEMA RANK-UP
           </p>
         </div>
       </footer>

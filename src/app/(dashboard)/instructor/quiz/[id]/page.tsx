@@ -6,7 +6,8 @@ import {
   ArrowLeft, Gamepad2, Sparkles, 
   Loader2, Radio, Users, Maximize2, Play, Trophy, 
   ShieldCheck, UserX, Crown, Zap, Clock, BookOpen, 
-  AlertTriangle, Target, Percent, Award
+  AlertTriangle, Target, Percent, Award, ChevronRight,
+  Medal
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardTitle } from "@/components/ui/card"
@@ -47,7 +48,7 @@ export default function InstructorQuizPage() {
             setSessionId(activeSession.sesion_id)
           }
         } catch (e) { 
-          console.log("No active session found") 
+          // Silenciar error 404 de sesión no encontrada
         }
       }
     } catch (e: any) {
@@ -98,7 +99,7 @@ export default function InstructorQuizPage() {
   const handleProjectArena = async () => {
     if (!roomCode || !config) return;
     
-    if (room === null) {
+    if (!room) {
       setIsSyncing(true)
       try {
         await createRoom({
@@ -126,8 +127,13 @@ export default function InstructorQuizPage() {
   const handleFinishGame = async () => {
     if (!roomCode) return
     
-    // Cambiar estado en Convex primero para que el Podio sea visible
-    await updateStatus({ roomCode, status: 'finished' })
+    // PRIORIDAD: Cambiar estado en Convex para proyectar el Podio
+    try {
+      await updateStatus({ roomCode, status: 'finished' })
+      toast({ title: "Desafío Finalizado" })
+    } catch (e) {
+      console.error("Error finalizando en Convex:", e)
+    }
     
     if (!sessionId) return
 
@@ -138,9 +144,8 @@ export default function InstructorQuizPage() {
 
     try {
       await api.post(`/gamificacion/sesion/${sessionId}/finalizar/`, { notas: results })
-      toast({ title: "Resultados Sincronizados" })
     } catch (e) { 
-      console.error("Error sync grades:", e)
+      console.error("Error sync grades to FastAPI:", e)
     }
   }
 
@@ -167,17 +172,17 @@ export default function InstructorQuizPage() {
     )
 
     return (
-      <div className="fixed inset-0 z-[100] bg-white flex flex-col animate-in fade-in duration-500 overflow-hidden font-body">
-        <div className="h-2 bg-primary w-full shadow-lg" />
+      <div className="fixed inset-0 z-[100] bg-[#6D28D9] flex flex-col animate-in fade-in duration-500 overflow-hidden font-body">
+        <div className="h-2 bg-yellow-400 w-full shadow-lg" />
         <div className="flex-grow flex flex-col lg:flex-row">
-          <div className="w-full lg:w-[450px] bg-slate-50 p-12 flex flex-col justify-between border-r shadow-2xl z-10">
+          <div className="w-full lg:w-[450px] bg-white/10 backdrop-blur-md p-12 flex flex-col justify-between border-r border-white/10 shadow-2xl z-20">
             <div className="space-y-10">
               <div className="flex items-center gap-4">
-                <Zap className="h-10 w-10 text-primary fill-primary" />
-                <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tighter italic leading-none">Monitor Arena</h2>
+                <Zap className="h-10 w-10 text-yellow-400 fill-yellow-400" />
+                <h2 className="text-3xl font-black text-white uppercase tracking-tighter italic leading-none">Monitor Arena</h2>
               </div>
 
-              <div className="bg-white p-10 rounded-[3rem] shadow-xl text-center space-y-6 border-b-8 border-primary relative overflow-hidden">
+              <div className="bg-white p-10 rounded-[3rem] shadow-2xl text-center space-y-6 border-b-8 border-yellow-400 relative overflow-hidden">
                  <p className="text-[11px] font-black uppercase text-slate-400 tracking-widest">PIN DE ACCESO</p>
                  <h3 className="text-8xl font-black text-primary font-mono tracking-tighter">{roomCode}</h3>
                  <div className="p-6 bg-slate-50 rounded-[2.5rem] inline-block border-2 border-slate-100 shadow-inner">
@@ -192,108 +197,164 @@ export default function InstructorQuizPage() {
 
             <div className="space-y-6">
               <div className="flex justify-between items-center px-6">
-                <div className="flex flex-col">
-                  <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">ASPIRANTES</span>
-                  <span className="text-2xl font-black text-slate-900">{room?.participants?.length || 0}</span>
+                <div className="flex flex-col text-white">
+                  <span className="text-[10px] font-black uppercase opacity-60 tracking-widest">ASPIRANTES</span>
+                  <span className="text-3xl font-black">{room?.participants?.length || 0}</span>
                 </div>
-                <Button variant="ghost" onClick={() => setIsFullscreen(false)} className="text-[10px] font-bold uppercase text-slate-400 hover:text-primary tracking-widest">Cerrar</Button>
+                <Button variant="ghost" onClick={() => setIsFullscreen(false)} className="text-[10px] font-bold uppercase text-white/60 hover:text-white tracking-widest">Cerrar</Button>
               </div>
               
               {room.status === 'lobby' ? (
-                <Button onClick={handleStartGame} disabled={!room?.participants?.length} className="w-full h-20 bg-primary text-white rounded-[2rem] font-black text-lg shadow-xl transition-all hover:scale-[1.02] active:scale-95 disabled:grayscale">
+                <Button onClick={handleStartGame} disabled={!room?.participants?.length} className="w-full h-20 bg-yellow-400 text-primary rounded-[2rem] font-black text-xl shadow-2xl transition-all hover:scale-[1.02] active:scale-95 disabled:grayscale border-b-4 border-yellow-600">
                   INICIAR ASCENSO
                 </Button>
               ) : room.status === 'active' ? (
-                <Button onClick={handleFinishGame} className="w-full h-20 bg-accent text-white rounded-[2rem] font-black text-lg shadow-xl transition-all hover:scale-[1.02]">
+                <Button onClick={handleFinishGame} className="w-full h-20 bg-red-500 text-white rounded-[2rem] font-black text-xl shadow-2xl transition-all hover:scale-[1.02] border-b-4 border-red-700">
                   FINALIZAR Y VER PODIO
                 </Button>
               ) : (
-                <Button onClick={() => setIsFullscreen(false)} className="w-full h-20 bg-slate-800 text-white rounded-[2rem] font-black text-lg">
+                <Button onClick={() => setIsFullscreen(false)} className="w-full h-20 bg-slate-800 text-white rounded-[2rem] font-black text-xl border-b-4 border-slate-900">
                   VOLVER AL PANEL
                 </Button>
               )}
             </div>
           </div>
 
-          <div className="flex-grow p-16 bg-white overflow-y-auto relative">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_2px_2px,rgba(34,97,203,0.03)_2px,transparent_0)] bg-[size:48px_48px]" />
+          <div className="flex-grow p-16 bg-[#6D28D9] overflow-y-auto relative">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_2px_2px,rgba(255,255,255,0.05)_2px,transparent_0)] bg-[size:64px_64px]" />
+            
             {room.status === 'finished' ? (
-              <div className="h-full flex flex-col items-center justify-center animate-in zoom-in-95 relative z-10">
-                <h2 className="text-5xl md:text-7xl font-black uppercase italic tracking-tighter text-slate-900 mb-16">Podio Salle Rank-UP</h2>
-                <div className="flex items-end gap-8 md:gap-12 h-[450px]">
+              <div className="h-full flex flex-col items-center justify-center animate-in zoom-in-95 relative z-10 py-10">
+                <div className="text-center mb-16 space-y-4">
+                   <h2 className="text-6xl md:text-8xl font-black uppercase italic tracking-tighter text-white drop-shadow-[0_10px_10px_rgba(0,0,0,0.3)]">Podio de Campeones</h2>
+                   <p className="text-yellow-400 font-black text-xl uppercase tracking-[0.5em] italic">Salle Rank-UP Challenge</p>
+                </div>
+
+                <div className="flex items-end justify-center gap-4 md:gap-16 h-[500px] mb-20">
+                  {/* Puesto 2 */}
                   {sortedParticipants[1] && (
                     <div className="flex flex-col items-center gap-6 animate-in slide-in-from-bottom-24 duration-700">
-                      <div className="relative">
-                        <Avatar className="h-28 w-28 md:h-32 md:w-32 border-4 border-slate-200 shadow-2xl">
-                          <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(sortedParticipants[1].avatar)}`} />
-                          <AvatarFallback className="text-3xl font-black bg-slate-100">{getInitials(sortedParticipants[1].name)}</AvatarFallback>
-                        </Avatar>
-                        <div className="absolute -top-3 -right-3 h-10 w-10 bg-slate-400 rounded-full flex items-center justify-center font-black text-white text-lg border-2 border-white shadow-lg">2</div>
+                      <div className="relative group">
+                         <div className="absolute inset-0 bg-yellow-400 blur-2xl opacity-20 group-hover:opacity-40 transition-opacity" />
+                         <div className="w-32 h-32 md:w-40 md:h-40 bg-white/20 backdrop-blur-xl rounded-[2.5rem] p-2 border-4 border-slate-300 shadow-2xl relative z-10 flex items-center justify-center">
+                            <Avatar className="w-full h-full rounded-[2rem]">
+                              <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(sortedParticipants[1].avatar)}`} />
+                              <AvatarFallback className="text-3xl font-black bg-slate-100">{getInitials(sortedParticipants[1].name)}</AvatarFallback>
+                            </Avatar>
+                         </div>
+                         <div className="absolute -top-4 -right-4 h-12 w-12 bg-slate-400 rounded-2xl flex items-center justify-center font-black text-white text-xl border-4 border-[#6D28D9] shadow-xl z-20">2</div>
                       </div>
-                      <span className="font-black uppercase text-[10px] text-slate-600 truncate w-32 text-center">{sortedParticipants[1].name.split(',')[0]}</span>
-                      <div className="h-40 w-32 bg-slate-100 rounded-t-[2.5rem] border-t-8 border-slate-200 shadow-xl flex flex-col items-center pt-6">
-                         <span className="text-3xl font-black text-slate-400">{sortedParticipants[1].score}</span>
+                      <div className="text-center space-y-2">
+                        <p className="font-black text-white text-lg uppercase truncate w-40">{sortedParticipants[1].name.split(',')[0]}</p>
+                        <div className="bg-white/10 px-4 py-1.5 rounded-full border border-white/10">
+                          <span className="text-yellow-400 font-black text-xl">{sortedParticipants[1].score}</span>
+                        </div>
                       </div>
+                      <div className="w-32 md:w-40 h-48 bg-white/10 backdrop-blur-md rounded-t-[3rem] border-t-8 border-slate-300/50 shadow-2xl" />
                     </div>
                   )}
+
+                  {/* Puesto 1 */}
                   {sortedParticipants[0] && (
-                    <div className="flex flex-col items-center gap-6 animate-in slide-in-from-bottom-40 duration-1000">
-                      <Crown className="h-16 w-16 text-yellow-400 animate-bounce" />
-                      <div className="relative">
-                        <Avatar className="h-36 w-36 md:h-44 md:w-44 border-[10px] border-yellow-400 shadow-2xl scale-110">
-                          <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(sortedParticipants[0].avatar)}`} />
-                          <AvatarFallback className="text-5xl font-black bg-yellow-50">{getInitials(sortedParticipants[0].name)}</AvatarFallback>
-                        </Avatar>
-                        <div className="absolute -top-4 -right-4 h-14 w-14 bg-yellow-400 rounded-full flex items-center justify-center font-black text-white text-3xl border-4 border-white shadow-xl">1</div>
+                    <div className="flex flex-col items-center gap-8 animate-in slide-in-from-bottom-40 duration-1000">
+                      <Crown className="h-20 w-20 text-yellow-400 animate-bounce filter drop-shadow-[0_0_15px_rgba(250,204,21,0.5)]" />
+                      <div className="relative group">
+                         <div className="absolute inset-0 bg-yellow-400 blur-3xl opacity-30 group-hover:opacity-50 transition-opacity animate-pulse" />
+                         <div className="w-44 h-44 md:w-56 md:h-56 bg-white/30 backdrop-blur-2xl rounded-[3.5rem] p-3 border-[10px] border-yellow-400 shadow-2xl relative z-10 flex items-center justify-center">
+                            <Avatar className="w-full h-full rounded-[2.5rem]">
+                              <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(sortedParticipants[0].avatar)}`} />
+                              <AvatarFallback className="text-5xl font-black bg-yellow-50">{getInitials(sortedParticipants[0].name)}</AvatarFallback>
+                            </Avatar>
+                         </div>
+                         <div className="absolute -top-6 -right-6 h-16 w-16 bg-yellow-400 rounded-3xl flex items-center justify-center font-black text-primary text-3xl border-8 border-[#6D28D9] shadow-2xl z-20">1</div>
                       </div>
-                      <span className="font-black uppercase text-sm md:text-base text-slate-900 truncate w-40 text-center">{sortedParticipants[0].name.split(',')[0]}</span>
-                      <div className="h-56 w-44 bg-yellow-400/10 rounded-t-[4rem] border-t-[14px] border-yellow-400 flex flex-col items-center pt-8 shadow-2xl">
-                        <span className="text-4xl md:text-5xl font-black text-yellow-600">{sortedParticipants[0].score}</span>
-                        <span className="text-[10px] font-black text-yellow-500 uppercase tracking-[0.3em] mt-2">PUNTOS</span>
+                      <div className="text-center space-y-3">
+                        <p className="font-black text-white text-2xl uppercase tracking-tighter drop-shadow-lg">{sortedParticipants[0].name.split(',')[0]}</p>
+                        <div className="bg-yellow-400 px-8 py-2.5 rounded-full shadow-[0_0_20px_rgba(250,204,21,0.4)]">
+                          <span className="text-primary font-black text-3xl">{sortedParticipants[0].score}</span>
+                        </div>
                       </div>
+                      <div className="w-44 md:w-56 h-64 bg-white/20 backdrop-blur-lg rounded-t-[4rem] border-t-[14px] border-yellow-400 shadow-2xl" />
                     </div>
                   )}
+
+                  {/* Puesto 3 */}
                   {sortedParticipants[2] && (
                     <div className="flex flex-col items-center gap-6 animate-in slide-in-from-bottom-16 duration-1000">
-                      <div className="relative">
-                        <Avatar className="h-24 w-24 md:h-28 md:w-28 border-4 border-amber-600/30 shadow-2xl">
-                          <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(sortedParticipants[2].avatar)}`} />
-                          <AvatarFallback className="text-2xl font-black bg-amber-50">{getInitials(sortedParticipants[2].name)}</AvatarFallback>
-                        </Avatar>
-                        <div className="absolute -top-2 -right-2 h-9 w-9 bg-amber-700/60 rounded-full flex items-center justify-center font-black text-white text-base border-2 border-white shadow-lg">3</div>
+                      <div className="relative group">
+                         <div className="absolute inset-0 bg-amber-700 blur-2xl opacity-10 group-hover:opacity-30 transition-opacity" />
+                         <div className="w-28 h-28 md:w-36 md:h-36 bg-white/20 backdrop-blur-xl rounded-[2rem] p-2 border-4 border-amber-600/50 shadow-2xl relative z-10 flex items-center justify-center">
+                            <Avatar className="w-full h-full rounded-[1.5rem]">
+                              <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(sortedParticipants[2].avatar)}`} />
+                              <AvatarFallback className="text-2xl font-black bg-amber-50">{getInitials(sortedParticipants[2].name)}</AvatarFallback>
+                            </Avatar>
+                         </div>
+                         <div className="absolute -top-3 -right-3 h-10 w-10 bg-amber-700 rounded-2xl flex items-center justify-center font-black text-white text-lg border-4 border-[#6D28D9] shadow-xl z-20">3</div>
                       </div>
-                      <span className="font-black uppercase text-[10px] text-slate-500 truncate w-32 text-center">{sortedParticipants[2].name.split(',')[0]}</span>
-                      <div className="h-32 w-28 bg-amber-50 rounded-t-[2rem] border-t-8 border-amber-600/20 shadow-xl flex flex-col items-center pt-6">
-                         <span className="text-2xl font-black text-amber-600/60">{sortedParticipants[2].score}</span>
+                      <div className="text-center space-y-2">
+                        <p className="font-black text-white text-base uppercase truncate w-36">{sortedParticipants[2].name.split(',')[0]}</p>
+                        <div className="bg-white/10 px-4 py-1 rounded-full border border-white/10">
+                          <span className="text-yellow-400 font-black text-lg">{sortedParticipants[2].score}</span>
+                        </div>
                       </div>
+                      <div className="w-28 md:w-36 h-36 bg-white/10 backdrop-blur-md rounded-t-[2.5rem] border-t-8 border-amber-700/40 shadow-2xl" />
                     </div>
                   )}
                 </div>
+
+                {/* Lista de mérito para 4to en adelante */}
+                {sortedParticipants.length > 3 && (
+                  <div className="w-full max-w-4xl space-y-4 animate-in fade-in duration-1000">
+                    <div className="flex items-center gap-4 px-10 mb-6">
+                       <Medal className="h-6 w-6 text-yellow-400" />
+                       <span className="text-white font-black uppercase text-sm tracking-[0.3em] italic">Ranking Salle Honor</span>
+                       <div className="flex-1 h-px bg-white/10" />
+                    </div>
+                    {sortedParticipants.slice(3, 10).map((p, idx) => (
+                      <div key={p._id} className="bg-white/5 backdrop-blur-sm p-4 rounded-3xl border border-white/10 flex items-center gap-6 group hover:bg-white/10 transition-all">
+                        <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center font-black text-white/50 text-xl border border-white/5">{idx + 4}</div>
+                        <Avatar className="h-12 w-12 border-2 border-white/20">
+                           <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(p.avatar)}`} />
+                           <AvatarFallback className="bg-primary text-white font-bold">{getInitials(p.name)}</AvatarFallback>
+                        </Avatar>
+                        <p className="flex-1 font-black text-white uppercase text-lg truncate">{p.name}</p>
+                        <div className="px-6 py-2 bg-yellow-400/10 rounded-2xl border border-yellow-400/20">
+                           <span className="font-black text-yellow-400 text-xl">{p.score}</span>
+                           <span className="text-[10px] font-black text-yellow-400/60 uppercase ml-2">PTS</span>
+                        </div>
+                        <ChevronRight className="h-5 w-5 text-white/20" />
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-8 relative z-10">
+              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-8 relative z-10">
                 {room?.participants?.map((p: any) => (
                   <div key={p._id} className={cn(
-                    "flex flex-col items-center gap-4 p-8 rounded-[3rem] border-4 transition-all group relative bg-white shadow-lg",
-                    p.isCheating ? "border-red-500 animate-pulse bg-red-50" : "border-slate-50 hover:border-primary/30"
+                    "flex flex-col items-center gap-6 p-10 rounded-[3.5rem] border-4 transition-all group relative bg-white shadow-2xl",
+                    p.isCheating ? "border-red-500 animate-pulse bg-red-50" : "border-transparent hover:border-yellow-400/30"
                   )}>
                     {p.isCheating && (
-                      <div className="absolute -top-3 -right-3 flex items-center gap-2 bg-red-600 text-white px-4 py-1.5 rounded-full z-20 shadow-xl border-4 border-white animate-bounce">
-                        <AlertTriangle className="h-4 w-4" />
-                        <span className="text-[10px] font-black uppercase tracking-widest">FRAUDE</span>
+                      <div className="absolute -top-4 -right-4 flex items-center gap-2 bg-red-600 text-white px-5 py-2 rounded-2xl z-20 shadow-2xl border-4 border-white animate-bounce">
+                        <AlertTriangle className="h-5 w-5" />
+                        <span className="text-[11px] font-black uppercase tracking-widest">FRAUDE</span>
                       </div>
                     )}
-                    <Avatar className="h-24 w-24 border-4 border-white shadow-xl group-hover:scale-110 transition-transform shrink-0">
-                      <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(p.avatar)}`} />
-                      <AvatarFallback className={cn("text-2xl font-black uppercase", p.isCheating ? "bg-red-200 text-red-800" : "bg-primary/10 text-primary")}>
-                        {getInitials(p.name)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="text-center space-y-2 w-full overflow-hidden">
-                      <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest truncate w-full">{p.avatar}</p>
-                      <p className="text-base font-black text-slate-900 truncate w-full leading-none uppercase">{p.name.split(',')[0]}</p>
-                      <div className="bg-primary/5 rounded-2xl py-2 px-4 inline-block mt-2">
-                        <p className="text-2xl font-black text-primary leading-none">{p.score}</p>
+                    <div className="relative">
+                      <div className="absolute inset-0 bg-primary/5 rounded-full blur-xl scale-125 group-hover:bg-primary/10 transition-colors" />
+                      <Avatar className="h-28 w-28 border-4 border-white shadow-xl group-hover:scale-110 transition-transform shrink-0 relative z-10">
+                        <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(p.avatar)}`} />
+                        <AvatarFallback className={cn("text-3xl font-black uppercase", p.isCheating ? "bg-red-200 text-red-800" : "bg-primary/10 text-primary")}>
+                          {getInitials(p.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                    </div>
+                    <div className="text-center space-y-3 w-full overflow-hidden relative z-10">
+                      <Badge variant="outline" className="text-[9px] font-black uppercase text-slate-400 border-slate-100 px-3 tracking-widest">{p.avatar}</Badge>
+                      <p className="text-lg font-black text-slate-900 truncate w-full leading-none uppercase italic tracking-tighter">{p.name.split(',')[0]}</p>
+                      <div className="bg-primary/5 rounded-[1.5rem] py-3 px-6 inline-block mt-2 border border-primary/5">
+                        <p className="text-3xl font-black text-primary leading-none font-mono">{p.score}</p>
                       </div>
                     </div>
                   </div>
