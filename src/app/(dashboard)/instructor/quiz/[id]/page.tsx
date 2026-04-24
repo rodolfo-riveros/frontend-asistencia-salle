@@ -2,7 +2,7 @@
 "use client"
 
 import * as React from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { 
   ArrowLeft, Gamepad2, Sparkles, 
   Loader2, Radio, Users, Maximize2, Play, Trophy, 
@@ -24,6 +24,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 export default function InstructorQuizPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   const [loadingConfig, setLoadingConfig] = React.useState(true)
   const [isSyncing, setIsSyncing] = React.useState(false)
@@ -46,14 +47,13 @@ export default function InstructorQuizPage() {
       if (quizEval) {
         setConfig(quizEval)
         try {
-          // Intentamos recuperar una sesión activa para esta evaluación
           const activeSession = await api.get<any>(`/gamificacion/sesion/${quizEval.id}/`)
           if (activeSession && activeSession.room_code) {
             setRoomCode(activeSession.room_code)
             setSessionId(activeSession.id || activeSession.sesion_id)
           }
         } catch (e) { 
-          // Si no hay sesión, simplemente no cargamos el roomCode
+          // Silencioso si no hay sesión activa
         }
       }
     } catch (e: any) {
@@ -145,7 +145,7 @@ export default function InstructorQuizPage() {
 
   const handleCloseAndPersist = async () => {
     if (!room?.participants || !config) {
-      toast({ variant: "destructive", title: "Error", description: "No hay datos de participantes para sincronizar." });
+      toast({ variant: "destructive", title: "Error", description: "Datos insuficientes para sincronizar." });
       return;
     }
     
@@ -154,56 +154,53 @@ export default function InstructorQuizPage() {
       const totalQuestions = config.configuracion_json?.questions?.length || 20;
       const maxScore = config.puntaje_maximo || 20;
 
-      // Filtramos solo los que tienen studentId (UUID real)
       const validParticipants = room.participants.filter(p => !!p.studentId);
 
       if (validParticipants.length === 0) {
         throw new Error("No hay participantes con identidad Salle verificada.");
       }
 
-      // Proceso de sincronización individual para asegurar la persistencia en el Registro Auxiliar
-      let successCount = 0;
-      for (const p of validParticipants) {
+      // Sincronización masiva paralela para máxima eficiencia
+      const gradePromises = validParticipants.map(p => {
         const correctAnswers = p.answers?.filter((a: any) => a.isCorrect).length || 0;
         const academicGrade = Math.round((correctAnswers / totalQuestions) * maxScore);
         
-        try {
-          await api.post('/evaluaciones/calificar/', {
-            evaluacion_id: config.id,
-            alumno_id: p.studentId,
-            puntaje: academicGrade,
-            observacion: `Rank-UP: ${correctAnswers}/${totalQuestions} correctas. (${p.score} pts)`,
-            detalles_json: { 
-              ranking_pts: p.score, 
-              correctas: correctAnswers, 
-              totales: totalQuestions,
-              avatar: p.avatar 
-            }
-          });
-          successCount++;
-        } catch (e) {
-          console.error(`Error al calificar a ${p.name}:`, e);
-        }
-      }
+        return api.post('/evaluaciones/calificar/', {
+          evaluacion_id: config.id,
+          alumno_id: p.studentId,
+          puntaje: academicGrade,
+          observacion: `Rank-UP: ${correctAnswers}/${totalQuestions} correctas. (${p.score} pts)`,
+          detalles_json: { 
+            ranking_pts: p.score, 
+            correctas: correctAnswers, 
+            totales: totalQuestions,
+            avatar: p.avatar 
+          }
+        });
+      });
 
-      // Cerramos la sesión en el backend si tenemos el ID
+      const results = await Promise.allSettled(gradePromises);
+      const successCount = results.filter(r => r.status === 'fulfilled').length;
+
+      // Cerrar sesión en backend
       if (sessionId) {
         try {
           await api.post(`/gamificacion/sesion/${sessionId}/finalizar/`, { notas: [] });
         } catch (e) {
-          console.warn("La sesión no pudo cerrarse en backend, pero las notas fueron enviadas.");
+          console.warn("Sesión no cerrada en backend, pero notas enviadas.");
         }
       }
 
       toast({ 
-        title: "Sincronización Finalizada", 
-        description: `Se han registrado las notas de ${successCount} alumnos en el Registro Auxiliar.` 
+        title: "Sincronización Exitosa", 
+        description: `Se han registrado ${successCount} de ${validParticipants.length} calificaciones.` 
       });
       
-      // Volvemos al panel de evaluación de la unidad
-      router.push(`/instructor/grades/${config.unidad_id}?periodo_id=${config.periodo_id || 'ACTUAL'}`);
+      // REDIRECCIÓN SEGURA: Priorizar periodo de la evaluación o de la URL
+      const targetPeriodId = config.periodo_id || searchParams.get('periodo_id') || 'ACTUAL';
+      router.push(`/instructor/grades/${config.unidad_id}?periodo_id=${targetPeriodId}`);
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Fallo al sincronizar", description: e.message });
+      toast({ variant: "destructive", title: "Error de Cierre", description: e.message });
     } finally {
       setIsClosing(false);
     }
@@ -371,8 +368,8 @@ export default function InstructorQuizPage() {
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_2px_2px,rgba(255,255,255,0.05)_2px,transparent_0)] bg-[size:64px_64px]" />
             
             {room.status === 'finished' ? (
-              <div className="h-full flex flex-col items-center animate-in zoom-in-95 relative z-10 pt-32">
-                <div className="text-center mb-32 space-y-2 z-[60]">
+              <div className="h-full flex flex-col items-center animate-in zoom-in-95 relative z-10 pt-40">
+                <div className="text-center mb-24 space-y-2 z-[60]">
                    <h2 className="text-5xl md:text-7xl font-black uppercase italic tracking-tighter text-white drop-shadow-[0_10px_10px_rgba(0,0,0,0.3)]">Podio de Campeones</h2>
                    <p className="text-yellow-400 font-black text-lg uppercase tracking-[0.5em] italic">Salle Rank-UP Challenge</p>
                 </div>

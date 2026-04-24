@@ -82,7 +82,6 @@ function GradebookContent() {
   const [groupSize, setGroupSize] = React.useState(3)
   const [studentGroups, setStudentGroups] = React.useState<Record<string, string>>({})
 
-  const [isScanning, setIsScanning] = React.useState(false)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
   const totalPointsStep = React.useMemo(() => {
@@ -199,7 +198,11 @@ function GradebookContent() {
       }
     } catch (err: any) {
       console.error("Error al cargar datos:", err)
-      toast({ variant: "destructive", title: "Estado Inicial", description: "No se pudieron sincronizar las notas del servidor." })
+      toast({ 
+        variant: "destructive", 
+        title: "Error de Sincronización", 
+        description: err.message || "No se pudo obtener el historial de notas." 
+      })
     } finally {
       setIsLoading(false)
     }
@@ -371,7 +374,7 @@ function GradebookContent() {
                               <span className="text-slate-900 truncate w-24 md:w-32 font-extrabold text-[11px]">{c.name}</span>
                               {c.strategy === 'quizz' && (
                                 <button 
-                                  onClick={() => router.push(`/instructor/quiz/${c.id}`)}
+                                  onClick={() => router.push(`/instructor/quiz/${c.id}?periodo_id=${periodoId}`)}
                                   className="h-6 w-6 rounded-full bg-accent text-white flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
                                 >
                                   <Play className="h-3 w-3" />
