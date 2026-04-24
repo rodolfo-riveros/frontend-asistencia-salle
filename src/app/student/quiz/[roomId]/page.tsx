@@ -24,7 +24,7 @@ export default function StudentGameRoomPage() {
   const [shakeScreen, setShakeScreen] = React.useState(false)
   const [isQuizFinished, setIsQuizFinished] = React.useState(false)
 
-  const room = useQuery(convexApi.rooms.getRoom, { roomCode: params.roomId as string })
+  const room = useQuery(convexApi.rooms.getRoom, { roomCode: (params.roomId as string).toUpperCase() })
   const submitAnswer = useMutation(convexApi.rooms.submitAnswer)
   const reportCheat = useMutation(convexApi.rooms.reportCheat)
 
@@ -86,14 +86,14 @@ export default function StudentGameRoomPage() {
 
     if (isCorrect) {
       confetti({
-        particleCount: 150,
-        spread: 80,
+        particleCount: 100,
+        spread: 70,
         origin: { y: 0.8 },
-        colors: ['#2261CB', '#FFD700', '#FFFFFF']
+        colors: ['#2261CB', '#FFD700']
       });
     } else {
       setShakeScreen(true)
-      setTimeout(() => setShakeScreen(false), 600)
+      setTimeout(() => setShakeScreen(false), 500)
     }
 
     try {
@@ -104,13 +104,14 @@ export default function StudentGameRoomPage() {
         isCorrect: isCorrect
       })
       
+      // Transición más rápida (1.2 segundos)
       setTimeout(() => {
         if (localQuestionIndex + 1 < room.questions.length) {
           setLocalQuestionIndex(prev => prev + 1)
         } else {
           setIsQuizFinished(true)
         }
-      }, 1800)
+      }, 1200)
 
     } catch (e) {
       console.error("Error enviando respuesta:", e)
@@ -119,116 +120,117 @@ export default function StudentGameRoomPage() {
 
   return (
     <div className={cn(
-      "min-h-screen bg-[#f8f9fa] p-4 flex flex-col justify-between overflow-hidden transition-all duration-700",
-      shakeScreen && "animate-shake bg-red-600/10"
+      "min-h-screen bg-[#f8f9fa] p-4 flex flex-col justify-between overflow-hidden transition-all duration-500",
+      shakeScreen && "animate-shake bg-red-600/5"
     )}>
-      <div className="absolute top-0 left-0 w-full h-3 bg-primary/10">
+      <div className="absolute top-0 left-0 w-full h-2 bg-slate-200">
         <div 
-          className="h-full bg-primary transition-all duration-700 ease-out shadow-[0_0_25px_rgba(34,97,203,0.6)]" 
+          className="h-full bg-primary transition-all duration-500 ease-out shadow-[0_0_15px_rgba(34,97,203,0.4)]" 
           style={{ width: `${((localQuestionIndex + (hasAnswered ? 1 : 0)) / (room.questions?.length || 1)) * 100}%` }} 
         />
       </div>
 
-      <header className="flex justify-between items-center max-w-5xl mx-auto w-full mb-8 mt-6 animate-in slide-in-from-top-6">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-white border-2 border-primary/10 rounded-2xl shadow-xl">
-            <Zap className="h-6 w-6 text-primary fill-primary" />
+      <header className="flex justify-between items-center max-w-5xl mx-auto w-full mb-6 mt-4 animate-in slide-in-from-top-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-white border-2 border-primary/10 rounded-xl shadow-lg">
+            <Zap className="h-5 w-5 text-primary fill-primary" />
           </div>
-          <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tighter italic leading-none">Rank-UP</h2>
+          <h2 className="text-xl font-black text-slate-900 uppercase tracking-tighter italic leading-none">Rank-UP</h2>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           {myData && (
-            <div className="hidden md:flex items-center gap-3 bg-white pr-6 pl-2 py-1.5 rounded-full border-2 border-primary/5 shadow-xl">
-              <Avatar className="h-10 w-10 border-2 border-primary/10">
+            <div className="hidden sm:flex items-center gap-2.5 bg-white pr-5 pl-2 py-1 rounded-full border-2 border-primary/5 shadow-md">
+              <Avatar className="h-8 w-8 border-2 border-primary/10">
                 <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(myData.avatar)}`} />
-                <AvatarFallback className="text-[10px] font-black bg-slate-100">{getInitials(myData.name)}</AvatarFallback>
+                <AvatarFallback className="text-[8px] font-black bg-slate-100">{getInitials(myData.name)}</AvatarFallback>
               </Avatar>
               <div className="flex flex-col">
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{myData.avatar}</span>
-                <span className="text-xs font-black text-slate-900 uppercase leading-none">{myData.name.split(',')[0]}</span>
+                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{myData.avatar}</span>
+                <span className="text-[10px] font-black text-slate-900 uppercase leading-none">{myData.name.split(',')[0]}</span>
               </div>
             </div>
           )}
-          <Badge className="h-12 px-6 rounded-2xl bg-white border-2 border-primary/5 text-primary font-black text-xs uppercase tracking-widest shadow-xl flex items-center gap-3">
-            <Sparkles className="h-4 w-4" /> FASE {Math.min(localQuestionIndex + 1, room.questions.length)} / {room.questions.length}
+          <Badge className="h-10 px-4 rounded-xl bg-white border-2 border-primary/5 text-primary font-black text-[10px] uppercase tracking-widest shadow-md">
+            {Math.min(localQuestionIndex + 1, room.questions.length)} / {room.questions.length}
           </Badge>
         </div>
       </header>
 
-      <main className="flex-grow flex flex-col items-center justify-center max-w-6xl mx-auto w-full">
+      <main className="flex-grow flex flex-col items-center justify-center max-w-5xl mx-auto w-full">
         {room.status === 'lobby' ? (
-          <div className="text-center space-y-12 animate-in zoom-in-95 duration-1000 w-full px-4">
-            <div className="p-12 md:p-24 bg-white/80 backdrop-blur-3xl rounded-[4rem] border-b-[12px] border-primary shadow-2xl space-y-10 relative overflow-hidden">
+          <div className="text-center space-y-8 animate-in zoom-in-95 duration-700 w-full px-4">
+            <div className="p-10 md:p-20 bg-white rounded-[3rem] border-b-[8px] border-primary shadow-xl space-y-8">
                {myData && (
-                 <Avatar className="h-40 w-40 mx-auto border-8 border-white shadow-2xl scale-125 mb-10">
+                 <Avatar className="h-32 w-32 mx-auto border-4 border-white shadow-xl scale-110 mb-6">
                    <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(myData.avatar)}`} />
-                   <AvatarFallback className="text-4xl font-black bg-primary/5">{getInitials(myData.name)}</AvatarFallback>
+                   <AvatarFallback className="text-3xl font-black bg-primary/5">{getInitials(myData.name)}</AvatarFallback>
                  </Avatar>
                )}
-               <div className="space-y-6">
-                 <h3 className="text-4xl md:text-7xl font-black text-slate-900 uppercase italic tracking-tighter">¡En Espera!</h3>
-                 <p className="text-slate-400 text-[11px] font-black uppercase tracking-[0.5em] max-w-md mx-auto leading-relaxed">
-                   El docente activará la arena en breve. Prepárate, héroe.
+               <div className="space-y-4">
+                 <h3 className="text-3xl md:text-5xl font-black text-slate-900 uppercase italic tracking-tighter">¡En Arena!</h3>
+                 <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.4em] max-w-xs mx-auto leading-relaxed">
+                   Espera a que el docente inicie el ascenso técnico.
                  </p>
                </div>
             </div>
           </div>
         ) : (room.status === 'active' && !isQuizFinished) ? (
-          <div className="w-full space-y-12 animate-in fade-in duration-700 px-4">
-            <div className="text-center space-y-8">
-               <h1 className="text-3xl md:text-6xl font-black text-slate-900 leading-tight uppercase italic tracking-tighter max-w-4xl mx-auto">
+          <div className="w-full space-y-10 animate-in fade-in duration-500 px-4">
+            <div className="text-center space-y-6">
+               <h1 className="text-xl md:text-3xl font-black text-slate-900 leading-snug uppercase italic tracking-tight max-w-3xl mx-auto">
                  {currentQ?.text}
                </h1>
-               <div className="inline-flex items-center gap-4 bg-white/90 px-8 py-3 rounded-full shadow-2xl border-2 border-primary/5">
-                 <Clock className="h-5 w-5 text-primary animate-pulse" />
-                 <span className="text-[12px] font-black uppercase tracking-[0.2em] text-slate-600">Tiempo Salle: {currentQ?.timeLimit}s</span>
-               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-5xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-4xl mx-auto">
               {shuffledOptions.map((opt, i) => (
                 <Button 
                   key={`opt-${i}`} 
                   disabled={hasAnswered}
                   onClick={() => handleAnswer(opt.originalIndex)}
+                  variant="outline"
                   className={cn(
-                    "h-28 md:h-40 text-base md:text-2xl font-black uppercase rounded-[2.5rem] border-4 transition-all shadow-xl whitespace-normal p-8",
-                    hasAnswered ? "opacity-30 grayscale" : "hover:scale-[1.03] active:scale-95 hover:shadow-2xl",
-                    i === 0 ? "bg-white border-red-500/20 text-red-600" : 
-                    i === 1 ? "bg-white border-blue-500/20 text-blue-600" : 
-                    i === 2 ? "bg-white border-yellow-500/20 text-yellow-600" : 
-                    "bg-white border-emerald-500/20 text-emerald-600"
+                    "h-24 md:h-28 text-sm md:text-lg font-bold uppercase rounded-2xl border-2 transition-all shadow-md whitespace-normal px-6 py-4 flex items-center justify-start text-left overflow-hidden",
+                    !hasAnswered && "hover:border-primary/50 hover:bg-slate-50 hover:scale-[1.01] active:scale-95",
+                    hasAnswered && opt.originalIndex === currentQ.correctIndex && "bg-emerald-500 text-white border-emerald-500 shadow-emerald-200",
+                    hasAnswered && opt.originalIndex !== currentQ.correctIndex && "opacity-40 grayscale"
                   )}
                 >
-                  {opt.text}
+                  <div className={cn(
+                    "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border-2 font-black text-xs mr-4",
+                    hasAnswered && opt.originalIndex === currentQ.correctIndex ? "bg-white text-emerald-600 border-white" : "bg-slate-50 text-slate-400 border-slate-100"
+                  )}>
+                    {String.fromCharCode(65 + i)}
+                  </div>
+                  <span className="line-clamp-2">{opt.text}</span>
                 </Button>
               ))}
             </div>
             
             {hasAnswered && (
-              <div className="text-center animate-in slide-in-from-bottom-12 duration-500">
+              <div className="text-center animate-in slide-in-from-bottom-4 duration-300">
                 <div className={cn(
-                  "inline-flex items-center gap-4 h-20 px-12 rounded-[2rem] uppercase font-black tracking-[0.2em] shadow-2xl text-white text-sm border-4 border-white/30",
+                  "inline-flex items-center gap-3 h-14 px-8 rounded-xl uppercase font-black tracking-widest shadow-lg text-white text-xs",
                   lastAnswerCorrect ? "bg-emerald-600" : "bg-red-600"
                 )}>
                   {lastAnswerCorrect ? (
-                    <><CheckCircle2 className="h-6 w-6" /> ¡ASCENSO EXITOSO!</>
+                    <><CheckCircle2 className="h-5 w-5" /> ¡ACIERTO!</>
                   ) : (
-                    <><XCircle className="h-6 w-6" /> ¡SIGUE PREPARÁNDOTE!</>
+                    <><XCircle className="h-5 w-5" /> ¡FALLO!</>
                   )}
                 </div>
               </div>
             )}
           </div>
         ) : (
-          <div className="text-center space-y-12 animate-in zoom-in-95 w-full px-4">
-            <div className="p-16 md:p-24 bg-white rounded-[5rem] border-t-[14px] border-emerald-500 shadow-2xl space-y-10 relative overflow-hidden">
-              <Trophy className="h-40 w-40 text-yellow-400 mx-auto animate-bounce drop-shadow-2xl" />
-              <div className="space-y-4">
-                <h2 className="text-5xl md:text-8xl font-black text-slate-900 uppercase italic tracking-tighter">Desafío Logrado</h2>
-                <p className="text-slate-400 font-black uppercase tracking-[0.4em] text-[12px]">Héroe: {myData?.avatar || 'Salle'}. Espera el veredicto oficial.</p>
+          <div className="text-center space-y-10 animate-in zoom-in-95 w-full px-4">
+            <div className="p-12 md:p-20 bg-white rounded-[4rem] border-t-[10px] border-emerald-500 shadow-xl space-y-8">
+              <Trophy className="h-28 w-28 text-yellow-400 mx-auto animate-bounce drop-shadow-lg" />
+              <div className="space-y-3">
+                <h2 className="text-4xl md:text-6xl font-black text-slate-900 uppercase italic tracking-tighter leading-none">Ascenso Terminado</h2>
+                <p className="text-slate-400 font-black uppercase tracking-[0.3em] text-[10px]">Héroe: {myData?.avatar || 'Salle'}. Mira el podio en la pantalla principal.</p>
               </div>
-              <Button onClick={() => router.push('/')} className="w-full h-20 bg-primary text-white rounded-[2rem] font-black uppercase text-sm tracking-widest transition-all hover:scale-[1.02] active:scale-95 shadow-xl">
+              <Button onClick={() => router.push('/')} className="w-full h-16 bg-primary text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-lg">
                 Volver al Inicio
               </Button>
             </div>
@@ -236,16 +238,13 @@ export default function StudentGameRoomPage() {
         )}
       </main>
 
-      <footer className="w-full text-center space-y-3 pb-8 pt-10 px-4">
-        <div className="flex items-center justify-center gap-3">
-          <ShieldCheck className="h-4 w-4 text-primary opacity-30" />
-          <p className="text-[11px] font-black uppercase text-slate-400 tracking-[0.3em]">
+      <footer className="w-full text-center space-y-2 pb-6 pt-8 px-4 opacity-50">
+        <div className="flex items-center justify-center gap-2">
+          <ShieldCheck className="h-3 w-3 text-primary" />
+          <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest">
             IES LA SALLE URUBAMBA
           </p>
         </div>
-        <p className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">
-          Desarrollado por <span className="text-primary/50 italic">Rodolfo Riveros</span>
-        </p>
       </footer>
     </div>
   )

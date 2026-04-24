@@ -107,7 +107,6 @@ export default function InstructorQuizPage() {
           configId: config.id,
           unidadId: config.unidad_id || "SALLE"
         })
-        toast({ title: "Sincronizando con la Nube..." })
       } catch (e: any) {
         toast({ variant: "destructive", title: "Error de Sincronización", description: e.message })
         return
@@ -165,7 +164,7 @@ export default function InstructorQuizPage() {
 
     return (
       <div className="fixed inset-0 z-[100] bg-white flex flex-col animate-in fade-in duration-500 overflow-hidden font-body">
-        <div className="h-2 bg-primary w-full shadow-[0_4px_20px_rgba(34,97,203,0.3)]" />
+        <div className="h-2 bg-primary w-full shadow-lg" />
         <div className="flex-grow flex flex-col lg:flex-row">
           <div className="w-full lg:w-[450px] bg-slate-50 p-12 flex flex-col justify-between border-r shadow-2xl z-10">
             <div className="space-y-10">
@@ -197,11 +196,11 @@ export default function InstructorQuizPage() {
               </div>
               
               {room.status === 'lobby' ? (
-                <Button onClick={handleStartGame} disabled={!room?.participants?.length} className="w-full h-20 bg-primary text-white rounded-[2rem] font-black text-lg shadow-xl shadow-primary/20 transition-all hover:scale-[1.02] active:scale-95 disabled:grayscale">
+                <Button onClick={handleStartGame} disabled={!room?.participants?.length} className="w-full h-20 bg-primary text-white rounded-[2rem] font-black text-lg shadow-xl transition-all hover:scale-[1.02] active:scale-95 disabled:grayscale">
                   INICIAR ASCENSO
                 </Button>
               ) : room.status === 'active' ? (
-                <Button onClick={handleFinishGame} className="w-full h-20 bg-accent text-white rounded-[2rem] font-black text-lg shadow-xl shadow-accent/20 transition-all hover:scale-[1.02]">
+                <Button onClick={handleFinishGame} className="w-full h-20 bg-accent text-white rounded-[2rem] font-black text-lg shadow-xl transition-all hover:scale-[1.02]">
                   FINALIZAR Y VER PODIO
                 </Button>
               ) : (
@@ -216,36 +215,36 @@ export default function InstructorQuizPage() {
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_2px_2px,rgba(34,97,203,0.03)_2px,transparent_0)] bg-[size:48px_48px]" />
             {room.status === 'finished' ? (
               <div className="h-full flex flex-col items-center justify-center animate-in zoom-in-95 relative z-10">
-                <h2 className="text-6xl font-black uppercase italic tracking-tighter text-slate-900 mb-20">Podio Salle Rank-UP</h2>
-                <div className="flex items-end gap-12 h-[450px]">
+                <h2 className="text-5xl md:text-7xl font-black uppercase italic tracking-tighter text-slate-900 mb-16">Podio Salle Rank-UP</h2>
+                <div className="flex items-end gap-8 md:gap-12 h-[450px]">
                   {sortedParticipants[1] && (
                     <div className="flex flex-col items-center gap-6 animate-in slide-in-from-bottom-24 duration-700">
                       <div className="relative">
-                        <Avatar className="h-32 w-32 border-4 border-slate-200 shadow-2xl">
+                        <Avatar className="h-28 w-28 md:h-32 md:w-32 border-4 border-slate-200 shadow-2xl">
                           <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(sortedParticipants[1].avatar)}`} />
                           <AvatarFallback className="text-3xl font-black bg-slate-100">{getInitials(sortedParticipants[1].name)}</AvatarFallback>
                         </Avatar>
-                        <div className="absolute -top-4 -right-4 h-12 w-12 bg-slate-400 rounded-full flex items-center justify-center font-black text-white text-xl border-4 border-white shadow-lg">2</div>
+                        <div className="absolute -top-3 -right-3 h-10 w-10 bg-slate-400 rounded-full flex items-center justify-center font-black text-white text-lg border-2 border-white shadow-lg">2</div>
                       </div>
-                      <span className="font-black uppercase text-[11px] text-slate-600 truncate w-32 text-center">{sortedParticipants[1].name.split(',')[0]}</span>
-                      <div className="h-40 w-32 bg-slate-100 rounded-t-[2.5rem] border-t-8 border-slate-200 shadow-2xl flex flex-col items-center pt-6">
+                      <span className="font-black uppercase text-[10px] text-slate-600 truncate w-32 text-center">{sortedParticipants[1].name.split(',')[0]}</span>
+                      <div className="h-40 w-32 bg-slate-100 rounded-t-[2.5rem] border-t-8 border-slate-200 shadow-xl flex flex-col items-center pt-6">
                          <span className="text-3xl font-black text-slate-400">{sortedParticipants[1].score}</span>
                       </div>
                     </div>
                   )}
                   {sortedParticipants[0] && (
                     <div className="flex flex-col items-center gap-6 animate-in slide-in-from-bottom-40 duration-1000">
-                      <Crown className="h-20 w-20 text-yellow-400 animate-bounce" />
+                      <Crown className="h-16 w-16 text-yellow-400 animate-bounce" />
                       <div className="relative">
-                        <Avatar className="h-44 w-44 border-[10px] border-yellow-400 shadow-2xl scale-110">
+                        <Avatar className="h-36 w-36 md:h-44 md:w-44 border-[10px] border-yellow-400 shadow-2xl scale-110">
                           <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(sortedParticipants[0].avatar)}`} />
                           <AvatarFallback className="text-5xl font-black bg-yellow-50">{getInitials(sortedParticipants[0].name)}</AvatarFallback>
                         </Avatar>
-                        <div className="absolute -top-5 -right-5 h-16 w-16 bg-yellow-400 rounded-full flex items-center justify-center font-black text-white text-3xl border-8 border-white shadow-xl">1</div>
+                        <div className="absolute -top-4 -right-4 h-14 w-14 bg-yellow-400 rounded-full flex items-center justify-center font-black text-white text-3xl border-4 border-white shadow-xl">1</div>
                       </div>
-                      <span className="font-black uppercase text-base text-slate-900 truncate w-40 text-center">{sortedParticipants[0].name.split(',')[0]}</span>
+                      <span className="font-black uppercase text-sm md:text-base text-slate-900 truncate w-40 text-center">{sortedParticipants[0].name.split(',')[0]}</span>
                       <div className="h-56 w-44 bg-yellow-400/10 rounded-t-[4rem] border-t-[14px] border-yellow-400 flex flex-col items-center pt-8 shadow-2xl">
-                        <span className="text-5xl font-black text-yellow-600">{sortedParticipants[0].score}</span>
+                        <span className="text-4xl md:text-5xl font-black text-yellow-600">{sortedParticipants[0].score}</span>
                         <span className="text-[10px] font-black text-yellow-500 uppercase tracking-[0.3em] mt-2">PUNTOS</span>
                       </div>
                     </div>
@@ -253,14 +252,14 @@ export default function InstructorQuizPage() {
                   {sortedParticipants[2] && (
                     <div className="flex flex-col items-center gap-6 animate-in slide-in-from-bottom-16 duration-1000">
                       <div className="relative">
-                        <Avatar className="h-28 w-28 border-4 border-amber-600/30 shadow-2xl">
+                        <Avatar className="h-24 w-24 md:h-28 md:w-28 border-4 border-amber-600/30 shadow-2xl">
                           <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(sortedParticipants[2].avatar)}`} />
                           <AvatarFallback className="text-2xl font-black bg-amber-50">{getInitials(sortedParticipants[2].name)}</AvatarFallback>
                         </Avatar>
-                        <div className="absolute -top-3 -right-3 h-10 w-10 bg-amber-700/60 rounded-full flex items-center justify-center font-black text-white text-lg border-4 border-white shadow-lg">3</div>
+                        <div className="absolute -top-2 -right-2 h-9 w-9 bg-amber-700/60 rounded-full flex items-center justify-center font-black text-white text-base border-2 border-white shadow-lg">3</div>
                       </div>
-                      <span className="font-black uppercase text-[11px] text-slate-500 truncate w-32 text-center">{sortedParticipants[2].name.split(',')[0]}</span>
-                      <div className="h-32 w-28 bg-amber-50 rounded-t-[2rem] border-t-8 border-amber-600/20 shadow-2xl flex flex-col items-center pt-6">
+                      <span className="font-black uppercase text-[10px] text-slate-500 truncate w-32 text-center">{sortedParticipants[2].name.split(',')[0]}</span>
+                      <div className="h-32 w-28 bg-amber-50 rounded-t-[2rem] border-t-8 border-amber-600/20 shadow-xl flex flex-col items-center pt-6">
                          <span className="text-2xl font-black text-amber-600/60">{sortedParticipants[2].score}</span>
                       </div>
                     </div>
@@ -271,26 +270,26 @@ export default function InstructorQuizPage() {
               <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-8 relative z-10">
                 {room?.participants?.map((p: any) => (
                   <div key={p._id} className={cn(
-                    "flex flex-col items-center gap-4 p-8 rounded-[3rem] border-4 transition-all group relative bg-white shadow-xl",
+                    "flex flex-col items-center gap-4 p-8 rounded-[3rem] border-4 transition-all group relative bg-white shadow-lg",
                     p.isCheating ? "border-red-500 animate-pulse bg-red-50" : "border-slate-50 hover:border-primary/30"
                   )}>
                     {p.isCheating && (
-                      <div className="absolute -top-3 -right-3 flex items-center gap-2 bg-red-600 text-white px-4 py-1.5 rounded-full z-20 shadow-2xl border-4 border-white animate-bounce">
+                      <div className="absolute -top-3 -right-3 flex items-center gap-2 bg-red-600 text-white px-4 py-1.5 rounded-full z-20 shadow-xl border-4 border-white animate-bounce">
                         <AlertTriangle className="h-4 w-4" />
                         <span className="text-[10px] font-black uppercase tracking-widest">FRAUDE</span>
                       </div>
                     )}
-                    <Avatar className="h-24 w-24 border-4 border-white shadow-2xl group-hover:scale-110 transition-transform">
+                    <Avatar className="h-24 w-24 border-4 border-white shadow-xl group-hover:scale-110 transition-transform">
                       <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(p.avatar)}`} />
                       <AvatarFallback className={cn("text-2xl font-black uppercase", p.isCheating ? "bg-red-200 text-red-800" : "bg-primary/10 text-primary")}>
                         {getInitials(p.name)}
                       </AvatarFallback>
                     </Avatar>
                     <div className="text-center space-y-2">
-                      <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest truncate w-24">{p.avatar}</p>
+                      <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest truncate w-24">{p.avatar}</p>
                       <p className="text-sm font-black text-slate-900 truncate w-32 leading-none uppercase">{p.name.split(',')[0]}</p>
-                      <div className="bg-primary/5 rounded-2xl py-2 px-4 inline-block">
-                        <p className="text-2xl font-black text-primary leading-none">{p.score}</p>
+                      <div className="bg-primary/5 rounded-2xl py-1.5 px-3 inline-block">
+                        <p className="text-xl font-black text-primary leading-none">{p.score}</p>
                       </div>
                     </div>
                   </div>
@@ -324,7 +323,7 @@ export default function InstructorQuizPage() {
         </div>
 
         {!roomCode ? (
-          <Button onClick={handleLaunchRoom} disabled={isSyncing} className="h-20 px-14 bg-primary text-white rounded-[2rem] font-black uppercase text-sm tracking-widest shadow-2xl shadow-primary/20 gap-4 transition-all active:scale-95 disabled:grayscale">
+          <Button onClick={handleLaunchRoom} disabled={isSyncing} className="h-20 px-14 bg-primary text-white rounded-[2rem] font-black uppercase text-sm tracking-widest shadow-2xl gap-4 transition-all active:scale-95 disabled:grayscale">
             {isSyncing ? <Loader2 className="h-6 w-6 animate-spin" /> : <Radio className="h-6 w-6 animate-pulse" />} LANZAR DESAFÍO
           </Button>
         ) : (
