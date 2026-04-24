@@ -30,8 +30,8 @@ import {
   Sparkles, 
   Loader2,
   RefreshCcw,
-  Zap,
   PlusCircle,
+  Zap,
   Radio
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -112,6 +112,7 @@ export function ConfigWizard({
   const [isScanning, setIsScanning] = React.useState(false)
   const [quizQuestions, setQuizQuestions] = React.useState<any[]>([])
 
+  // Usamos el API de Convex para mutaciones de sala
   const createRoom = useMutation(convexApi.rooms.createRoom)
 
   const handleAiScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -161,6 +162,7 @@ export function ConfigWizard({
       setEditorCriteria(parsedCriteria);
       toast({ title: "Digitalización Exitosa", description: "Instrumento interpretado por la IA." });
 
+      // Registro automático tras escaneo exitoso
       if (registeredIndicatorId) {
         const payload = {
           indicador_id: registeredIndicatorId,
@@ -180,7 +182,7 @@ export function ConfigWizard({
         }
 
         setRegisteredEvalId(res.id);
-        setSetupStep(3); 
+        setSetupStep(3); // Avanzar directamente al diseño de criterios
       }
 
     } catch (err: any) {
@@ -192,7 +194,9 @@ export function ConfigWizard({
   };
 
   const handleGenerateQuizQuestions = async () => {
-    if (!editorCriteria.length) return;
+    if (!editorCriteria.length) {
+      return toast({ variant: "destructive", title: "Sin Criterios", description: "Define criterios primero." });
+    }
     setIsGeneratingQuiz(true);
     try {
       const result = await generateQuiz({
@@ -200,7 +204,7 @@ export function ConfigWizard({
         subjectName: newColName
       });
       setQuizQuestions(result.questions);
-      toast({ title: "Preguntas Generadas", description: "La IA ha creado el desafío basado en el rigor técnico de tus criterios." });
+      toast({ title: "Preguntas Generadas", description: "Desafío técnico creado con éxito." });
     } catch (e: any) {
       toast({ variant: "destructive", title: "Error de IA", description: e.message });
     } finally {
@@ -349,7 +353,7 @@ export function ConfigWizard({
     if (!registeredEvalId || quizQuestions.length === 0) return;
     setIsFinishing(true);
     try {
-      // 1. Guardar configuración completa en FastAPI
+      // 1. Guardar configuración completa en FastAPI (Permanente)
       await api.patch(`/evaluaciones/${registeredEvalId}`, {
         configuracion_json: {
           strategy: 'quizz',
@@ -358,7 +362,7 @@ export function ConfigWizard({
         }
       });
 
-      // 2. Crear sala live en Convex con las preguntas generadas
+      // 2. Crear sala live en Convex (Tiempo Real)
       const roomCode = Math.floor(100000 + Math.random() * 900000).toString();
       await createRoom({
         roomCode,
@@ -370,7 +374,7 @@ export function ConfigWizard({
       toast({ title: "Gamificación Lista", description: `Sala creada con el PIN: ${roomCode}` });
       addColumn(); setIsOpen(false); resetEditor();
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Error de Registro", description: e.message });
+      toast({ variant: "destructive", title: "Error de Registro", description: "Verifica la conexión con Convex y FastAPI." });
     } finally {
       setIsFinishing(false);
     }

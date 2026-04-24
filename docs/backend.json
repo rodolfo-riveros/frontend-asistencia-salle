@@ -17,7 +17,30 @@
         "indicador_peso": { "type": "number" },
         "instrumento_peso": { "type": "number" },
         "max_puntos": { "type": "number" },
+        "configuracion_json": { "$ref": "#/entities/GamificationConfig" },
         "creado_el": { "type": "object" }
+      }
+    },
+    "QuizQuestion": {
+      "title": "Pregunta de Quizz",
+      "description": "Pregunta técnica generada para gamificación.",
+      "type": "object",
+      "properties": {
+        "text": { "type": "string" },
+        "options": { "type": "array" },
+        "correctIndex": { "type": "number" },
+        "timeLimit": { "type": "number" },
+        "criterionId": { "type": "string" }
+      }
+    },
+    "GamificationConfig": {
+      "title": "Configuración de Gamificación",
+      "description": "Metadatos y preguntas del desafío interactivo.",
+      "type": "object",
+      "properties": {
+        "strategy": { "type": "string", "enum": ["individual", "grupal", "quizz"] },
+        "questions": { "type": "array", "items": { "$ref": "#/entities/QuizQuestion" } },
+        "criteria": { "type": "array" }
       }
     }
   },

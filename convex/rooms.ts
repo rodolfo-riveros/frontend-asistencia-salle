@@ -1,7 +1,10 @@
 
-import { mutation, query } from "./_generated/server";
+import { mutation, query } from "./server";
 import { v } from "convex/values";
 
+/**
+ * Crea una sala de gamificación en tiempo real.
+ */
 export const createRoom = mutation({
   args: {
     roomCode: v.string(),
@@ -10,12 +13,15 @@ export const createRoom = mutation({
     unidadId: v.string(),
   },
   handler: async (ctx, args) => {
+    // Eliminar sala previa con el mismo código si existe para evitar colisiones
     const existing = await ctx.db
       .query("rooms")
       .withIndex("by_roomCode", (q) => q.eq("roomCode", args.roomCode))
       .first();
     
-    if (existing) await ctx.db.delete(existing._id);
+    if (existing) {
+      await ctx.db.delete(existing._id);
+    }
 
     return await ctx.db.insert("rooms", {
       roomCode: args.roomCode,
@@ -29,6 +35,9 @@ export const createRoom = mutation({
   },
 });
 
+/**
+ * Obtiene los datos de una sala específica incluyendo sus participantes.
+ */
 export const getRoom = query({
   args: { roomCode: v.string() },
   handler: async (ctx, args) => {
@@ -48,6 +57,9 @@ export const getRoom = query({
   },
 });
 
+/**
+ * Permite a un estudiante unirse a una sala.
+ */
 export const joinRoom = mutation({
   args: { roomCode: v.string(), name: v.string() },
   handler: async (ctx, args) => {
@@ -68,6 +80,9 @@ export const joinRoom = mutation({
   },
 });
 
+/**
+ * Registra la respuesta de un participante.
+ */
 export const submitAnswer = mutation({
   args: {
     roomCode: v.string(),
@@ -92,6 +107,9 @@ export const submitAnswer = mutation({
   },
 });
 
+/**
+ * Actualiza el estado de la sala (lobby -> active -> finished).
+ */
 export const updateStatus = mutation({
   args: { roomCode: v.string(), status: v.string() },
   handler: async (ctx, args) => {
