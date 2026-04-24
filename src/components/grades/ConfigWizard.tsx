@@ -179,6 +179,7 @@ export function ConfigWizard({
   }
 
   const registerStep0 = async () => {
+    // Si viene de la biblioteca y ya tenemos el ID, no intentamos modificarlo (evita Error 400)
     if (isFromLibrary && registeredIndicatorId) {
       setSetupStep(1)
       return
@@ -195,6 +196,7 @@ export function ConfigWizard({
       }
       let res: any;
       if (registeredIndicatorId) {
+        // Solo llegamos aquí si NO es de la biblioteca pero ya registramos uno en esta sesión
         res = await api.patch(`/evaluaciones/indicadores/${registeredIndicatorId}`, payload)
       } else {
         res = await api.post('/evaluaciones/indicadores/', payload)

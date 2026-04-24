@@ -35,17 +35,13 @@ export default function InstructorQuizPage() {
   const updateStatus = useMutation(convexApi.rooms.updateStatus)
   const room = useQuery(convexApi.rooms.getRoom, roomCode ? { roomCode } : "skip")
 
-  React.useEffect(() => {
-    setMounted(true)
-    fetchSession()
-  }, [])
-
   const fetchSession = React.useCallback(async () => {
     setLoadingConfig(true)
     try {
       const quizEval = await api.get<any>(`/evaluaciones/${params.id}`)
       if (quizEval) {
         setConfig(quizEval)
+        // Intentamos obtener una sesión activa si existe, pero no bloqueamos si falla (404/500)
         try {
           const activeSession = await api.get<any>(`/gamificacion/sesion/${quizEval.id}/`)
           if (activeSession && activeSession.room_code) {
@@ -53,15 +49,22 @@ export default function InstructorQuizPage() {
             setSessionId(activeSession.sesion_id)
           }
         } catch (e) { 
-          console.log("No active session found") 
+          // Silencioso: no hay sesión activa previa
+          console.log("No active session found for this evaluation") 
         }
       }
     } catch (e: any) {
       console.error("Error loading config:", e)
+      toast({ variant: "destructive", title: "Error de configuración", description: "No se pudo cargar la evaluación." })
     } finally {
       setLoadingConfig(false)
     }
   }, [params.id])
+
+  React.useEffect(() => {
+    setMounted(true)
+    fetchSession()
+  }, [fetchSession])
 
   const handleLaunchRoom = async () => {
     const questions = config?.configuracion_json?.questions;
@@ -98,6 +101,7 @@ export default function InstructorQuizPage() {
   const handleProjectArena = async () => {
     if (!roomCode || !config) return;
     
+    // Si Convex no tiene la sala (porque se borró o reinició), la recreamos
     if (room === null) {
       setIsSyncing(true)
       try {

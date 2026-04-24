@@ -1,6 +1,6 @@
 
 /**
- * @fileOverview Cliente de API optimizado para FastAPI con diagnóstico mejorado y manejo de 204 No Content.
+ * @fileOverview Cliente de API optimizado para FastAPI con diagnóstico mejorado y manejo de errores.
  */
 import { supabase } from './supabase';
 
@@ -44,6 +44,7 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
       let errorMessage = `Error (${response.status})`;
       try {
         const errorData = await response.json();
+        // Intentamos extraer el mensaje de error de FastAPI
         errorMessage = errorData.detail || errorMessage;
         if (typeof errorMessage === 'object') errorMessage = JSON.stringify(errorMessage);
       } catch (e) {
@@ -51,7 +52,11 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
         if (text) errorMessage = text;
       }
       
-      console.error(`[API ERROR] ${response.status}:`, errorMessage);
+      // En desarrollo, logueamos el error para depuración
+      if (process.env.NODE_ENV === 'development') {
+        console.error(`[API ERROR] ${response.status}:`, errorMessage);
+      }
+      
       throw new Error(errorMessage);
     }
 
@@ -61,12 +66,12 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
     try {
       return JSON.parse(text);
     } catch (e) {
-      // Si no es JSON pero hay texto, lo devolvemos tal cual
+      // Si no es JSON pero hay texto, lo devolvemos tal cual (útil para respuestas raw)
       return text as unknown as T;
     }
   } catch (err: any) {
     if (err.message === 'Failed to fetch') {
-      throw new Error("No se pudo conectar con el servidor. Verifica que el backend en Render esté encendido y el CORS configurado.");
+      throw new Error("No se pudo conectar con el servidor. Verifica que el backend en Render esté encendido.");
     }
     throw err;
   }
