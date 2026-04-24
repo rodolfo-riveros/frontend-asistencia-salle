@@ -3,7 +3,7 @@
 
 import * as React from "react"
 import { useParams, useRouter } from "next/navigation"
-import { Loader2, Trophy, CheckCircle2, Zap, Clock, ShieldCheck, UserX, XCircle } from "lucide-react"
+import { Loader2, Trophy, CheckCircle2, Zap, Clock, ShieldCheck, UserX, XCircle, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useQuery, useMutation } from "convex/react"
 import { api as convexApi } from "@convex/_generated/api"
@@ -55,9 +55,14 @@ export default function StudentGameRoomPage() {
   }, [room?.currentQuestionIndex, room?.status, room?.questions])
 
   if (!room) return (
-    <div className="min-h-screen bg-white flex flex-col items-center justify-center gap-6 p-8">
-      <Loader2 className="h-12 w-12 animate-spin text-primary" />
-      <p className="text-slate-400 font-black uppercase text-[10px] tracking-[0.3em] text-center">Sincronizando con Rank-UP...</p>
+    <div className="min-h-screen bg-white flex flex-col items-center justify-center gap-8 p-10 font-body">
+      <div className="relative">
+        <Loader2 className="h-16 w-16 animate-spin text-primary opacity-20" />
+        <Zap className="h-8 w-8 text-primary absolute inset-0 m-auto animate-pulse" />
+      </div>
+      <p className="text-slate-400 font-black uppercase text-[11px] tracking-[0.4em] text-center max-w-[200px] leading-relaxed">
+        Sincronizando Arena Rank-UP...
+      </p>
     </div>
   )
 
@@ -72,14 +77,15 @@ export default function StudentGameRoomPage() {
 
     if (isCorrect) {
       confetti({
-        particleCount: 150,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ['#003366', '#00AEEF', '#FFD700']
+        particleCount: 200,
+        spread: 90,
+        origin: { y: 0.7 },
+        colors: ['#003366', '#00AEEF', '#FFD700', '#FFFFFF'],
+        gravity: 1.2
       });
     } else {
       setShakeScreen(true)
-      setTimeout(() => setShakeScreen(false), 400)
+      setTimeout(() => setShakeScreen(false), 500)
     }
 
     try {
@@ -96,62 +102,74 @@ export default function StudentGameRoomPage() {
 
   return (
     <div className={cn(
-      "min-h-screen bg-[#f8f9fa] p-6 flex flex-col justify-between overflow-hidden transition-all duration-300",
-      shakeScreen && "animate-shake bg-red-50/50"
+      "min-h-screen bg-[#f8f9fa] p-6 flex flex-col justify-between overflow-hidden transition-all duration-500 font-body",
+      shakeScreen && "animate-shake bg-red-500/10"
     )}>
-      <header className="flex justify-between items-center max-w-4xl mx-auto w-full mb-8">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-primary rounded-xl text-white shadow-lg">
-            <Zap className="h-5 w-5" />
+      {/* UI Elements */}
+      <div className="absolute top-0 left-0 w-full h-1.5 bg-primary/10">
+        {room.status === 'active' && (
+          <div 
+            className="h-full bg-primary transition-all duration-1000 ease-linear shadow-[0_0_15px_rgba(0,51,102,0.5)]" 
+            style={{ width: `${((room.currentQuestionIndex + 1) / room.questions.length) * 100}%` }} 
+          />
+        )}
+      </div>
+
+      <header className="flex justify-between items-center max-w-4xl mx-auto w-full mb-10 mt-4 animate-in slide-in-from-top-4 duration-700">
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-white border-2 border-primary/10 rounded-2xl shadow-xl">
+            <Zap className="h-6 w-6 text-primary fill-primary" />
           </div>
           <div>
-            <h2 className="text-lg font-black text-slate-900 uppercase tracking-tighter italic leading-none">Rank-UP</h2>
-            <p className="text-primary font-bold text-[7px] uppercase tracking-widest mt-1">Live Challenge</p>
+            <h2 className="text-xl font-black text-slate-900 uppercase tracking-tighter italic leading-none">Rank-UP</h2>
+            <p className="text-primary font-black text-[8px] uppercase tracking-[0.3em] mt-1.5">Salle Arena Live</p>
           </div>
         </div>
-        <Badge variant="outline" className="h-10 px-4 rounded-xl border-primary/10 bg-white font-black text-primary text-[10px] uppercase tracking-widest shadow-sm">
-          Fase {room.currentQuestionIndex + 1} / {room.questions.length}
+        <Badge className="h-12 px-6 rounded-2xl bg-white border-2 border-primary/5 text-primary font-black text-[12px] uppercase tracking-widest shadow-xl flex items-center gap-3">
+          <Sparkles className="h-4 w-4" /> FASE {room.currentQuestionIndex + 1} / {room.questions.length}
         </Badge>
       </header>
 
-      <main className="flex-grow flex flex-col items-center justify-center max-w-4xl mx-auto w-full">
+      <main className="flex-grow flex flex-col items-center justify-center max-w-5xl mx-auto w-full">
         {room.status === 'lobby' ? (
           <div className="text-center space-y-8 animate-in zoom-in-95 duration-700 w-full">
-            <div className="p-10 md:p-16 bg-white rounded-[3rem] border-b-8 border-primary shadow-xl space-y-8">
-               <Trophy className="h-24 w-24 text-yellow-400 mx-auto animate-pulse" />
-               <div className="space-y-2">
-                 <h3 className="text-3xl font-black text-slate-900 uppercase italic tracking-tighter">¡Listo para subir!</h3>
-                 <p className="text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em] max-w-xs mx-auto leading-relaxed">
-                   El docente iniciará el desafío Rank-UP en cualquier momento. ¡Prepárate!
+            <div className="p-12 md:p-20 bg-white/70 backdrop-blur-2xl rounded-[4rem] border-b-[12px] border-primary shadow-[0_45px_100px_-20px_rgba(0,0,0,0.15)] space-y-10 relative overflow-hidden">
+               <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-primary/5 to-transparent pointer-events-none" />
+               <Trophy className="h-32 w-32 text-yellow-400 mx-auto animate-bounce drop-shadow-2xl" />
+               <div className="space-y-4 relative z-10">
+                 <h3 className="text-4xl md:text-6xl font-black text-slate-900 uppercase italic tracking-tighter leading-none">¡Prepárate!</h3>
+                 <div className="h-1.5 w-16 bg-primary/20 mx-auto rounded-full" />
+                 <p className="text-slate-400 text-[11px] font-black uppercase tracking-[0.3em] max-w-xs mx-auto leading-relaxed mt-4">
+                   El docente iniciará el ascenso técnico Salle en breve.
                  </p>
                </div>
             </div>
           </div>
         ) : room.status === 'active' ? (
-          <div className="w-full space-y-10 animate-in fade-in duration-500">
-            <div className="text-center space-y-6">
-               <h1 className="text-2xl md:text-5xl font-black text-slate-900 leading-tight uppercase italic drop-shadow-sm px-4">
+          <div className="w-full space-y-12 animate-in fade-in duration-500">
+            <div className="text-center space-y-8">
+               <h1 className="text-3xl md:text-6xl font-black text-slate-900 leading-[1.1] uppercase italic drop-shadow-sm px-4 tracking-tighter">
                  {currentQ.text}
                </h1>
-               <div className="inline-flex items-center gap-3 bg-white px-5 py-2 rounded-full shadow-sm border">
-                 <Clock className="h-4 w-4 text-primary animate-pulse" />
-                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Tiempo: {currentQ.timeLimit}s</span>
+               <div className="inline-flex items-center gap-4 bg-white/80 backdrop-blur-md px-8 py-3 rounded-full shadow-2xl border-2 border-primary/5">
+                 <Clock className="h-5 w-5 text-primary animate-pulse" />
+                 <span className="text-[12px] font-black uppercase tracking-[0.2em] text-slate-600">Tiempo Salle: {currentQ.timeLimit}s</span>
                </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-4xl mx-auto">
               {shuffledOptions.map((opt, i) => (
                 <Button 
-                  key={`opt-${i}`} 
+                  key={`opt-btn-${i}`} 
                   disabled={hasAnswered}
                   onClick={() => handleAnswer(opt.originalIndex)}
                   className={cn(
-                    "h-24 md:h-36 text-base font-black uppercase rounded-[1.8rem] border-2 transition-all shadow-md whitespace-normal",
-                    hasAnswered ? "opacity-30 grayscale cursor-default" : "hover:scale-[1.02] active:scale-95",
-                    i === 0 ? "bg-white border-red-500/20 text-red-600" : 
-                    i === 1 ? "bg-white border-blue-500/20 text-blue-600" : 
-                    i === 2 ? "bg-white border-yellow-500/20 text-yellow-600" : 
-                    "bg-white border-emerald-500/20 text-emerald-600"
+                    "h-28 md:h-40 text-lg md:text-xl font-black uppercase rounded-[2.5rem] border-4 transition-all shadow-xl whitespace-normal p-8 leading-tight",
+                    hasAnswered ? "opacity-30 grayscale cursor-default" : "hover:scale-[1.03] active:scale-95 hover:shadow-2xl",
+                    i === 0 ? "bg-white border-red-500/20 text-red-600 shadow-red-500/5" : 
+                    i === 1 ? "bg-white border-blue-500/20 text-blue-600 shadow-blue-500/5" : 
+                    i === 2 ? "bg-white border-yellow-500/20 text-yellow-600 shadow-yellow-500/5" : 
+                    "bg-white border-emerald-500/20 text-emerald-600 shadow-emerald-500/5"
                   )}
                 >
                   {opt.text}
@@ -160,42 +178,47 @@ export default function StudentGameRoomPage() {
             </div>
             
             {hasAnswered && (
-              <div className="text-center animate-in slide-in-from-bottom-10 duration-500">
+              <div className="text-center animate-in slide-in-from-bottom-12 duration-700">
                 <Badge className={cn(
-                  "h-16 px-10 rounded-2xl uppercase font-black tracking-widest shadow-xl text-white text-sm",
-                  lastAnswerCorrect ? "bg-emerald-600" : "bg-red-600"
+                  "h-20 px-12 rounded-[2rem] uppercase font-black tracking-[0.25em] shadow-2xl text-white text-base border-4 border-white/20",
+                  lastAnswerCorrect ? "bg-emerald-600 shadow-emerald-500/30" : "bg-red-600 shadow-red-500/30"
                 )}>
                   {lastAnswerCorrect ? (
-                    <div className="flex items-center gap-3"><CheckCircle2 className="h-6 w-6" /> ¡EXCELENTE ASCENSO!</div>
+                    <div className="flex items-center gap-4"><CheckCircle2 className="h-8 w-8" /> ¡ASCENSO EXITOSO!</div>
                   ) : (
-                    <div className="flex items-center gap-3"><XCircle className="h-6 w-6" /> ¡SIGUE INTENTANDO!</div>
+                    <div className="flex items-center gap-4"><XCircle className="h-8 w-8" /> ¡Sigue preparándote!</div>
                   )}
                 </Badge>
               </div>
             )}
           </div>
         ) : (
-          <div className="text-center space-y-10 animate-in zoom-in-95 duration-1000 w-full">
-            <div className="p-10 md:p-16 bg-white rounded-[3.5rem] border-t-8 border-emerald-500 shadow-2xl space-y-10">
-              <Trophy className="h-32 w-32 text-yellow-400 mx-auto animate-bounce" />
-              <div className="space-y-3">
-                <h2 className="text-4xl md:text-5xl font-black text-slate-900 uppercase italic tracking-tighter">Rank-UP Finalizado</h2>
-                <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Mira quién alcanzó la cima en la pantalla principal.</p>
+          <div className="text-center space-y-12 animate-in zoom-in-95 duration-1000 w-full">
+            <div className="p-16 md:p-24 bg-white rounded-[4rem] border-t-[14px] border-emerald-500 shadow-[0_50px_100px_-25px_rgba(0,0,0,0.2)] space-y-12 relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-emerald-500/5 to-transparent pointer-events-none" />
+              <Trophy className="h-40 w-40 text-yellow-400 mx-auto animate-bounce drop-shadow-2xl" />
+              <div className="space-y-4">
+                <h2 className="text-5xl md:text-7xl font-black text-slate-900 uppercase italic tracking-tighter leading-none">Cima Alcanzada</h2>
+                <p className="text-slate-400 font-black uppercase tracking-[0.3em] text-[12px] mt-6">Revisa el podio en la pantalla principal.</p>
               </div>
-              <Button onClick={() => router.push('/')} className="w-full h-18 py-6 bg-primary text-white rounded-[1.5rem] font-black uppercase text-xs shadow-lg">
-                Salir del Desafío
+              <Button onClick={() => router.push('/')} className="w-full h-20 py-8 bg-primary text-white rounded-[2rem] font-black uppercase text-xs tracking-[0.3em] shadow-2xl shadow-primary/20 transition-transform active:scale-95">
+                Finalizar Desafío
               </Button>
             </div>
           </div>
         )}
       </main>
 
-      <footer className="w-full text-center space-y-2 pt-10">
-        <div className="flex items-center justify-center gap-2 text-[9px] font-black uppercase text-slate-300 tracking-[0.2em]">
-          <ShieldCheck className="h-3 w-3" /> IES LA SALLE URUBAMBA
+      <footer className="w-full text-center space-y-3 pb-8 pt-12 px-6 z-10">
+        <div className="flex items-center justify-center gap-3">
+          <ShieldCheck className="h-4 w-4 text-primary opacity-30" />
+          <p className="text-[11px] font-black uppercase text-slate-400 tracking-[0.3em]">
+            IES LA SALLE URUBAMBA
+          </p>
         </div>
-        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-          Desarrollado por <span className="text-primary/60">Rodolfo Riveros</span>
+        <div className="h-px w-10 bg-slate-200 mx-auto" />
+        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+          Desarrollado por <span className="text-primary font-black italic">Rodolfo Riveros</span>
         </p>
       </footer>
     </div>
