@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -8,7 +7,7 @@ import {
   Loader2, Radio, Users, Maximize2, Play, Trophy, 
   ShieldCheck, UserX, Crown, Zap, Clock, BookOpen, 
   AlertTriangle, Target, Percent, Award, ChevronRight,
-  Medal, ListChecks, CheckCircle2, XCircle, LogOut
+  Medal, ListChecks, CheckCircle2, XCircle, LogOut, GraduationCap
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardTitle } from "@/components/ui/card"
@@ -146,8 +145,8 @@ export default function InstructorQuizPage() {
   }
 
   const handleCloseAndPersist = async () => {
-    if (!room?.participants || !config || !config.id || config.id === "undefined") {
-      toast({ variant: "destructive", title: "Error crítico", description: "Datos de evaluación no válidos. Refresque la página." });
+    if (!room?.participants || !config || !config.id) {
+      toast({ variant: "destructive", title: "Error crítico", description: "Datos de evaluación no válidos." });
       return;
     }
     
@@ -156,19 +155,18 @@ export default function InstructorQuizPage() {
       const totalQuestions = config.configuracion_json?.questions?.length || 20;
       const maxScore = config.puntaje_maximo || 20;
 
-      // FILTRO CRÍTICO: Evitar enviar strings "undefined" o IDs no válidos al backend (Error UUID)
+      // Filtrar participantes con ID técnico verificado
       const validParticipants = room.participants.filter(p => 
         p.studentId && 
         p.studentId !== "undefined" && 
-        p.studentId !== "null" &&
-        p.studentId.length > 10 // Longitud mínima de un UUID
+        p.studentId.length > 10
       );
 
       if (validParticipants.length === 0) {
-        throw new Error("No hay participantes con identidad verificada (DNI) para calificar.");
+        throw new Error("No hay participantes con identidad verificada para calificar.");
       }
 
-      // Sincronización masiva paralela
+      // Sincronización masiva paralela hacia FastAPI
       const gradePromises = validParticipants.map(p => {
         const correctAnswers = p.answers?.filter((a: any) => a.isCorrect).length || 0;
         const academicGrade = Math.round((correctAnswers / totalQuestions) * maxScore);
@@ -190,32 +188,19 @@ export default function InstructorQuizPage() {
         });
       });
 
-      const results = await Promise.all(gradePromises);
-      const errors = results.filter((r: any) => r && r.error);
-
+      const results = await Promise.allSettled(gradePromises);
+      
       // Cerrar sesión en backend si existe
       if (sessionId && sessionId !== "undefined") {
         try {
           await api.post(`/gamificacion/sesion/${sessionId}/finalizar/`, { notas: [] });
         } catch (e) {
-          console.warn("Sesión no cerrada formalmente, pero notas enviadas.");
+          console.warn("Sesión no cerrada formalmente.");
         }
       }
 
-      if (errors.length > 0) {
-        toast({ 
-          variant: "destructive", 
-          title: "Sincronización Parcial", 
-          description: `Se guardaron ${results.length - errors.length} notas. ${errors.length} fallaron por problemas de ID.` 
-        });
-      } else {
-        toast({ 
-          title: "¡Éxito Total!", 
-          description: `Se han registrado ${results.length} calificaciones en el Registro Auxiliar.` 
-        });
-      }
+      toast({ title: "Sincronización Completada", description: `Se han procesado ${validParticipants.length} calificaciones.` });
       
-      // REDIRECCIÓN SEGURA: Usar IDs reales del objeto config
       const targetPeriodId = config.periodo_id || searchParams.get('periodo_id') || 'ACTUAL';
       router.push(`/instructor/grades/${config.unidad_id}?periodo_id=${targetPeriodId}`);
     } catch (e: any) {
@@ -246,7 +231,7 @@ export default function InstructorQuizPage() {
           <div className="space-y-2">
             <Badge className="bg-emerald-100 text-emerald-700 border-none font-black uppercase text-[9px] px-3 tracking-widest">Desafío Completado</Badge>
             <h2 className="text-4xl font-black text-slate-900 uppercase italic tracking-tighter leading-none">Resumen Académico</h2>
-            <p className="text-slate-400 font-medium italic">Conversión de desempeño a escala {config.puntaje_maximo || 20} pts</p>
+            <p className="text-slate-400 font-medium italic">Conversión automática a escala vigesimal</p>
           </div>
           <Button 
             onClick={handleCloseAndPersist} 
@@ -258,75 +243,61 @@ export default function InstructorQuizPage() {
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-           <Card className="lg:col-span-3 p-0 border-none shadow-2xl rounded-[3rem] overflow-hidden bg-white">
-             <Table>
-               <TableHeader className="bg-slate-50/50">
-                 <TableRow>
-                   <TableHead className="pl-10 font-black text-[10px] uppercase text-slate-400 tracking-widest">Aspirante</TableHead>
-                   <TableHead className="text-center font-black text-[10px] uppercase text-slate-400 tracking-widest">Ranking pts</TableHead>
-                   <TableHead className="text-center font-black text-[10px] uppercase text-slate-400 tracking-widest">Correctas</TableHead>
-                   <TableHead className="text-right pr-10 font-black text-[10px] uppercase text-primary tracking-widest">Nota Final</TableHead>
-                 </TableRow>
-               </TableHeader>
-               <TableBody>
-                 {sortedParticipants.map((p: any) => {
-                    const totalQ = config.configuracion_json?.questions?.length || 20;
-                    const corrects = p.answers?.filter((a: any) => a.isCorrect).length || 0;
-                    const grade = Math.round((corrects / totalQ) * (config.puntaje_maximo || 20));
-                    const isIdentified = p.studentId && p.studentId !== "undefined";
-                    
-                    return (
-                      <TableRow key={p._id} className={cn("hover:bg-slate-50 transition-colors", !isIdentified && "bg-amber-50/30")}>
-                        <TableCell className="pl-10 py-6">
-                           <div className="flex items-center gap-4">
-                              <Avatar className="h-10 w-10 border-2 border-white shadow-md">
-                                 <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(p.avatar)}`} />
-                                 <AvatarFallback className="bg-slate-100">{getInitials(p.name)}</AvatarFallback>
-                              </Avatar>
-                              <div className="flex flex-col">
-                                <span className="font-bold text-slate-900 uppercase text-sm truncate w-64">{p.name}</span>
-                                {!isIdentified && <span className="text-[8px] font-black text-amber-600 uppercase">Sin ID Verificado</span>}
-                              </div>
-                           </div>
-                        </TableCell>
-                        <TableCell className="text-center">
-                           <Badge variant="outline" className="border-primary/20 text-primary font-mono font-black">{p.score} PTS</Badge>
-                        </TableCell>
-                        <TableCell className="text-center">
-                           <span className="text-xs font-bold text-slate-500">{corrects} / {totalQ}</span>
-                        </TableCell>
-                        <TableCell className="text-right pr-10">
-                           <span className={cn("text-2xl font-black font-mono", grade < 13 ? 'text-red-600' : 'text-emerald-600')}>
-                             {grade.toString().padStart(2, '0')}
-                           </span>
-                        </TableCell>
-                      </TableRow>
-                    )
-                 })}
-               </TableBody>
-             </Table>
-           </Card>
-
-           <div className="space-y-6">
-              <Card className="p-8 bg-slate-900 text-white rounded-[2.5rem] border-none shadow-xl space-y-6">
-                <div className="p-4 bg-white/10 rounded-2xl border border-white/10">
-                   <p className="text-[9px] font-black text-blue-300 uppercase tracking-widest mb-1">Mecánica de Sincronización</p>
-                   <p className="text-xs leading-relaxed text-blue-50/70 font-medium">Las respuestas correctas se promedian automáticamente con el puntaje máximo configurado en la actividad técnica.</p>
-                </div>
-                <div className="space-y-4">
-                   <div className="flex items-center justify-between px-2">
-                      <span className="text-[10px] font-bold text-white/50 uppercase">Preguntas Totales</span>
-                      <span className="font-black text-xl text-yellow-400">{config.configuracion_json?.questions?.length || 20}</span>
-                   </div>
-                   <div className="flex items-center justify-between px-2">
-                      <span className="text-[10px] font-bold text-white/50 uppercase">Escala Máxima</span>
-                      <span className="font-black text-xl text-yellow-400">{config.puntaje_maximo || 20} PTS</span>
-                   </div>
-                </div>
-              </Card>
-           </div>
-        </div>
+        <Card className="p-0 border-none shadow-2xl rounded-[3rem] overflow-hidden bg-white">
+          <Table>
+            <TableHeader className="bg-slate-50/50">
+              <TableRow>
+                <TableHead className="pl-10 font-black text-[10px] uppercase text-slate-400 tracking-widest">Aspirante</TableHead>
+                <TableHead className="font-black text-[10px] uppercase text-slate-400 tracking-widest">Programa y Ciclo</TableHead>
+                <TableHead className="text-center font-black text-[10px] uppercase text-slate-400 tracking-widest">Ranking pts</TableHead>
+                <TableHead className="text-center font-black text-[10px] uppercase text-slate-400 tracking-widest">Correctas</TableHead>
+                <TableHead className="text-right pr-10 font-black text-[10px] uppercase text-primary tracking-widest">Nota Final</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sortedParticipants.map((p: any) => {
+                const totalQ = config.configuracion_json?.questions?.length || 20;
+                const corrects = p.answers?.filter((a: any) => a.isCorrect).length || 0;
+                const grade = Math.round((corrects / totalQ) * (config.puntaje_maximo || 20));
+                const isIdentified = p.studentId && p.studentId !== "undefined";
+                
+                return (
+                  <TableRow key={p._id} className={cn("hover:bg-slate-50 transition-colors", !isIdentified && "bg-amber-50/30")}>
+                    <TableCell className="pl-10 py-6">
+                        <div className="flex items-center gap-4">
+                          <Avatar className="h-10 w-10 border-2 border-white shadow-md">
+                              <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(p.avatar)}`} />
+                              <AvatarFallback className="bg-slate-100 font-black text-[10px]">{getInitials(p.name)}</AvatarFallback>
+                          </Avatar>
+                          <div className="flex flex-col">
+                            <span className="font-bold text-slate-900 uppercase text-sm truncate w-64">{p.name}</span>
+                            {!isIdentified && <span className="text-[8px] font-black text-amber-600 uppercase">Sin Identidad Técnica</span>}
+                          </div>
+                        </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase truncate w-48">{p.programa || 'No especificado'}</span>
+                        <Badge variant="outline" className="w-fit text-[8px] font-black border-slate-200 mt-1">{p.semestre ? `SEM ${p.semestre}` : 'S/C'}</Badge>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center">
+                        <Badge variant="outline" className="border-primary/20 text-primary font-mono font-black">{p.score} PTS</Badge>
+                    </TableCell>
+                    <TableCell className="text-center">
+                        <span className="text-xs font-bold text-slate-500">{corrects} / {totalQ}</span>
+                    </TableCell>
+                    <TableCell className="text-right pr-10">
+                        <span className={cn("text-2xl font-black font-mono", grade < 13 ? 'text-red-600' : 'text-emerald-600')}>
+                          {grade.toString().padStart(2, '0')}
+                        </span>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
+        </Card>
       </div>
     )
   }

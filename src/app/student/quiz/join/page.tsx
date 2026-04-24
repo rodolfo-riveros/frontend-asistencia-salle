@@ -19,12 +19,10 @@ function JoinForm() {
   
   const [pin, setPin] = React.useState(searchParams.get('pin') || "")
   const [dni, setDni] = React.useState("")
-  const [studentName, setStudentName] = React.useState<string | null>(null)
-  const [studentId, setStudentId] = React.useState<string | null>(null)
+  const [studentData, setStudentData] = React.useState<any | null>(null)
   const [isValidating, setIsValidating] = React.useState(false)
   const [isJoining, setIsJoining] = React.useState(false)
   
-  // Semilla aleatoria para previsualizar el avatar de héroe
   const [avatarSeed, setAvatarSeed] = React.useState("Salle")
 
   const joinRoom = useMutation(convexApi.rooms.joinRoom)
@@ -34,43 +32,44 @@ function JoinForm() {
     if (cleanDni.length === 8) {
       setIsValidating(true)
       try {
+        // Obtenemos toda la información oficial: UUID, Programa, Semestre
         const student = await api.get<any>(`/alumnos/publico/${cleanDni}`)
         
-        if (student && student.nombre) {
-          setStudentName(student.nombre)
-          setStudentId(student.id)
+        if (student && student.id) {
+          setStudentData(student)
           setAvatarSeed(student.nombre.split(',')[0])
-          toast({ title: "Identidad Verificada", description: `Bienvenido, héroe ${student.nombre}` })
+          toast({ title: "Identidad Verificada", description: `Bienvenido, aspirante ${student.nombre}` })
         } else {
-          setStudentName(null)
-          setStudentId(null)
+          setStudentData(null)
           toast({ variant: "destructive", title: "DNI no encontrado", description: "No figuras en el padrón oficial de La Salle." })
         }
       } catch (e: any) {
-        setStudentName(null)
-        setStudentId(null)
-        toast({ variant: "destructive", title: "Error de Conexión", description: "Verifica que el PIN sea correcto o reintenta." })
+        setStudentData(null)
+        toast({ variant: "destructive", title: "Error de Conexión", description: "Verifica tu DNI o el PIN ingresado." })
       } finally {
         setIsValidating(false)
       }
     } else {
-      setStudentName(null)
-      setStudentId(null)
+      setStudentData(null)
     }
   }
 
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault()
     const cleanPin = pin.trim().toUpperCase();
-    if (!cleanPin || !dni || !studentName || !studentId) return
+    if (!cleanPin || !dni || !studentData) return
     
     setIsJoining(true)
     try {
+      // Mandamos toda la data de identidad a Convex de una vez
       const participantId = await joinRoom({ 
         roomCode: cleanPin, 
-        name: studentName,
-        studentId: studentId
+        name: studentData.nombre,
+        studentId: studentData.id,
+        programa: studentData.programa_nombre,
+        semestre: studentData.semestre
       })
+      
       localStorage.setItem(`p_${cleanPin}`, participantId)
       router.push(`/student/quiz/${cleanPin}`)
     } catch (e: any) {
@@ -125,22 +124,23 @@ function JoinForm() {
             </div>
           </div>
 
-          {studentName && (
+          {studentData && (
             <div className="flex items-center gap-4 p-5 bg-emerald-50 rounded-3xl border-2 border-emerald-500/20 animate-in zoom-in-95 shadow-sm">
               <Avatar className="h-16 w-16 border-4 border-white shadow-xl scale-110 shrink-0">
                  <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(avatarSeed)}`} />
-                 <AvatarFallback className="bg-emerald-600 text-white font-black text-xs">{getInitials(studentName)}</AvatarFallback>
+                 <AvatarFallback className="bg-emerald-600 text-white font-black text-xs">{getInitials(studentData.nombre)}</AvatarFallback>
               </Avatar>
               <div className="flex flex-col min-w-0 ml-2">
-                 <span className="text-[9px] font-black uppercase text-emerald-600 tracking-widest">Aspirante Confirmado</span>
-                 <span className="text-sm font-black text-slate-800 uppercase truncate leading-none mt-1">{studentName}</span>
+                 <span className="text-[9px] font-black uppercase text-emerald-600 tracking-widest">Identidad Confirmada</span>
+                 <span className="text-sm font-black text-slate-800 uppercase truncate leading-none mt-1">{studentData.nombre}</span>
+                 <span className="text-[8px] font-bold text-slate-400 uppercase mt-1 truncate">{studentData.programa_nombre}</span>
               </div>
             </div>
           )}
 
           <Button 
             type="submit" 
-            disabled={isJoining || !studentName}
+            disabled={isJoining || !studentData}
             className="w-full h-16 bg-primary hover:bg-primary/95 text-white rounded-3xl font-black uppercase text-xs tracking-wider shadow-xl shadow-primary/30 gap-4 transition-all active:scale-95 disabled:opacity-50"
           >
             {isJoining ? (

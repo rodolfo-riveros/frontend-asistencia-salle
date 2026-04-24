@@ -20,20 +20,23 @@ export default defineSchema({
   }).index("by_roomCode", ["roomCode"]),
 
   /**
-   * participants — alumnos conectados.
+   * participants — alumnos conectados con identidad completa de Supabase/FastAPI.
    */
   participants: defineTable({
-    roomId:  v.id("rooms"),
-    studentId: v.optional(v.string()), // ID real de Supabase/FastAPI (opcional para migración)
-    name:    v.string(),
-    score:   v.number(),
-    avatar:  v.string(), // Nombre del personaje (Maestro Jedi, etc.)
+    roomId:     v.id("rooms"),
+    studentId:  v.optional(v.string()), // UUID oficial de la base de datos
+    name:       v.string(),
+    score:      v.number(),
+    avatar:     v.string(), // Nombre del personaje (Maestro Jedi, etc.)
+    programa:   v.optional(v.string()), // Nombre de la carrera
+    semestre:   v.optional(v.string()), // Semestre actual
     isCheating: v.boolean(), 
-    answers: v.array(
+    answers:    v.array(
       v.object({
         questionIndex: v.number(),
         isCorrect:     v.boolean(),
       })
     ),
-  }).index("by_room", ["roomId"]),
+  }).index("by_room", ["roomId"])
+    .index("by_student_in_room", ["roomId", "studentId"]),
 });

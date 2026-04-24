@@ -43,7 +43,13 @@ export const createRoom = mutation({
 });
 
 export const joinRoom = mutation({
-  args: { roomCode: v.string(), name: v.string(), studentId: v.string() },
+  args: { 
+    roomCode: v.string(), 
+    name: v.string(), 
+    studentId: v.string(),
+    programa: v.optional(v.string()),
+    semestre: v.optional(v.string())
+  },
   handler: async (ctx, args) => {
     const code = args.roomCode.toUpperCase();
     const room = await ctx.db
@@ -53,16 +59,14 @@ export const joinRoom = mutation({
       
     if (!room) throw new Error("La sala no existe.");
 
-    // RECUPERACIÓN DE SESIÓN: Buscamos por ID de estudiante real
-    const participants = await ctx.db
+    // RECUPERACIÓN DE SESIÓN POR UUID TÉCNICO
+    const existingParticipant = await ctx.db
       .query("participants")
-      .withIndex("by_room", (q) => q.eq("roomId", room._id))
-      .collect();
-
-    const matched = participants.find(p => p.studentId === args.studentId);
+      .withIndex("by_student_in_room", (q) => q.eq("roomId", room._id).eq("studentId", args.studentId))
+      .first();
     
-    if (matched) {
-      return matched._id;
+    if (existingParticipant) {
+      return existingParticipant._id;
     }
 
     if (room.status === "finished") throw new Error("El juego ya terminó.");
@@ -73,6 +77,8 @@ export const joinRoom = mutation({
       roomId:  room._id,
       studentId: args.studentId,
       name:    args.name.trim().toUpperCase(),
+      programa: args.programa,
+      semestre: args.semestre,
       score:   0,
       avatar:  randomAvatar,
       isCheating: false,
