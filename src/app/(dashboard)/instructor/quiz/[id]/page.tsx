@@ -5,7 +5,7 @@ import * as React from "react"
 import { useParams, useRouter } from "next/navigation"
 import { 
   ArrowLeft, Gamepad2, Sparkles, 
-  Loader2, Radio, Users, Maximize2, Play, Trophy, ShieldCheck, UserX, Crown, Zap
+  Loader2, Radio, Users, Maximize2, Play, Trophy, ShieldCheck, UserX, Crown, Zap, Clock
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
