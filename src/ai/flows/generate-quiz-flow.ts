@@ -5,7 +5,7 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'kit';
+import {z} from 'genkit';
 
 const QuizQuestionSchema = z.object({
   text: z.string().describe('The question text.'),

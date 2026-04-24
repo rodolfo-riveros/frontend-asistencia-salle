@@ -144,7 +144,7 @@ export default function InstructorQuizPage() {
     
     setIsClosing(true)
     try {
-      const totalQuestions = config.configuracion_json?.questions?.length || 1;
+      const totalQuestions = config.configuracion_json?.questions?.length || 20;
       const maxScore = config.puntaje_maximo || 20;
 
       const results = room.participants.map(p => {
@@ -332,13 +332,13 @@ export default function InstructorQuizPage() {
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_2px_2px,rgba(255,255,255,0.05)_2px,transparent_0)] bg-[size:64px_64px]" />
             
             {room.status === 'finished' ? (
-              <div className="h-full flex flex-col items-center animate-in zoom-in-95 relative z-10 pt-4">
-                <div className="text-center mb-10 space-y-2">
+              <div className="h-full flex flex-col items-center animate-in zoom-in-95 relative z-10 pt-12">
+                <div className="text-center mb-16 space-y-2 z-50">
                    <h2 className="text-5xl md:text-7xl font-black uppercase italic tracking-tighter text-white drop-shadow-[0_10px_10px_rgba(0,0,0,0.3)]">Podio de Campeones</h2>
                    <p className="text-yellow-400 font-black text-lg uppercase tracking-[0.5em] italic">Salle Rank-UP Challenge</p>
                 </div>
 
-                <div className="flex items-end justify-center gap-4 md:gap-16 h-[400px] mb-12">
+                <div className="flex items-end justify-center gap-4 md:gap-16 h-[400px] mb-12 relative z-40">
                   {/* Puesto 2 */}
                   {sortedParticipants[1] && (
                     <div className="flex flex-col items-center gap-6 animate-in slide-in-from-bottom-24 duration-700">
@@ -364,7 +364,7 @@ export default function InstructorQuizPage() {
 
                   {/* Puesto 1 */}
                   {sortedParticipants[0] && (
-                    <div className="flex flex-col items-center gap-8 animate-in slide-in-from-bottom-40 duration-1000">
+                    <div className="flex flex-col items-center gap-8 animate-in slide-in-from-bottom-40 duration-1000 relative z-50">
                       <Crown className="h-16 w-16 text-yellow-400 animate-bounce filter drop-shadow-[0_0_15px_rgba(250,204,21,0.5)]" />
                       <div className="relative group">
                          <div className="absolute inset-0 bg-yellow-400 blur-3xl opacity-30 group-hover:opacity-50 transition-opacity animate-pulse" />
@@ -412,7 +412,7 @@ export default function InstructorQuizPage() {
 
                 {/* Lista de mérito para 4to en adelante */}
                 {sortedParticipants.length > 3 && (
-                  <div className="w-full max-w-4xl space-y-4 animate-in fade-in duration-1000 pb-20">
+                  <div className="w-full max-w-4xl space-y-4 animate-in fade-in duration-1000 pb-20 relative z-10">
                     <div className="flex items-center gap-4 px-10 mb-6">
                        <Medal className="h-6 w-6 text-yellow-400" />
                        <span className="text-white font-black uppercase text-sm tracking-[0.3em] italic">Ranking Salle Honor</span>
