@@ -4,7 +4,7 @@ import { v } from "convex/values";
 
 /**
  * createRoom
- * Crea o recrea la sala en tiempo real. Se llama desde el Monitor Docente.
+ * Crea o recrea la sala en tiempo real.
  */
 export const createRoom = mutation({
   args: {
@@ -67,7 +67,8 @@ export const submitAnswer = mutation({
     isCorrect:     v.boolean(),
   },
   handler: async (ctx, args) => {
-    const participant = await ctx.db.get(args.participantId as any);
+    const participantId = args.participantId as any;
+    const participant = await ctx.db.get(participantId);
     if (!participant) throw new Error("Participante no encontrado.");
 
     const yaRespondio = participant.answers.some((a: any) => a.questionIndex === args.questionIndex);
