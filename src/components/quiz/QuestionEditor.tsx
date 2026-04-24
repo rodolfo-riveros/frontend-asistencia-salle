@@ -11,8 +11,9 @@ import { Badge } from "@/components/ui/badge"
 
 export function QuestionEditor({ questions, onUpdate }: { questions: any[], onUpdate: (qs: any[]) => void }) {
   const addQuestion = () => {
+    const newId = `manual-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
     onUpdate([...questions, { 
-      id: `manual-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: newId,
       text: "",
       options: ["", "", "", ""],
       correctIndex: 0,
@@ -31,8 +32,8 @@ export function QuestionEditor({ questions, onUpdate }: { questions: any[], onUp
   return (
     <div className="space-y-6">
       {(questions || []).map((q, idx) => {
-        // Aseguramos un ID único para la key de React
-        const itemKey = q.id || `q-key-${idx}-${q.text.substring(0, 10)}`;
+        // Aseguramos una key estable para React
+        const itemKey = q.id || `q-idx-${idx}`
         
         return (
           <Card key={itemKey} className="p-8 border-2 border-slate-100 rounded-[2rem] shadow-sm hover:border-primary/20 transition-all bg-white overflow-hidden relative">
@@ -94,7 +95,7 @@ export function QuestionEditor({ questions, onUpdate }: { questions: any[], onUp
               </div>
             </div>
           </Card>
-        );
+        )
       })}
 
       <Button 

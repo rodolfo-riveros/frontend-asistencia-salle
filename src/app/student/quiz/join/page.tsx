@@ -30,16 +30,17 @@ export default function StudentJoinPage() {
     if (val.length === 8) {
       setIsValidating(true)
       try {
-        // Fallback: Si el endpoint específico por DNI falla o no existe, 
-        // listamos y filtramos localmente para garantizar la entrada del alumno
-        const students = await api.get<any[]>('/alumnos/')
+        // Buscamos en el padrón general. Si el endpoint falla, manejamos el error con gracia.
+        const students = await api.get<any[]>('/alumnos/').catch(() => [])
         const student = (students || []).find(s => String(s.dni) === val)
         
         if (student && student.nombre) {
           setStudentName(student.nombre)
         } else {
           setStudentName(null)
-          toast({ variant: "destructive", title: "DNI no registrado", description: "No perteneces al padrón de este ciclo." })
+          if (students.length > 0) {
+            toast({ variant: "destructive", title: "DNI no registrado", description: "Verifica tu número de documento." })
+          }
         }
       } catch (e) {
         console.error("Error validando DNI:", e)
@@ -61,36 +62,36 @@ export default function StudentJoinPage() {
       localStorage.setItem(`p_${pin}`, participantId)
       router.push(`/student/quiz/${pin}`)
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Error", description: e.message || "Fallo al unirse a la sala." })
+      toast({ variant: "destructive", title: "Sala no disponible", description: e.message || "Verifica que el PIN sea correcto." })
     } finally {
       setIsJoining(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 relative overflow-hidden">
-      <div className="absolute -top-24 -left-24 w-96 h-96 bg-primary rounded-full blur-3xl opacity-10" />
+    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4 md:p-6 relative overflow-hidden">
+      <div className="absolute -top-24 -left-24 w-64 md:w-96 h-64 md:h-96 bg-primary rounded-full blur-3xl opacity-10" />
       
-      <div className="w-full max-w-md space-y-8 z-10">
-        <div className="text-center space-y-4">
-          <div className="inline-flex items-center justify-center p-4 bg-white border-2 border-primary/10 rounded-[2.5rem] shadow-xl mb-4">
-             <GraduationCap className="h-12 w-12 text-primary" />
+      <div className="w-full max-w-md space-y-6 md:space-y-8 z-10">
+        <div className="text-center space-y-3 md:space-y-4">
+          <div className="inline-flex items-center justify-center p-3 md:p-4 bg-white border-2 border-primary/10 rounded-[1.5rem] md:rounded-[2.5rem] shadow-xl mb-2">
+             <GraduationCap className="h-10 w-10 md:h-12 md:w-12 text-primary" />
           </div>
-          <h1 className="text-5xl font-black text-slate-900 uppercase tracking-tighter italic leading-none">Quizz Live</h1>
-          <p className="text-primary font-bold uppercase text-[10px] tracking-[0.3em]">IES LA SALLE URUBAMBA</p>
+          <h1 className="text-4xl md:text-5xl font-black text-slate-900 uppercase tracking-tighter italic leading-none">Quizz Live</h1>
+          <p className="text-primary font-bold uppercase text-[9px] md:text-[10px] tracking-[0.2em]">IES LA SALLE URUBAMBA</p>
         </div>
 
-        <Card className="border-none shadow-2xl bg-white rounded-[3rem] p-10 overflow-hidden relative">
+        <Card className="border-none shadow-2xl bg-white rounded-[2rem] md:rounded-[3rem] p-6 md:p-10 overflow-hidden relative">
           <div className="absolute top-0 left-0 w-full h-2 bg-primary" />
           
-          <form onSubmit={handleJoin} className="space-y-8">
+          <form onSubmit={handleJoin} className="space-y-6 md:space-y-8">
             <div className="space-y-2">
               <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-2">PIN del Juego</label>
               <Input 
                 value={pin}
                 onChange={e => setPin(e.target.value.toUpperCase())}
                 placeholder="000000" 
-                className="h-16 text-center text-3xl font-black font-mono tracking-[0.5em] border-none bg-slate-50 shadow-inner rounded-2xl"
+                className="h-14 md:h-16 text-center text-2xl md:text-3xl font-black font-mono tracking-[0.4em] border-none bg-slate-50 shadow-inner rounded-xl md:rounded-2xl"
                 maxLength={6}
                 required
               />
@@ -104,8 +105,9 @@ export default function StudentJoinPage() {
                   value={dni}
                   onChange={e => { setDni(e.target.value); fetchStudentData(e.target.value); }}
                   placeholder="8 dígitos" 
-                  className="h-14 pl-12 font-bold border-none bg-slate-50 shadow-inner rounded-2xl text-lg"
+                  className="h-12 md:h-14 pl-12 font-bold border-none bg-slate-50 shadow-inner rounded-xl md:rounded-2xl text-base md:text-lg"
                   maxLength={8}
+                  pattern="[0-9]{8}"
                   required
                 />
                 {isValidating && <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-primary" />}
@@ -113,13 +115,13 @@ export default function StudentJoinPage() {
             </div>
 
             {studentName && (
-              <div className="flex items-center gap-4 p-4 bg-emerald-50 rounded-2xl border-2 border-emerald-100 animate-in slide-in-from-top-2">
-                <Avatar className="h-12 w-12 border-2 border-white shadow-md">
-                   <AvatarFallback className="bg-primary text-white font-black">{getInitials(studentName)}</AvatarFallback>
+              <div className="flex items-center gap-3 md:gap-4 p-4 bg-emerald-50 rounded-xl md:rounded-2xl border-2 border-emerald-100 animate-in slide-in-from-top-2">
+                <Avatar className="h-10 w-10 md:h-12 md:w-12 border-2 border-white shadow-md">
+                   <AvatarFallback className="bg-primary text-white font-black text-xs">{getInitials(studentName)}</AvatarFallback>
                 </Avatar>
-                <div className="flex flex-col">
-                   <span className="text-[9px] font-black uppercase text-emerald-600 tracking-widest">Estudiante Identificado</span>
-                   <span className="text-xs font-black text-slate-800 uppercase leading-none mt-1">{studentName}</span>
+                <div className="flex flex-col min-w-0">
+                   <span className="text-[8px] md:text-[9px] font-black uppercase text-emerald-600 tracking-widest">Estudiante Identificado</span>
+                   <span className="text-xs font-black text-slate-800 uppercase leading-none mt-1 truncate">{studentName}</span>
                 </div>
               </div>
             )}
@@ -127,14 +129,14 @@ export default function StudentJoinPage() {
             <Button 
               type="submit" 
               disabled={isJoining || !studentName}
-              className="w-full h-20 bg-primary hover:bg-primary/90 text-white rounded-3xl font-black uppercase text-sm tracking-widest shadow-xl shadow-primary/30 gap-3 transition-all"
+              className="w-full h-16 md:h-20 bg-primary hover:bg-primary/90 text-white rounded-2xl md:rounded-3xl font-black uppercase text-sm tracking-widest shadow-xl shadow-primary/20 gap-3 transition-all"
             >
-              {isJoining ? <Loader2 className="h-6 w-6 animate-spin" /> : <Play className="h-6 w-6 fill-current" />} Unirme al Desafío
+              {isJoining ? <Loader2 className="h-5 w-5 md:h-6 md:w-6 animate-spin" /> : <Play className="h-5 w-5 md:h-6 md:w-6 fill-current" />} Entrar al Desafío
             </Button>
           </form>
         </Card>
         
-        <p className="text-center text-[9px] font-black uppercase text-slate-400 tracking-widest">La Salle Urubamba • Educación con Valores</p>
+        <p className="text-center text-[9px] font-black uppercase text-slate-400 tracking-widest">La Salle Urubamba • Excelencia con Valores</p>
       </div>
     </div>
   )

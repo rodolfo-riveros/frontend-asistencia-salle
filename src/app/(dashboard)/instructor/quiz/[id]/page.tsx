@@ -37,11 +37,11 @@ export default function InstructorQuizPage() {
   const fetchSession = React.useCallback(async () => {
     setLoadingConfig(true)
     try {
-      // 1. Cargar la evaluación seleccionada
+      // Cargar la evaluación específica mediante su ID
       const quizEval = await api.get<any>(`/evaluaciones/${params.id}`)
       if (quizEval) {
         setConfig(quizEval)
-        // 2. Intentar recuperar si hay sesión activa para este quiz
+        // Intentar recuperar si hay sesión activa para esta evaluación
         try {
           const activeSession = await api.get<any>(`/gamificacion/sesion/${quizEval.id}/`)
           if (activeSession && activeSession.room_code) {
@@ -49,11 +49,11 @@ export default function InstructorQuizPage() {
             setSessionId(activeSession.sesion_id)
           }
         } catch (e) {
-          console.log("Aún no hay sesión lanzada para este quiz.")
+          console.log("No hay sesión activa inmediata. Habilitando creación manual.")
         }
       }
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Error de Carga", description: "No se pudo recuperar la configuración del quiz." })
+      toast({ variant: "destructive", title: "Configuración no encontrada", description: "Vuelve al registro auxiliar e intenta nuevamente." })
     } finally {
       setLoadingConfig(false)
     }
@@ -64,12 +64,12 @@ export default function InstructorQuizPage() {
   const handleLaunchRoom = async () => {
     const questions = config?.configuracion_json?.questions;
     if (!config || !questions || questions.length === 0) {
-      return toast({ variant: "destructive", title: "Sin preguntas", description: "No se encontraron preguntas en la configuración." })
+      return toast({ variant: "destructive", title: "Sin preguntas", description: "Asegúrate de generar preguntas con IA en el Wizard primero." })
     }
     
     setIsSyncing(true)
     try {
-      // Crear sesión en FastAPI/Supabase
+      // 1. Crear sesión en FastAPI/Supabase para obtener el PIN oficial
       const session = await api.post<any>('/gamificacion/sesion/', {
         evaluacion_id: config.id,
         configuracion_json: config.configuracion_json
@@ -77,7 +77,7 @@ export default function InstructorQuizPage() {
 
       if (!session || !session.room_code) throw new Error("Fallo al generar código de sala.")
 
-      // Abrir sala en tiempo real (Convex)
+      // 2. Abrir sala en tiempo real (Convex)
       await createRoom({
         roomCode: session.room_code,
         questions: questions,
@@ -88,9 +88,9 @@ export default function InstructorQuizPage() {
       setRoomCode(session.room_code)
       setSessionId(session.sesion_id)
       setIsFullscreen(true)
-      toast({ title: "¡Sala en Vivo!", description: `PIN Generado: ${session.room_code}` })
+      toast({ title: "¡Sala en Vivo!", description: `Comparte el PIN: ${session.room_code}` })
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Error", description: e.message })
+      toast({ variant: "destructive", title: "Conexión con Convex fallida", description: "Asegúrate de haber ejecutado 'npx convex dev' en tu terminal." })
     } finally {
       setIsSyncing(false)
     }
@@ -99,21 +99,21 @@ export default function InstructorQuizPage() {
   const handleStartGame = async () => {
     if (!roomCode) return
     await updateStatus({ roomCode, status: 'active' })
-    toast({ title: "¡Desafío Iniciado!", description: "Los alumnos ya pueden ver las preguntas." })
+    toast({ title: "¡Desafío en marcha!", description: "Los alumnos ya pueden responder la primera pregunta." })
   }
 
   if (loadingConfig) {
     return (
       <div className="h-screen flex flex-col items-center justify-center gap-4 bg-slate-50">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        <p className="font-black uppercase text-[10px] text-slate-400 tracking-[0.2em]">Sincronizando con La Salle Urubamba...</p>
+        <p className="font-black uppercase text-[10px] text-slate-400 tracking-[0.2em]">Sincronizando con el servidor de La Salle...</p>
       </div>
     )
   }
 
   const questions = config?.configuracion_json?.questions || []
 
-  // RENDER: LOBBY A PANTALLA COMPLETA
+  // RENDER: MODO PROYECTABLE (PANTALLA COMPLETA)
   if (isFullscreen && roomCode) {
     return (
       <div className="fixed inset-0 z-[100] bg-white flex flex-col overflow-hidden animate-in fade-in duration-500">
@@ -141,7 +141,7 @@ export default function InstructorQuizPage() {
                       alt="QR Access"
                       className="mx-auto w-40 h-40 border-8 border-slate-50 rounded-2xl"
                     />
-                    <p className="text-xs font-bold text-slate-500 mt-4 uppercase">Escanea para unirte al desafío</p>
+                    <p className="text-xs font-bold text-slate-500 mt-4 uppercase">Escanea para unirte</p>
                  </div>
               </div>
             </div>
@@ -158,17 +158,17 @@ export default function InstructorQuizPage() {
               >
                 <Play className="h-6 w-6 group-hover:scale-110 transition-transform" /> INICIAR DESAFÍO
               </Button>
-              <Button variant="ghost" onClick={() => setIsFullscreen(false)} className="w-full text-slate-400 font-bold uppercase text-[10px] hover:bg-transparent hover:text-slate-600">Salir de pantalla completa</Button>
+              <Button variant="ghost" onClick={() => setIsFullscreen(false)} className="w-full text-slate-400 font-bold uppercase text-[10px] hover:bg-transparent hover:text-slate-600">Volver al panel docente</Button>
             </div>
           </div>
 
           <div className="flex-grow p-12 relative bg-white overflow-y-auto">
-             <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-6">
+             <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-8">
                 {room?.participants?.map((p: any) => (
                   <div key={p._id} className="flex flex-col items-center gap-3 animate-in zoom-in duration-300">
                     <div className="relative group">
                       <div className="absolute inset-0 bg-primary rounded-[2rem] blur-xl opacity-0 group-hover:opacity-20 transition-all" />
-                      <Avatar className="h-24 w-24 border-4 border-white shadow-xl rounded-[2rem]">
+                      <Avatar className="h-28 w-24 border-4 border-white shadow-xl rounded-[2rem]">
                         <AvatarFallback className="bg-blue-50 text-primary font-black text-2xl">
                           {getInitials(p.name)}
                         </AvatarFallback>
@@ -202,7 +202,7 @@ export default function InstructorQuizPage() {
           <div className="flex items-center gap-4">
             <div className="p-4 bg-primary/10 rounded-3xl text-primary shadow-sm border border-primary/10"><Gamepad2 className="h-10 w-10" /></div>
             <div>
-              <h2 className="text-3xl md:text-4xl font-headline font-black text-slate-900 uppercase italic">Control de Gamificación</h2>
+              <h2 className="text-3xl md:text-4xl font-headline font-black text-slate-900 uppercase italic">Sallé Quizz Live</h2>
               <p className="text-slate-500 font-medium italic text-sm">Validación técnica y pedagógica de alta exigencia</p>
             </div>
           </div>
@@ -244,27 +244,30 @@ export default function InstructorQuizPage() {
             
             <div className="space-y-6">
               {questions.length > 0 ? (
-                questions.map((q: any, idx: number) => (
-                  <div key={q.id || idx} className="p-8 bg-slate-50/50 rounded-[2.5rem] border-2 border-slate-100/50 space-y-6">
-                    <div className="flex justify-between items-start">
-                      <p className="text-lg font-black text-slate-800 leading-tight uppercase tracking-tight max-w-[85%]">{idx + 1}. {q.text}</p>
-                      <Badge className="bg-white text-primary border-2 border-primary/10 font-bold text-[9px] px-3 py-1">{q.timeLimit}s</Badge>
+                questions.map((q: any, idx: number) => {
+                  const qKey = q.id || `view-q-${idx}`
+                  return (
+                    <div key={qKey} className="p-8 bg-slate-50/50 rounded-[2.5rem] border-2 border-slate-100/50 space-y-6">
+                      <div className="flex justify-between items-start">
+                        <p className="text-lg font-black text-slate-800 leading-tight uppercase tracking-tight max-w-[85%]">{idx + 1}. {q.text}</p>
+                        <Badge className="bg-white text-primary border-2 border-primary/10 font-bold text-[9px] px-3 py-1 shrink-0">{q.timeLimit}s</Badge>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {q.options.map((opt: string, oIdx: number) => (
+                          <div key={`${qKey}-opt-${oIdx}`} className={cn(
+                            "p-4 rounded-2xl border-2 flex items-center justify-between transition-all",
+                            q.correctIndex === oIdx 
+                              ? "bg-emerald-50 border-emerald-200 text-emerald-700 shadow-sm" 
+                              : "bg-white border-slate-100 text-slate-400 opacity-60"
+                          )}>
+                            <span className="text-xs font-bold uppercase">{opt}</span>
+                            {q.correctIndex === oIdx && <CheckCircle2 className="h-4 w-4" />}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {q.options.map((opt: string, oIdx: number) => (
-                        <div key={oIdx} className={cn(
-                          "p-4 rounded-2xl border-2 flex items-center justify-between transition-all",
-                          q.correctIndex === oIdx 
-                            ? "bg-emerald-50 border-emerald-200 text-emerald-700 shadow-sm" 
-                            : "bg-white border-slate-100 text-slate-400 opacity-60"
-                        )}>
-                          <span className="text-xs font-bold uppercase">{opt}</span>
-                          {q.correctIndex === oIdx && <CheckCircle2 className="h-4 w-4" />}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))
+                  )
+                })
               ) : (
                 <div className="p-20 text-center border-4 border-dashed border-slate-100 rounded-[3rem]">
                    <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Cargando banco de preguntas...</p>
@@ -293,7 +296,7 @@ export default function InstructorQuizPage() {
                   </span>
                   <div className="space-y-3">
                     {config.configuracion_json?.criteria?.map((c: any, i: number) => (
-                      <div key={i} className="flex gap-3 text-[11px] text-slate-500 items-start group">
+                      <div key={`crit-${i}`} className="flex gap-3 text-[11px] text-slate-500 items-start group">
                         <span className="font-black text-primary shrink-0 bg-primary/5 w-5 h-5 rounded-md flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-all">{i + 1}</span>
                         <span className="italic leading-relaxed group-hover:text-slate-900 transition-all">{c.description || c.category}</span>
                       </div>
