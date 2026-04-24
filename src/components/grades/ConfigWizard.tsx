@@ -107,7 +107,6 @@ export function ConfigWizard({
         reader.readAsDataURL(file);
       });
       
-      // Enviamos el tipo esperado para que la IA sea más precisa
       const analysis = await analyzeInstrument({ 
         photoDataUri: base64,
         expectedType: newInstType 
@@ -139,8 +138,6 @@ export function ConfigWizard({
       if (parsedCriteria.length > 0) {
         setEditorCriteria(parsedCriteria);
         toast({ title: "Digitalización Exitosa", description: "El instrumento ha sido estructurado correctamente." });
-      } else {
-        toast({ variant: "destructive", title: "Error de Formato", description: "No se encontraron criterios compatibles con el tipo seleccionado." });
       }
     } catch (err: any) {
       toast({ variant: "destructive", title: "Fallo de Digitalización", description: err.message });
@@ -264,7 +261,7 @@ export function ConfigWizard({
         evaluacion_id: registeredEvalId,
         grupos: Object.entries(groupsMap).map(([name, ids]) => ({ nombre_grupo: name, integrantes: ids }))
       });
-      toast({ title: "Equipos Formados", description: "Los grupos han sido vinculados a la evaluación." });
+      toast({ title: "Equipos Formados" });
       addColumn(); setIsOpen(false); resetEditor();
     } catch (e: any) {
       toast({ variant: "destructive", title: "Error en Grupos", description: e.message });
@@ -277,18 +274,17 @@ export function ConfigWizard({
     if (!registeredEvalId || quizQuestions.length === 0) return;
     setIsFinishing(true);
     try {
-      await api.post('/gamificacion/sesion/', {
-        evaluacion_id: registeredEvalId,
+      await api.patch(`/evaluaciones/${registeredEvalId}`, {
         configuracion_json: { 
           strategy: 'quizz', 
           criteria: editorCriteria, 
           questions: quizQuestions 
         }
       });
-      toast({ title: "Gamificación Lista", description: "La sesión ha sido registrada en el servidor." });
+      toast({ title: "Gamificación Registrada", description: "Configuración guardada en el Registro Auxiliar." });
       addColumn(); setIsOpen(false); resetEditor();
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Error en Gamificación", description: e.message });
+      toast({ variant: "destructive", title: "Error", description: e.message });
     } finally {
       setIsFinishing(false);
     }
@@ -362,7 +358,7 @@ export function ConfigWizard({
                             className={cn(
                               "flex flex-col items-start p-4 rounded-2xl border-2 w-full text-left transition-all", 
                               isSelected 
-                                ? "border-primary bg-primary/5 shadow-md ring-2 ring-primary/10" 
+                                ? "border-primary bg-primary/5 shadow-md ring-2 ring-primary/20" 
                                 : "border-slate-50 hover:border-primary/30 bg-slate-50/30"
                             )}
                           >
@@ -373,7 +369,7 @@ export function ConfigWizard({
                                </span>
                                <Badge variant={isSelected ? "default" : "outline"} className="text-[10px]">{ind.peso_porcentaje}%</Badge>
                             </div>
-                            <p className={cn("text-[11px] line-clamp-2", isSelected ? "text-primary/70 font-bold" : "text-slate-500")}>
+                            <p className={cn("text-[11px] line-clamp-2", isSelected ? "text-primary font-bold" : "text-slate-500")}>
                               {ind.descripcion}
                             </p>
                           </button>
