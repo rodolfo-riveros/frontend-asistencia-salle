@@ -211,7 +211,7 @@ export function ConfigWizard({
         tipo: newStrategyType === 'quizz' ? 'quizz' : newInstType,
         peso_instrumento: newInstrumentWeight,
         puntaje_maximo: newMaxPoints,
-        configuracion_json: { strategy: newStrategyType, criteria: [] }
+        configuracion_json: { strategy: newStrategyType, criteria: editorCriteria }
       }
       let res: any = await api.post('/evaluaciones/', payload)
       setRegisteredEvalId(res.id)

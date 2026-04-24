@@ -3,7 +3,7 @@
 import * as React from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { 
-  ArrowLeft, Users, Gamepad2, Sparkles, 
+  ArrowLeft, Gamepad2, Sparkles, 
   Loader2, RefreshCcw, Radio, Zap, CheckCircle2,
   Target,
   FileText
@@ -16,7 +16,6 @@ import { api } from "@/lib/api"
 import { useMutation, useQuery } from "convex/react"
 import { api as convexApi } from "@convex/_generated/api"
 import { cn } from "@/lib/utils"
-import { ScrollArea } from "@/components/ui/scroll-area"
 
 export default function InstructorQuizPage() {
   const params = useParams()
@@ -123,7 +122,7 @@ export default function InstructorQuizPage() {
             <div className="p-4 bg-accent rounded-3xl text-white shadow-2xl shadow-accent/20"><Gamepad2 className="h-10 w-10" /></div>
             <div>
               <h2 className="text-3xl md:text-4xl font-headline font-black text-slate-900 uppercase italic">Control de Gamificación</h2>
-              <p className="text-slate-500 font-medium italic text-sm">Lanzamiento y sincronización en tiempo real</p>
+              <p className="text-slate-500 font-medium italic text-sm">Gestión pedagógica en tiempo real</p>
             </div>
           </div>
         </div>
@@ -155,34 +154,6 @@ export default function InstructorQuizPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
         <div className="lg:col-span-2 space-y-10">
-          <Card className="p-10 border-none shadow-2xl bg-white rounded-[3rem] relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-2 bg-accent" />
-            <div className="flex items-center justify-between mb-12">
-              <h3 className="text-2xl font-black uppercase tracking-tighter italic text-slate-800">Monitor de Estudiantes</h3>
-              {roomCode && <Badge className={cn("h-10 px-6 font-black uppercase text-[10px]", room?.status === 'active' ? 'bg-red-500 text-white animate-pulse' : 'bg-emerald-100 text-emerald-700')}>
-                {room?.status === 'lobby' ? '● ESPERANDO CONEXIONES' : '● DESAFÍO EN CURSO'}
-              </Badge>}
-            </div>
-            
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
-              {room?.participants?.map((p: any) => (
-                <div key={p._id} className="p-6 bg-slate-50 rounded-[2rem] border-2 border-slate-100 flex flex-col items-center gap-4 hover:border-accent/20 transition-all shadow-sm">
-                   <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-primary font-black text-2xl border-2 border-white">{p.name[0]}</div>
-                   <div className="text-center w-full">
-                     <p className="text-xs font-black uppercase text-slate-700 truncate mb-1">{p.name}</p>
-                     <Badge variant="outline" className="text-[10px] font-black border-accent/20 text-accent bg-accent/5">{p.answers?.filter((a: any) => a.isCorrect).length || 0} Correctas</Badge>
-                   </div>
-                </div>
-              ))}
-              {(!room?.participants || room.participants.length === 0) && (
-                <div className="col-span-full py-24 text-center space-y-4">
-                  <Users className="h-12 w-12 text-slate-200 mx-auto mb-4" />
-                  <p className="text-slate-300 uppercase font-black text-xs tracking-[0.3em]">Esperando alumnos con el PIN...</p>
-                </div>
-              )}
-            </div>
-          </Card>
-
           <Card className="p-10 border-none shadow-2xl bg-white rounded-[3rem] relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-2 bg-primary/20" />
             <div className="flex items-center justify-between mb-10">
@@ -217,6 +188,12 @@ export default function InstructorQuizPage() {
                   </div>
                 </div>
               ))}
+              {!config?.configuracion_json?.questions && (
+                <div className="py-20 text-center space-y-4">
+                  <Loader2 className="h-10 w-10 animate-spin text-slate-200 mx-auto" />
+                  <p className="text-slate-400 font-bold uppercase text-xs tracking-widest">Recuperando banco de preguntas...</p>
+                </div>
+              )}
             </div>
           </Card>
         </div>
