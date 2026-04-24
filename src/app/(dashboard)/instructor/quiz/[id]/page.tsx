@@ -5,7 +5,7 @@ import * as React from "react"
 import { useParams, useRouter } from "next/navigation"
 import { 
   ArrowLeft, Gamepad2, Sparkles, 
-  Loader2, Radio, Users, Maximize2, Play, Trophy, ShieldCheck, UserX, Crown, Zap, Clock
+  Loader2, Radio, Users, Maximize2, Play, Trophy, ShieldCheck, UserX, Crown, Zap, Clock, BookOpen
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -35,6 +35,7 @@ export default function InstructorQuizPage() {
   const fetchSession = React.useCallback(async () => {
     setLoadingConfig(true)
     try {
+      // Cargar configuración específica de la evaluación por ID
       const quizEval = await api.get<any>(`/evaluaciones/${params.id}`)
       if (quizEval) {
         setConfig(quizEval)
@@ -45,7 +46,7 @@ export default function InstructorQuizPage() {
             setSessionId(activeSession.sesion_id)
           }
         } catch (e) { 
-          console.log("No active session found yet") 
+          console.log("No active session found for this eval") 
         }
       }
     } catch (e: any) {
@@ -118,7 +119,12 @@ export default function InstructorQuizPage() {
   }, [room?.participants])
 
   if (loadingConfig) {
-    return <div className="h-screen flex items-center justify-center bg-white"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>
+    return (
+      <div className="h-screen flex flex-col items-center justify-center bg-white gap-4">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        <p className="font-black uppercase text-[10px] tracking-widest text-slate-400">Preparando Arena Rank-UP...</p>
+      </div>
+    )
   }
 
   // Monitor en modo pantalla completa (Lobby o Arena)
