@@ -41,6 +41,7 @@ export default function InstructorQuizPage() {
   const room = useQuery(convexApi.rooms.getRoom, roomCode ? { roomCode } : "skip")
 
   const fetchSession = React.useCallback(async () => {
+    if (!params.id || params.id === "undefined") return;
     setLoadingConfig(true)
     try {
       const quizEval = await api.get<any>(`/evaluaciones/${params.id}`)
@@ -50,7 +51,8 @@ export default function InstructorQuizPage() {
           const activeSession = await api.get<any>(`/gamificacion/sesion/${quizEval.id}/`)
           if (activeSession && activeSession.room_code) {
             setRoomCode(activeSession.room_code)
-            setSessionId(activeSession.id || activeSession.sesion_id)
+            const sid = activeSession.id || activeSession.sesion_id || activeSession.sesion?.id;
+            setSessionId(sid || null)
           }
         } catch (e) { 
           // Silencioso si no hay sesión activa
@@ -144,8 +146,8 @@ export default function InstructorQuizPage() {
   }
 
   const handleCloseAndPersist = async () => {
-    if (!room?.participants || !config) {
-      toast({ variant: "destructive", title: "Error", description: "Datos insuficientes para sincronizar." });
+    if (!room?.participants || !config || !config.id || config.id === "undefined") {
+      toast({ variant: "destructive", title: "Error crítico", description: "Datos de evaluación no válidos. Refresque la página." });
       return;
     }
     
@@ -154,13 +156,19 @@ export default function InstructorQuizPage() {
       const totalQuestions = config.configuracion_json?.questions?.length || 20;
       const maxScore = config.puntaje_maximo || 20;
 
-      const validParticipants = room.participants.filter(p => !!p.studentId);
+      // FILTRO CRÍTICO: Evitar enviar strings "undefined" o IDs no válidos al backend (Error UUID)
+      const validParticipants = room.participants.filter(p => 
+        p.studentId && 
+        p.studentId !== "undefined" && 
+        p.studentId !== "null" &&
+        p.studentId.length > 10 // Longitud mínima de un UUID
+      );
 
       if (validParticipants.length === 0) {
-        throw new Error("No hay participantes con identidad Salle verificada.");
+        throw new Error("No hay participantes con identidad verificada (DNI) para calificar.");
       }
 
-      // Sincronización masiva paralela para máxima eficiencia
+      // Sincronización masiva paralela
       const gradePromises = validParticipants.map(p => {
         const correctAnswers = p.answers?.filter((a: any) => a.isCorrect).length || 0;
         const academicGrade = Math.round((correctAnswers / totalQuestions) * maxScore);
@@ -176,31 +184,42 @@ export default function InstructorQuizPage() {
             totales: totalQuestions,
             avatar: p.avatar 
           }
+        }).catch(err => {
+          console.error(`Error calificando a ${p.name}:`, err);
+          return { error: true, student: p.name };
         });
       });
 
-      const results = await Promise.allSettled(gradePromises);
-      const successCount = results.filter(r => r.status === 'fulfilled').length;
+      const results = await Promise.all(gradePromises);
+      const errors = results.filter((r: any) => r && r.error);
 
-      // Cerrar sesión en backend
-      if (sessionId) {
+      // Cerrar sesión en backend si existe
+      if (sessionId && sessionId !== "undefined") {
         try {
           await api.post(`/gamificacion/sesion/${sessionId}/finalizar/`, { notas: [] });
         } catch (e) {
-          console.warn("Sesión no cerrada en backend, pero notas enviadas.");
+          console.warn("Sesión no cerrada formalmente, pero notas enviadas.");
         }
       }
 
-      toast({ 
-        title: "Sincronización Exitosa", 
-        description: `Se han registrado ${successCount} de ${validParticipants.length} calificaciones.` 
-      });
+      if (errors.length > 0) {
+        toast({ 
+          variant: "destructive", 
+          title: "Sincronización Parcial", 
+          description: `Se guardaron ${results.length - errors.length} notas. ${errors.length} fallaron por problemas de ID.` 
+        });
+      } else {
+        toast({ 
+          title: "¡Éxito Total!", 
+          description: `Se han registrado ${results.length} calificaciones en el Registro Auxiliar.` 
+        });
+      }
       
-      // REDIRECCIÓN SEGURA: Priorizar periodo de la evaluación o de la URL
+      // REDIRECCIÓN SEGURA: Usar IDs reales del objeto config
       const targetPeriodId = config.periodo_id || searchParams.get('periodo_id') || 'ACTUAL';
       router.push(`/instructor/grades/${config.unidad_id}?periodo_id=${targetPeriodId}`);
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Error de Cierre", description: e.message });
+      toast({ variant: "destructive", title: "Error de Sincronización", description: e.message });
     } finally {
       setIsClosing(false);
     }
@@ -255,15 +274,20 @@ export default function InstructorQuizPage() {
                     const totalQ = config.configuracion_json?.questions?.length || 20;
                     const corrects = p.answers?.filter((a: any) => a.isCorrect).length || 0;
                     const grade = Math.round((corrects / totalQ) * (config.puntaje_maximo || 20));
+                    const isIdentified = p.studentId && p.studentId !== "undefined";
+                    
                     return (
-                      <TableRow key={p._id} className="hover:bg-slate-50 transition-colors">
+                      <TableRow key={p._id} className={cn("hover:bg-slate-50 transition-colors", !isIdentified && "bg-amber-50/30")}>
                         <TableCell className="pl-10 py-6">
                            <div className="flex items-center gap-4">
                               <Avatar className="h-10 w-10 border-2 border-white shadow-md">
                                  <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(p.avatar)}`} />
                                  <AvatarFallback className="bg-slate-100">{getInitials(p.name)}</AvatarFallback>
                               </Avatar>
-                              <span className="font-bold text-slate-900 uppercase text-sm truncate w-64">{p.name}</span>
+                              <div className="flex flex-col">
+                                <span className="font-bold text-slate-900 uppercase text-sm truncate w-64">{p.name}</span>
+                                {!isIdentified && <span className="text-[8px] font-black text-amber-600 uppercase">Sin ID Verificado</span>}
+                              </div>
                            </div>
                         </TableCell>
                         <TableCell className="text-center">
@@ -330,11 +354,13 @@ export default function InstructorQuizPage() {
                  <p className="text-[11px] font-black uppercase text-slate-400 tracking-widest">PIN DE ACCESO</p>
                  <h3 className="text-8xl font-black text-primary font-mono tracking-tighter">{roomCode}</h3>
                  <div className="p-6 bg-slate-50 rounded-[2.5rem] inline-block border-2 border-slate-100 shadow-inner">
-                    <img 
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(window.location.origin)}/student/quiz/join?pin=${roomCode}`} 
-                      className="w-44 h-44 mix-blend-multiply" 
-                      alt="QR" 
-                    />
+                    {mounted && (
+                      <img 
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(window.location.origin)}/student/quiz/join?pin=${roomCode}`} 
+                        className="w-44 h-44 mix-blend-multiply" 
+                        alt="QR" 
+                      />
+                    )}
                  </div>
               </div>
             </div>
