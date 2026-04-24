@@ -16,8 +16,7 @@ import {
   CircleDashed, 
   GraduationCap,
   ClipboardCheck,
-  LayoutDashboard,
-  Gamepad2
+  LayoutDashboard
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
@@ -28,16 +27,12 @@ export default function InstructorDashboard() {
   const [periods, setPeriods] = React.useState<any[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
   const [selectedPeriodId, setSelectedPeriodId] = React.useState<string>("")
-  const [userName, setUserName] = React.useState("USUARIO DOCENTE")
   const [attendanceStatus, setAttendanceStatus] = React.useState<Record<string, boolean>>({})
 
   const fetchData = React.useCallback(async () => {
     setIsLoading(true)
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      if (user?.user_metadata?.firstname) {
-        setUserName(`${user.user_metadata.firstname} ${user.user_metadata.lastname || ""}`.trim().toUpperCase())
-      }
 
       const periodData = await api.get<any[]>('/periodos/')
       setPeriods(periodData)
@@ -130,11 +125,7 @@ export default function InstructorDashboard() {
                   <Badge variant="outline" className="text-[10px] font-black uppercase tracking-widest bg-slate-50 text-slate-500 rounded-lg px-3 py-1">
                     UD: {asg.unidad_id.substring(0,8)}
                   </Badge>
-                  <Button asChild variant="ghost" size="icon" className="h-12 w-12 rounded-2xl text-accent hover:bg-accent hover:text-white transition-all">
-                    <Link href={`/instructor/quiz/${asg.unidad_id}`}>
-                      <Gamepad2 className="h-6 w-6" />
-                    </Link>
-                  </Button>
+                  <GraduationCap className="h-6 w-6 text-primary/20" />
                 </div>
                 <div>
                   <CardTitle className="text-xl md:text-2xl font-headline font-black line-clamp-2 text-slate-800 leading-tight">
@@ -149,7 +140,7 @@ export default function InstructorDashboard() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="flex items-center gap-3 p-4 rounded-2xl bg-slate-50 border border-slate-100/50 shadow-inner">
                     <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-primary shadow-sm border">
-                      <GraduationCap className="h-4 w-4" />
+                      <BookOpen className="h-4 w-4" />
                     </div>
                     <div className="flex flex-col">
                       <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Ciclo</span>
