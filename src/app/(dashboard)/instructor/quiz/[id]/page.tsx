@@ -5,7 +5,7 @@ import * as React from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { 
   ArrowLeft, Users, Gamepad2, Sparkles, 
-  Loader2, RefreshCcw, Radio, Zap, AlertCircle
+  Loader2, RefreshCcw, Radio, Zap
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"

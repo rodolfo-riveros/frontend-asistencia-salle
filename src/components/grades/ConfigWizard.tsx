@@ -29,8 +29,7 @@ import {
   Gamepad2, 
   CheckCircle2, 
   Sparkles, 
-  Loader2,
-  RefreshCcw
+  Loader2
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ChecklistConfig } from "./editor/ChecklistConfig"
@@ -44,15 +43,6 @@ import { api } from "@/lib/api"
 import { toast } from "@/hooks/use-toast"
 import { analyzeInstrument } from "@/ai/flows/analyze-instrument-flow"
 import { generateQuiz } from "@/ai/flows/generate-quiz-flow"
-
-const INST_LABELS: Record<string, string> = {
-  manual: 'Nota Directa',
-  cotejo: 'Lista de Cotejo',
-  rubrica: 'Rúbrica',
-  escala: 'Escala Valorativa',
-  anecdotario: 'Guía Observación',
-  quizz: 'Gamificación'
-}
 
 interface ConfigWizardProps {
   isOpen: boolean
@@ -68,7 +58,7 @@ interface ConfigWizardProps {
   newIndicatorWeight: number
   setNewIndicatorWeight: (val: number) => void
   existingIndicators: any[]
-  newInstType: 'manual' | 'cotejo' | 'rubrica' | 'escala' | 'anecdotario'
+  newInstType: 'manual' | 'cotejo' | 'rubrica' | 'escala' | 'anecdotario' | 'quizz'
   setNewInstType: (val: any) => void
   newStrategyType: 'individual' | 'grupal' | 'quizz'
   setNewStrategyType: (val: any) => void
@@ -100,12 +90,10 @@ export function ConfigWizard({
   students, groupSize, setGroupSize, studentGroups, setStudentGroups, addColumn, resetEditor
 }: ConfigWizardProps) {
   
-  const router = useRouter()
   const [isFinishing, setIsFinishing] = React.useState(false)
   const [isGeneratingQuiz, setIsGeneratingQuiz] = React.useState(false)
   const [registeredIndicatorId, setRegisteredIndicatorId] = React.useState<string | null>(null)
   const [registeredEvalId, setRegisteredEvalId] = React.useState<string | null>(null)
-  const [originalIndicator, setOriginalIndicator] = React.useState<any>(null)
   const [isScanning, setIsScanning] = React.useState(false)
   const [quizQuestions, setQuizQuestions] = React.useState<any[]>([])
 
@@ -120,7 +108,6 @@ export function ConfigWizard({
         reader.readAsDataURL(file);
       });
       const analysis = await analyzeInstrument({ photoDataUri: base64 });
-      
       const mappedType = analysis.type === 'guia' ? 'anecdotario' : analysis.type;
       
       if (mappedType) setNewInstType(mappedType);
@@ -153,7 +140,7 @@ export function ConfigWizard({
         }
       }
       setEditorCriteria(parsedCriteria);
-      toast({ title: "Digitalización Exitosa", description: "Instrumento interpretado por la IA." });
+      toast({ title: "Digitalización Exitosa" });
     } catch (err: any) {
       toast({ variant: "destructive", title: "Error de IA", description: err.message });
     } finally {
@@ -164,7 +151,7 @@ export function ConfigWizard({
 
   const handleGenerateQuizQuestions = async () => {
     if (!editorCriteria.length) {
-      return toast({ variant: "destructive", title: "Sin Criterios", description: "Define criterios pedagógicos primero." });
+      return toast({ variant: "destructive", title: "Sin Criterios", description: "Digitalice criterios pedagógicos primero." });
     }
     setIsGeneratingQuiz(true);
     try {
@@ -172,8 +159,12 @@ export function ConfigWizard({
         criteria: editorCriteria.map((c, i) => ({ id: i.toString(), description: c.description || c.category })),
         subjectName: newColName
       });
-      setQuizQuestions(result.questions);
-      toast({ title: "Preguntas Generadas", description: "Cuestionario técnico con rigor académico creado." });
+      const questionsWithIds = result.questions.map((q: any) => ({
+        ...q,
+        id: `q-${Math.random().toString(36).substr(2, 9)}`
+      }));
+      setQuizQuestions(questionsWithIds);
+      toast({ title: "Preguntas Generadas con Rigor Técnico" });
     } catch (e: any) {
       toast({ variant: "destructive", title: "Error de IA", description: e.message });
     } finally {
@@ -198,7 +189,6 @@ export function ConfigWizard({
         res = await api.post('/evaluaciones/indicadores/', payload)
       }
       setRegisteredIndicatorId(res.id)
-      setOriginalIndicator(payload)
       setSetupStep(1)
       toast({ title: "Indicador Registrado" })
     } catch (e: any) {
@@ -209,7 +199,6 @@ export function ConfigWizard({
   }
 
   const registerStep2 = async () => {
-    if (!registeredIndicatorId) return;
     setIsFinishing(true)
     try {
       const payload = {
@@ -259,7 +248,6 @@ export function ConfigWizard({
   }
 
   const registerStep4 = async () => {
-    if (!registeredEvalId) return;
     setIsFinishing(true);
     try {
       const groupsMap: Record<string, string[]> = {};
@@ -284,15 +272,15 @@ export function ConfigWizard({
     if (!registeredEvalId || quizQuestions.length === 0) return;
     setIsFinishing(true);
     try {
-      // Guardamos la configuración final en FastAPI (incluyendo preguntas generadas)
-      await api.post<any>('/gamificacion/sesion/', {
+      // Guardar en FastAPI para persistencia
+      await api.post('/gamificacion/sesion/', {
         evaluacion_id: registeredEvalId,
         configuracion_json: { strategy: 'quizz', criteria: editorCriteria, questions: quizQuestions }
       });
-      toast({ title: "Configuración Guardada", description: "El Quizz ha sido registrado exitosamente." });
+      toast({ title: "Gamificación Registrada", description: "La configuración ha sido guardada en la base de datos." });
       addColumn(); setIsOpen(false); resetEditor();
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Error de Registro", description: e.message || "Fallo al guardar la sesión." });
+      toast({ variant: "destructive", title: "Error de Registro", description: e.message });
     } finally {
       setIsFinishing(false);
     }
