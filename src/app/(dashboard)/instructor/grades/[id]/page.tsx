@@ -46,7 +46,7 @@ const DEFAULT_SCALE_LEVELS = [
   { label: 'Deficiente', points: 1 },
 ]
 
-export default function AcademicGradebookPage() {
+function GradebookContent() {
   const params = useParams()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -491,5 +491,13 @@ export default function AcademicGradebookPage() {
         handleGradeChange={handleGradeChange}
       />
     </div>
+  )
+}
+
+export default function AcademicGradebookPage() {
+  return (
+    <React.Suspense fallback={<div className="h-screen flex flex-col items-center justify-center gap-4"><Loader2 className="h-12 w-12 animate-spin text-primary" /><p className="font-black uppercase text-xs tracking-widest text-slate-400">Sincronizando Registro Auxiliar...</p></div>}>
+      <GradebookContent />
+    </React.Suspense>
   )
 }

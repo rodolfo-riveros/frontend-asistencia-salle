@@ -30,7 +30,7 @@ const STATUS_MAP: Record<string, string> = { 'Presente': 'P', 'Falta': 'F', 'Tar
 const REVERSE_MAP: Record<string, string> = { 'P': 'Presente', 'F': 'Falta', 'T': 'Tarde', 'J': 'Justificado' }
 const COLORS = { Presente: '#10b981', Falta: '#ef4444', Tarde: '#f59e0b', Justificado: '#3b82f6' }
 
-export default function AttendancePage() {
+function AttendanceContent() {
   const params = useParams()
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -245,14 +245,12 @@ export default function AttendancePage() {
 
       const doc = new jsPDF('l', 'mm', 'a4')
       
-      // Cabecera Bonita
       doc.setFontSize(16); doc.setTextColor(0, 51, 102); doc.setFont("helvetica", "bold")
       doc.text("INSTITUTO DE EDUCACIÓN SUPERIOR LA SALLE - URUBAMBA", 14, 15)
       
       doc.setFontSize(9); doc.setTextColor(100); doc.setFont("helvetica", "bold")
       doc.text("REPORTE OFICIAL DE ASISTENCIA ACADÉMICA", 14, 22)
       
-      // Bloque de Datos Académicos
       doc.setFontSize(8); doc.setTextColor(0); doc.setFont("helvetica", "normal")
       doc.text("UNIDAD DIDÁCTICA:", 14, 30); doc.setFont("helvetica", "bold")
       doc.text(`${courseInfo.unidad_nombre.toUpperCase()}`, 45, 30)
@@ -265,7 +263,6 @@ export default function AttendancePage() {
       doc.text("DOCENTE RESPONSABLE:", 14, 40); doc.setFont("helvetica", "bold")
       doc.text(`${userName}`, 55, 40)
       
-      // Datos a la derecha
       doc.setFont("helvetica", "normal")
       doc.text("SEMESTRE ACADÉMICO:", 230, 30); doc.setFont("helvetica", "bold")
       doc.text(`${courseInfo.semestre}`, 270, 30)
@@ -383,6 +380,14 @@ export default function AttendancePage() {
 
       {aiResult && <AiInsightsPanel aiResult={aiResult} />}
     </div>
+  )
+}
+
+export default function AttendancePage() {
+  return (
+    <React.Suspense fallback={<div className="h-screen flex flex-col items-center justify-center gap-4"><Loader2 className="h-10 w-10 animate-spin text-primary" /><p className="text-sm font-bold uppercase tracking-widest text-slate-400">Cargando Registro de Asistencia...</p></div>}>
+      <AttendanceContent />
+    </React.Suspense>
   )
 }
 
