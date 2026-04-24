@@ -10,7 +10,7 @@ import {
   AlertTriangle 
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
+import { Card, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
@@ -33,7 +33,6 @@ export default function InstructorQuizPage() {
 
   const createRoom = useMutation(convexApi.rooms.createRoom)
   const updateStatus = useMutation(convexApi.rooms.updateStatus)
-  // useQuery devuelve undefined mientras carga y null si no encuentra nada
   const room = useQuery(convexApi.rooms.getRoom, roomCode ? { roomCode } : "skip")
 
   React.useEffect(() => {
@@ -89,8 +88,9 @@ export default function InstructorQuizPage() {
       setRoomCode(session.room_code)
       setSessionId(session.sesion_id)
       setIsFullscreen(true)
+      toast({ title: "Arena Rank-UP Abierta", description: "La sala ha sido sincronizada con la nube." })
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Fallo al abrir sala" })
+      toast({ variant: "destructive", title: "Fallo al abrir sala", description: e.message })
     } finally {
       setIsSyncing(false)
     }
@@ -113,7 +113,7 @@ export default function InstructorQuizPage() {
 
     try {
       await api.post(`/gamificacion/sesion/${sessionId}/finalizar/`, { notas: results })
-      toast({ title: "Notas sincronizadas" })
+      toast({ title: "Notas sincronizadas con el registro oficial" })
     } catch (e) { 
       toast({ variant: "destructive", title: "Error sincronizando notas" }) 
     }
@@ -133,9 +133,7 @@ export default function InstructorQuizPage() {
     )
   }
 
-  // Monitor en pantalla completa
   if (isFullscreen && roomCode) {
-    // room === undefined significa que la consulta a Convex sigue en curso
     if (room === undefined) {
       return (
         <div className="fixed inset-0 z-[100] bg-white flex flex-col items-center justify-center gap-6">
@@ -148,7 +146,6 @@ export default function InstructorQuizPage() {
       )
     }
 
-    // room === null significa que terminó de buscar pero no existe la sala
     if (room === null) {
       return (
         <div className="fixed inset-0 z-[100] bg-white flex flex-col items-center justify-center gap-6 p-10 text-center">
@@ -156,8 +153,8 @@ export default function InstructorQuizPage() {
             <AlertTriangle className="h-12 w-12 text-red-500" />
           </div>
           <div className="space-y-2">
-            <h2 className="text-2xl font-black text-slate-900 uppercase">Sala no encontrada</h2>
-            <p className="text-sm text-slate-500 max-w-xs mx-auto">No se pudo recuperar la información de la arena en Convex. Revisa tu conexión.</p>
+            <h2 className="text-2xl font-black text-slate-900 uppercase">Arena no encontrada</h2>
+            <p className="text-sm text-slate-500 max-w-xs mx-auto">No se pudo recuperar la información en tiempo real. Reintenta abrir la sala.</p>
           </div>
           <Button onClick={() => setIsFullscreen(false)} variant="outline" className="h-12 px-8 font-black uppercase text-xs tracking-widest rounded-2xl">
             Volver al Panel
@@ -302,7 +299,6 @@ export default function InstructorQuizPage() {
     )
   }
 
-  // Vista de configuración normal
   return (
     <div className="space-y-12 pb-20">
       <div className="flex flex-col md:flex-row justify-between items-start gap-8 border-b pb-10">
@@ -351,7 +347,7 @@ export default function InstructorQuizPage() {
             
             <div className="space-y-10">
               {(config?.configuracion_json?.questions || []).map((q: any, idx: number) => (
-                <div key={`view-q-${idx}`} className="p-10 bg-slate-50/50 rounded-[3.5rem] border-2 border-slate-100 space-y-8 group hover:border-primary/20 transition-all shadow-sm">
+                <div key={q.id || idx} className="p-10 bg-slate-50/50 rounded-[3.5rem] border-2 border-slate-100 space-y-8 group hover:border-primary/20 transition-all shadow-sm">
                   <div className="flex justify-between items-start">
                     <div className="space-y-3">
                        <Badge className="bg-primary text-white font-black text-[10px] px-5 py-1 rounded-full uppercase tracking-widest">FASE {idx + 1}</Badge>
@@ -364,7 +360,7 @@ export default function InstructorQuizPage() {
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {q.options.map((opt: string, oIdx: number) => (
-                      <div key={`view-q-${idx}-opt-${oIdx}`} className={cn(
+                      <div key={oIdx} className={cn(
                         "p-6 rounded-2xl border-2 text-xs font-bold uppercase transition-all shadow-sm flex items-center gap-4",
                         q.correctIndex === oIdx ? "bg-emerald-50 border-emerald-500/30 text-emerald-700 ring-4 ring-emerald-500/5" : "bg-white border-slate-50 text-slate-400"
                       )}>
@@ -399,7 +395,7 @@ export default function InstructorQuizPage() {
                   <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Criterios Técnicos Evaluados</span>
                   <div className="grid gap-3">
                     {(config.configuracion_json?.criteria || []).map((c: any, i: number) => (
-                      <div key={`crit-${i}`} className="flex items-center gap-5 p-5 bg-white rounded-2xl border-2 border-slate-100 group hover:border-primary/30 transition-all shadow-sm">
+                      <div key={i} className="flex items-center gap-5 p-5 bg-white rounded-2xl border-2 border-slate-100 group hover:border-primary/30 transition-all shadow-sm">
                          <div className="w-10 h-10 rounded-xl bg-primary/5 flex items-center justify-center text-primary font-black text-sm shrink-0 group-hover:bg-primary group-hover:text-white transition-colors">{i + 1}</div>
                          <p className="text-[11px] font-bold text-slate-600 uppercase tracking-tight leading-tight">{c.description || c.category}</p>
                       </div>

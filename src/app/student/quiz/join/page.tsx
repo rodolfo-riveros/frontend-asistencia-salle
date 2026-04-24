@@ -60,7 +60,7 @@ function JoinForm() {
       localStorage.setItem(`p_${pin.toUpperCase()}`, participantId)
       router.push(`/student/quiz/${pin.toUpperCase()}`)
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Sala no disponible", description: e.message || "Verifica que el PIN sea correcto." })
+      toast({ variant: "destructive", title: "Arena no disponible", description: e.message || "Verifica que el PIN sea correcto." })
     } finally {
       setIsJoining(false)
     }
