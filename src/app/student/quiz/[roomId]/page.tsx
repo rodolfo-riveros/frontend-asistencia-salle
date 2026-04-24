@@ -23,6 +23,7 @@ export default function StudentGameRoomPage() {
   const [lastAnswerCorrect, setLastAnswerCorrect] = React.useState<boolean | null>(null)
   const [shakeScreen, setShakeScreen] = React.useState(false)
   const [isQuizFinished, setIsQuizFinished] = React.useState(false)
+  const [timeLeft, setTimeLeft] = React.useState(20)
 
   const room = useQuery(convexApi.rooms.getRoom, { roomCode: (params.roomId as string).toUpperCase() })
   const submitAnswer = useMutation(convexApi.rooms.submitAnswer)
@@ -33,12 +34,14 @@ export default function StudentGameRoomPage() {
     return room.participants.find((p: any) => p._id === participantId)
   }, [room?.participants, participantId])
 
+  // Cargar sesión del participante
   React.useEffect(() => {
     const pId = localStorage.getItem(`p_${params.roomId}`)
     if (!pId) router.push('/student/quiz/join')
     else setParticipantId(pId)
   }, [params.roomId, router])
 
+  // Detector de Fraude
   React.useEffect(() => {
     const handleVisibilityChange = () => {
       if (participantId) {
@@ -49,6 +52,7 @@ export default function StudentGameRoomPage() {
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange)
   }, [participantId, reportCheat])
 
+  // Lógica de Preguntas y Opciones
   React.useEffect(() => {
     if (room?.status === 'active' && room.questions) {
       const currentQ = room.questions[localQuestionIndex]
@@ -57,30 +61,36 @@ export default function StudentGameRoomPage() {
         setShuffledOptions([...options].sort(() => Math.random() - 0.5))
         setHasAnswered(false)
         setLastAnswerCorrect(null)
+        setTimeLeft(currentQ.timeLimit || 20)
       } else if (localQuestionIndex >= room.questions.length) {
         setIsQuizFinished(true)
       }
     }
   }, [localQuestionIndex, room?.status, room?.questions])
 
-  if (!room) return (
-    <div className="min-h-screen bg-white flex flex-col items-center justify-center gap-8 p-10">
-      <div className="relative">
-        <Loader2 className="h-20 w-20 animate-spin text-primary opacity-20" />
-        <Zap className="h-10 w-10 text-primary absolute inset-0 m-auto animate-pulse" />
-      </div>
-      <p className="text-slate-400 font-black uppercase text-[12px] tracking-[0.5em] text-center max-w-[250px] leading-relaxed">
-        Sincronizando Arena Rank-UP...
-      </p>
-    </div>
-  )
+  // Contador de Tiempo
+  React.useEffect(() => {
+    if (room?.status !== 'active' || isQuizFinished || hasAnswered) return
 
-  const currentQ = room.questions[localQuestionIndex]
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer)
+          handleAnswer(-1) // Tiempo agotado = Incorrecto
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [localQuestionIndex, hasAnswered, room?.status, isQuizFinished])
 
   const handleAnswer = async (originalIndex: number) => {
-    if (hasAnswered || !participantId || !currentQ) return
+    if (hasAnswered || !participantId || !room?.questions) return
     
-    const isCorrect = originalIndex === currentQ.correctIndex
+    const currentQ = room.questions[localQuestionIndex]
+    const isCorrect = originalIndex === currentQ?.correctIndex
     setHasAnswered(true)
     setLastAnswerCorrect(isCorrect)
 
@@ -104,7 +114,7 @@ export default function StudentGameRoomPage() {
         isCorrect: isCorrect
       })
       
-      // Transición más rápida (1.2 segundos)
+      // Transición rápida
       setTimeout(() => {
         if (localQuestionIndex + 1 < room.questions.length) {
           setLocalQuestionIndex(prev => prev + 1)
@@ -118,11 +128,26 @@ export default function StudentGameRoomPage() {
     }
   }
 
+  if (!room) return (
+    <div className="min-h-screen bg-white flex flex-col items-center justify-center gap-8 p-10">
+      <div className="relative">
+        <Loader2 className="h-20 w-20 animate-spin text-primary opacity-20" />
+        <Zap className="h-10 w-10 text-primary absolute inset-0 m-auto animate-pulse" />
+      </div>
+      <p className="text-slate-400 font-black uppercase text-[12px] tracking-[0.5em] text-center max-w-[250px] leading-relaxed">
+        Sincronizando Arena Rank-UP...
+      </p>
+    </div>
+  )
+
+  const currentQ = room.questions[localQuestionIndex]
+
   return (
     <div className={cn(
-      "min-h-screen bg-[#f8f9fa] p-4 flex flex-col justify-between overflow-hidden transition-all duration-500",
+      "min-h-screen bg-[#f8f9fa] p-4 flex flex-col justify-between overflow-hidden transition-all duration-500 font-body",
       shakeScreen && "animate-shake bg-red-600/5"
     )}>
+      {/* Barra de Progreso */}
       <div className="absolute top-0 left-0 w-full h-2 bg-slate-200">
         <div 
           className="h-full bg-primary transition-all duration-500 ease-out shadow-[0_0_15px_rgba(34,97,203,0.4)]" 
@@ -177,6 +202,14 @@ export default function StudentGameRoomPage() {
         ) : (room.status === 'active' && !isQuizFinished) ? (
           <div className="w-full space-y-10 animate-in fade-in duration-500 px-4">
             <div className="text-center space-y-6">
+               <div className="flex items-center justify-center gap-3 mb-4">
+                  <div className={cn(
+                    "flex items-center gap-2 px-6 py-2 rounded-full border-2 font-black text-sm",
+                    timeLeft <= 5 ? "bg-red-50 border-red-500 text-red-600 animate-pulse" : "bg-white border-slate-100 text-slate-400"
+                  )}>
+                    <Clock className="h-4 w-4" /> {timeLeft}s
+                  </div>
+               </div>
                <h1 className="text-xl md:text-3xl font-black text-slate-900 leading-snug uppercase italic tracking-tight max-w-3xl mx-auto">
                  {currentQ?.text}
                </h1>
@@ -192,13 +225,13 @@ export default function StudentGameRoomPage() {
                   className={cn(
                     "h-24 md:h-28 text-sm md:text-lg font-bold uppercase rounded-2xl border-2 transition-all shadow-md whitespace-normal px-6 py-4 flex items-center justify-start text-left overflow-hidden",
                     !hasAnswered && "hover:border-primary/50 hover:bg-slate-50 hover:scale-[1.01] active:scale-95",
-                    hasAnswered && opt.originalIndex === currentQ.correctIndex && "bg-emerald-500 text-white border-emerald-500 shadow-emerald-200",
-                    hasAnswered && opt.originalIndex !== currentQ.correctIndex && "opacity-40 grayscale"
+                    hasAnswered && opt.originalIndex === currentQ?.correctIndex && "bg-emerald-500 text-white border-emerald-500 shadow-emerald-200",
+                    hasAnswered && opt.originalIndex !== currentQ?.correctIndex && "opacity-40 grayscale"
                   )}
                 >
                   <div className={cn(
                     "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border-2 font-black text-xs mr-4",
-                    hasAnswered && opt.originalIndex === currentQ.correctIndex ? "bg-white text-emerald-600 border-white" : "bg-slate-50 text-slate-400 border-slate-100"
+                    hasAnswered && opt.originalIndex === currentQ?.correctIndex ? "bg-white text-emerald-600 border-white" : "bg-slate-50 text-slate-400 border-slate-100"
                   )}>
                     {String.fromCharCode(65 + i)}
                   </div>
@@ -223,16 +256,35 @@ export default function StudentGameRoomPage() {
             )}
           </div>
         ) : (
-          <div className="text-center space-y-10 animate-in zoom-in-95 w-full px-4">
-            <div className="p-12 md:p-20 bg-white rounded-[4rem] border-t-[10px] border-emerald-500 shadow-xl space-y-8">
-              <Trophy className="h-28 w-28 text-yellow-400 mx-auto animate-bounce drop-shadow-lg" />
-              <div className="space-y-3">
-                <h2 className="text-4xl md:text-6xl font-black text-slate-900 uppercase italic tracking-tighter leading-none">Ascenso Terminado</h2>
-                <p className="text-slate-400 font-black uppercase tracking-[0.3em] text-[10px]">Héroe: {myData?.avatar || 'Salle'}. Mira el podio en la pantalla principal.</p>
+          <div className="text-center space-y-10 animate-in zoom-in-95 w-full px-4 max-w-2xl mx-auto">
+            <div className="p-12 md:p-16 bg-white rounded-[4rem] border-t-[10px] border-emerald-500 shadow-2xl space-y-10 relative overflow-hidden">
+              <div className="absolute -top-12 -right-12 w-48 h-48 bg-primary/5 rounded-full blur-3xl" />
+              <div className="relative">
+                 <Trophy className="h-28 w-28 text-yellow-400 mx-auto animate-bounce drop-shadow-lg" />
+                 <Sparkles className="h-8 w-8 text-yellow-400 absolute top-0 right-1/4 animate-pulse" />
               </div>
-              <Button onClick={() => router.push('/')} className="w-full h-16 bg-primary text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-lg">
-                Volver al Inicio
-              </Button>
+              
+              <div className="space-y-4">
+                <h2 className="text-4xl md:text-5xl font-black text-slate-900 uppercase italic tracking-tighter leading-none">Ascenso Terminado</h2>
+                <div className="bg-slate-50 rounded-3xl p-6 border-2 border-slate-100 inline-block">
+                   <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.3em] mb-2">PUNTAJE ACUMULADO</p>
+                   <span className="text-5xl font-black text-primary font-mono">{myData?.score || 0}</span>
+                </div>
+                <p className="text-slate-400 font-bold uppercase tracking-[0.2em] text-[10px] pt-4">
+                   Héroe: {myData?.avatar || 'Salle'}
+                </p>
+              </div>
+
+              {room.status === 'finished' ? (
+                <Button onClick={() => router.push('/student/quiz/join')} className="w-full h-16 bg-primary hover:bg-primary/90 text-white rounded-3xl font-black uppercase text-xs tracking-widest shadow-xl transition-all active:scale-95">
+                  Volver al Inicio
+                </Button>
+              ) : (
+                <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100 flex items-center justify-center gap-3">
+                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                  <p className="text-[10px] font-black text-primary uppercase tracking-widest">Esperando resultados finales del docente...</p>
+                </div>
+              )}
             </div>
           </div>
         )}
