@@ -294,7 +294,7 @@ export default function InstructorQuizPage() {
         </div>
 
         {!roomCode ? (
-          <Button onClick={handleLaunchRoom} disabled={isSyncing} className="h-20 px-16 bg-primary hover:bg-primary/95 text-white rounded-[2rem] font-black uppercase text-xs tracking-widest shadow-2xl shadow-primary/30 gap-4 transition-all active:scale-95">
+          <Button onClick={handleLaunchRoom} disabled={isSyncing} className="h-20 px-16 bg-primary hover:bg-primary/95 text-white rounded-[2rem] font-black uppercase text-xs tracking-widest shadow-2xl shadow-primary/30 gap-4 transition-all active:scale-95 disabled:grayscale">
             {isSyncing ? <Loader2 className="h-6 w-6 animate-spin" /> : <Radio className="h-6 w-6 animate-pulse" />} ABRIR SALA DE ASCENSO
           </Button>
         ) : (
