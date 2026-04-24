@@ -31,7 +31,7 @@ export function QuestionEditor({ questions, onUpdate }: { questions: any[], onUp
   return (
     <div className="space-y-6">
       {questions.map((q, idx) => (
-        <Card key={q.id || idx} className="p-8 border-2 border-slate-100 rounded-[2rem] shadow-sm hover:border-primary/20 transition-all bg-white overflow-hidden relative">
+        <Card key={q.id || `temp-${idx}`} className="p-8 border-2 border-slate-100 rounded-[2rem] shadow-sm hover:border-primary/20 transition-all bg-white overflow-hidden relative">
           <div className="absolute top-0 left-0 h-full w-2 bg-primary/10" />
           <div className="flex justify-between items-start mb-6">
             <Badge variant="outline" className="bg-primary/5 text-primary border-primary/10 font-black uppercase text-[10px] tracking-widest px-3 py-1">PREGUNTA {idx + 1}</Badge>
@@ -53,10 +53,11 @@ export function QuestionEditor({ questions, onUpdate }: { questions: any[], onUp
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {q.options.map((opt: string, oIdx: number) => (
-                <div key={`${q.id}-opt-${oIdx}`} className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all ${
+                <div key={`${q.id || idx}-opt-${oIdx}`} className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all ${
                   q.correctIndex === oIdx ? 'border-emerald-500 bg-emerald-50/50' : 'border-slate-50 bg-white'
                 }`}>
                   <button 
+                    type="button"
                     onClick={() => updateQ(q.id, 'correctIndex', oIdx)}
                     className={`shrink-0 h-10 w-10 rounded-xl flex items-center justify-center transition-all ${
                       q.correctIndex === oIdx ? 'bg-emerald-500 text-white shadow-lg' : 'bg-slate-100 text-slate-300 hover:bg-slate-200'

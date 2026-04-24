@@ -1,5 +1,6 @@
-import { mutation as rawMutation, query as rawQuery } from "convex/server";
 
-// Re-exportamos para asegurar consistencia en las definiciones locales
-export const mutation = rawMutation;
-export const query = rawQuery;
+import { mutationGeneric, queryGeneric } from "convex/server";
+
+// Re-exportamos usando los genéricos correctos de la librería para evitar errores de compilación
+export const mutation = mutationGeneric;
+export const query = queryGeneric;

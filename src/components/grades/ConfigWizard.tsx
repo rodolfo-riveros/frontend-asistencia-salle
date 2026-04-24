@@ -31,7 +31,6 @@ import {
   Sparkles, 
   Loader2,
   RefreshCcw,
-  Zap,
   Radio
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -100,7 +99,7 @@ export function ConfigWizard({
   newIndicatorDescription, setNewIndicatorDescription, newIndicatorWeight, setNewIndicatorWeight,
   existingIndicators, newInstType, setNewInstType, newStrategyType, setNewStrategyType,
   newColName, setNewColName, newInstrumentWeight, setNewInstrumentWeight, newMaxPoints, setNewMaxPoints,
-  editorCriteria, setEditorCriteria, fileInputRef, totalPointsStep,
+  editorCriteria, setEditorCriteria, fileInputRef,
   students, groupSize, setGroupSize, studentGroups, setStudentGroups, addColumn, resetEditor
 }: ConfigWizardProps) {
   
@@ -352,7 +351,6 @@ export function ConfigWizard({
     if (!registeredEvalId || quizQuestions.length === 0) return;
     setIsFinishing(true);
     try {
-      // 1. Llamar a FastAPI para crear la sesión y persistir config_json
       const sessionRes = await api.post<any>('/gamificacion/sesion/', {
         evaluacion_id: registeredEvalId,
         configuracion_json: {
@@ -364,7 +362,6 @@ export function ConfigWizard({
 
       const { room_code } = sessionRes;
 
-      // 2. Registrar la sala en Convex para tiempo real
       await createRoom({
         roomCode: room_code,
         questions: quizQuestions,
@@ -380,15 +377,9 @@ export function ConfigWizard({
       addColumn(); 
       setIsOpen(false); 
       resetEditor();
-      
-      // Redirigir al panel de control de Quizz
       router.push(`/instructor/quiz/${unidadId}?periodo_id=${periodoId}`);
     } catch (e: any) {
-      toast({ 
-        variant: "destructive", 
-        title: "Error de Registro", 
-        description: e.message || "No se pudo sincronizar la sala con Convex o FastAPI." 
-      });
+      toast({ variant: "destructive", title: "Error de Registro", description: e.message || "Fallo al crear la sala." });
     } finally {
       setIsFinishing(false);
     }
@@ -510,7 +501,7 @@ export function ConfigWizard({
                           const isSelected = registeredIndicatorId === ind.id;
                           return (
                             <button 
-                              key={ind.id || i} 
+                              key={ind.id || `bib-${i}`} 
                               className={cn(
                                 "flex flex-col items-start p-4 rounded-2xl border-2 mb-3 w-full text-left transition-all",
                                 isSelected 
