@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -107,42 +106,44 @@ export function ConfigWizard({
         reader.onload = () => resolve(reader.result as string);
         reader.readAsDataURL(file);
       });
-      const analysis = await analyzeInstrument({ photoDataUri: base64 });
-      const mappedType = analysis.type === 'guia' ? 'anecdotario' : analysis.type;
       
-      if (mappedType) setNewInstType(mappedType);
+      // Enviamos el tipo esperado para que la IA sea más precisa
+      const analysis = await analyzeInstrument({ 
+        photoDataUri: base64,
+        expectedType: newInstType 
+      });
+      
       if (analysis.name) setNewColName(analysis.name);
       if (analysis.suggestedWeight) setNewInstrumentWeight(analysis.suggestedWeight);
       
       let parsedCriteria: any[] = [];
-      if (analysis.type === 'cotejo' || analysis.type === 'guia') {
-        if (analysis.checklistCriteria) {
-          parsedCriteria = analysis.checklistCriteria.map(c => ({ 
-            id: Math.random().toString(), 
-            description: c.description, 
-            points: c.points 
-          }));
-        }
-      } else if (analysis.type === 'rubrica') {
-        if (analysis.rubricDimensions) {
-          parsedCriteria = analysis.rubricDimensions.map(d => ({
-            id: Math.random().toString(),
-            category: d.category,
-            levels: d.levels
-          }));
-        }
-      } else if (analysis.type === 'escala') {
-        if (analysis.checklistCriteria) {
-          parsedCriteria = analysis.checklistCriteria.map(c => ({
-            id: Math.random().toString(),
-            description: c.description
-          }));
-        }
+      if (analysis.checklistCriteria && (newInstType === 'cotejo' || newInstType === 'anecdotario')) {
+        parsedCriteria = analysis.checklistCriteria.map(c => ({ 
+          id: `cr-${Math.random().toString(36).substr(2, 9)}`, 
+          description: c.description, 
+          points: c.points 
+        }));
+      } else if (analysis.rubricDimensions && newInstType === 'rubrica') {
+        parsedCriteria = analysis.rubricDimensions.map(d => ({
+          id: `rb-${Math.random().toString(36).substr(2, 9)}`,
+          category: d.category,
+          levels: d.levels
+        }));
+      } else if (analysis.checklistCriteria && newInstType === 'escala') {
+        parsedCriteria = analysis.checklistCriteria.map(c => ({
+          id: `sc-${Math.random().toString(36).substr(2, 9)}`,
+          description: c.description
+        }));
       }
-      setEditorCriteria(parsedCriteria);
-      toast({ title: "Digitalización Exitosa" });
+
+      if (parsedCriteria.length > 0) {
+        setEditorCriteria(parsedCriteria);
+        toast({ title: "Digitalización Exitosa", description: "El instrumento ha sido estructurado correctamente." });
+      } else {
+        toast({ variant: "destructive", title: "Error de Formato", description: "No se encontraron criterios compatibles con el tipo seleccionado." });
+      }
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Error de IA", description: err.message });
+      toast({ variant: "destructive", title: "Fallo de Digitalización", description: err.message });
     } finally {
       setIsScanning(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -151,20 +152,25 @@ export function ConfigWizard({
 
   const handleGenerateQuizQuestions = async () => {
     if (!editorCriteria.length) {
-      return toast({ variant: "destructive", title: "Sin Criterios", description: "Digitalice criterios pedagógicos primero." });
+      return toast({ variant: "destructive", title: "Sin Criterios", description: "Primero digitaliza los criterios técnicos en el paso anterior." });
     }
     setIsGeneratingQuiz(true);
     try {
       const result = await generateQuiz({
-        criteria: editorCriteria.map((c, i) => ({ id: i.toString(), description: c.description || c.category })),
+        criteria: editorCriteria.map((c, i) => ({ 
+          id: c.id || i.toString(), 
+          description: c.description || c.category 
+        })),
         subjectName: newColName
       });
+      
       const questionsWithIds = result.questions.map((q: any) => ({
         ...q,
         id: `q-${Math.random().toString(36).substr(2, 9)}`
       }));
+      
       setQuizQuestions(questionsWithIds);
-      toast({ title: "Preguntas Generadas con Rigor Técnico" });
+      toast({ title: "Quizz Generado", description: "Se han creado preguntas de alta exigencia técnica." });
     } catch (e: any) {
       toast({ variant: "destructive", title: "Error de IA", description: e.message });
     } finally {
@@ -213,14 +219,13 @@ export function ConfigWizard({
       let res: any = await api.post('/evaluaciones/', payload)
       setRegisteredEvalId(res.id)
       if (newInstType === 'manual') {
-        toast({ title: "Registro Auxiliar Actualizado" })
+        toast({ title: "Registro Exitoso", description: "La columna ha sido añadida al registro auxiliar." })
         addColumn(); setIsOpen(false); resetEditor();
       } else {
         setSetupStep(3)
-        toast({ title: "Actividad Registrada" })
       }
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Error", description: e.message })
+      toast({ variant: "destructive", title: "Error al guardar", description: e.message })
     } finally {
       setIsFinishing(false)
     }
@@ -237,7 +242,7 @@ export function ConfigWizard({
       if (newStrategyType === 'grupal') setSetupStep(4)
       else if (newStrategyType === 'quizz') setSetupStep(5)
       else {
-        toast({ title: "Diseño Guardado" })
+        toast({ title: "Instrumento Guardado" })
         addColumn(); setIsOpen(false); resetEditor();
       }
     } catch (e: any) {
@@ -259,10 +264,10 @@ export function ConfigWizard({
         evaluacion_id: registeredEvalId,
         grupos: Object.entries(groupsMap).map(([name, ids]) => ({ nombre_grupo: name, integrantes: ids }))
       });
-      toast({ title: "Equipos Registrados" });
+      toast({ title: "Equipos Formados", description: "Los grupos han sido vinculados a la evaluación." });
       addColumn(); setIsOpen(false); resetEditor();
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Error", description: e.message });
+      toast({ variant: "destructive", title: "Error en Grupos", description: e.message });
     } finally {
       setIsFinishing(false);
     }
@@ -272,15 +277,18 @@ export function ConfigWizard({
     if (!registeredEvalId || quizQuestions.length === 0) return;
     setIsFinishing(true);
     try {
-      // Guardar en FastAPI para persistencia
       await api.post('/gamificacion/sesion/', {
         evaluacion_id: registeredEvalId,
-        configuracion_json: { strategy: 'quizz', criteria: editorCriteria, questions: quizQuestions }
+        configuracion_json: { 
+          strategy: 'quizz', 
+          criteria: editorCriteria, 
+          questions: quizQuestions 
+        }
       });
-      toast({ title: "Gamificación Registrada", description: "La configuración ha sido guardada en la base de datos." });
+      toast({ title: "Gamificación Lista", description: "La sesión ha sido registrada en el servidor." });
       addColumn(); setIsOpen(false); resetEditor();
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Error de Registro", description: e.message });
+      toast({ variant: "destructive", title: "Error en Gamificación", description: e.message });
     } finally {
       setIsFinishing(false);
     }
@@ -343,12 +351,31 @@ export function ConfigWizard({
                       {existingIndicators.map((ind: any) => {
                         const isSelected = registeredIndicatorId === ind.id;
                         return (
-                          <button key={ind.id} onClick={() => { setNewIndicatorCode(ind.codigo); setNewIndicatorDescription(ind.descripcion); setNewIndicatorWeight(ind.peso_porcentaje); setRegisteredIndicatorId(ind.id); }} className={cn("flex flex-col items-start p-4 rounded-2xl border-2 w-full text-left transition-all", isSelected ? "border-primary bg-primary/5 shadow-md ring-2 ring-primary/10" : "border-slate-50 hover:border-primary/30")}>
+                          <button 
+                            key={ind.id} 
+                            onClick={() => { 
+                              setNewIndicatorCode(ind.codigo); 
+                              setNewIndicatorDescription(ind.descripcion); 
+                              setNewIndicatorWeight(ind.peso_porcentaje); 
+                              setRegisteredIndicatorId(ind.id); 
+                            }} 
+                            className={cn(
+                              "flex flex-col items-start p-4 rounded-2xl border-2 w-full text-left transition-all", 
+                              isSelected 
+                                ? "border-primary bg-primary/5 shadow-md ring-2 ring-primary/10" 
+                                : "border-slate-50 hover:border-primary/30 bg-slate-50/30"
+                            )}
+                          >
                             <div className="flex justify-between w-full font-black text-sm text-primary mb-1">
-                               <span className="flex items-center gap-2">{isSelected && <CheckCircle2 className="h-3 w-3" />}{ind.codigo}</span>
+                               <span className="flex items-center gap-2">
+                                 {isSelected && <CheckCircle2 className="h-4 w-4" />}
+                                 {ind.codigo}
+                               </span>
                                <Badge variant={isSelected ? "default" : "outline"} className="text-[10px]">{ind.peso_porcentaje}%</Badge>
                             </div>
-                            <p className={cn("text-[11px] line-clamp-2", isSelected ? "text-primary/70 font-medium" : "text-slate-500")}>{ind.descripcion}</p>
+                            <p className={cn("text-[11px] line-clamp-2", isSelected ? "text-primary/70 font-bold" : "text-slate-500")}>
+                              {ind.descripcion}
+                            </p>
                           </button>
                         )
                       })}
@@ -431,7 +458,7 @@ export function ConfigWizard({
 
               {setupStep === 5 && (
                 <div className="space-y-8 w-full max-w-4xl">
-                  <div className="flex flex-col md:flex-row justify-between items-center bg-slate-50 p-10 rounded-[3rem] border-2 border-slate-100 gap-8">
+                  <div className="flex flex-col md:flex-row justify-between items-center bg-white p-10 rounded-[3rem] border-2 border-slate-100 gap-8 shadow-sm">
                     <div className="flex items-center gap-6">
                       <div className="p-5 bg-accent rounded-3xl shadow-xl text-white"><Gamepad2 className="h-10 w-10" /></div>
                       <div>
@@ -439,11 +466,18 @@ export function ConfigWizard({
                         <div className="font-black text-3xl tracking-tighter uppercase italic text-slate-900">{newColName}</div>
                       </div>
                     </div>
-                    <Button onClick={handleGenerateQuizQuestions} disabled={isGeneratingQuiz} className="bg-accent hover:bg-accent/90 h-16 px-10 rounded-2xl font-black uppercase text-xs tracking-widest gap-3 shadow-xl shadow-accent/20 text-white">
-                      {isGeneratingQuiz ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-4 w-4" />} Generar con IA
+                    <Button 
+                      onClick={handleGenerateQuizQuestions} 
+                      disabled={isGeneratingQuiz} 
+                      className="bg-accent hover:bg-accent/90 h-16 px-10 rounded-2xl font-black uppercase text-xs tracking-widest gap-3 shadow-xl shadow-accent/20 text-white transition-all"
+                    >
+                      {isGeneratingQuiz ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-4 w-4" />} Generar Banco de Preguntas
                     </Button>
                   </div>
-                  <QuestionEditor questions={quizQuestions} onUpdate={setQuizQuestions} />
+                  
+                  <div className="bg-slate-50/50 p-6 rounded-[2.5rem] border-2 border-slate-100">
+                    <QuestionEditor questions={quizQuestions} onUpdate={setQuizQuestions} />
+                  </div>
                 </div>
               )}
             </div>

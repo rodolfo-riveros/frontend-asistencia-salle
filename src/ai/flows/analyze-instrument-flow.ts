@@ -1,7 +1,7 @@
-
 'use server';
 /**
  * @fileOverview AI flow to analyze pedagogical assessment instruments using Gemini 2.5 Flash.
+ * Optimized to be context-aware of the instrument type selected by the user.
  */
 
 import {ai} from '@/ai/genkit';
@@ -25,11 +25,12 @@ const RubricDimensionSchema = z.object({
 
 const AnalyzeInstrumentInputSchema = z.object({
   photoDataUri: z.string().describe("Data URI of the image (base64). Expected format: 'data:<mimetype>;base64,<encoded_data>'."),
+  expectedType: z.enum(['cotejo', 'rubrica', 'escala', 'anecdotario', 'manual']).optional().describe('The type of instrument the user selected in the UI.'),
 });
 export type AnalyzeInstrumentInput = z.infer<typeof AnalyzeInstrumentInputSchema>;
 
 const AnalyzeInstrumentOutputSchema = z.object({
-  type: z.enum(['cotejo', 'rubrica', 'escala', 'guia']).describe('Identified instrument type.'),
+  type: z.enum(['cotejo', 'rubrica', 'escala', 'anecdotario']).describe('Identified or confirmed instrument type.'),
   name: z.string().describe('Suggested name for the evaluation activity.'),
   description: z.string().describe('Pedagogical intent or context.'),
   suggestedWeight: z.number().optional().describe('Weight percentage (0-100) if found in the document text.'),
@@ -51,25 +52,22 @@ const analyzeInstrumentPrompt = ai.definePrompt({
     temperature: 0.1,
   },
   prompt: `Eres un Consultor Pedagógico Senior para el IES LA SALLE URUBAMBA. 
-Tu misión es digitalizar instrumentos de evaluación a partir de imágenes.
+Tu misión es digitalizar instrumentos de evaluación a partir de imágenes con ALTA PRECISIÓN.
 
-ANALIZA LA IMAGEN Y DETECTA:
-1. TIPO DE INSTRUMENTO:
-   - Si es una lista de ítems con SI/NO o puntajes: 'cotejo'.
-   - Si es una tabla con filas (criterios) y columnas (niveles): 'rubrica'.
-   - Si es una lista de criterios con una escala única (ej: 1 al 5): 'escala'.
-   - Si es un formato de observación de procesos técnicos paso a paso: 'guia'.
+CONTEXTO DEL USUARIO:
+El usuario espera un instrumento de tipo: "{{expectedType}}". 
+Prioriza la extracción de datos siguiendo estrictamente esta estructura.
 
-2. EXTRACCIÓN DE DATOS:
-   - Extrae el NOMBRE de la actividad.
-   - Extrae todos los CRITERIOS o PREGUNTAS.
-   - Si es RÚBRICA: Extrae las dimensiones y descripciones de cada nivel.
-   - Si es COTEJO o GUIA: Ajusta los puntos de cada criterio para que la SUMA TOTAL SEA EXACTAMENTE 20.
-   - PESO: Busca si el documento menciona algún porcentaje (ej: "Vale 30%", "Peso: 40"). Si lo encuentras, extráelo como un número en 'suggestedWeight'.
+INSTRUCCIONES DE EXTRACCIÓN:
+1. SI ES RÚBRICA: Extrae una tabla de dimensiones (filas) y niveles (columnas). Cada dimensión debe tener sus propios descriptores por nivel.
+2. SI ES COTEJO o GUÍA: Extrae una lista de ítems. Ajusta los puntos de cada ítem para que la suma total sea exactamente 20.
+3. SI ES ESCALA: Extrae los criterios y la escala común (ej: 1 al 5).
+4. DATOS GENERALES: Extrae el nombre de la actividad y cualquier porcentaje de peso mencionado.
 
-INSTRUCCIONES CRÍTICAS:
+REGLAS CRÍTICAS:
 - Responde siempre en ESPAÑOL.
-- Asegúrate de que el objeto JSON sea válido y completo.
+- No inventes datos; si algo no es legible, omítelo pero mantén la estructura.
+- Asegúrate de que los puntos sean números válidos.
 
 Imagen: {{media url=photoDataUri}}`,
 });
@@ -77,7 +75,7 @@ Imagen: {{media url=photoDataUri}}`,
 export async function analyzeInstrument(input: AnalyzeInstrumentInput): Promise<AnalyzeInstrumentOutput> {
   const { output } = await analyzeInstrumentPrompt(input);
   if (!output) {
-    throw new Error("La IA no pudo procesar la imagen correctamente.");
+    throw new Error("La IA no pudo procesar la imagen con el rigor requerido.");
   }
   return output;
 }
