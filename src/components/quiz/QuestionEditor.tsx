@@ -1,17 +1,19 @@
+
 "use client"
 
 import * as React from "react"
-import { Trash2, PlusCircle, CheckCircle2, Circle } from "lucide-react"
+import { Trash2, PlusCircle, CheckCircle2, Circle, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { cn } from "@/lib/utils"
 
 export function QuestionEditor({ questions, onUpdate }: { questions: any[], onUpdate: (qs: any[]) => void }) {
   const addQuestion = () => {
     const newId = `manual-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-    onUpdate([...questions, { 
+    onUpdate([...(questions || []), { 
       id: newId,
       text: "",
       options: ["", "", "", ""],
@@ -34,7 +36,7 @@ export function QuestionEditor({ questions, onUpdate }: { questions: any[], onUp
         const itemKey = q.id || `q-key-idx-${idx}`
         
         return (
-          <Card key={itemKey} className="p-10 border-2 border-slate-100 rounded-[2.5rem] shadow-sm hover:border-primary/20 transition-all bg-white overflow-hidden relative group">
+          <Card key={itemKey} className="p-8 md:p-10 border-2 border-slate-100 rounded-[2.5rem] shadow-sm hover:border-primary/20 transition-all bg-white overflow-hidden relative group">
             <div className="absolute top-0 left-0 h-full w-2 bg-primary/5 group-hover:bg-primary/20 transition-colors" />
             <div className="flex justify-between items-start mb-8">
               <Badge variant="outline" className="bg-primary/5 text-primary border-primary/10 font-black uppercase text-[10px] tracking-[0.2em] px-5 py-1.5 rounded-full">PREGUNTA TÉCNICA {idx + 1}</Badge>
@@ -112,9 +114,3 @@ export function QuestionEditor({ questions, onUpdate }: { questions: any[], onUp
     </div>
   )
 }
-
-function cn(...classes: any[]) {
-  return classes.filter(Boolean).join(' ')
-}
-
-import { Clock } from "lucide-react"

@@ -1,10 +1,11 @@
+
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
 const AVATARS = [
   "Cazador Nocturno", "Guardián de Hierro", "Explorador Salle", 
   "Maestro Jedi", "Héroe Ágil", "Escudo Valiente", 
-  "Místico Astral", "雷 Guerrero Trueno", "Fénix Dorado"
+  "Místico Astral", "Guerrero Trueno", "Fénix Dorado"
 ];
 
 export const createRoom = mutation({
@@ -107,7 +108,10 @@ export const submitAnswer = mutation({
 export const updateStatus = mutation({
   args: { roomCode: v.string(), status: v.string(), nextQuestion: v.optional(v.number()) },
   handler: async (ctx, args) => {
-    const room = await ctx.db.query("rooms").withIndex("by_roomCode", (q) => q.eq("roomCode", args.roomCode)).first();
+    const room = await ctx.db
+      .query("rooms")
+      .withIndex("by_roomCode", (q) => q.eq("roomCode", args.roomCode))
+      .first();
     if (!room) throw new Error("Sala no encontrada.");
     const patch: any = { status: args.status };
     if (args.nextQuestion !== undefined) patch.currentQuestionIndex = args.nextQuestion;
@@ -118,25 +122,18 @@ export const updateStatus = mutation({
 export const getRoom = query({
   args: { roomCode: v.string() },
   handler: async (ctx, args) => {
-    try {
-      const room = await ctx.db
-        .query("rooms")
-        .withIndex("by_roomCode", (q) => q.eq("roomCode", args.roomCode))
-        .first();
+    const room = await ctx.db
+      .query("rooms")
+      .withIndex("by_roomCode", (q) => q.eq("roomCode", args.roomCode))
+      .first();
 
-      if (!room) return null;
+    if (!room) return null;
 
-      const participants = await ctx.db
-        .query("participants")
-        .withIndex("by_room", (q) => q.eq("roomId", room._id))
-        .collect();
+    const participants = await ctx.db
+      .query("participants")
+      .withIndex("by_room", (q) => q.eq("roomId", room._id))
+      .collect();
 
-      return { ...room, participants };
-    } catch (error) {
-      const room = await ctx.db.query("rooms").filter(q => q.eq(q.field("roomCode"), args.roomCode)).first();
-      if (!room) return null;
-      const participants = await ctx.db.query("participants").filter(q => q.eq(q.field("roomId"), room._id)).collect();
-      return { ...room, participants };
-    }
+    return { ...room, participants };
   },
 });

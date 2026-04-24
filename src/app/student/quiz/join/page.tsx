@@ -67,9 +67,9 @@ function JoinForm() {
   }
 
   return (
-    <div className="w-full max-w-md space-y-8 z-10 my-auto">
+    <div className="w-full max-w-md space-y-8 z-10 my-auto px-4">
       <div className="text-center space-y-4 animate-in fade-in slide-in-from-top-4 duration-700">
-        <div className="inline-flex items-center justify-center w-24 h-24 bg-white border-4 border-primary/10 rounded-[2.2rem] shadow-2xl mb-2 transition-transform hover:scale-110 duration-500 group">
+        <div className="inline-flex items-center justify-center w-24 h-24 bg-white border-4 border-primary/10 rounded-[2.2rem] shadow-2xl mb-2 group">
            <Zap className="h-12 w-12 text-primary fill-primary group-hover:animate-pulse" />
         </div>
         <div className="space-y-1">
@@ -80,7 +80,7 @@ function JoinForm() {
         </div>
       </div>
 
-      <Card className="border-none shadow-[0_32px_64px_-12px_rgba(0,0,0,0.14)] bg-white/80 backdrop-blur-xl rounded-[3rem] p-10 overflow-hidden relative border-t-8 border-primary">
+      <Card className="border-none shadow-[0_32px_64px_-12px_rgba(0,0,0,0.14)] bg-white/80 backdrop-blur-xl rounded-[3rem] p-8 md:p-10 overflow-hidden relative border-t-8 border-primary">
         <form onSubmit={handleJoin} className="space-y-8">
           <div className="space-y-3">
             <label className="text-[11px] font-black uppercase text-slate-400 tracking-[0.2em] ml-1">Pin del Desafío</label>
@@ -88,7 +88,7 @@ function JoinForm() {
               value={pin}
               onChange={e => setPin(e.target.value.toUpperCase())}
               placeholder="------" 
-              className="h-20 text-center text-4xl font-black font-mono tracking-[0.5em] border-none bg-slate-50 shadow-inner rounded-3xl focus-visible:ring-4 focus-visible:ring-primary/10 transition-all"
+              className="h-16 text-center text-3xl font-black font-mono tracking-[0.5em] border-none bg-slate-50 shadow-inner rounded-3xl focus-visible:ring-4 focus-visible:ring-primary/10 transition-all"
               maxLength={6}
               required
             />
@@ -157,7 +157,7 @@ export default function StudentJoinPage() {
         </div>
         <div className="h-px w-12 bg-slate-200 mx-auto" />
         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-          Desarrollado por <span className="text-primary font-black italic">Rodolfo Riveros</span>
+          © {new Date().getFullYear()} | Desarrollado por <span className="text-primary font-black italic">Rodolfo Riveros</span>
         </p>
       </footer>
     </div>
