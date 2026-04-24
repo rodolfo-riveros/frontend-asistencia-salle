@@ -3,7 +3,7 @@
 
 import * as React from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { GraduationCap, Loader2, Play, Fingerprint, ShieldCheck, Zap, Sparkles } from "lucide-react"
+import { Loader2, Play, Fingerprint, ShieldCheck, Zap, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
@@ -56,9 +56,9 @@ function JoinForm() {
     if (!pin || !dni || !studentName) return
     setIsJoining(true)
     try {
-      const participantId = await joinRoom({ roomCode: pin, name: studentName })
-      localStorage.setItem(`p_${pin}`, participantId)
-      router.push(`/student/quiz/${pin}`)
+      const participantId = await joinRoom({ roomCode: pin.toUpperCase(), name: studentName })
+      localStorage.setItem(`p_${pin.toUpperCase()}`, participantId)
+      router.push(`/student/quiz/${pin.toUpperCase()}`)
     } catch (e: any) {
       toast({ variant: "destructive", title: "Sala no disponible", description: e.message || "Verifica que el PIN sea correcto." })
     } finally {

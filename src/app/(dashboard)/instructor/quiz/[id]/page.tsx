@@ -5,7 +5,9 @@ import * as React from "react"
 import { useParams, useRouter } from "next/navigation"
 import { 
   ArrowLeft, Gamepad2, Sparkles, 
-  Loader2, Radio, Users, Maximize2, Play, Trophy, ShieldCheck, UserX, Crown, Zap, Clock, BookOpen
+  Loader2, Radio, Users, Maximize2, Play, Trophy, 
+  ShieldCheck, UserX, Crown, Zap, Clock, BookOpen, 
+  AlertTriangle 
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -31,6 +33,7 @@ export default function InstructorQuizPage() {
 
   const createRoom = useMutation(convexApi.rooms.createRoom)
   const updateStatus = useMutation(convexApi.rooms.updateStatus)
+  // useQuery devuelve undefined mientras carga y null si no encuentra nada
   const room = useQuery(convexApi.rooms.getRoom, roomCode ? { roomCode } : "skip")
 
   React.useEffect(() => {
@@ -130,12 +133,35 @@ export default function InstructorQuizPage() {
     )
   }
 
+  // Monitor en pantalla completa
   if (isFullscreen && roomCode) {
-    if (!room) {
+    // room === undefined significa que la consulta a Convex sigue en curso
+    if (room === undefined) {
       return (
         <div className="fixed inset-0 z-[100] bg-white flex flex-col items-center justify-center gap-6">
-          <Loader2 className="h-12 w-12 animate-spin text-primary" />
-          <p className="font-black uppercase text-[10px] tracking-widest text-slate-400">Sincronizando con la Arena...</p>
+          <div className="relative">
+            <Loader2 className="h-16 w-16 animate-spin text-primary opacity-20" />
+            <Zap className="h-8 w-8 text-primary absolute inset-0 m-auto animate-pulse" />
+          </div>
+          <p className="font-black uppercase text-[10px] tracking-widest text-slate-400">Sincronizando Arena con la Nube...</p>
+        </div>
+      )
+    }
+
+    // room === null significa que terminó de buscar pero no existe la sala
+    if (room === null) {
+      return (
+        <div className="fixed inset-0 z-[100] bg-white flex flex-col items-center justify-center gap-6 p-10 text-center">
+          <div className="p-6 bg-red-50 rounded-full">
+            <AlertTriangle className="h-12 w-12 text-red-500" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-2xl font-black text-slate-900 uppercase">Sala no encontrada</h2>
+            <p className="text-sm text-slate-500 max-w-xs mx-auto">No se pudo recuperar la información de la arena en Convex. Revisa tu conexión.</p>
+          </div>
+          <Button onClick={() => setIsFullscreen(false)} variant="outline" className="h-12 px-8 font-black uppercase text-xs tracking-widest rounded-2xl">
+            Volver al Panel
+          </Button>
         </div>
       )
     }
@@ -276,6 +302,7 @@ export default function InstructorQuizPage() {
     )
   }
 
+  // Vista de configuración normal
   return (
     <div className="space-y-12 pb-20">
       <div className="flex flex-col md:flex-row justify-between items-start gap-8 border-b pb-10">

@@ -16,9 +16,10 @@ export const createRoom = mutation({
     unidadId:  v.string(),
   },
   handler: async (ctx, args) => {
+    const code = args.roomCode.toUpperCase();
     const existing = await ctx.db
       .query("rooms")
-      .withIndex("by_roomCode", (q) => q.eq("roomCode", args.roomCode))
+      .withIndex("by_roomCode", (q) => q.eq("roomCode", code))
       .first();
 
     if (existing) {
@@ -31,7 +32,7 @@ export const createRoom = mutation({
     }
 
     return await ctx.db.insert("rooms", {
-      roomCode:             args.roomCode,
+      roomCode:             code,
       status:               "lobby",
       currentQuestionIndex: 0,
       configId:             args.configId,
@@ -45,10 +46,12 @@ export const createRoom = mutation({
 export const joinRoom = mutation({
   args: { roomCode: v.string(), name: v.string() },
   handler: async (ctx, args) => {
+    const code = args.roomCode.toUpperCase();
     const room = await ctx.db
       .query("rooms")
-      .withIndex("by_roomCode", (q) => q.eq("roomCode", args.roomCode))
+      .withIndex("by_roomCode", (q) => q.eq("roomCode", code))
       .first();
+      
     if (!room) throw new Error("La sala no existe.");
     if (room.status === "finished") throw new Error("El juego ya terminó.");
 
@@ -108,10 +111,12 @@ export const submitAnswer = mutation({
 export const updateStatus = mutation({
   args: { roomCode: v.string(), status: v.string(), nextQuestion: v.optional(v.number()) },
   handler: async (ctx, args) => {
+    const code = args.roomCode.toUpperCase();
     const room = await ctx.db
       .query("rooms")
-      .withIndex("by_roomCode", (q) => q.eq("roomCode", args.roomCode))
+      .withIndex("by_roomCode", (q) => q.eq("roomCode", code))
       .first();
+      
     if (!room) throw new Error("Sala no encontrada.");
     const patch: any = { status: args.status };
     if (args.nextQuestion !== undefined) patch.currentQuestionIndex = args.nextQuestion;
@@ -122,10 +127,19 @@ export const updateStatus = mutation({
 export const getRoom = query({
   args: { roomCode: v.string() },
   handler: async (ctx, args) => {
-    const room = await ctx.db
+    const code = args.roomCode.toUpperCase();
+    
+    // Intento 1: Con índice
+    let room = await ctx.db
       .query("rooms")
-      .withIndex("by_roomCode", (q) => q.eq("roomCode", args.roomCode))
+      .withIndex("by_roomCode", (q) => q.eq("roomCode", code))
       .first();
+
+    // Intento 2: Fallback manual si el índice no está listo en producción
+    if (!room) {
+      const allRooms = await ctx.db.query("rooms").collect();
+      room = allRooms.find(r => r.roomCode === code) || null;
+    }
 
     if (!room) return null;
 
