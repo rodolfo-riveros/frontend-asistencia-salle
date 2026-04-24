@@ -4,7 +4,9 @@ import * as React from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { 
   ArrowLeft, Users, Gamepad2, Sparkles, 
-  Loader2, RefreshCcw, Radio, Zap
+  Loader2, RefreshCcw, Radio, Zap, CheckCircle2,
+  Target,
+  FileText
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -14,6 +16,7 @@ import { api } from "@/lib/api"
 import { useMutation, useQuery } from "convex/react"
 import { api as convexApi } from "@convex/_generated/api"
 import { cn } from "@/lib/utils"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 export default function InstructorQuizPage() {
   const params = useParams()
@@ -151,7 +154,7 @@ export default function InstructorQuizPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 space-y-10">
           <Card className="p-10 border-none shadow-2xl bg-white rounded-[3rem] relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-2 bg-accent" />
             <div className="flex items-center justify-between mb-12">
@@ -179,6 +182,43 @@ export default function InstructorQuizPage() {
               )}
             </div>
           </Card>
+
+          <Card className="p-10 border-none shadow-2xl bg-white rounded-[3rem] relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-2 bg-primary/20" />
+            <div className="flex items-center justify-between mb-10">
+               <div className="flex items-center gap-3">
+                 <div className="p-3 bg-primary/10 rounded-2xl text-primary"><FileText className="h-6 w-6" /></div>
+                 <h3 className="text-2xl font-black uppercase tracking-tighter italic text-slate-800">Banco de Preguntas Técnicas</h3>
+               </div>
+               <Badge variant="outline" className="font-black text-primary border-primary/20 bg-primary/5 uppercase text-[9px] tracking-widest px-4 py-1.5 rounded-full">
+                 Indicador: {config?.indicador_codigo || 'N/A'}
+               </Badge>
+            </div>
+            
+            <div className="space-y-6">
+              {config?.configuracion_json?.questions?.map((q: any, idx: number) => (
+                <div key={idx} className="p-8 bg-slate-50/50 rounded-[2rem] border-2 border-slate-100/50 space-y-6">
+                  <div className="flex justify-between items-start">
+                    <p className="text-lg font-black text-slate-800 leading-tight uppercase tracking-tight max-w-[85%]">{idx + 1}. {q.text}</p>
+                    <Badge className="bg-slate-200 text-slate-600 border-none font-bold text-[9px]">{q.timeLimit}s</Badge>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {q.options.map((opt: string, oIdx: number) => (
+                      <div key={oIdx} className={cn(
+                        "p-4 rounded-2xl border-2 flex items-center justify-between transition-all",
+                        q.correctIndex === oIdx 
+                          ? "bg-emerald-50 border-emerald-200 text-emerald-700 shadow-sm" 
+                          : "bg-white border-slate-100 text-slate-500 opacity-80"
+                      )}>
+                        <span className="text-xs font-bold uppercase">{opt}</span>
+                        {q.correctIndex === oIdx && <CheckCircle2 className="h-4 w-4" />}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
         </div>
         
         <div className="space-y-6">
@@ -188,16 +228,27 @@ export default function InstructorQuizPage() {
             {config && (
               <div className="space-y-6">
                 <div className="p-6 bg-white/5 rounded-3xl border border-white/10 space-y-2 backdrop-blur-sm">
-                  <span className="text-[9px] font-black text-blue-300 uppercase tracking-widest">ACTIVIDAD VINCULADA</span>
-                  <p className="text-base font-black uppercase leading-tight">{config.nombre}</p>
+                  <span className="text-[9px] font-black text-blue-300 uppercase tracking-widest">INDICADOR DE LOGRO</span>
+                  <div className="flex items-start gap-3">
+                     <Badge className="bg-blue-600 text-white font-black text-[10px] rounded-lg shrink-0">{config.indicador_codigo}</Badge>
+                     <p className="text-xs font-bold text-blue-50 leading-relaxed italic">{config.indicador_desc}</p>
+                  </div>
                 </div>
+                
+                <div className="p-6 bg-white/5 rounded-3xl border border-white/10 space-y-2 backdrop-blur-sm">
+                  <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">ACTIVIDAD VINCULADA</span>
+                  <p className="text-base font-black uppercase leading-tight text-white/90">{config.nombre}</p>
+                </div>
+
                 <div className="p-6 bg-white/5 rounded-3xl border border-white/10 space-y-4 backdrop-blur-sm">
-                  <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">CRITERIOS TÉCNICOS</span>
+                  <span className="text-[9px] font-black text-yellow-400 uppercase tracking-widest flex items-center gap-2">
+                    <Target className="h-3 w-3" /> CRITERIOS TÉCNICOS EVALUADOS
+                  </span>
                   <div className="space-y-3">
                     {config.configuracion_json?.criteria?.map((c: any, i: number) => (
-                      <div key={i} className="flex gap-3 text-[11px] text-white/60 items-start">
-                        <span className="font-black text-white/90 shrink-0 bg-white/10 w-5 h-5 rounded-md flex items-center justify-center">{i + 1}</span>
-                        <span className="italic leading-relaxed">{c.description || c.category}</span>
+                      <div key={i} className="flex gap-3 text-[11px] text-white/60 items-start group">
+                        <span className="font-black text-white/90 shrink-0 bg-white/10 w-5 h-5 rounded-md flex items-center justify-center group-hover:bg-yellow-400/20 group-hover:text-yellow-400 transition-all">{i + 1}</span>
+                        <span className="italic leading-relaxed group-hover:text-white/80 transition-all">{c.description || c.category}</span>
                       </div>
                     ))}
                   </div>
