@@ -156,7 +156,7 @@ export default function InstructorQuizPage() {
                  <h3 className="text-8xl font-black text-primary font-mono tracking-tighter">{roomCode}</h3>
                  <div className="p-4 bg-slate-50 rounded-3xl inline-block border-2 border-slate-100 shadow-inner">
                     <img 
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin : '')}/student/quiz/join?pin=${roomCode}`} 
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(mounted ? window.location.origin : '')}/student/quiz/join?pin=${roomCode}`} 
                       className="w-44 h-44 mix-blend-multiply" 
                       alt="QR" 
                     />

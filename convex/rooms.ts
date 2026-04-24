@@ -1,4 +1,4 @@
-import { mutation, query } from "./server";
+import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
 const AVATARS = [
@@ -87,8 +87,8 @@ export const submitAnswer = mutation({
     isCorrect:     v.boolean(),
   },
   handler: async (ctx, args) => {
-    const participantId = args.participantId as any;
-    const participant = await ctx.db.get(participantId);
+    const pId = args.participantId as any;
+    const participant = await ctx.db.get(pId);
     if (!participant) throw new Error("Participante no encontrado.");
 
     const yaRespondio = participant.answers.some((a: any) => a.questionIndex === args.questionIndex);
@@ -133,8 +133,6 @@ export const getRoom = query({
 
       return { ...room, participants };
     } catch (error) {
-      console.error("Convex Query Error fallback:", error);
-      // Fallback a escaneo manual si falla el índice (evita crash 500)
       const room = await ctx.db.query("rooms").filter(q => q.eq(q.field("roomCode"), args.roomCode)).first();
       if (!room) return null;
       const participants = await ctx.db.query("participants").filter(q => q.eq(q.field("roomId"), room._id)).collect();
