@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -96,6 +95,31 @@ export default function InstructorQuizPage() {
     }
   }
 
+  const handleProjectArena = async () => {
+    if (!roomCode || !config) return;
+    
+    // Si la sala no existe en Convex pero tenemos el código, la creamos/aseguramos
+    if (room === null) {
+      setIsSyncing(true)
+      try {
+        await createRoom({
+          roomCode: roomCode,
+          questions: config?.configuracion_json?.questions || [],
+          configId: config.id,
+          unidadId: config.unidad_id || "SALLE"
+        })
+        toast({ title: "Arena Sincronizada" })
+      } catch (e: any) {
+        toast({ variant: "destructive", title: "Fallo de sincronización", description: e.message })
+        return
+      } finally {
+        setIsSyncing(false)
+      }
+    }
+    
+    setIsFullscreen(true)
+  }
+
   const handleStartGame = async () => {
     if (!roomCode) return
     await updateStatus({ roomCode, status: 'active' })
@@ -154,7 +178,7 @@ export default function InstructorQuizPage() {
           </div>
           <div className="space-y-2">
             <h2 className="text-2xl font-black text-slate-900 uppercase">Arena no encontrada</h2>
-            <p className="text-sm text-slate-500 max-w-xs mx-auto">No se pudo recuperar la información en tiempo real. Reintenta abrir la sala.</p>
+            <p className="text-sm text-slate-500 max-w-xs mx-auto">No se pudo recuperar la información en tiempo real. Reintenta proyectar la sala.</p>
           </div>
           <Button onClick={() => setIsFullscreen(false)} variant="outline" className="h-12 px-8 font-black uppercase text-xs tracking-widest rounded-2xl">
             Volver al Panel
@@ -327,8 +351,8 @@ export default function InstructorQuizPage() {
               <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">CÓDIGO ACTIVO</span>
               <span className="text-5xl font-black font-mono text-primary tracking-widest">{roomCode}</span>
             </div>
-            <Button onClick={() => setIsFullscreen(true)} className="bg-primary text-white h-20 px-12 rounded-[1.8rem] font-black uppercase text-xs tracking-widest gap-3 shadow-2xl shadow-primary/20 transition-transform hover:scale-105 active:scale-95">
-              <Maximize2 className="h-5 w-5" /> PROYECTAR ARENA
+            <Button onClick={handleProjectArena} disabled={isSyncing} className="bg-primary text-white h-20 px-12 rounded-[1.8rem] font-black uppercase text-xs tracking-widest gap-3 shadow-2xl shadow-primary/20 transition-transform hover:scale-105 active:scale-95 disabled:grayscale">
+              {isSyncing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Maximize2 className="h-5 w-5" />} PROYECTAR ARENA
             </Button>
           </div>
         )}
@@ -347,7 +371,7 @@ export default function InstructorQuizPage() {
             
             <div className="space-y-10">
               {(config?.configuracion_json?.questions || []).map((q: any, idx: number) => (
-                <div key={q.id || idx} className="p-10 bg-slate-50/50 rounded-[3.5rem] border-2 border-slate-100 space-y-8 group hover:border-primary/20 transition-all shadow-sm">
+                <div key={q.id || `q-idx-${idx}`} className="p-10 bg-slate-50/50 rounded-[3.5rem] border-2 border-slate-100 space-y-8 group hover:border-primary/20 transition-all shadow-sm">
                   <div className="flex justify-between items-start">
                     <div className="space-y-3">
                        <Badge className="bg-primary text-white font-black text-[10px] px-5 py-1 rounded-full uppercase tracking-widest">FASE {idx + 1}</Badge>
@@ -360,7 +384,7 @@ export default function InstructorQuizPage() {
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {q.options.map((opt: string, oIdx: number) => (
-                      <div key={oIdx} className={cn(
+                      <div key={`q-${idx}-opt-${oIdx}`} className={cn(
                         "p-6 rounded-2xl border-2 text-xs font-bold uppercase transition-all shadow-sm flex items-center gap-4",
                         q.correctIndex === oIdx ? "bg-emerald-50 border-emerald-500/30 text-emerald-700 ring-4 ring-emerald-500/5" : "bg-white border-slate-50 text-slate-400"
                       )}>
@@ -395,7 +419,7 @@ export default function InstructorQuizPage() {
                   <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Criterios Técnicos Evaluados</span>
                   <div className="grid gap-3">
                     {(config.configuracion_json?.criteria || []).map((c: any, i: number) => (
-                      <div key={i} className="flex items-center gap-5 p-5 bg-white rounded-2xl border-2 border-slate-100 group hover:border-primary/30 transition-all shadow-sm">
+                      <div key={`crit-${i}`} className="flex items-center gap-5 p-5 bg-white rounded-2xl border-2 border-slate-100 group hover:border-primary/30 transition-all shadow-sm">
                          <div className="w-10 h-10 rounded-xl bg-primary/5 flex items-center justify-center text-primary font-black text-sm shrink-0 group-hover:bg-primary group-hover:text-white transition-colors">{i + 1}</div>
                          <p className="text-[11px] font-bold text-slate-600 uppercase tracking-tight leading-tight">{c.description || c.category}</p>
                       </div>
