@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -98,7 +99,7 @@ export default function InstructorQuizPage() {
   const handleProjectArena = async () => {
     if (!roomCode || !config) return;
     
-    // Si la sala no existe en Convex pero tenemos el código, la creamos/aseguramos
+    // Si la sala no existe en Convex o sigue cargando, intentamos crearla para asegurar
     if (room === null) {
       setIsSyncing(true)
       try {

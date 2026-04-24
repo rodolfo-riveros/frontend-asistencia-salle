@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -26,21 +27,35 @@ function JoinForm() {
   const joinRoom = useMutation(convexApi.rooms.joinRoom)
 
   const fetchStudentData = async (val: string) => {
+    // Validar cuando el DNI tenga 8 dígitos
     if (val.length === 8) {
       setIsValidating(true)
       try {
-        const students = await api.get<any[]>('/alumnos/').catch(() => [])
-        const student = (students || []).find(s => String(s.dni) === val)
+        // Obtenemos la lista de alumnos
+        const response = await api.get<any>('/alumnos/').catch(() => [])
+        
+        // Manejamos si la respuesta es un array directo o un objeto con clave alumnos
+        const studentList = Array.isArray(response) ? response : (response?.alumnos || [])
+        
+        // Buscamos al estudiante comparando strings limpios
+        const student = studentList.find((s: any) => 
+          String(s.dni).trim() === val.trim()
+        )
         
         if (student && student.nombre) {
           setStudentName(student.nombre)
         } else {
           setStudentName(null)
-          if (students.length > 0) {
-            toast({ variant: "destructive", title: "DNI no registrado", description: "Verifica tu número de documento." })
+          if (studentList.length > 0) {
+            toast({ 
+              variant: "destructive", 
+              title: "DNI no encontrado", 
+              description: "No apareces en el padrón de este ciclo. Verifica tu número." 
+            })
           }
         }
       } catch (e) {
+        console.error("Error identificando alumno:", e)
         setStudentName(null)
       } finally {
         setIsValidating(false)
@@ -59,7 +74,11 @@ function JoinForm() {
       localStorage.setItem(`p_${pin.toUpperCase()}`, participantId)
       router.push(`/student/quiz/${pin.toUpperCase()}`)
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Arena no disponible", description: e.message || "Verifica que el PIN sea correcto." })
+      toast({ 
+        variant: "destructive", 
+        title: "Arena no disponible", 
+        description: e.message || "Verifica que el PIN sea correcto y la sala esté abierta." 
+      })
     } finally {
       setIsJoining(false)
     }
