@@ -22,7 +22,6 @@ export const createRoom = mutation({
       .first();
 
     if (existing) {
-      // Si la sala ya existe, la reiniciamos para una nueva sesión limpia
       const oldParticipants = await ctx.db
         .query("participants")
         .withIndex("by_room", (q) => q.eq("roomId", existing._id))
@@ -52,7 +51,19 @@ export const joinRoom = mutation({
       .withIndex("by_roomCode", (q) => q.eq("roomCode", code))
       .first();
       
-    if (!room) throw new Error("La sala no existe en la nube.");
+    if (!room) throw new Error("La sala no existe.");
+
+    // EVITAR DUPLICADOS: Si el nombre ya está en la sala, devolvemos el ID existente
+    const existingParticipant = await ctx.db
+      .query("participants")
+      .withIndex("by_room", (q) => q.eq("roomId", room._id))
+      .filter((q) => q.eq(q.field("name"), args.name))
+      .first();
+
+    if (existingParticipant) {
+      return existingParticipant._id;
+    }
+
     if (room.status === "finished") throw new Error("El juego ya terminó.");
 
     const randomAvatar = AVATARS[Math.floor(Math.random() * AVATARS.length)];
@@ -128,14 +139,11 @@ export const getRoom = query({
   args: { roomCode: v.string() },
   handler: async (ctx, args) => {
     const code = args.roomCode.toUpperCase();
-    
-    // Intento con índice
     let room = await ctx.db
       .query("rooms")
       .withIndex("by_roomCode", (q) => q.eq("roomCode", code))
       .first();
 
-    // Fallback manual si el índice no está listo en producción o devuelve error
     if (!room) {
       const allRooms = await ctx.db.query("rooms").collect();
       room = allRooms.find(r => r.roomCode === code) || null;

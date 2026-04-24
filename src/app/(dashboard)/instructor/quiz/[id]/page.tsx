@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -48,12 +47,12 @@ export default function InstructorQuizPage() {
             setSessionId(activeSession.sesion_id)
           }
         } catch (e) { 
-          console.log("No active session found for this evaluation") 
+          console.log("No active session found") 
         }
       }
     } catch (e: any) {
       console.error("Error loading config:", e)
-      toast({ variant: "destructive", title: "Error de configuración", description: "No se pudo cargar la evaluación." })
+      toast({ variant: "destructive", title: "Configuración", description: "No se pudo cargar la evaluación." })
     } finally {
       setLoadingConfig(false)
     }
@@ -125,9 +124,13 @@ export default function InstructorQuizPage() {
   }
 
   const handleFinishGame = async () => {
-    if (!roomCode || !sessionId) return
+    if (!roomCode) return
+    
+    // Cambiar estado en Convex primero para que el Podio sea visible
     await updateStatus({ roomCode, status: 'finished' })
     
+    if (!sessionId) return
+
     const results = room?.participants?.map(p => ({
       alumno_id: p.name, 
       puntaje: p.score
@@ -137,7 +140,7 @@ export default function InstructorQuizPage() {
       await api.post(`/gamificacion/sesion/${sessionId}/finalizar/`, { notas: results })
       toast({ title: "Resultados Sincronizados" })
     } catch (e) { 
-      toast({ variant: "destructive", title: "Error sincronizando notas" }) 
+      console.error("Error sync grades:", e)
     }
   }
 
@@ -280,17 +283,17 @@ export default function InstructorQuizPage() {
                         <span className="text-[10px] font-black uppercase tracking-widest">FRAUDE</span>
                       </div>
                     )}
-                    <Avatar className="h-24 w-24 border-4 border-white shadow-xl group-hover:scale-110 transition-transform">
+                    <Avatar className="h-24 w-24 border-4 border-white shadow-xl group-hover:scale-110 transition-transform shrink-0">
                       <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(p.avatar)}`} />
                       <AvatarFallback className={cn("text-2xl font-black uppercase", p.isCheating ? "bg-red-200 text-red-800" : "bg-primary/10 text-primary")}>
                         {getInitials(p.name)}
                       </AvatarFallback>
                     </Avatar>
-                    <div className="text-center space-y-2">
-                      <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest truncate w-24">{p.avatar}</p>
-                      <p className="text-sm font-black text-slate-900 truncate w-32 leading-none uppercase">{p.name.split(',')[0]}</p>
-                      <div className="bg-primary/5 rounded-2xl py-1.5 px-3 inline-block">
-                        <p className="text-xl font-black text-primary leading-none">{p.score}</p>
+                    <div className="text-center space-y-2 w-full overflow-hidden">
+                      <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest truncate w-full">{p.avatar}</p>
+                      <p className="text-base font-black text-slate-900 truncate w-full leading-none uppercase">{p.name.split(',')[0]}</p>
+                      <div className="bg-primary/5 rounded-2xl py-2 px-4 inline-block mt-2">
+                        <p className="text-2xl font-black text-primary leading-none">{p.score}</p>
                       </div>
                     </div>
                   </div>

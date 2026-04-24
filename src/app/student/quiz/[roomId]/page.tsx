@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -34,12 +33,27 @@ export default function StudentGameRoomPage() {
     return room.participants.find((p: any) => p._id === participantId)
   }, [room?.participants, participantId])
 
-  // Cargar sesión del participante
+  // Cargar sesión y sincronizar progreso
   React.useEffect(() => {
     const pId = localStorage.getItem(`p_${params.roomId}`)
-    if (!pId) router.push('/student/quiz/join')
-    else setParticipantId(pId)
+    if (!pId) {
+      router.push('/student/quiz/join')
+    } else {
+      setParticipantId(pId)
+    }
   }, [params.roomId, router])
+
+  // Sincronizar indice de pregunta si ya respondió algunas (Re-ingreso)
+  React.useEffect(() => {
+    if (myData?.answers && room?.questions) {
+      const nextIdx = myData.answers.length;
+      if (nextIdx >= room.questions.length) {
+        setIsQuizFinished(true);
+      } else {
+        setLocalQuestionIndex(nextIdx);
+      }
+    }
+  }, [myData?.answers, room?.questions])
 
   // Detector de Fraude
   React.useEffect(() => {
@@ -114,14 +128,14 @@ export default function StudentGameRoomPage() {
         isCorrect: isCorrect
       })
       
-      // Transición rápida
+      // Transición ultra rápida
       setTimeout(() => {
         if (localQuestionIndex + 1 < room.questions.length) {
           setLocalQuestionIndex(prev => prev + 1)
         } else {
           setIsQuizFinished(true)
         }
-      }, 1200)
+      }, 1000)
 
     } catch (e) {
       console.error("Error enviando respuesta:", e)
@@ -147,7 +161,6 @@ export default function StudentGameRoomPage() {
       "min-h-screen bg-[#f8f9fa] p-4 flex flex-col justify-between overflow-hidden transition-all duration-500 font-body",
       shakeScreen && "animate-shake bg-red-600/5"
     )}>
-      {/* Barra de Progreso */}
       <div className="absolute top-0 left-0 w-full h-2 bg-slate-200">
         <div 
           className="h-full bg-primary transition-all duration-500 ease-out shadow-[0_0_15px_rgba(34,97,203,0.4)]" 
@@ -164,7 +177,7 @@ export default function StudentGameRoomPage() {
         </div>
         <div className="flex items-center gap-3">
           {myData && (
-            <div className="hidden sm:flex items-center gap-2.5 bg-white pr-5 pl-2 py-1 rounded-full border-2 border-primary/5 shadow-md">
+            <div className="flex items-center gap-2.5 bg-white pr-5 pl-2 py-1 rounded-full border-2 border-primary/5 shadow-md">
               <Avatar className="h-8 w-8 border-2 border-primary/10">
                 <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(myData.avatar)}`} />
                 <AvatarFallback className="text-[8px] font-black bg-slate-100">{getInitials(myData.name)}</AvatarFallback>
@@ -210,7 +223,7 @@ export default function StudentGameRoomPage() {
                     <Clock className="h-4 w-4" /> {timeLeft}s
                   </div>
                </div>
-               <h1 className="text-xl md:text-3xl font-black text-slate-900 leading-snug uppercase italic tracking-tight max-w-3xl mx-auto">
+               <h1 className="text-lg md:text-2xl font-black text-slate-900 leading-snug uppercase italic tracking-tight max-w-3xl mx-auto">
                  {currentQ?.text}
                </h1>
             </div>
@@ -223,19 +236,19 @@ export default function StudentGameRoomPage() {
                   onClick={() => handleAnswer(opt.originalIndex)}
                   variant="outline"
                   className={cn(
-                    "h-24 md:h-28 text-sm md:text-lg font-bold uppercase rounded-2xl border-2 transition-all shadow-md whitespace-normal px-6 py-4 flex items-center justify-start text-left overflow-hidden",
-                    !hasAnswered && "hover:border-primary/50 hover:bg-slate-50 hover:scale-[1.01] active:scale-95",
+                    "min-h-[80px] md:min-h-[100px] h-auto text-sm md:text-base font-bold uppercase rounded-2xl border-2 transition-all shadow-md whitespace-normal px-6 py-5 flex items-center justify-start text-left overflow-visible",
+                    !hasAnswered && "hover:border-primary/50 hover:bg-slate-50 hover:scale-[1.01] active:scale-95 group",
                     hasAnswered && opt.originalIndex === currentQ?.correctIndex && "bg-emerald-500 text-white border-emerald-500 shadow-emerald-200",
                     hasAnswered && opt.originalIndex !== currentQ?.correctIndex && "opacity-40 grayscale"
                   )}
                 >
                   <div className={cn(
-                    "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border-2 font-black text-xs mr-4",
-                    hasAnswered && opt.originalIndex === currentQ?.correctIndex ? "bg-white text-emerald-600 border-white" : "bg-slate-50 text-slate-400 border-slate-100"
+                    "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border-2 font-black text-xs mr-4 transition-colors",
+                    hasAnswered && opt.originalIndex === currentQ?.correctIndex ? "bg-white text-emerald-600 border-white" : "bg-slate-50 text-slate-400 border-slate-100 group-hover:border-primary/30"
                   )}>
                     {String.fromCharCode(65 + i)}
                   </div>
-                  <span className="line-clamp-2">{opt.text}</span>
+                  <span className="flex-1 font-black leading-tight">{opt.text}</span>
                 </Button>
               ))}
             </div>
@@ -271,18 +284,21 @@ export default function StudentGameRoomPage() {
                    <span className="text-5xl font-black text-primary font-mono">{myData?.score || 0}</span>
                 </div>
                 <p className="text-slate-400 font-bold uppercase tracking-[0.2em] text-[10px] pt-4">
-                   Héroe: {myData?.avatar || 'Salle'}
+                   Héroe Salle: {myData?.avatar || 'Desconocido'}
                 </p>
               </div>
 
               {room.status === 'finished' ? (
-                <Button onClick={() => router.push('/student/quiz/join')} className="w-full h-16 bg-primary hover:bg-primary/90 text-white rounded-3xl font-black uppercase text-xs tracking-widest shadow-xl transition-all active:scale-95">
+                <Button onClick={() => router.push('/student/quiz/join')} className="w-full h-16 bg-primary hover:bg-primary/95 text-white rounded-3xl font-black uppercase text-xs tracking-widest shadow-xl transition-all active:scale-95">
                   Volver al Inicio
                 </Button>
               ) : (
-                <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100 flex items-center justify-center gap-3">
-                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                  <p className="text-[10px] font-black text-primary uppercase tracking-widest">Esperando resultados finales del docente...</p>
+                <div className="p-5 bg-blue-50 rounded-2xl border border-blue-100 flex flex-col items-center gap-3">
+                  <div className="flex items-center gap-3">
+                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                    <p className="text-[10px] font-black text-primary uppercase tracking-widest">Esperando al docente...</p>
+                  </div>
+                  <p className="text-[8px] font-bold text-blue-300 uppercase">NO CIERRES ESTA PANTALLA</p>
                 </div>
               )}
             </div>
