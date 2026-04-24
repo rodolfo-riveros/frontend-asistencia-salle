@@ -24,11 +24,11 @@ export default defineSchema({
    */
   participants: defineTable({
     roomId:  v.id("rooms"),
-    studentId: v.string(), // ID real de Supabase/FastAPI
+    studentId: v.optional(v.string()), // ID real de Supabase/FastAPI (opcional para migración)
     name:    v.string(),
     score:   v.number(),
-    avatar:  v.string(), // Nombre del personaje (Batman, Iron Man, etc.)
-    isCheating: v.boolean(), // Si salió de la pestaña
+    avatar:  v.string(), // Nombre del personaje (Maestro Jedi, etc.)
+    isCheating: v.boolean(), 
     answers: v.array(
       v.object({
         questionIndex: v.number(),

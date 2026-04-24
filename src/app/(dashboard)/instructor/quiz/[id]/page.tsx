@@ -149,16 +149,22 @@ export default function InstructorQuizPage() {
       const totalQuestions = config.configuracion_json?.questions?.length || 20;
       const maxScore = config.puntaje_maximo || 20;
 
-      const results = room.participants.map(p => {
-        const correctAnswers = p.answers?.filter((a: any) => a.isCorrect).length || 0;
-        const academicGrade = Math.round((correctAnswers / totalQuestions) * maxScore);
-        
-        return {
-          alumno_id: p.studentId, // Usamos el ID real de la DB
-          puntaje: academicGrade,
-          observacion: `Logro Rank-UP: ${correctAnswers}/${totalQuestions} correctas. Ranking: ${p.score} pts.`
-        }
-      })
+      const results = room.participants
+        .filter(p => !!p.studentId) // Solo los que tienen ID vinculado
+        .map(p => {
+          const correctAnswers = p.answers?.filter((a: any) => a.isCorrect).length || 0;
+          const academicGrade = Math.round((correctAnswers / totalQuestions) * maxScore);
+          
+          return {
+            alumno_id: p.studentId, 
+            puntaje: academicGrade,
+            observacion: `Logro Rank-UP: ${correctAnswers}/${totalQuestions} correctas. Ranking: ${p.score} pts.`
+          }
+        })
+
+      if (results.length === 0) {
+        throw new Error("No hay participantes válidos para sincronizar.");
+      }
 
       await api.post(`/gamificacion/sesion/${sessionId}/finalizar/`, { notas: results })
       toast({ title: "Notas Sincronizadas", description: "Los resultados se han pasado al Registro Auxiliar." })
@@ -332,7 +338,7 @@ export default function InstructorQuizPage() {
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_2px_2px,rgba(255,255,255,0.05)_2px,transparent_0)] bg-[size:64px_64px]" />
             
             {room.status === 'finished' ? (
-              <div className="h-full flex flex-col items-center animate-in zoom-in-95 relative z-10 pt-20">
+              <div className="h-full flex flex-col items-center animate-in zoom-in-95 relative z-10 pt-24">
                 <div className="text-center mb-24 space-y-2 z-[60]">
                    <h2 className="text-5xl md:text-7xl font-black uppercase italic tracking-tighter text-white drop-shadow-[0_10px_10px_rgba(0,0,0,0.3)]">Podio de Campeones</h2>
                    <p className="text-yellow-400 font-black text-lg uppercase tracking-[0.5em] italic">Salle Rank-UP Challenge</p>

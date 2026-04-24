@@ -53,13 +53,13 @@ export const joinRoom = mutation({
       
     if (!room) throw new Error("La sala no existe.");
 
-    // RECUPERACIÓN DE SESIÓN: Si el ID del alumno ya está, devolvemos su ID de participante
-    const existingParticipant = await ctx.db
+    // RECUPERACIÓN DE SESIÓN: Buscamos por ID de estudiante real
+    const participants = await ctx.db
       .query("participants")
       .withIndex("by_room", (q) => q.eq("roomId", room._id))
       .collect();
 
-    const matched = existingParticipant.find(p => p.studentId === args.studentId);
+    const matched = participants.find(p => p.studentId === args.studentId);
     
     if (matched) {
       return matched._id;
