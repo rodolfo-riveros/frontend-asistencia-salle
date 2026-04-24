@@ -7,7 +7,7 @@ import {
   Loader2, Radio, Users, Maximize2, Play, Trophy, 
   ShieldCheck, UserX, Crown, Zap, Clock, BookOpen, 
   AlertTriangle, Target, Percent, Award, ChevronRight,
-  Medal
+  Medal, ListChecks, CheckCircle2, XCircle, LogOut
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardTitle } from "@/components/ui/card"
@@ -18,6 +18,7 @@ import { useMutation, useQuery } from "convex/react"
 import { api as convexApi } from "@convex/_generated/api"
 import { cn, getInitials } from "@/lib/utils"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
 export default function InstructorQuizPage() {
   const params = useParams()
@@ -25,10 +26,12 @@ export default function InstructorQuizPage() {
 
   const [loadingConfig, setLoadingConfig] = React.useState(true)
   const [isSyncing, setIsSyncing] = React.useState(false)
+  const [isClosing, setIsClosing] = React.useState(false)
   const [config, setConfig] = React.useState<any>(null)
   const [roomCode, setRoomCode] = React.useState<string | null>(null)
   const [sessionId, setSessionId] = React.useState<string | null>(null)
   const [isFullscreen, setIsFullscreen] = React.useState(false)
+  const [showAcademicSummary, setShowAcademicSummary] = React.useState(false)
   const [mounted, setMounted] = React.useState(false)
 
   const createRoom = useMutation(convexApi.rooms.createRoom)
@@ -47,9 +50,7 @@ export default function InstructorQuizPage() {
             setRoomCode(activeSession.room_code)
             setSessionId(activeSession.sesion_id)
           }
-        } catch (e) { 
-          // Silenciar error 404 de sesión no encontrada
-        }
+        } catch (e) { /* Sesión no encontrada es un caso normal */ }
       }
     } catch (e: any) {
       console.error("Error loading config:", e)
@@ -98,7 +99,6 @@ export default function InstructorQuizPage() {
 
   const handleProjectArena = async () => {
     if (!roomCode || !config) return;
-    
     if (!room) {
       setIsSyncing(true)
       try {
@@ -126,26 +126,45 @@ export default function InstructorQuizPage() {
 
   const handleFinishGame = async () => {
     if (!roomCode) return
-    
-    // PRIORIDAD: Cambiar estado en Convex para proyectar el Podio
     try {
       await updateStatus({ roomCode, status: 'finished' })
       toast({ title: "Desafío Finalizado" })
     } catch (e) {
       console.error("Error finalizando en Convex:", e)
     }
+  }
+
+  const handleShowSummary = () => {
+    setIsFullscreen(false)
+    setShowAcademicSummary(true)
+  }
+
+  const handleCloseAndPersist = async () => {
+    if (!sessionId || !room?.participants || !config) return
     
-    if (!sessionId) return
-
-    const results = room?.participants?.map(p => ({
-      alumno_id: p.name, 
-      puntaje: p.score
-    })) || []
-
+    setIsClosing(true)
     try {
+      const totalQuestions = config.configuracion_json?.questions?.length || 1;
+      const maxScore = config.puntaje_maximo || 20;
+
+      const results = room.participants.map(p => {
+        const correctAnswers = p.answers?.filter((a: any) => a.isCorrect).length || 0;
+        const academicGrade = Math.round((correctAnswers / totalQuestions) * maxScore);
+        
+        return {
+          alumno_id: p.name, 
+          puntaje: academicGrade,
+          observacion: `Logro en Quizz: ${correctAnswers}/${totalQuestions} respuestas correctas.`
+        }
+      })
+
       await api.post(`/gamificacion/sesion/${sessionId}/finalizar/`, { notas: results })
-    } catch (e) { 
-      console.error("Error sync grades to FastAPI:", e)
+      toast({ title: "Notas Sincronizadas", description: "Los resultados se han pasado al Registro Auxiliar." })
+      router.back()
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Error al cerrar", description: e.message })
+    } finally {
+      setIsClosing(false)
     }
   }
 
@@ -163,6 +182,95 @@ export default function InstructorQuizPage() {
     )
   }
 
+  // VISTA: RESUMEN ACADÉMICO POST-JUEGO
+  if (showAcademicSummary) {
+    return (
+      <div className="space-y-12 pb-20 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="flex flex-col md:flex-row justify-between items-end gap-6 border-b-2 border-slate-100 pb-10">
+          <div className="space-y-2">
+            <Badge className="bg-emerald-100 text-emerald-700 border-none font-black uppercase text-[9px] px-3 tracking-widest">Desafío Completado</Badge>
+            <h2 className="text-4xl font-black text-slate-900 uppercase italic tracking-tighter leading-none">Resumen Académico</h2>
+            <p className="text-slate-400 font-medium italic">Conversión de Ranking a Escala Vigésimal (0-20)</p>
+          </div>
+          <Button 
+            onClick={handleCloseAndPersist} 
+            disabled={isClosing}
+            className="h-16 px-10 bg-primary text-white rounded-[1.5rem] font-black uppercase text-xs tracking-widest shadow-2xl gap-3 transition-all hover:scale-[1.02] active:scale-95"
+          >
+            {isClosing ? <Loader2 className="h-5 w-5 animate-spin" /> : <ListChecks className="h-5 w-5" />}
+            CERRAR JUEGO Y PASAR NOTAS
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+           <Card className="lg:col-span-3 p-0 border-none shadow-2xl rounded-[3rem] overflow-hidden bg-white">
+             <Table>
+               <TableHeader className="bg-slate-50/50">
+                 <TableRow>
+                   <TableHead className="pl-10 font-black text-[10px] uppercase text-slate-400 tracking-widest">Aspirante</TableHead>
+                   <TableHead className="text-center font-black text-[10px] uppercase text-slate-400 tracking-widest">Ranking pts</TableHead>
+                   <TableHead className="text-center font-black text-[10px] uppercase text-slate-400 tracking-widest">Correctas</TableHead>
+                   <TableHead className="text-right pr-10 font-black text-[10px] uppercase text-primary tracking-widest">Nota Final</TableHead>
+                 </TableRow>
+               </TableHeader>
+               <TableBody>
+                 {sortedParticipants.map((p: any) => {
+                    const totalQ = config.configuracion_json?.questions?.length || 20;
+                    const corrects = p.answers?.filter((a: any) => a.isCorrect).length || 0;
+                    const grade = Math.round((corrects / totalQ) * (config.puntaje_maximo || 20));
+                    return (
+                      <TableRow key={p._id} className="hover:bg-slate-50 transition-colors">
+                        <TableCell className="pl-10 py-6">
+                           <div className="flex items-center gap-4">
+                              <Avatar className="h-10 w-10 border-2 border-white shadow-md">
+                                 <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(p.avatar)}`} />
+                                 <AvatarFallback className="bg-slate-100">{getInitials(p.name)}</AvatarFallback>
+                              </Avatar>
+                              <span className="font-bold text-slate-900 uppercase text-sm truncate w-64">{p.name}</span>
+                           </div>
+                        </TableCell>
+                        <TableCell className="text-center">
+                           <Badge variant="outline" className="border-primary/20 text-primary font-mono font-black">{p.score} PTS</Badge>
+                        </TableCell>
+                        <TableCell className="text-center">
+                           <span className="text-xs font-bold text-slate-500">{corrects} / {totalQ}</span>
+                        </TableCell>
+                        <TableCell className="text-right pr-10">
+                           <span className={cn("text-2xl font-black font-mono", grade < 13 ? 'text-red-600' : 'text-emerald-600')}>
+                             {grade.toString().padStart(2, '0')}
+                           </span>
+                        </TableCell>
+                      </TableRow>
+                    )
+                 })}
+               </TableBody>
+             </Table>
+           </Card>
+
+           <div className="space-y-6">
+              <Card className="p-8 bg-slate-900 text-white rounded-[2.5rem] border-none shadow-xl space-y-6">
+                <div className="p-4 bg-white/10 rounded-2xl border border-white/10">
+                   <p className="text-[9px] font-black text-blue-300 uppercase tracking-widest mb-1">Mecánica de Sincronización</p>
+                   <p className="text-xs leading-relaxed text-blue-50/70 font-medium">Las respuestas correctas se promedian automáticamente con el puntaje máximo configurado en la actividad técnica.</p>
+                </div>
+                <div className="space-y-4">
+                   <div className="flex items-center justify-between px-2">
+                      <span className="text-[10px] font-bold text-white/50 uppercase">Preguntas Totales</span>
+                      <span className="font-black text-xl text-yellow-400">{config.configuracion_json?.questions?.length || 20}</span>
+                   </div>
+                   <div className="flex items-center justify-between px-2">
+                      <span className="text-[10px] font-bold text-white/50 uppercase">Escala Máxima</span>
+                      <span className="font-black text-xl text-yellow-400">{config.puntaje_maximo || 20} PTS</span>
+                   </div>
+                </div>
+              </Card>
+           </div>
+        </div>
+      </div>
+    )
+  }
+
+  // VISTA: MONITOR ARENA (LOBBY Y PODIO)
   if (isFullscreen && roomCode) {
     if (room === undefined) return (
       <div className="fixed inset-0 z-[100] bg-white flex flex-col items-center justify-center gap-6">
@@ -213,8 +321,8 @@ export default function InstructorQuizPage() {
                   FINALIZAR Y VER PODIO
                 </Button>
               ) : (
-                <Button onClick={() => setIsFullscreen(false)} className="w-full h-20 bg-slate-800 text-white rounded-[2rem] font-black text-xl border-b-4 border-slate-900">
-                  VOLVER AL PANEL
+                <Button onClick={handleShowSummary} className="w-full h-20 bg-white text-primary rounded-[2rem] font-black text-xl shadow-2xl border-b-4 border-slate-200 gap-3">
+                  <CheckCircle2 className="h-6 w-6" /> VER RESUMEN FINAL
                 </Button>
               )}
             </div>
@@ -224,19 +332,19 @@ export default function InstructorQuizPage() {
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_2px_2px,rgba(255,255,255,0.05)_2px,transparent_0)] bg-[size:64px_64px]" />
             
             {room.status === 'finished' ? (
-              <div className="h-full flex flex-col items-center justify-center animate-in zoom-in-95 relative z-10 py-10">
-                <div className="text-center mb-16 space-y-4">
-                   <h2 className="text-6xl md:text-8xl font-black uppercase italic tracking-tighter text-white drop-shadow-[0_10px_10px_rgba(0,0,0,0.3)]">Podio de Campeones</h2>
-                   <p className="text-yellow-400 font-black text-xl uppercase tracking-[0.5em] italic">Salle Rank-UP Challenge</p>
+              <div className="h-full flex flex-col items-center animate-in zoom-in-95 relative z-10 pt-4">
+                <div className="text-center mb-10 space-y-2">
+                   <h2 className="text-5xl md:text-7xl font-black uppercase italic tracking-tighter text-white drop-shadow-[0_10px_10px_rgba(0,0,0,0.3)]">Podio de Campeones</h2>
+                   <p className="text-yellow-400 font-black text-lg uppercase tracking-[0.5em] italic">Salle Rank-UP Challenge</p>
                 </div>
 
-                <div className="flex items-end justify-center gap-4 md:gap-16 h-[500px] mb-20">
+                <div className="flex items-end justify-center gap-4 md:gap-16 h-[400px] mb-12">
                   {/* Puesto 2 */}
                   {sortedParticipants[1] && (
                     <div className="flex flex-col items-center gap-6 animate-in slide-in-from-bottom-24 duration-700">
                       <div className="relative group">
                          <div className="absolute inset-0 bg-yellow-400 blur-2xl opacity-20 group-hover:opacity-40 transition-opacity" />
-                         <div className="w-32 h-32 md:w-40 md:h-40 bg-white/20 backdrop-blur-xl rounded-[2.5rem] p-2 border-4 border-slate-300 shadow-2xl relative z-10 flex items-center justify-center">
+                         <div className="w-32 h-32 md:w-36 md:h-36 bg-white/20 backdrop-blur-xl rounded-[2.5rem] p-2 border-4 border-slate-300 shadow-2xl relative z-10 flex items-center justify-center">
                             <Avatar className="w-full h-full rounded-[2rem]">
                               <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(sortedParticipants[1].avatar)}`} />
                               <AvatarFallback className="text-3xl font-black bg-slate-100">{getInitials(sortedParticipants[1].name)}</AvatarFallback>
@@ -250,17 +358,17 @@ export default function InstructorQuizPage() {
                           <span className="text-yellow-400 font-black text-xl">{sortedParticipants[1].score}</span>
                         </div>
                       </div>
-                      <div className="w-32 md:w-40 h-48 bg-white/10 backdrop-blur-md rounded-t-[3rem] border-t-8 border-slate-300/50 shadow-2xl" />
+                      <div className="w-32 md:w-36 h-32 bg-white/10 backdrop-blur-md rounded-t-[3rem] border-t-8 border-slate-300/50 shadow-2xl" />
                     </div>
                   )}
 
                   {/* Puesto 1 */}
                   {sortedParticipants[0] && (
                     <div className="flex flex-col items-center gap-8 animate-in slide-in-from-bottom-40 duration-1000">
-                      <Crown className="h-20 w-20 text-yellow-400 animate-bounce filter drop-shadow-[0_0_15px_rgba(250,204,21,0.5)]" />
+                      <Crown className="h-16 w-16 text-yellow-400 animate-bounce filter drop-shadow-[0_0_15px_rgba(250,204,21,0.5)]" />
                       <div className="relative group">
                          <div className="absolute inset-0 bg-yellow-400 blur-3xl opacity-30 group-hover:opacity-50 transition-opacity animate-pulse" />
-                         <div className="w-44 h-44 md:w-56 md:h-56 bg-white/30 backdrop-blur-2xl rounded-[3.5rem] p-3 border-[10px] border-yellow-400 shadow-2xl relative z-10 flex items-center justify-center">
+                         <div className="w-40 h-44 md:w-52 md:h-52 bg-white/30 backdrop-blur-2xl rounded-[3.5rem] p-3 border-[10px] border-yellow-400 shadow-2xl relative z-10 flex items-center justify-center">
                             <Avatar className="w-full h-full rounded-[2.5rem]">
                               <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(sortedParticipants[0].avatar)}`} />
                               <AvatarFallback className="text-5xl font-black bg-yellow-50">{getInitials(sortedParticipants[0].name)}</AvatarFallback>
@@ -274,7 +382,7 @@ export default function InstructorQuizPage() {
                           <span className="text-primary font-black text-3xl">{sortedParticipants[0].score}</span>
                         </div>
                       </div>
-                      <div className="w-44 md:w-56 h-64 bg-white/20 backdrop-blur-lg rounded-t-[4rem] border-t-[14px] border-yellow-400 shadow-2xl" />
+                      <div className="w-40 md:w-52 h-48 bg-white/20 backdrop-blur-lg rounded-t-[4rem] border-t-[14px] border-yellow-400 shadow-2xl" />
                     </div>
                   )}
 
@@ -283,7 +391,7 @@ export default function InstructorQuizPage() {
                     <div className="flex flex-col items-center gap-6 animate-in slide-in-from-bottom-16 duration-1000">
                       <div className="relative group">
                          <div className="absolute inset-0 bg-amber-700 blur-2xl opacity-10 group-hover:opacity-30 transition-opacity" />
-                         <div className="w-28 h-28 md:w-36 md:h-36 bg-white/20 backdrop-blur-xl rounded-[2rem] p-2 border-4 border-amber-600/50 shadow-2xl relative z-10 flex items-center justify-center">
+                         <div className="w-28 h-28 md:w-32 md:h-32 bg-white/20 backdrop-blur-xl rounded-[2rem] p-2 border-4 border-amber-600/50 shadow-2xl relative z-10 flex items-center justify-center">
                             <Avatar className="w-full h-full rounded-[1.5rem]">
                               <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(sortedParticipants[2].avatar)}`} />
                               <AvatarFallback className="text-2xl font-black bg-amber-50">{getInitials(sortedParticipants[2].name)}</AvatarFallback>
@@ -297,14 +405,14 @@ export default function InstructorQuizPage() {
                           <span className="text-yellow-400 font-black text-lg">{sortedParticipants[2].score}</span>
                         </div>
                       </div>
-                      <div className="w-28 md:w-36 h-36 bg-white/10 backdrop-blur-md rounded-t-[2.5rem] border-t-8 border-amber-700/40 shadow-2xl" />
+                      <div className="w-28 md:w-32 h-24 bg-white/10 backdrop-blur-md rounded-t-[2.5rem] border-t-8 border-amber-700/40 shadow-2xl" />
                     </div>
                   )}
                 </div>
 
                 {/* Lista de mérito para 4to en adelante */}
                 {sortedParticipants.length > 3 && (
-                  <div className="w-full max-w-4xl space-y-4 animate-in fade-in duration-1000">
+                  <div className="w-full max-w-4xl space-y-4 animate-in fade-in duration-1000 pb-20">
                     <div className="flex items-center gap-4 px-10 mb-6">
                        <Medal className="h-6 w-6 text-yellow-400" />
                        <span className="text-white font-black uppercase text-sm tracking-[0.3em] italic">Ranking Salle Honor</span>
@@ -409,14 +517,14 @@ export default function InstructorQuizPage() {
           <Card className="p-12 border-none shadow-2xl bg-white rounded-[4rem] relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-3 bg-gradient-to-r from-primary via-blue-400 to-accent" />
             <h3 className="text-2xl font-black uppercase tracking-tighter italic text-slate-800 mb-10 flex items-center gap-4">
-              <BookOpen className="h-7 w-7 text-primary" /> Banco de Preguntas de Alta Exigencia
+              <BookOpen className="h-7 w-7 text-primary" /> Banco de Preguntas (20 Items)
             </h3>
             <div className="space-y-10">
               {(config?.configuracion_json?.questions || []).map((q: any, idx: number) => (
                 <div key={idx} className="p-10 bg-slate-50/50 rounded-[3.5rem] border-2 border-slate-100 space-y-8 group hover:bg-white hover:border-primary/10 transition-all">
                   <div className="flex justify-between items-start">
                     <div className="space-y-3">
-                       <Badge className="bg-primary text-white font-black text-[10px] px-6 py-1 rounded-full uppercase tracking-[0.3em]">NIVEL {idx + 1}</Badge>
+                       <Badge className="bg-primary text-white font-black text-[10px] px-6 py-1 rounded-full uppercase tracking-[0.3em]">PREGUNTA {idx + 1}</Badge>
                        <p className="text-2xl font-black text-slate-800 uppercase tracking-tight leading-tight max-w-2xl">{q.text}</p>
                     </div>
                     <div className="bg-white p-4 rounded-3xl border-2 border-slate-100 shadow-sm shrink-0 flex flex-col items-center">

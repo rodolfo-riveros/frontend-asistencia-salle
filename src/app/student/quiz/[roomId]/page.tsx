@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useParams, useRouter } from "next/navigation"
-import { Loader2, Trophy, CheckCircle2, Zap, Clock, ShieldCheck, XCircle, Sparkles } from "lucide-react"
+import { Loader2, Trophy, CheckCircle2, Zap, Clock, ShieldCheck, XCircle, Sparkles, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useQuery, useMutation } from "convex/react"
 import { api as convexApi } from "@convex/_generated/api"
@@ -33,7 +33,7 @@ export default function StudentGameRoomPage() {
     return room.participants.find((p: any) => p._id === participantId)
   }, [room?.participants, participantId])
 
-  // Cargar sesión y sincronizar progreso (Persistencia real)
+  // Cargar sesión y sincronizar progreso
   React.useEffect(() => {
     const pId = localStorage.getItem(`p_${params.roomId}`)
     if (!pId) {
@@ -43,7 +43,7 @@ export default function StudentGameRoomPage() {
     }
   }, [params.roomId, router])
 
-  // Sincronizar indice de pregunta si ya respondió algunas (Re-ingreso o reconexión)
+  // Sincronizar indice de pregunta si ya respondió algunas
   React.useEffect(() => {
     if (myData?.answers && room?.questions) {
       const nextIdx = myData.answers.length;
@@ -90,7 +90,7 @@ export default function StudentGameRoomPage() {
       setTimeLeft((prev) => {
         if (prev <= 1) {
           clearInterval(timer)
-          handleAnswer(-1) // Tiempo agotado = Marcar incorrecto y pasar
+          handleAnswer(-1) // Tiempo agotado
           return 0
         }
         return prev - 1
@@ -128,14 +128,13 @@ export default function StudentGameRoomPage() {
         isCorrect: isCorrect
       })
       
-      // Transición ultra rápida tras feedback visual
       setTimeout(() => {
         if (localQuestionIndex + 1 < room.questions.length) {
           setLocalQuestionIndex(prev => prev + 1)
         } else {
           setIsQuizFinished(true)
         }
-      }, 1000)
+      }, 1200)
 
     } catch (e) {
       console.error("Error enviando respuesta:", e)
@@ -295,8 +294,11 @@ export default function StudentGameRoomPage() {
               </div>
 
               {room.status === 'finished' ? (
-                <Button onClick={() => router.push('/student/quiz/join')} className="w-full h-20 bg-primary hover:bg-primary/95 text-white rounded-[2rem] font-black uppercase text-sm tracking-widest shadow-2xl transition-all active:scale-95 border-b-8 border-primary-dark">
-                  VOLVER AL INICIO
+                <Button 
+                  onClick={() => router.push('/student/quiz/join')} 
+                  className="w-full h-20 bg-primary hover:bg-primary/95 text-white rounded-[2rem] font-black uppercase text-sm tracking-widest shadow-2xl transition-all active:scale-95 border-b-8 border-primary/20 gap-3"
+                >
+                  <LogOut className="h-6 w-6" /> VOLVER AL PORTAL
                 </Button>
               ) : (
                 <div className="p-8 bg-blue-50 rounded-[2.5rem] border-2 border-blue-100 flex flex-col items-center gap-4 shadow-inner">
