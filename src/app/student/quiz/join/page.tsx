@@ -1,13 +1,14 @@
+
 "use client"
 
 import * as React from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { GraduationCap, Loader2, Play, Fingerprint, ShieldCheck } from "lucide-react"
+import { GraduationCap, Loader2, Play, Fingerprint, ShieldCheck, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
 import { useMutation } from "convex/react"
-import { api as convexApi } from "@/../convex/_generated/api"
+import { api as convexApi } from "@convex/_generated/api"
 import { toast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -73,17 +74,15 @@ export default function StudentJoinPage() {
       <div className="w-full max-w-md space-y-8 z-10 my-auto">
         <div className="text-center space-y-4">
           <div className="inline-flex items-center justify-center w-20 h-20 bg-white border-2 border-primary/5 rounded-[1.8rem] shadow-xl mb-2 transition-transform hover:scale-105 duration-500">
-             <GraduationCap className="h-10 w-10 text-primary" />
+             <Zap className="h-10 w-10 text-primary" />
           </div>
           <div className="space-y-1">
-            <h1 className="text-4xl font-black text-slate-900 uppercase tracking-tighter italic leading-none drop-shadow-sm">Salle Live</h1>
-            <p className="text-primary font-bold uppercase text-[10px] tracking-[0.25em]">Desafío Académico</p>
+            <h1 className="text-4xl font-black text-slate-900 uppercase tracking-tighter italic leading-none drop-shadow-sm">Rank-UP</h1>
+            <p className="text-primary font-bold uppercase text-[10px] tracking-[0.25em]">Sallé Challenge Live</p>
           </div>
         </div>
 
-        <Card className="border-none shadow-[0_20px_50px_rgba(0,0,0,0.05)] bg-white rounded-[2.5rem] p-8 md:p-10 overflow-hidden relative">
-          <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-primary to-blue-400" />
-          
+        <Card className="border-none shadow-[0_20px_50px_rgba(0,0,0,0.05)] bg-white rounded-[2.5rem] p-8 md:p-10 overflow-hidden relative border-t-8 border-primary">
           <form onSubmit={handleJoin} className="space-y-8">
             <div className="space-y-3">
               <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.15em] ml-1">Pin de Juego</label>
@@ -120,7 +119,7 @@ export default function StudentJoinPage() {
                    <AvatarFallback className="bg-primary text-white font-black text-sm">{getInitials(studentName)}</AvatarFallback>
                 </Avatar>
                 <div className="flex flex-col min-w-0">
-                   <span className="text-[9px] font-black uppercase text-primary/60 tracking-widest">Listo para el desafío</span>
+                   <span className="text-[9px] font-black uppercase text-primary/60 tracking-widest">Héroe Salle Listo</span>
                    <span className="text-sm font-black text-slate-800 uppercase leading-none mt-1 truncate">{studentName}</span>
                 </div>
               </div>
@@ -131,13 +130,13 @@ export default function StudentJoinPage() {
               disabled={isJoining || !studentName}
               className="w-full h-18 py-8 bg-primary hover:bg-primary/95 text-white rounded-[1.5rem] font-black uppercase text-xs tracking-widest shadow-2xl shadow-primary/25 gap-3 transition-all active:scale-95 disabled:grayscale"
             >
-              {isJoining ? <Loader2 className="h-5 w-5 animate-spin" /> : <Play className="h-5 w-5 fill-current" />} Unirse al Desafío
+              {isJoining ? <Loader2 className="h-5 w-5 animate-spin" /> : <Play className="h-5 w-5 fill-current" />} ¡Comenzar el Ascenso!
             </Button>
           </form>
         </Card>
       </div>
       
-      <footer className="w-full max-w-md text-center space-y-2 mt-8 animate-in fade-in slide-in-from-bottom-2 duration-1000 delay-500">
+      <footer className="w-full text-center space-y-2 pb-6 pt-10">
         <div className="flex items-center justify-center gap-2 text-[9px] font-black uppercase text-slate-300 tracking-[0.2em]">
           <ShieldCheck className="h-3 w-3" /> IES LA SALLE URUBAMBA
         </div>
