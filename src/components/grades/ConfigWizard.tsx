@@ -29,8 +29,10 @@ import {
   CheckCircle2, 
   Sparkles, 
   Loader2,
-  AlertCircle,
-  RefreshCcw
+  RefreshCcw,
+  Zap,
+  PlusCircle,
+  Radio
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ChecklistConfig } from "./editor/ChecklistConfig"
@@ -38,10 +40,14 @@ import { RubricConfig } from "./editor/RubricConfig"
 import { ScaleConfig } from "./editor/ScaleConfig"
 import { GuideConfig } from "./editor/GuideConfig"
 import { GroupConfig } from "./strategies/GroupConfig"
+import { QuestionEditor } from "@/components/quiz/QuestionEditor"
 
 import { api } from "@/lib/api"
 import { toast } from "@/hooks/use-toast"
 import { analyzeInstrument } from "@/ai/flows/analyze-instrument-flow"
+import { generateQuiz } from "@/ai/flows/generate-quiz-flow"
+import { useMutation } from "convex/react"
+import { api as convexApi } from "@convex/_generated/api"
 
 const INST_LABELS: Record<string, string> = {
   manual: 'Nota Directa',
@@ -100,10 +106,14 @@ export function ConfigWizard({
 }: ConfigWizardProps) {
   
   const [isFinishing, setIsFinishing] = React.useState(false)
+  const [isGeneratingQuiz, setIsGeneratingQuiz] = React.useState(false)
   const [registeredIndicatorId, setRegisteredIndicatorId] = React.useState<string | null>(null)
   const [registeredEvalId, setRegisteredEvalId] = React.useState<string | null>(null)
   const [originalIndicator, setOriginalIndicator] = React.useState<any>(null)
   const [isScanning, setIsScanning] = React.useState(false)
+  const [quizQuestions, setQuizQuestions] = React.useState<any[]>([])
+
+  const createRoom = useMutation(convexApi.rooms.createRoom)
 
   const handleAiScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -152,7 +162,6 @@ export function ConfigWizard({
       setEditorCriteria(parsedCriteria);
       toast({ title: "Digitalización Exitosa", description: "El instrumento ha sido interpretado por la IA." });
 
-      // AUTOMATIZACIÓN: Registro y avance inmediato
       if (registeredIndicatorId) {
         const payload = {
           indicador_id: registeredIndicatorId,
@@ -183,9 +192,24 @@ export function ConfigWizard({
     }
   };
 
+  const handleGenerateQuizQuestions = async () => {
+    if (!editorCriteria.length) return;
+    setIsGeneratingQuiz(true);
+    try {
+      const result = await generateQuiz({
+        criteria: editorCriteria.map((c, i) => ({ id: i.toString(), description: c.description || c.category })),
+        subjectName: newColName
+      });
+      setQuizQuestions(result.questions);
+      toast({ title: "Preguntas Generadas", description: "La IA ha creado el desafío basado en tus criterios." });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Error", description: e.message });
+    } finally {
+      setIsGeneratingQuiz(false);
+    }
+  }
+
   const registerStep0 = async () => {
-    // Si ya está registrado de la biblioteca y no hay cambios (está inhabilitado)
-    // Simplemente avanzamos sin llamar a la API
     if (registeredIndicatorId && originalIndicator) {
       const hasChanged = 
         originalIndicator.codigo !== newIndicatorCode || 
@@ -281,6 +305,8 @@ export function ConfigWizard({
       
       if (newStrategyType === 'grupal') {
         setSetupStep(4)
+      } else if (newStrategyType === 'quizz') {
+        setSetupStep(5)
       } else {
         toast({ title: "Diseño Guardado" })
         addColumn(); setIsOpen(false); resetEditor();
@@ -320,12 +346,44 @@ export function ConfigWizard({
     }
   }
 
+  const registerStep5 = async () => {
+    if (!registeredEvalId || quizQuestions.length === 0) return;
+    setIsFinishing(true);
+    try {
+      // 1. Guardar preguntas en FastAPI
+      await api.patch(`/evaluaciones/${registeredEvalId}`, {
+        configuracion_json: {
+          strategy: 'quizz',
+          criteria: editorCriteria,
+          questions: quizQuestions
+        }
+      });
+
+      // 2. Crear sala en Convex
+      const roomCode = Math.floor(100000 + Math.random() * 900000).toString();
+      await createRoom({
+        roomCode,
+        questions: quizQuestions,
+        configId: registeredEvalId,
+        unidadId: unidadId
+      });
+
+      toast({ title: "Gamificación Lista", description: `Sala creada con el PIN: ${roomCode}` });
+      addColumn(); setIsOpen(false); resetEditor();
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Error", description: e.message });
+    } finally {
+      setIsFinishing(false);
+    }
+  }
+
   const handleNext = () => {
     if (setupStep === 0) registerStep0();
     else if (setupStep === 1) setSetupStep(2);
     else if (setupStep === 2) registerStep2();
     else if (setupStep === 3) registerStep3();
     else if (setupStep === 4) registerStep4();
+    else if (setupStep === 5) registerStep5();
   }
 
   const handleBack = () => {
@@ -352,7 +410,8 @@ export function ConfigWizard({
               setupStep === 0 ? "Indicador de Logro" :
               setupStep === 1 ? "Instrumento y Estrategia" :
               setupStep === 2 ? "Detalles de Actividad" :
-              setupStep === 3 ? "Diseño Pedagógico" : "Sorteo de Equipos"
+              setupStep === 3 ? "Diseño Pedagógico" : 
+              setupStep === 4 ? "Sorteo de Equipos" : "Preguntas Gamificadas"
             }
           </DialogDescription>
         </DialogHeader>
@@ -389,11 +448,6 @@ export function ConfigWizard({
                       )}
                     </div>
                     <div className="bg-slate-50/50 p-8 rounded-[2rem] border-2 border-slate-100 space-y-6 relative">
-                      {registeredIndicatorId && (
-                        <div className="absolute inset-0 z-10 bg-slate-50/20 backdrop-blur-[1px] rounded-[2rem] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                          {/* Overlay informativo opcional */}
-                        </div>
-                      )}
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label className="font-black text-slate-400 text-[10px] uppercase tracking-[0.2em] ml-1">Código ILC</Label>
@@ -429,11 +483,9 @@ export function ConfigWizard({
                     </div>
                   </div>
                   <div className="space-y-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-2xl bg-primary/5 flex items-center justify-center text-primary"><History className="h-6 w-6" /></div>
-                        <h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Biblioteca</h4>
-                      </div>
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-primary/5 flex items-center justify-center text-primary"><History className="h-6 w-6" /></div>
+                      <h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Biblioteca</h4>
                     </div>
                     <div className="bg-white rounded-[2rem] border-2 border-dashed border-slate-200 p-6 min-h-[250px]">
                       {existingIndicators.length > 0 ? (
@@ -553,7 +605,6 @@ export function ConfigWizard({
                         <div className="font-black text-slate-900 text-3xl tracking-tighter uppercase">{newColName || "Actividad"}</div>
                       </div>
                     </div>
-                    {(newInstType === 'cotejo' || newInstType === 'anecdotario') && <div className={cn("px-8 py-4 rounded-2xl font-black text-xl shadow-inner border-2", totalPointsStep === 20 ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-red-50 text-red-700 border-red-100')}>{totalPointsStep} / 20 PTS</div>}
                   </div>
                   {newInstType === 'cotejo' && <ChecklistConfig criteria={editorCriteria} setCriteria={setEditorCriteria} />}
                   {newInstType === 'rubrica' && <RubricConfig criteria={editorCriteria} setCriteria={setEditorCriteria} />}
@@ -574,6 +625,24 @@ export function ConfigWizard({
                   <GroupConfig students={students} groupSize={groupSize} setGroupSize={setGroupSize} studentGroups={studentGroups} setStudentGroups={setStudentGroups} newColName={newColName} />
                 </div>
               )}
+
+              {setupStep === 5 && (
+                <div className="space-y-8 animate-in fade-in slide-in-from-right-4 w-full max-w-4xl">
+                  <div className="flex flex-col md:flex-row justify-between items-center bg-slate-900 p-10 rounded-[3rem] text-white shadow-2xl gap-8">
+                    <div className="flex items-center gap-6">
+                      <div className="p-5 bg-accent rounded-3xl shadow-xl text-white"><Gamepad2 className="h-10 w-10" /></div>
+                      <div>
+                        <Badge className="bg-accent/20 text-accent border-none font-black uppercase text-[8px] tracking-widest mb-1">Configuración Gamificada</Badge>
+                        <div className="font-black text-3xl tracking-tighter uppercase italic">{newColName}</div>
+                      </div>
+                    </div>
+                    <Button onClick={handleGenerateQuizQuestions} disabled={isGeneratingQuiz} className="bg-accent hover:bg-accent/90 h-16 px-10 rounded-2xl font-black uppercase text-xs tracking-widest gap-3 shadow-xl shadow-accent/20">
+                      {isGeneratingQuiz ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />} Auto-Generar con IA
+                    </Button>
+                  </div>
+                  <QuestionEditor questions={quizQuestions} onUpdate={setQuizQuestions} />
+                </div>
+              )}
             </div>
           </ScrollArea>
         </div>
@@ -587,8 +656,8 @@ export function ConfigWizard({
               setupStep === 0 ? "Registrar Indicador" :
               setupStep === 1 ? "Continuar" :
               setupStep === 2 ? (newInstType === 'manual' ? "Registrar Actividad" : "Guardar Detalles") :
-              setupStep === 3 ? (newStrategyType === 'grupal' ? "Guardar y Ver Grupos" : "Finalizar Diseño") :
-              "Finalizar Equipos"
+              setupStep === 3 ? (newStrategyType === 'grupal' ? "Guardar y Ver Grupos" : newStrategyType === 'quizz' ? "Guardar y Ver Quizz" : "Finalizar Diseño") :
+              setupStep === 4 ? "Finalizar Equipos" : "Finalizar y Crear Sala"
             )}
           </Button>
         </div>

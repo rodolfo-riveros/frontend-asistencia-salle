@@ -2,8 +2,8 @@
 "use client"
 
 import * as React from "react"
-import { useParams, useSearchParams } from "next/navigation"
-import { Target, FileText, LayoutList, Star, Quote, Loader2, Gamepad2 } from "lucide-react"
+import { useParams, useSearchParams, useRouter } from "next/navigation"
+import { Target, FileText, LayoutList, Star, Quote, Loader2, Gamepad2, Play } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -48,6 +48,7 @@ const DEFAULT_SCALE_LEVELS = [
 
 export default function AcademicGradebookPage() {
   const params = useParams()
+  const router = useRouter()
   const searchParams = useSearchParams()
   const periodoId = searchParams.get('periodo_id') || "ACTUAL"
   
@@ -127,7 +128,6 @@ export default function AcademicGradebookPage() {
           };
         });
 
-        // Ordenamiento por código de indicador de forma natural (C1, C2... C10)
         const sortedCols = [...mappedCols].sort((a, b) => 
           a.indicatorCode.localeCompare(b.indicatorCode, undefined, { numeric: true, sensitivity: 'base' })
         );
@@ -149,7 +149,6 @@ export default function AcademicGradebookPage() {
         const detailsMap: Record<string, Record<string, any>> = {};
         const commentsMap: Record<string, Record<string, string>> = {};
 
-        // Llenar notas directas
         configData.calificaciones?.forEach((cal: any) => {
           if (!gradesMap[cal.alumno_id]) gradesMap[cal.alumno_id] = {};
           gradesMap[cal.alumno_id][cal.evaluacion_id] = cal.puntaje;
@@ -161,12 +160,10 @@ export default function AcademicGradebookPage() {
           commentsMap[cal.alumno_id][cal.evaluacion_id] = cal.observacion;
         });
 
-        // Sincronización Grupal (Si un miembro tiene nota, se la damos a todo el grupo visualmente)
         sortedCols.forEach(col => {
           if (col.strategy === 'grupal' && col.groups) {
             const groupGrades: Record<string, { grade: number, detail: any, comment: string }> = {};
             
-            // Buscar una nota existente en cada grupo
             Object.entries(col.groups).forEach(([sId, gName]) => {
               if (gradesMap[sId]?.[col.id] !== undefined && !groupGrades[gName]) {
                 groupGrades[gName] = {
@@ -177,7 +174,6 @@ export default function AcademicGradebookPage() {
               }
             });
 
-            // Replicar la nota encontrada a todos los integrantes del mismo grupo
             Object.entries(col.groups).forEach(([sId, gName]) => {
               if (groupGrades[gName]) {
                 if (!gradesMap[sId]) gradesMap[sId] = {};
@@ -222,7 +218,6 @@ export default function AcademicGradebookPage() {
     if (!column) return
     const max = column.maxPoints || 20
     
-    // Identificar IDs objetivo (el alumno actual + compañeros de grupo si aplica)
     const targetStudentIds = [studentId];
     if (column.strategy === 'grupal' && column.groups) {
       const groupName = column.groups[studentId];
@@ -235,7 +230,6 @@ export default function AcademicGradebookPage() {
       }
     }
 
-    // Caso: Limpieza de nota (input vacío)
     if (value === "") {
        setGrades(prev => {
          const next = { ...prev };
@@ -254,7 +248,6 @@ export default function AcademicGradebookPage() {
     const numValue = Math.min(max, Math.max(0, parseFloat(value)));
     if (isNaN(numValue)) return;
     
-    // Actualizar estados locales para todo el grupo de forma inmediata
     setGrades(prev => {
       const next = { ...prev };
       targetStudentIds.forEach(id => {
@@ -283,7 +276,6 @@ export default function AcademicGradebookPage() {
       });
     }
 
-    // El backend se encarga de la persistencia (el service ya tiene la lógica de replicación grupal)
     try {
       await api.post('/evaluaciones/calificar/', {
         evaluacion_id: columnId,
@@ -375,7 +367,17 @@ export default function AcademicGradebookPage() {
                               <div className="text-primary/60">{getInstrumentIcon(c.type)}</div>
                               <Badge variant="outline" className="border-primary/20 text-primary text-[8px] font-black px-1.5">{c.indicatorCode}</Badge>
                             </div>
-                            <span className="text-slate-900 truncate w-24 md:w-32 font-extrabold text-[11px]">{c.name}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-slate-900 truncate w-24 md:w-32 font-extrabold text-[11px]">{c.name}</span>
+                              {c.strategy === 'quizz' && (
+                                <button 
+                                  onClick={() => router.push(`/instructor/quiz/${params.id}?periodo_id=${periodoId}`)}
+                                  className="h-6 w-6 rounded-full bg-accent text-white flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
+                                >
+                                  <Play className="h-3 w-3" />
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </TableHead>
                       ))}
