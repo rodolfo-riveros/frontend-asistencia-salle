@@ -7,7 +7,7 @@ import {
   ArrowLeft, Gamepad2, Sparkles, 
   Loader2, Radio, Users, Maximize2, Play, Trophy, 
   ShieldCheck, UserX, Crown, Zap, Clock, BookOpen, 
-  AlertTriangle 
+  AlertTriangle, Target, Percent, Award
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardTitle } from "@/components/ui/card"
@@ -41,7 +41,6 @@ export default function InstructorQuizPage() {
       const quizEval = await api.get<any>(`/evaluaciones/${params.id}`)
       if (quizEval) {
         setConfig(quizEval)
-        // Intentamos obtener una sesión activa si existe, pero no bloqueamos si falla (404/500)
         try {
           const activeSession = await api.get<any>(`/gamificacion/sesion/${quizEval.id}/`)
           if (activeSession && activeSession.room_code) {
@@ -49,7 +48,6 @@ export default function InstructorQuizPage() {
             setSessionId(activeSession.sesion_id)
           }
         } catch (e) { 
-          // Silencioso: no hay sesión activa previa
           console.log("No active session found for this evaluation") 
         }
       }
@@ -101,7 +99,6 @@ export default function InstructorQuizPage() {
   const handleProjectArena = async () => {
     if (!roomCode || !config) return;
     
-    // Si Convex no tiene la sala (porque se borró o reinició), la recreamos
     if (room === null) {
       setIsSyncing(true)
       try {
@@ -383,35 +380,69 @@ export default function InstructorQuizPage() {
         </div>
         
         <div className="space-y-8">
-          <Card className="p-10 border-none shadow-2xl bg-slate-900 rounded-[3.5rem] sticky top-28 overflow-hidden">
-            <div className="absolute -top-12 -right-12 w-32 h-32 bg-white/5 rounded-full blur-2xl" />
-            <h4 className="text-xl font-black uppercase tracking-widest mb-10 flex items-center gap-4 text-blue-100">
+          <Card className="p-10 border-none shadow-2xl bg-white rounded-[3.5rem] sticky top-28 overflow-hidden border-2 border-slate-50">
+            <div className="absolute top-0 left-0 w-full h-2 bg-primary" />
+            <h4 className="text-xl font-black uppercase tracking-widest mb-10 flex items-center gap-4 text-slate-900">
               <ShieldCheck className="h-7 w-7 text-primary" /> Contexto Académico
             </h4>
+            
             {config && (
               <div className="space-y-10">
-                <div className="p-8 bg-white/5 rounded-[2.5rem] border-2 border-white/10 space-y-4 shadow-inner relative overflow-hidden group hover:bg-white/10 transition-all">
-                  <div className="absolute top-0 left-0 w-2 h-full bg-primary" />
-                  <Badge className="bg-primary text-white font-black px-4 py-1 rounded-xl block w-fit text-[11px] tracking-widest">{config.indicador_codigo}</Badge>
-                  <p className="text-sm font-bold text-blue-50/90 uppercase leading-relaxed">{config.indicador_desc}</p>
+                <div className="space-y-6">
+                  <div className="p-6 bg-slate-50 rounded-[2.5rem] border-2 border-slate-100 space-y-5">
+                    <div className="flex flex-col">
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Nombre de la Actividad</span>
+                      <p className="text-lg font-black text-slate-900 uppercase leading-tight italic">{config.nombre}</p>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-white p-4 rounded-2xl border border-slate-100 flex items-center gap-3">
+                        <div className="p-2 bg-primary/10 rounded-xl text-primary"><Percent className="h-4 w-4" /></div>
+                        <div className="flex flex-col">
+                          <span className="text-[8px] font-black text-slate-400 uppercase">Peso</span>
+                          <span className="text-sm font-black text-primary">{config.peso_instrumento}%</span>
+                        </div>
+                      </div>
+                      <div className="bg-white p-4 rounded-2xl border border-slate-100 flex items-center gap-3">
+                        <div className="p-2 bg-accent/10 rounded-xl text-accent"><Award className="h-4 w-4" /></div>
+                        <div className="flex flex-col">
+                          <span className="text-[8px] font-black text-slate-400 uppercase">Máximo</span>
+                          <span className="text-sm font-black text-accent">{config.puntaje_maximo} pts</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-6 bg-primary/5 rounded-3xl border-2 border-primary/10 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <Badge className="bg-primary text-white font-black text-[9px] px-3 py-0.5 rounded-lg tracking-widest uppercase">{config.indicador_codigo}</Badge>
+                      <Target className="h-4 w-4 text-primary/30" />
+                    </div>
+                    <p className="text-[11px] font-bold text-primary uppercase leading-relaxed">{config.indicador_desc}</p>
+                  </div>
                 </div>
 
                 <div className="space-y-6">
-                  <span className="text-[11px] font-black text-blue-300/50 uppercase tracking-[0.4em] ml-4">Criterios de Evaluación</span>
+                  <div className="flex items-center justify-between px-2">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Criterios del Quizz</span>
+                    <Badge variant="outline" className="text-[9px] font-black border-slate-200 text-slate-400">
+                      {(config.configuracion_json?.criteria || []).length} CRITERIOS
+                    </Badge>
+                  </div>
                   <div className="grid gap-3">
                     {(config.configuracion_json?.criteria || []).map((c: any, i: number) => (
-                      <div key={i} className="flex items-center gap-5 p-5 bg-white/5 rounded-3xl border-2 border-white/5 group hover:border-primary/30 transition-all">
-                         <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary font-black text-sm shrink-0">{i + 1}</div>
-                         <p className="text-[11px] font-black text-blue-50/70 uppercase tracking-tight leading-relaxed">{c.description || c.category}</p>
+                      <div key={i} className="flex items-center gap-4 p-4 bg-white rounded-2xl border-2 border-slate-50 group hover:border-primary/20 transition-all shadow-sm">
+                         <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400 font-black text-xs shrink-0 group-hover:bg-primary group-hover:text-white transition-colors">{i + 1}</div>
+                         <p className="text-[10px] font-black text-slate-600 uppercase tracking-tight leading-relaxed line-clamp-2">{c.description || c.category}</p>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                <div className="pt-10 text-center border-t border-white/10">
-                   <div className="flex items-center justify-center gap-3 text-[10px] font-black uppercase text-white/20 tracking-[0.3em]">
-                     <ShieldCheck className="h-4 w-4" /> IES LA SALLE URUBAMBA
-                   </div>
+                <div className="pt-8 text-center border-t border-slate-100">
+                   <p className="text-[10px] font-black uppercase text-slate-300 tracking-[0.3em]">
+                     IES LA SALLE URUBAMBA
+                   </p>
                 </div>
               </div>
             )}
