@@ -43,7 +43,7 @@ export const createRoom = mutation({
 });
 
 export const joinRoom = mutation({
-  args: { roomCode: v.string(), name: v.string() },
+  args: { roomCode: v.string(), name: v.string(), studentId: v.string() },
   handler: async (ctx, args) => {
     const code = args.roomCode.toUpperCase();
     const room = await ctx.db
@@ -53,13 +53,13 @@ export const joinRoom = mutation({
       
     if (!room) throw new Error("La sala no existe.");
 
-    // RECUPERACIÓN DE SESIÓN: Si el nombre ya está en la sala, devolvemos el ID existente para que no se duplique
+    // RECUPERACIÓN DE SESIÓN: Si el ID del alumno ya está, devolvemos su ID de participante
     const existingParticipant = await ctx.db
       .query("participants")
       .withIndex("by_room", (q) => q.eq("roomId", room._id))
       .collect();
 
-    const matched = existingParticipant.find(p => p.name.trim().toUpperCase() === args.name.trim().toUpperCase());
+    const matched = existingParticipant.find(p => p.studentId === args.studentId);
     
     if (matched) {
       return matched._id;
@@ -71,6 +71,7 @@ export const joinRoom = mutation({
 
     return await ctx.db.insert("participants", {
       roomId:  room._id,
+      studentId: args.studentId,
       name:    args.name.trim().toUpperCase(),
       score:   0,
       avatar:  randomAvatar,

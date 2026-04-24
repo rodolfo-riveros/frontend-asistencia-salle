@@ -24,6 +24,7 @@ export default defineSchema({
    */
   participants: defineTable({
     roomId:  v.id("rooms"),
+    studentId: v.string(), // ID real de Supabase/FastAPI
     name:    v.string(),
     score:   v.number(),
     avatar:  v.string(), // Nombre del personaje (Batman, Iron Man, etc.)

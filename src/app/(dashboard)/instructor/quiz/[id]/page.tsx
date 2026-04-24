@@ -48,13 +48,12 @@ export default function InstructorQuizPage() {
           const activeSession = await api.get<any>(`/gamificacion/sesion/${quizEval.id}/`)
           if (activeSession && activeSession.room_code) {
             setRoomCode(activeSession.room_code)
-            setSessionId(activeSession.sesion_id)
+            setSessionId(activeSession.id || activeSession.sesion_id)
           }
-        } catch (e) { /* Sesión no encontrada es un caso normal */ }
+        } catch (e) { /* Caso normal si no hay sesión activa */ }
       }
     } catch (e: any) {
       console.error("Error loading config:", e)
-      toast({ variant: "destructive", title: "Configuración", description: "No se pudo cargar la evaluación." })
     } finally {
       setLoadingConfig(false)
     }
@@ -88,7 +87,7 @@ export default function InstructorQuizPage() {
       })
 
       setRoomCode(session.room_code)
-      setSessionId(session.sesion_id)
+      setSessionId(session.id || session.sesion_id)
       setIsFullscreen(true)
     } catch (e: any) {
       toast({ variant: "destructive", title: "Fallo al abrir sala", description: e.message })
@@ -140,7 +139,10 @@ export default function InstructorQuizPage() {
   }
 
   const handleCloseAndPersist = async () => {
-    if (!sessionId || !room?.participants || !config) return
+    if (!sessionId || !room?.participants || !config) {
+      toast({ variant: "destructive", title: "Faltan datos", description: "No se pudo recuperar la sesión técnica para guardar." });
+      return;
+    }
     
     setIsClosing(true)
     try {
@@ -152,9 +154,9 @@ export default function InstructorQuizPage() {
         const academicGrade = Math.round((correctAnswers / totalQuestions) * maxScore);
         
         return {
-          alumno_id: p.name, 
+          alumno_id: p.studentId, // Usamos el ID real de la DB
           puntaje: academicGrade,
-          observacion: `Logro en Quizz: ${correctAnswers}/${totalQuestions} respuestas correctas.`
+          observacion: `Logro Rank-UP: ${correctAnswers}/${totalQuestions} correctas. Ranking: ${p.score} pts.`
         }
       })
 
@@ -162,7 +164,7 @@ export default function InstructorQuizPage() {
       toast({ title: "Notas Sincronizadas", description: "Los resultados se han pasado al Registro Auxiliar." })
       router.back()
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Error al cerrar", description: e.message })
+      toast({ variant: "destructive", title: "Fallo al sincronizar", description: e.message })
     } finally {
       setIsClosing(false)
     }
@@ -182,7 +184,6 @@ export default function InstructorQuizPage() {
     )
   }
 
-  // VISTA: RESUMEN ACADÉMICO POST-JUEGO
   if (showAcademicSummary) {
     return (
       <div className="space-y-12 pb-20 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -270,7 +271,6 @@ export default function InstructorQuizPage() {
     )
   }
 
-  // VISTA: MONITOR ARENA (LOBBY Y PODIO)
   if (isFullscreen && roomCode) {
     if (room === undefined) return (
       <div className="fixed inset-0 z-[100] bg-white flex flex-col items-center justify-center gap-6">
@@ -332,8 +332,8 @@ export default function InstructorQuizPage() {
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_2px_2px,rgba(255,255,255,0.05)_2px,transparent_0)] bg-[size:64px_64px]" />
             
             {room.status === 'finished' ? (
-              <div className="h-full flex flex-col items-center animate-in zoom-in-95 relative z-10 pt-12">
-                <div className="text-center mb-16 space-y-2 z-50">
+              <div className="h-full flex flex-col items-center animate-in zoom-in-95 relative z-10 pt-20">
+                <div className="text-center mb-24 space-y-2 z-[60]">
                    <h2 className="text-5xl md:text-7xl font-black uppercase italic tracking-tighter text-white drop-shadow-[0_10px_10px_rgba(0,0,0,0.3)]">Podio de Campeones</h2>
                    <p className="text-yellow-400 font-black text-lg uppercase tracking-[0.5em] italic">Salle Rank-UP Challenge</p>
                 </div>
@@ -410,7 +410,6 @@ export default function InstructorQuizPage() {
                   )}
                 </div>
 
-                {/* Lista de mérito para 4to en adelante */}
                 {sortedParticipants.length > 3 && (
                   <div className="w-full max-w-4xl space-y-4 animate-in fade-in duration-1000 pb-20 relative z-10">
                     <div className="flex items-center gap-4 px-10 mb-6">

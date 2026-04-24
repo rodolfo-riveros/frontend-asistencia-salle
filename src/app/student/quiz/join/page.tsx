@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -21,6 +20,7 @@ function JoinForm() {
   const [pin, setPin] = React.useState(searchParams.get('pin') || "")
   const [dni, setDni] = React.useState("")
   const [studentName, setStudentName] = React.useState<string | null>(null)
+  const [studentId, setStudentId] = React.useState<string | null>(null)
   const [isValidating, setIsValidating] = React.useState(false)
   const [isJoining, setIsJoining] = React.useState(false)
   
@@ -38,31 +38,39 @@ function JoinForm() {
         
         if (student && student.nombre) {
           setStudentName(student.nombre)
+          setStudentId(student.id)
           setAvatarSeed(student.nombre.split(',')[0])
           toast({ title: "Identidad Verificada", description: `Bienvenido, héroe ${student.nombre}` })
         } else {
           setStudentName(null)
+          setStudentId(null)
           toast({ variant: "destructive", title: "DNI no encontrado", description: "No figuras en el padrón oficial de La Salle." })
         }
       } catch (e: any) {
         setStudentName(null)
+        setStudentId(null)
         toast({ variant: "destructive", title: "Error de Conexión", description: "Verifica que el PIN sea correcto o reintenta." })
       } finally {
         setIsValidating(false)
       }
     } else {
       setStudentName(null)
+      setStudentId(null)
     }
   }
 
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault()
     const cleanPin = pin.trim().toUpperCase();
-    if (!cleanPin || !dni || !studentName) return
+    if (!cleanPin || !dni || !studentName || !studentId) return
     
     setIsJoining(true)
     try {
-      const participantId = await joinRoom({ roomCode: cleanPin, name: studentName })
+      const participantId = await joinRoom({ 
+        roomCode: cleanPin, 
+        name: studentName,
+        studentId: studentId
+      })
       localStorage.setItem(`p_${cleanPin}`, participantId)
       router.push(`/student/quiz/${cleanPin}`)
     } catch (e: any) {
@@ -161,7 +169,9 @@ export default function StudentJoinPage() {
       <footer className="w-full text-center space-y-2 pb-8 pt-10 px-6 z-10">
         <div className="flex items-center justify-center gap-2">
           <ShieldCheck className="h-4 w-4 text-primary opacity-30" />
-          <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">IES LA SALLE URUBAMBA</p>
+          <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">
+            IES LA SALLE URUBAMBA
+          </p>
         </div>
         <p className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">© {new Date().getFullYear()} | <span className="text-primary/50 italic">Rodolfo Riveros</span></p>
       </footer>
