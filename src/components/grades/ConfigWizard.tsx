@@ -2,6 +2,7 @@
 "use client"
 
 import * as React from "react"
+import { useRouter } from "next/navigation"
 import { 
   Dialog, 
   DialogContent, 
@@ -30,7 +31,6 @@ import {
   Sparkles, 
   Loader2,
   RefreshCcw,
-  PlusCircle,
   Zap,
   Radio
 } from "lucide-react"
@@ -104,6 +104,7 @@ export function ConfigWizard({
   students, groupSize, setGroupSize, studentGroups, setStudentGroups, addColumn, resetEditor
 }: ConfigWizardProps) {
   
+  const router = useRouter()
   const [isFinishing, setIsFinishing] = React.useState(false)
   const [isGeneratingQuiz, setIsGeneratingQuiz] = React.useState(false)
   const [registeredIndicatorId, setRegisteredIndicatorId] = React.useState<string | null>(null)
@@ -193,7 +194,7 @@ export function ConfigWizard({
 
   const handleGenerateQuizQuestions = async () => {
     if (!editorCriteria.length) {
-      return toast({ variant: "destructive", title: "Sin Criterios", description: "Define criterios primero." });
+      return toast({ variant: "destructive", title: "Sin Criterios", description: "Define criterios pedagógicos primero." });
     }
     setIsGeneratingQuiz(true);
     try {
@@ -202,7 +203,7 @@ export function ConfigWizard({
         subjectName: newColName
       });
       setQuizQuestions(result.questions);
-      toast({ title: "Preguntas Generadas", description: "Desafío técnico de alta exigencia creado." });
+      toast({ title: "Preguntas Generadas", description: "Cuestionario técnico de alta exigencia creado." });
     } catch (e: any) {
       toast({ variant: "destructive", title: "Error de IA", description: e.message });
     } finally {
@@ -351,7 +352,9 @@ export function ConfigWizard({
     if (!registeredEvalId || quizQuestions.length === 0) return;
     setIsFinishing(true);
     try {
-      await api.patch(`/evaluaciones/${registeredEvalId}`, {
+      // 1. Llamar a FastAPI para crear la sesión y persistir config_json
+      const sessionRes = await api.post<any>('/gamificacion/sesion/', {
+        evaluacion_id: registeredEvalId,
         configuracion_json: {
           strategy: 'quizz',
           criteria: editorCriteria,
@@ -359,18 +362,33 @@ export function ConfigWizard({
         }
       });
 
-      const roomCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const { room_code } = sessionRes;
+
+      // 2. Registrar la sala en Convex para tiempo real
       await createRoom({
-        roomCode,
+        roomCode: room_code,
         questions: quizQuestions,
         configId: registeredEvalId,
         unidadId: unidadId
       });
 
-      toast({ title: "Gamificación Lista", description: `Sala creada con el PIN: ${roomCode}` });
-      addColumn(); setIsOpen(false); resetEditor();
+      toast({ 
+        title: "Gamificación Lista", 
+        description: `Sala activa con PIN: ${room_code}. Redirigiendo...` 
+      });
+
+      addColumn(); 
+      setIsOpen(false); 
+      resetEditor();
+      
+      // Redirigir al panel de control de Quizz
+      router.push(`/instructor/quiz/${unidadId}?periodo_id=${periodoId}`);
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Error de Registro", description: "Fallo al crear sala en Convex o guardar en FastAPI." });
+      toast({ 
+        variant: "destructive", 
+        title: "Error de Registro", 
+        description: e.message || "No se pudo sincronizar la sala con Convex o FastAPI." 
+      });
     } finally {
       setIsFinishing(false);
     }
@@ -403,14 +421,14 @@ export function ConfigWizard({
     <Dialog open={isOpen} onOpenChange={(o) => { if(!isFinishing) { setIsOpen(o); if(!o) { resetEditor(); setRegisteredIndicatorId(null); setRegisteredEvalId(null); setOriginalIndicator(null); } } }}>
       <DialogContent className="max-w-5xl p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl flex flex-col h-[90vh]">
         <DialogHeader className="bg-primary h-28 flex flex-col justify-center px-10 text-white shrink-0">
-          <DialogTitle className="text-2xl font-black uppercase tracking-tight">Registro de Evaluación Técnica</DialogTitle>
+          <DialogTitle className="text-2xl font-black uppercase tracking-tight">Configuración de Evaluación</DialogTitle>
           <DialogDescription className="text-blue-100/80 font-bold uppercase text-[10px] tracking-[0.2em] mt-1">
             PASO {setupStep + 1}: {
               setupStep === 0 ? "Indicador de Logro" :
               setupStep === 1 ? "Instrumento y Estrategia" :
               setupStep === 2 ? "Detalles de Actividad" :
               setupStep === 3 ? "Diseño Pedagógico" : 
-              setupStep === 4 ? "Sorteo de Equipos" : "Preguntas Gamificadas"
+              setupStep === 4 ? "Sorteo de Equipos" : "Gamificación con IA"
             }
           </DialogDescription>
         </DialogHeader>
@@ -426,8 +444,8 @@ export function ConfigWizard({
                         <BookOpen className="h-6 w-6" />
                       </div>
                       <div className="flex-grow flex flex-col">
-                        <h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Indicador de Logro</h4>
-                        <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Criterio Curricular</p>
+                        <h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Criterio de Logro</h4>
+                        <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Definición de Indicador</p>
                       </div>
                       {registeredIndicatorId && (
                         <Button 
@@ -449,7 +467,7 @@ export function ConfigWizard({
                     <div className="bg-slate-50/50 p-8 rounded-[2rem] border-2 border-slate-100 space-y-6 relative">
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label className="font-black text-slate-400 text-[10px] uppercase tracking-[0.2em] ml-1">Código ILC</Label>
+                          <Label className="font-black text-slate-400 text-[10px] uppercase tracking-[0.2em] ml-1">Código</Label>
                           <Input 
                             value={newIndicatorCode} 
                             onChange={e => setNewIndicatorCode(e.target.value.toUpperCase())} 
@@ -459,7 +477,7 @@ export function ConfigWizard({
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label className="font-black text-slate-400 text-[10px] uppercase tracking-[0.2em] ml-1">Peso (%)</Label>
+                          <Label className="font-black text-slate-400 text-[10px] uppercase tracking-[0.2em] ml-1">Peso %</Label>
                           <Input 
                             type="number" 
                             value={newIndicatorWeight || ""} 
@@ -470,11 +488,11 @@ export function ConfigWizard({
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <Label className="font-black text-slate-400 text-[10px] uppercase tracking-[0.2em] ml-1">Descripción del Indicador</Label>
+                        <Label className="font-black text-slate-400 text-[10px] uppercase tracking-[0.2em] ml-1">Logro de Aprendizaje</Label>
                         <Textarea 
                           value={newIndicatorDescription} 
                           onChange={e => setNewIndicatorDescription(e.target.value)} 
-                          placeholder="Logro esperado..." 
+                          placeholder="Describe el resultado esperado..." 
                           disabled={!!registeredIndicatorId}
                           className="h-24 border-none shadow-inner rounded-2xl bg-white resize-none disabled:opacity-70 disabled:bg-slate-50" 
                         />
@@ -492,11 +510,11 @@ export function ConfigWizard({
                           const isSelected = registeredIndicatorId === ind.id;
                           return (
                             <button 
-                              key={i} 
+                              key={ind.id || i} 
                               className={cn(
                                 "flex flex-col items-start p-4 rounded-2xl border-2 mb-3 w-full text-left transition-all",
                                 isSelected 
-                                  ? "border-primary bg-primary/5 shadow-md" 
+                                  ? "border-primary bg-primary/5 shadow-md ring-2 ring-primary/10" 
                                   : "border-slate-50 hover:border-primary/30 hover:bg-primary/5"
                               )} 
                               onClick={() => { 
@@ -526,7 +544,7 @@ export function ConfigWizard({
                         })
                       ) : (
                         <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-4 py-20">
-                          <p className="text-center font-bold uppercase text-[10px] tracking-widest">No hay indicadores previos</p>
+                          <p className="text-center font-bold uppercase text-[10px] tracking-widest">No hay registros previos</p>
                         </div>
                       )}
                     </div>
@@ -537,7 +555,7 @@ export function ConfigWizard({
               {setupStep === 1 && (
                 <div className="space-y-12 animate-in fade-in slide-in-from-right-4 w-full max-w-4xl flex flex-col items-center">
                   <div className="space-y-8 w-full">
-                    <div className="flex items-center justify-center gap-3"><div className="h-2 w-2 rounded-full bg-primary" /><h4 className="font-black text-[10px] uppercase text-primary tracking-[0.2em]">Instrumento de Evaluación</h4><div className="h-2 w-2 rounded-full bg-primary" /></div>
+                    <div className="flex items-center justify-center gap-3"><div className="h-2 w-2 rounded-full bg-primary" /><h4 className="font-black text-[10px] uppercase text-primary tracking-[0.2em]">Selecciona el Instrumento</h4><div className="h-2 w-2 rounded-full bg-primary" /></div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
                       {[
                         { id: 'manual', label: 'Nota Directa', icon: FileText },
@@ -555,12 +573,12 @@ export function ConfigWizard({
                   </div>
                   {newInstType !== 'manual' && (
                     <div className="space-y-8 pt-6 border-t border-slate-50 w-full flex flex-col items-center">
-                      <div className="flex items-center justify-center gap-3"><div className="h-2 w-2 rounded-full bg-primary" /><h4 className="font-black text-[10px] uppercase text-primary tracking-[0.2em]">Define la Estrategia</h4><div className="h-2 w-2 rounded-full bg-primary" /></div>
+                      <div className="flex items-center justify-center gap-3"><div className="h-2 w-2 rounded-full bg-primary" /><h4 className="font-black text-[10px] uppercase text-primary tracking-[0.2em]">Elige la Estrategia</h4><div className="h-2 w-2 rounded-full bg-primary" /></div>
                       <div className="flex flex-wrap justify-center gap-4 w-full">
                         {[
-                          { id: 'individual', label: 'Evaluación Individual', icon: User, desc: 'Calificación personalizada.' },
-                          { id: 'grupal', label: 'Evaluación Grupal', icon: Users, desc: 'Trabajo colaborativo.' },
-                          { id: 'quizz', label: 'Gamificación', icon: Gamepad2, desc: 'Evaluación interactiva vía IA.' }
+                          { id: 'individual', label: 'Individual', icon: User, desc: 'Evaluación personalizada.' },
+                          { id: 'grupal', label: 'Equipos', icon: Users, desc: 'Trabajo colaborativo.' },
+                          { id: 'quizz', label: 'Gamificación', icon: Gamepad2, desc: 'Desafío en tiempo real.' }
                         ].map((s) => (
                           <Button key={s.id} variant="outline" className={cn("h-auto p-6 flex-col gap-3 rounded-[2rem] border-2 text-left items-start transition-all w-full max-w-[280px]", newStrategyType === s.id ? 'border-primary bg-primary/5 ring-2 ring-primary/20' : 'hover:border-slate-200')} onClick={() => setNewStrategyType(s.id as any)}>
                             <div className="flex justify-between items-center w-full"><s.icon className={`h-8 w-8 ${newStrategyType === s.id ? 'text-primary' : 'text-slate-300'}`} />{newStrategyType === s.id && <CheckCircle2 className="h-5 w-5 text-primary" />}</div>
@@ -583,7 +601,7 @@ export function ConfigWizard({
                     </div>
                     <div className="grid grid-cols-2 gap-6">
                       <div className="space-y-3">
-                        <Label className="font-black text-slate-500 text-sm uppercase tracking-[0.2em] ml-1">Peso (%)</Label>
+                        <Label className="font-black text-slate-500 text-sm uppercase tracking-[0.2em] ml-1">Peso %</Label>
                         <Input type="number" value={newInstrumentWeight || ""} onChange={e => setNewInstrumentWeight(parseInt(e.target.value) || 0)} className="h-16 rounded-2xl text-center text-xl font-black border-none shadow-inner bg-white" />
                       </div>
                       <div className="space-y-3">
@@ -594,12 +612,12 @@ export function ConfigWizard({
                     {newInstType !== 'manual' && (
                       <div className="pt-8 border-t border-slate-200 flex flex-col items-center space-y-4">
                          <div className="text-center space-y-1">
-                           <h5 className="font-black text-[10px] uppercase text-slate-800 tracking-widest">Digitalizador con IA</h5>
-                           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Escanea instrumentos físicos</p>
+                           <h5 className="font-black text-[10px] uppercase text-slate-800 tracking-widest">Asistente de Digitalización</h5>
+                           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Escanea instrumentos físicos con IA</p>
                          </div>
                          <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleAiScan} />
                          <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isScanning} className="h-14 px-10 gap-3 rounded-2xl border-2 border-dashed border-accent text-accent hover:bg-accent hover:text-white font-black uppercase text-[10px] tracking-widest shadow-sm">
-                            {isScanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />} {isScanning ? "Escaneando..." : "Digitalizar con IA"}
+                            {isScanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />} {isScanning ? "Procesando Imagen..." : "Digitalizar con IA"}
                          </Button>
                       </div>
                     )}
@@ -614,7 +632,7 @@ export function ConfigWizard({
                       <div className="p-5 bg-primary text-white rounded-3xl shadow-xl">{getInstrumentIcon(newInstType)}</div>
                       <div>
                         <Badge variant="outline" className="font-black text-[8px] uppercase tracking-widest border-primary/20 text-primary mb-1">{INST_LABELS[newInstType].toUpperCase()}</Badge>
-                        <div className="font-black text-slate-900 text-3xl tracking-tighter uppercase">{newColName || "Actividad"}</div>
+                        <div className="font-black text-slate-900 text-3xl tracking-tighter uppercase">{newColName || "Sin Título"}</div>
                       </div>
                     </div>
                   </div>
@@ -631,7 +649,7 @@ export function ConfigWizard({
                     <div className="p-5 bg-white/20 rounded-3xl backdrop-blur-md border border-white/10"><Users className="h-8 w-8" /></div>
                     <div>
                       <Badge className="bg-white/20 text-white border-none font-black uppercase text-[8px] tracking-widest mb-1">Estrategia Grupal</Badge>
-                      <div className="font-black text-3xl tracking-tighter uppercase">{newColName || "Trabajo en Equipo"}</div>
+                      <div className="font-black text-3xl tracking-tighter uppercase">{newColName}</div>
                     </div>
                   </div>
                   <GroupConfig students={students} groupSize={groupSize} setGroupSize={setGroupSize} studentGroups={studentGroups} setStudentGroups={setStudentGroups} newColName={newColName} />
@@ -644,12 +662,12 @@ export function ConfigWizard({
                     <div className="flex items-center gap-6">
                       <div className="p-5 bg-accent rounded-3xl shadow-xl text-white"><Gamepad2 className="h-10 w-10" /></div>
                       <div>
-                        <Badge variant="outline" className="border-accent/20 text-accent font-black uppercase text-[8px] tracking-widest mb-1">Configuración Gamificada</Badge>
+                        <Badge variant="outline" className="border-accent/20 text-accent font-black uppercase text-[8px] tracking-widest mb-1">Gamificación con IA</Badge>
                         <div className="font-black text-3xl tracking-tighter uppercase italic text-slate-900">{newColName}</div>
                       </div>
                     </div>
                     <Button onClick={handleGenerateQuizQuestions} disabled={isGeneratingQuiz} className="bg-accent hover:bg-accent/90 h-16 px-10 rounded-2xl font-black uppercase text-xs tracking-widest gap-3 shadow-xl shadow-accent/20 text-white">
-                      {isGeneratingQuiz ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />} Auto-Generar con IA
+                      {isGeneratingQuiz ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-4 w-4" />} {isGeneratingQuiz ? "Generando..." : "Generar con IA"}
                     </Button>
                   </div>
                   <div className="bg-white p-10 rounded-[3rem] border-2 border-slate-100">
@@ -662,7 +680,7 @@ export function ConfigWizard({
         </div>
 
         <div className="h-24 px-10 bg-slate-50 border-t flex items-center justify-between shrink-0">
-          <Button variant="ghost" onClick={handleBack} disabled={setupStep === 0 || isScanning || isFinishing} className="font-black text-[10px] uppercase h-12 px-8 rounded-xl border-2">Anterior</Button>
+          <Button variant="ghost" onClick={handleBack} disabled={setupStep === 0 || isScanning || isFinishing} className="font-black text-[10px] uppercase h-12 px-8 rounded-xl border-2">Atrás</Button>
           <Button className="bg-primary px-10 h-12 font-black text-[10px] uppercase rounded-xl text-white shadow-lg min-w-[140px]" onClick={handleNext} disabled={isScanning || isFinishing}>
             {isFinishing ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -670,7 +688,7 @@ export function ConfigWizard({
               setupStep === 0 ? "Registrar Indicador" :
               setupStep === 1 ? "Continuar" :
               setupStep === 2 ? (newInstType === 'manual' ? "Registrar Actividad" : "Guardar Detalles") :
-              setupStep === 3 ? (newStrategyType === 'grupal' ? "Guardar y Ver Grupos" : newStrategyType === 'quizz' ? "Guardar y Ver Quizz" : "Finalizar Diseño") :
+              setupStep === 3 ? (newStrategyType === 'grupal' ? "Continuar a Equipos" : newStrategyType === 'quizz' ? "Continuar a Quizz" : "Finalizar Registro") :
               setupStep === 4 ? "Finalizar Equipos" : "Finalizar y Crear Sala"
             )}
           </Button>
