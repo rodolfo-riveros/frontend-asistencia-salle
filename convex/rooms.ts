@@ -1,11 +1,12 @@
-
 import { mutation, query } from "./server";
 import { v } from "convex/values";
 
-/**
- * createRoom
- * Crea o recrea la sala en tiempo real.
- */
+const AVATARS = [
+  "Cazador Nocturno", "Guardián de Hierro", "Explorador Salle", 
+  "Maestro Jedi", "Héroe Ágil", "Escudo Valiente", 
+  "Místico Astral", "雷 Guerrero Trueno", "Fénix Dorado"
+];
+
 export const createRoom = mutation({
   args: {
     roomCode:  v.string(),
@@ -50,12 +51,27 @@ export const joinRoom = mutation({
     if (!room) throw new Error("La sala no existe.");
     if (room.status === "finished") throw new Error("El juego ya terminó.");
 
+    const randomAvatar = AVATARS[Math.floor(Math.random() * AVATARS.length)];
+
     return await ctx.db.insert("participants", {
       roomId:  room._id,
       name:    args.name,
       score:   0,
+      avatar:  randomAvatar,
+      isCheating: false,
       answers: [],
     });
+  },
+});
+
+export const reportCheat = mutation({
+  args: { participantId: v.string(), isCheating: v.boolean() },
+  handler: async (ctx, args) => {
+    const pId = args.participantId as any;
+    const participant = await ctx.db.get(pId);
+    if (participant) {
+      await ctx.db.patch(participant._id, { isCheating: args.isCheating });
+    }
   },
 });
 
@@ -77,7 +93,7 @@ export const submitAnswer = mutation({
     const newAnswers = [...participant.answers, { questionIndex: args.questionIndex, isCorrect: args.isCorrect }];
     await ctx.db.patch(participant._id, {
       answers: newAnswers,
-      score:   participant.score + (args.isCorrect ? 10 : 0),
+      score:   participant.score + (args.isCorrect ? 100 : 0), // Incremento mayor para ranking
     });
 
     return { alreadyAnswered: false };

@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { GraduationCap, Loader2, Play, Fingerprint, User, ShieldCheck } from "lucide-react"
+import { GraduationCap, Loader2, Play, Fingerprint, ShieldCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
@@ -67,7 +67,6 @@ export default function StudentJoinPage() {
 
   return (
     <div className="min-h-screen bg-[#f8f9fa] flex flex-col items-center justify-between p-6 relative overflow-hidden">
-      {/* Background Decorative Elements */}
       <div className="absolute -top-24 -left-24 w-96 h-96 bg-primary rounded-full blur-[120px] opacity-5 pointer-events-none" />
       <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-accent rounded-full blur-[120px] opacity-5 pointer-events-none" />
       
@@ -77,8 +76,8 @@ export default function StudentJoinPage() {
              <GraduationCap className="h-10 w-10 text-primary" />
           </div>
           <div className="space-y-1">
-            <h1 className="text-4xl font-black text-slate-900 uppercase tracking-tighter italic leading-none drop-shadow-sm">Sallé Quizz</h1>
-            <p className="text-primary font-bold uppercase text-[10px] tracking-[0.25em]">Excelencia que trasciende</p>
+            <h1 className="text-4xl font-black text-slate-900 uppercase tracking-tighter italic leading-none drop-shadow-sm">Salle Live</h1>
+            <p className="text-primary font-bold uppercase text-[10px] tracking-[0.25em]">Desafío Académico</p>
           </div>
         </div>
 
@@ -87,7 +86,7 @@ export default function StudentJoinPage() {
           
           <form onSubmit={handleJoin} className="space-y-8">
             <div className="space-y-3">
-              <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.15em] ml-1">Pin del Desafío</label>
+              <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.15em] ml-1">Pin de Juego</label>
               <Input 
                 value={pin}
                 onChange={e => setPin(e.target.value.toUpperCase())}
@@ -99,7 +98,7 @@ export default function StudentJoinPage() {
             </div>
 
             <div className="space-y-3">
-              <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.15em] ml-1">Identificación Estudiantil</label>
+              <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.15em] ml-1">Identificación</label>
               <div className="relative">
                 <Fingerprint className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 h-5 w-5" />
                 <Input 
@@ -121,7 +120,7 @@ export default function StudentJoinPage() {
                    <AvatarFallback className="bg-primary text-white font-black text-sm">{getInitials(studentName)}</AvatarFallback>
                 </Avatar>
                 <div className="flex flex-col min-w-0">
-                   <span className="text-[9px] font-black uppercase text-primary/60 tracking-widest">Bienvenido, Estudiante</span>
+                   <span className="text-[9px] font-black uppercase text-primary/60 tracking-widest">Listo para el desafío</span>
                    <span className="text-sm font-black text-slate-800 uppercase leading-none mt-1 truncate">{studentName}</span>
                 </div>
               </div>
@@ -132,18 +131,16 @@ export default function StudentJoinPage() {
               disabled={isJoining || !studentName}
               className="w-full h-18 py-8 bg-primary hover:bg-primary/95 text-white rounded-[1.5rem] font-black uppercase text-xs tracking-widest shadow-2xl shadow-primary/25 gap-3 transition-all active:scale-95 disabled:grayscale"
             >
-              {isJoining ? <Loader2 className="h-5 w-5 animate-spin" /> : <Play className="h-5 w-5 fill-current" />} Ingresar al Juego
+              {isJoining ? <Loader2 className="h-5 w-5 animate-spin" /> : <Play className="h-5 w-5 fill-current" />} Unirse al Desafío
             </Button>
           </form>
         </Card>
       </div>
       
-      {/* Footer Personalizado */}
       <footer className="w-full max-w-md text-center space-y-2 mt-8 animate-in fade-in slide-in-from-bottom-2 duration-1000 delay-500">
         <div className="flex items-center justify-center gap-2 text-[9px] font-black uppercase text-slate-300 tracking-[0.2em]">
           <ShieldCheck className="h-3 w-3" /> IES LA SALLE URUBAMBA
         </div>
-        <div className="h-px w-8 bg-slate-200 mx-auto" />
         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
           Desarrollado por <span className="text-primary/60">Rodolfo Riveros</span>
         </p>

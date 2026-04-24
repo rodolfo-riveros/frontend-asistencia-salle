@@ -4,7 +4,6 @@ import { v } from "convex/values";
 export default defineSchema({
   /**
    * rooms — sala de juego en tiempo real.
-   * roomCode coincide con room_code de gamificacion_sesiones en Supabase.
    */
   rooms: defineTable({
     roomCode:             v.string(),
@@ -27,6 +26,8 @@ export default defineSchema({
     roomId:  v.id("rooms"),
     name:    v.string(),
     score:   v.number(),
+    avatar:  v.string(), // Nombre del personaje (Batman, Iron Man, etc.)
+    isCheating: v.boolean(), // Si salió de la pestaña
     answers: v.array(
       v.object({
         questionIndex: v.number(),
