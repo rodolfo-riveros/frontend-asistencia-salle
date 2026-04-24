@@ -10,14 +10,14 @@ import {
   AlertTriangle 
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
+import { Card, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
 import { useMutation, useQuery } from "convex/react"
 import { api as convexApi } from "@convex/_generated/api"
 import { cn, getInitials } from "@/lib/utils"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 export default function InstructorQuizPage() {
   const params = useParams()
@@ -98,7 +98,6 @@ export default function InstructorQuizPage() {
   const handleProjectArena = async () => {
     if (!roomCode || !config) return;
     
-    // Si Convex no tiene la sala pero ya tenemos PIN de Supabase, forzamos creación
     if (room === null) {
       setIsSyncing(true)
       try {
@@ -222,7 +221,10 @@ export default function InstructorQuizPage() {
                   {sortedParticipants[1] && (
                     <div className="flex flex-col items-center gap-6 animate-in slide-in-from-bottom-24 duration-700">
                       <div className="relative">
-                        <Avatar className="h-32 w-32 border-4 border-slate-200 shadow-2xl"><AvatarFallback className="text-3xl font-black bg-slate-100">{getInitials(sortedParticipants[1].name)}</AvatarFallback></Avatar>
+                        <Avatar className="h-32 w-32 border-4 border-slate-200 shadow-2xl">
+                          <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(sortedParticipants[1].avatar)}`} />
+                          <AvatarFallback className="text-3xl font-black bg-slate-100">{getInitials(sortedParticipants[1].name)}</AvatarFallback>
+                        </Avatar>
                         <div className="absolute -top-4 -right-4 h-12 w-12 bg-slate-400 rounded-full flex items-center justify-center font-black text-white text-xl border-4 border-white shadow-lg">2</div>
                       </div>
                       <span className="font-black uppercase text-[11px] text-slate-600 truncate w-32 text-center">{sortedParticipants[1].name.split(',')[0]}</span>
@@ -235,7 +237,10 @@ export default function InstructorQuizPage() {
                     <div className="flex flex-col items-center gap-6 animate-in slide-in-from-bottom-40 duration-1000">
                       <Crown className="h-20 w-20 text-yellow-400 animate-bounce" />
                       <div className="relative">
-                        <Avatar className="h-44 w-44 border-[10px] border-yellow-400 shadow-2xl scale-110"><AvatarFallback className="text-5xl font-black bg-yellow-50">{getInitials(sortedParticipants[0].name)}</AvatarFallback></Avatar>
+                        <Avatar className="h-44 w-44 border-[10px] border-yellow-400 shadow-2xl scale-110">
+                          <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(sortedParticipants[0].avatar)}`} />
+                          <AvatarFallback className="text-5xl font-black bg-yellow-50">{getInitials(sortedParticipants[0].name)}</AvatarFallback>
+                        </Avatar>
                         <div className="absolute -top-5 -right-5 h-16 w-16 bg-yellow-400 rounded-full flex items-center justify-center font-black text-white text-3xl border-8 border-white shadow-xl">1</div>
                       </div>
                       <span className="font-black uppercase text-base text-slate-900 truncate w-40 text-center">{sortedParticipants[0].name.split(',')[0]}</span>
@@ -248,7 +253,10 @@ export default function InstructorQuizPage() {
                   {sortedParticipants[2] && (
                     <div className="flex flex-col items-center gap-6 animate-in slide-in-from-bottom-16 duration-1000">
                       <div className="relative">
-                        <Avatar className="h-28 w-28 border-4 border-amber-600/30 shadow-2xl"><AvatarFallback className="text-2xl font-black bg-amber-50">{getInitials(sortedParticipants[2].name)}</AvatarFallback></Avatar>
+                        <Avatar className="h-28 w-28 border-4 border-amber-600/30 shadow-2xl">
+                          <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(sortedParticipants[2].avatar)}`} />
+                          <AvatarFallback className="text-2xl font-black bg-amber-50">{getInitials(sortedParticipants[2].name)}</AvatarFallback>
+                        </Avatar>
                         <div className="absolute -top-3 -right-3 h-10 w-10 bg-amber-700/60 rounded-full flex items-center justify-center font-black text-white text-lg border-4 border-white shadow-lg">3</div>
                       </div>
                       <span className="font-black uppercase text-[11px] text-slate-500 truncate w-32 text-center">{sortedParticipants[2].name.split(',')[0]}</span>
@@ -273,6 +281,7 @@ export default function InstructorQuizPage() {
                       </div>
                     )}
                     <Avatar className="h-24 w-24 border-4 border-white shadow-2xl group-hover:scale-110 transition-transform">
+                      <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(p.avatar)}`} />
                       <AvatarFallback className={cn("text-2xl font-black uppercase", p.isCheating ? "bg-red-200 text-red-800" : "bg-primary/10 text-primary")}>
                         {getInitials(p.name)}
                       </AvatarFallback>

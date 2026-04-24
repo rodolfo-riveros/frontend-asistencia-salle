@@ -3,13 +3,14 @@
 
 import * as React from "react"
 import { useParams, useRouter } from "next/navigation"
-import { Loader2, Trophy, CheckCircle2, Zap, Clock, ShieldCheck, UserX, XCircle, Sparkles } from "lucide-react"
+import { Loader2, Trophy, CheckCircle2, Zap, Clock, ShieldCheck, XCircle, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useQuery, useMutation } from "convex/react"
 import { api as convexApi } from "@convex/_generated/api"
 import { Badge } from "@/components/ui/badge"
-import { cn } from "@/lib/utils"
+import { cn, getInitials } from "@/lib/utils"
 import confetti from "canvas-confetti"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 export default function StudentGameRoomPage() {
   const params = useParams()
@@ -26,6 +27,11 @@ export default function StudentGameRoomPage() {
   const room = useQuery(convexApi.rooms.getRoom, { roomCode: params.roomId as string })
   const submitAnswer = useMutation(convexApi.rooms.submitAnswer)
   const reportCheat = useMutation(convexApi.rooms.reportCheat)
+
+  const myData = React.useMemo(() => {
+    if (!room?.participants || !participantId) return null
+    return room.participants.find((p: any) => p._id === participantId)
+  }, [room?.participants, participantId])
 
   React.useEffect(() => {
     const pId = localStorage.getItem(`p_${params.roomId}`)
@@ -130,20 +136,39 @@ export default function StudentGameRoomPage() {
           </div>
           <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tighter italic leading-none">Rank-UP</h2>
         </div>
-        <Badge className="h-12 px-6 rounded-2xl bg-white border-2 border-primary/5 text-primary font-black text-xs uppercase tracking-widest shadow-xl flex items-center gap-3">
-          <Sparkles className="h-4 w-4" /> FASE {Math.min(localQuestionIndex + 1, room.questions.length)} / {room.questions.length}
-        </Badge>
+        <div className="flex items-center gap-4">
+          {myData && (
+            <div className="hidden md:flex items-center gap-3 bg-white pr-6 pl-2 py-1.5 rounded-full border-2 border-primary/5 shadow-xl">
+              <Avatar className="h-10 w-10 border-2 border-primary/10">
+                <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(myData.avatar)}`} />
+                <AvatarFallback className="text-[10px] font-black bg-slate-100">{getInitials(myData.name)}</AvatarFallback>
+              </Avatar>
+              <div className="flex flex-col">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{myData.avatar}</span>
+                <span className="text-xs font-black text-slate-900 uppercase leading-none">{myData.name.split(',')[0]}</span>
+              </div>
+            </div>
+          )}
+          <Badge className="h-12 px-6 rounded-2xl bg-white border-2 border-primary/5 text-primary font-black text-xs uppercase tracking-widest shadow-xl flex items-center gap-3">
+            <Sparkles className="h-4 w-4" /> FASE {Math.min(localQuestionIndex + 1, room.questions.length)} / {room.questions.length}
+          </Badge>
+        </div>
       </header>
 
       <main className="flex-grow flex flex-col items-center justify-center max-w-6xl mx-auto w-full">
         {room.status === 'lobby' ? (
           <div className="text-center space-y-12 animate-in zoom-in-95 duration-1000 w-full px-4">
             <div className="p-12 md:p-24 bg-white/80 backdrop-blur-3xl rounded-[4rem] border-b-[12px] border-primary shadow-2xl space-y-10 relative overflow-hidden">
-               <Trophy className="h-32 w-32 text-yellow-400 mx-auto animate-bounce drop-shadow-2xl" />
+               {myData && (
+                 <Avatar className="h-40 w-40 mx-auto border-8 border-white shadow-2xl scale-125 mb-10">
+                   <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(myData.avatar)}`} />
+                   <AvatarFallback className="text-4xl font-black bg-primary/5">{getInitials(myData.name)}</AvatarFallback>
+                 </Avatar>
+               )}
                <div className="space-y-6">
                  <h3 className="text-4xl md:text-7xl font-black text-slate-900 uppercase italic tracking-tighter">¡En Espera!</h3>
                  <p className="text-slate-400 text-[11px] font-black uppercase tracking-[0.5em] max-w-md mx-auto leading-relaxed">
-                   El docente activará la arena en breve. Mantente enfocado.
+                   El docente activará la arena en breve. Prepárate, héroe.
                  </p>
                </div>
             </div>
@@ -201,7 +226,7 @@ export default function StudentGameRoomPage() {
               <Trophy className="h-40 w-40 text-yellow-400 mx-auto animate-bounce drop-shadow-2xl" />
               <div className="space-y-4">
                 <h2 className="text-5xl md:text-8xl font-black text-slate-900 uppercase italic tracking-tighter">Desafío Logrado</h2>
-                <p className="text-slate-400 font-black uppercase tracking-[0.4em] text-[12px]">Espera el veredicto oficial en el monitor del docente.</p>
+                <p className="text-slate-400 font-black uppercase tracking-[0.4em] text-[12px]">Héroe: {myData?.avatar || 'Salle'}. Espera el veredicto oficial.</p>
               </div>
               <Button onClick={() => router.push('/')} className="w-full h-20 bg-primary text-white rounded-[2rem] font-black uppercase text-sm tracking-widest transition-all hover:scale-[1.02] active:scale-95 shadow-xl">
                 Volver al Inicio
