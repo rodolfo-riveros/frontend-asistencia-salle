@@ -35,19 +35,19 @@ const generateQuizPrompt = ai.definePrompt({
   input: { schema: GenerateQuizInputSchema },
   output: { schema: GenerateQuizOutputSchema },
   config: {
-    temperature: 0.7,
+    temperature: 0.5,
   },
-  prompt: `Eres un Diseñador Instruccional Senior para el IES LA SALLE URUBAMBA.
-Tu tarea es crear un Quizz de gamificación basado en los siguientes criterios de evaluación técnica para el curso de "{{subjectName}}".
+  prompt: `Eres un Diseñador Instruccional Senior y Experto Técnico para el IES LA SALLE URUBAMBA.
+Tu tarea es crear un Quizz de gamificación de ALTA EXIGENCIA basado en criterios de evaluación técnica para el curso de "{{subjectName}}".
 
-INSTRUCCIONES:
-1. Crea exactamente 2 preguntas desafiantes por cada criterio proporcionado.
-2. Las preguntas deben evaluar el conocimiento técnico descrito en el criterio.
-3. Asegúrate de que las opciones sean plausibles pero solo una sea correcta.
-4. Vincula cada pregunta al 'id' del criterio correspondiente mediante el campo 'criterionId'.
-5. Responde siempre en ESPAÑOL con un tono profesional y motivador.
+INSTRUCCIONES CRÍTICAS DE CALIDAD:
+1. RIGOR ACADÉMICO: Las preguntas deben ser técnicamente precisas, basadas en estándares industriales o bibliografía técnica sustentada. Evita datos erróneos, ambiguos o triviales.
+2. ESTRUCTURA: Crea exactamente 2 preguntas desafiantes por cada criterio proporcionado.
+3. DISTRACTORES: Las opciones incorrectas deben ser plausibles (errores comunes en la práctica técnica) pero claramente distinguibles de la respuesta correcta para un estudiante preparado.
+4. LENGUAJE: Usa terminología técnica propia de la carrera. Responde siempre en ESPAÑOL con un tono profesional, institucional y motivador.
+5. TRAZABILIDAD: Vincula cada pregunta al 'id' del criterio correspondiente mediante el campo 'criterionId'.
 
-Criterios:
+Criterios a evaluar:
 {{#each criteria}}
 - [ID: {{this.id}}] {{this.description}}
 {{/each}}`,
@@ -56,7 +56,7 @@ Criterios:
 export async function generateQuiz(input: GenerateQuizInput): Promise<GenerateQuizOutput> {
   const { output } = await generateQuizPrompt(input);
   if (!output) {
-    throw new Error("La IA no pudo generar las preguntas del Quizz.");
+    throw new Error("La IA no pudo generar las preguntas del Quizz con el rigor requerido.");
   }
   return output;
 }

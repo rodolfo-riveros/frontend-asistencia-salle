@@ -47,7 +47,7 @@ import { toast } from "@/hooks/use-toast"
 import { analyzeInstrument } from "@/ai/flows/analyze-instrument-flow"
 import { generateQuiz } from "@/ai/flows/generate-quiz-flow"
 import { useMutation } from "convex/react"
-import { api as convexApi } from "@convex/_generated/api"
+import { api as convexApi } from "@/../convex/_generated/api"
 
 const INST_LABELS: Record<string, string> = {
   manual: 'Nota Directa',
@@ -84,7 +84,6 @@ interface ConfigWizardProps {
   setNewMaxPoints: (val: number) => void
   editorCriteria: any[]
   setEditorCriteria: (val: any[]) => void
-  isScanning: boolean
   fileInputRef: React.RefObject<HTMLInputElement>
   totalPointsStep: number
   students: any[]
@@ -160,7 +159,7 @@ export function ConfigWizard({
       }
       
       setEditorCriteria(parsedCriteria);
-      toast({ title: "Digitalización Exitosa", description: "El instrumento ha sido interpretado por la IA." });
+      toast({ title: "Digitalización Exitosa", description: "Instrumento interpretado por la IA." });
 
       if (registeredIndicatorId) {
         const payload = {
@@ -201,9 +200,9 @@ export function ConfigWizard({
         subjectName: newColName
       });
       setQuizQuestions(result.questions);
-      toast({ title: "Preguntas Generadas", description: "La IA ha creado el desafío basado en tus criterios." });
+      toast({ title: "Preguntas Generadas", description: "La IA ha creado el desafío basado en el rigor técnico de tus criterios." });
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Error", description: e.message });
+      toast({ variant: "destructive", title: "Error de IA", description: e.message });
     } finally {
       setIsGeneratingQuiz(false);
     }
@@ -350,7 +349,7 @@ export function ConfigWizard({
     if (!registeredEvalId || quizQuestions.length === 0) return;
     setIsFinishing(true);
     try {
-      // 1. Guardar preguntas en FastAPI
+      // 1. Guardar configuración completa en FastAPI
       await api.patch(`/evaluaciones/${registeredEvalId}`, {
         configuracion_json: {
           strategy: 'quizz',
@@ -359,7 +358,7 @@ export function ConfigWizard({
         }
       });
 
-      // 2. Crear sala en Convex
+      // 2. Crear sala live en Convex con las preguntas generadas
       const roomCode = Math.floor(100000 + Math.random() * 900000).toString();
       await createRoom({
         roomCode,
@@ -371,7 +370,7 @@ export function ConfigWizard({
       toast({ title: "Gamificación Lista", description: `Sala creada con el PIN: ${roomCode}` });
       addColumn(); setIsOpen(false); resetEditor();
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Error", description: e.message });
+      toast({ variant: "destructive", title: "Error de Registro", description: e.message });
     } finally {
       setIsFinishing(false);
     }
@@ -489,29 +488,42 @@ export function ConfigWizard({
                     </div>
                     <div className="bg-white rounded-[2rem] border-2 border-dashed border-slate-200 p-6 min-h-[250px]">
                       {existingIndicators.length > 0 ? (
-                        existingIndicators.map((ind: any, i: number) => (
-                          <button 
-                            key={i} 
-                            className="flex flex-col items-start p-4 rounded-2xl border-2 border-slate-50 hover:border-primary/30 hover:bg-primary/5 mb-3 w-full text-left transition-all" 
-                            onClick={() => { 
-                              setNewIndicatorCode(ind.codigo); 
-                              setNewIndicatorDescription(ind.descripcion); 
-                              setNewIndicatorWeight(ind.peso_porcentaje); 
-                              setRegisteredIndicatorId(ind.id);
-                              setOriginalIndicator({
-                                codigo: ind.codigo,
-                                descripcion: ind.descripcion,
-                                peso_porcentaje: ind.peso_porcentaje
-                              });
-                            }}
-                          >
-                            <div className="flex justify-between w-full font-black text-sm text-primary mb-1">
-                              <span>{ind.codigo}</span>
-                              <Badge variant="outline" className="text-[10px]">{ind.peso_porcentaje}%</Badge>
-                            </div>
-                            <p className="text-[11px] text-slate-500 line-clamp-2">{ind.descripcion}</p>
-                          </button>
-                        ))
+                        existingIndicators.map((ind: any, i: number) => {
+                          const isSelected = registeredIndicatorId === ind.id;
+                          return (
+                            <button 
+                              key={i} 
+                              className={cn(
+                                "flex flex-col items-start p-4 rounded-2xl border-2 mb-3 w-full text-left transition-all",
+                                isSelected 
+                                  ? "border-primary bg-primary/5 shadow-md" 
+                                  : "border-slate-50 hover:border-primary/30 hover:bg-primary/5"
+                              )} 
+                              onClick={() => { 
+                                setNewIndicatorCode(ind.codigo); 
+                                setNewIndicatorDescription(ind.descripcion); 
+                                setNewIndicatorWeight(ind.peso_porcentaje); 
+                                setRegisteredIndicatorId(ind.id);
+                                setOriginalIndicator({
+                                  codigo: ind.codigo,
+                                  descripcion: ind.descripcion,
+                                  peso_porcentaje: ind.peso_porcentaje
+                                });
+                              }}
+                            >
+                              <div className="flex justify-between w-full font-black text-sm text-primary mb-1">
+                                <div className="flex items-center gap-2">
+                                  {isSelected && <CheckCircle2 className="h-3 w-3" />}
+                                  <span>{ind.codigo}</span>
+                                </div>
+                                <Badge variant={isSelected ? "default" : "outline"} className="text-[10px]">{ind.peso_porcentaje}%</Badge>
+                              </div>
+                              <p className={cn("text-[11px] line-clamp-2", isSelected ? "text-primary/70 font-medium" : "text-slate-500")}>
+                                {ind.descripcion}
+                              </p>
+                            </button>
+                          );
+                        })
                       ) : (
                         <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-4 py-20">
                           <p className="text-center font-bold uppercase text-[10px] tracking-widest">No hay indicadores previos</p>
@@ -587,7 +599,7 @@ export function ConfigWizard({
                          </div>
                          <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleAiScan} />
                          <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isScanning} className="h-14 px-10 gap-3 rounded-2xl border-2 border-dashed border-accent text-accent hover:bg-accent hover:text-white font-black uppercase text-[10px] tracking-widest shadow-sm">
-                            {isScanning ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-4 w-4" />} {isScanning ? "Escaneando..." : "Digitalizar con IA"}
+                            {isScanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />} {isScanning ? "Escaneando..." : "Digitalizar con IA"}
                          </Button>
                       </div>
                     )}
@@ -628,15 +640,15 @@ export function ConfigWizard({
 
               {setupStep === 5 && (
                 <div className="space-y-8 animate-in fade-in slide-in-from-right-4 w-full max-w-4xl">
-                  <div className="flex flex-col md:flex-row justify-between items-center bg-slate-900 p-10 rounded-[3rem] text-white shadow-2xl gap-8">
+                  <div className="flex flex-col md:flex-row justify-between items-center bg-slate-50 p-10 rounded-[3rem] border-2 border-slate-100 gap-8">
                     <div className="flex items-center gap-6">
                       <div className="p-5 bg-accent rounded-3xl shadow-xl text-white"><Gamepad2 className="h-10 w-10" /></div>
                       <div>
-                        <Badge className="bg-accent/20 text-accent border-none font-black uppercase text-[8px] tracking-widest mb-1">Configuración Gamificada</Badge>
-                        <div className="font-black text-3xl tracking-tighter uppercase italic">{newColName}</div>
+                        <Badge variant="outline" className="border-accent/20 text-accent font-black uppercase text-[8px] tracking-widest mb-1">Configuración Gamificada</Badge>
+                        <div className="font-black text-3xl tracking-tighter uppercase italic text-slate-900">{newColName}</div>
                       </div>
                     </div>
-                    <Button onClick={handleGenerateQuizQuestions} disabled={isGeneratingQuiz} className="bg-accent hover:bg-accent/90 h-16 px-10 rounded-2xl font-black uppercase text-xs tracking-widest gap-3 shadow-xl shadow-accent/20">
+                    <Button onClick={handleGenerateQuizQuestions} disabled={isGeneratingQuiz} className="bg-accent hover:bg-accent/90 h-16 px-10 rounded-2xl font-black uppercase text-xs tracking-widest gap-3 shadow-xl shadow-accent/20 text-white">
                       {isGeneratingQuiz ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />} Auto-Generar con IA
                     </Button>
                   </div>
