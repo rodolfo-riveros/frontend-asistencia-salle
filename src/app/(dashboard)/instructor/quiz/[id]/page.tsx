@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -27,15 +26,20 @@ export default function InstructorQuizPage() {
   const [roomCode, setRoomCode] = React.useState<string | null>(null)
   const [sessionId, setSessionId] = React.useState<string | null>(null)
   const [isFullscreen, setIsFullscreen] = React.useState(false)
+  const [mounted, setMounted] = React.useState(false)
 
   const createRoom = useMutation(convexApi.rooms.createRoom)
   const updateStatus = useMutation(convexApi.rooms.updateStatus)
   const room = useQuery(convexApi.rooms.getRoom, roomCode ? { roomCode } : "skip")
 
+  React.useEffect(() => {
+    setMounted(true)
+    fetchSession()
+  }, [])
+
   const fetchSession = React.useCallback(async () => {
     setLoadingConfig(true)
     try {
-      // Cargar configuración específica de la evaluación por ID
       const quizEval = await api.get<any>(`/evaluaciones/${params.id}`)
       if (quizEval) {
         setConfig(quizEval)
@@ -55,8 +59,6 @@ export default function InstructorQuizPage() {
       setLoadingConfig(false)
     }
   }, [params.id])
-
-  React.useEffect(() => { fetchSession() }, [fetchSession])
 
   const handleLaunchRoom = async () => {
     const questions = config?.configuracion_json?.questions;
@@ -118,7 +120,7 @@ export default function InstructorQuizPage() {
     return [...room.participants].sort((a, b) => b.score - a.score)
   }, [room?.participants])
 
-  if (loadingConfig) {
+  if (!mounted || loadingConfig) {
     return (
       <div className="h-screen flex flex-col items-center justify-center bg-white gap-4">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
@@ -127,13 +129,12 @@ export default function InstructorQuizPage() {
     )
   }
 
-  // Monitor en modo pantalla completa (Lobby o Arena)
   if (isFullscreen && roomCode) {
     if (!room) {
       return (
         <div className="fixed inset-0 z-[100] bg-white flex flex-col items-center justify-center gap-6">
           <Loader2 className="h-12 w-12 animate-spin text-primary" />
-          <p className="font-black uppercase text-[10px] tracking-widest text-slate-400">Estableciendo conexión con la Arena...</p>
+          <p className="font-black uppercase text-[10px] tracking-widest text-slate-400">Sincronizando con la Arena...</p>
         </div>
       )
     }
@@ -154,7 +155,11 @@ export default function InstructorQuizPage() {
                  <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">PIN DEL DESAFÍO</p>
                  <h3 className="text-8xl font-black text-primary font-mono tracking-tighter">{roomCode}</h3>
                  <div className="p-4 bg-slate-50 rounded-3xl inline-block border-2 border-slate-100 shadow-inner">
-                    <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${window.location.origin}/student/quiz/join?pin=${roomCode}`} className="w-44 h-44 mix-blend-multiply" alt="QR" />
+                    <img 
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin : '')}/student/quiz/join?pin=${roomCode}`} 
+                      className="w-44 h-44 mix-blend-multiply" 
+                      alt="QR" 
+                    />
                  </div>
               </div>
             </div>
@@ -186,7 +191,6 @@ export default function InstructorQuizPage() {
               <div className="h-full flex flex-col items-center justify-center animate-in zoom-in-95 relative z-10">
                 <h2 className="text-6xl font-black uppercase italic tracking-tighter text-slate-900 mb-20 drop-shadow-sm">Podio Rank-UP</h2>
                 <div className="flex items-end gap-10">
-                  {/* Segundo Puesto */}
                   {sortedParticipants[1] && (
                     <div className="flex flex-col items-center gap-6 animate-in slide-in-from-bottom-20 duration-500">
                       <div className="relative">
@@ -199,7 +203,6 @@ export default function InstructorQuizPage() {
                       </div>
                     </div>
                   )}
-                  {/* Primero Puesto */}
                   {sortedParticipants[0] && (
                     <div className="flex flex-col items-center gap-6 animate-in slide-in-from-bottom-32 duration-700">
                       <Crown className="h-20 w-20 text-yellow-400 animate-bounce drop-shadow-lg" />
@@ -214,7 +217,6 @@ export default function InstructorQuizPage() {
                       </div>
                     </div>
                   )}
-                  {/* Tercer Puesto */}
                   {sortedParticipants[2] && (
                     <div className="flex flex-col items-center gap-6 animate-in slide-in-from-bottom-10 duration-1000">
                       <div className="relative">

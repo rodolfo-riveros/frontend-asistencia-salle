@@ -67,10 +67,14 @@ export const joinRoom = mutation({
 export const reportCheat = mutation({
   args: { participantId: v.string(), isCheating: v.boolean() },
   handler: async (ctx, args) => {
-    const pId = args.participantId as any;
-    const participant = await ctx.db.get(pId);
-    if (participant) {
-      await ctx.db.patch(participant._id, { isCheating: args.isCheating });
+    try {
+      const pId = args.participantId as any;
+      const participant = await ctx.db.get(pId);
+      if (participant) {
+        await ctx.db.patch(participant._id, { isCheating: args.isCheating });
+      }
+    } catch (e) {
+      console.error("Error reporting cheat:", e);
     }
   },
 });
@@ -93,7 +97,7 @@ export const submitAnswer = mutation({
     const newAnswers = [...participant.answers, { questionIndex: args.questionIndex, isCorrect: args.isCorrect }];
     await ctx.db.patch(participant._id, {
       answers: newAnswers,
-      score:   participant.score + (args.isCorrect ? 100 : 0), // Incremento mayor para ranking
+      score:   participant.score + (args.isCorrect ? 100 : 0), 
     });
 
     return { alreadyAnswered: false };
@@ -114,9 +118,27 @@ export const updateStatus = mutation({
 export const getRoom = query({
   args: { roomCode: v.string() },
   handler: async (ctx, args) => {
-    const room = await ctx.db.query("rooms").withIndex("by_roomCode", (q) => q.eq("roomCode", args.roomCode)).first();
-    if (!room) return null;
-    const participants = await ctx.db.query("participants").withIndex("by_room", (q) => q.eq("roomId", room._id)).collect();
-    return { ...room, participants };
+    try {
+      const room = await ctx.db
+        .query("rooms")
+        .withIndex("by_roomCode", (q) => q.eq("roomCode", args.roomCode))
+        .first();
+
+      if (!room) return null;
+
+      const participants = await ctx.db
+        .query("participants")
+        .withIndex("by_room", (q) => q.eq("roomId", room._id))
+        .collect();
+
+      return { ...room, participants };
+    } catch (error) {
+      console.error("Convex Query Error fallback:", error);
+      // Fallback a escaneo manual si falla el índice (evita crash 500)
+      const room = await ctx.db.query("rooms").filter(q => q.eq(q.field("roomCode"), args.roomCode)).first();
+      if (!room) return null;
+      const participants = await ctx.db.query("participants").filter(q => q.eq(q.field("roomId"), room._id)).collect();
+      return { ...room, participants };
+    }
   },
 });
