@@ -129,8 +129,10 @@ function GradebookContent() {
           const groupMap: Record<string, string> = {};
           const evalGroups = configData.grupos?.filter((g: any) => g.evaluacion_id === ev.id) || [];
           evalGroups.forEach((g: any) => {
-            g.integrantes?.forEach((studentId: string) => {
-              groupMap[studentId] = g.nombre_grupo;
+            // FIX: integrantes puede ser un array de objetos con alumno_id
+            g.integrantes?.forEach((integrante: any) => {
+              const sid = typeof integrante === 'string' ? integrante : (integrante.alumno_id || integrante.id);
+              if (sid) groupMap[sid] = g.nombre_grupo;
             });
           });
 
