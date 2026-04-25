@@ -53,7 +53,6 @@ export default function InstructorQuizPage() {
           const activeSession = await api.get<any>(`/gamificacion/sesion/${quizEval.id}/`)
           if (activeSession && activeSession.room_code) {
             setRoomCode(activeSession.room_code)
-            // Normalizar ID de sesión
             const sid = activeSession.id || activeSession.sesion_id || activeSession.sesion?.id;
             if (sid && sid !== "undefined") {
               setSessionId(sid);
@@ -149,20 +148,24 @@ export default function InstructorQuizPage() {
   }
 
   const handleCloseAndPersist = async () => {
-    // RECUPERACIÓN SEGURA DE EVALUACION_ID
-    const finalEvalId = config?.id || params.id;
-    
-    if (!finalEvalId || finalEvalId === "undefined" || finalEvalId === "null") {
+    // CAPTURA SEGURA DE IDENTIFICADORES
+    const finalEvalId = config?.id || params.id as string;
+    const finalUnidadId = config?.unidad_id || "SALLE";
+    const finalPeriodoId = config?.periodo_id || searchParams.get('periodo_id') || 'ACTUAL';
+
+    console.log("[SYNC DIAGNOSTIC]", { finalEvalId, finalUnidadId, finalPeriodoId, sessionId });
+
+    if (!finalEvalId || finalEvalId === "undefined" || finalEvalId === "null" || finalEvalId.length < 36) {
       toast({ 
         variant: "destructive", 
-        title: "Error de Configuración", 
-        description: "No se encontró un ID de evaluación válido para sincronizar." 
+        title: "Error de Evaluación", 
+        description: "El ID de la evaluación es inválido. Refresca la página." 
       });
       return;
     }
 
     if (!room?.participants?.length) {
-      toast({ variant: "destructive", title: "Sin participantes", description: "No hay alumnos para calificar." });
+      toast({ variant: "destructive", title: "Sin participantes", description: "No hay alumnos en la arena para calificar." });
       return;
     }
     
@@ -171,19 +174,18 @@ export default function InstructorQuizPage() {
       const totalQuestions = config?.configuracion_json?.questions?.length || 20;
       const maxScore = config?.puntaje_maximo || 20;
 
-      // FILTRO RIGUROSO DE ESTUDIANTES CON UUID REAL
+      // FILTRO RIGUROSO POR UUID
       const validParticipants = room.participants.filter(p => 
         p.studentId && 
         p.studentId !== "undefined" && 
-        p.studentId !== "null" &&
-        p.studentId.length >= 36 // Longitud estándar de un UUID
+        p.studentId.length >= 36
       );
 
       if (validParticipants.length === 0) {
-        throw new Error("No se detectaron alumnos con identidad técnica verificada.");
+        throw new Error("No se detectaron alumnos con identidad técnica verificada (UUID).");
       }
 
-      // SINCRONIZACIÓN EN PARALELO
+      // REGISTRO DE NOTAS EN PARALELO
       const gradePromises = validParticipants.map(p => {
         const correctAnswers = p.answers?.filter((a: any) => a.isCorrect).length || 0;
         const academicGrade = Math.round((correctAnswers / totalQuestions) * maxScore);
@@ -200,35 +202,34 @@ export default function InstructorQuizPage() {
             avatar: p.avatar 
           }
         }).catch(err => {
-          console.error(`[SYNC ERROR] Alumno: ${p.name}`, err);
+          console.error(`[SYNC ERROR] Estudiante: ${p.name}`, err);
           return { error: true, student: p.name };
         });
       });
 
       await Promise.allSettled(gradePromises);
       
-      // CIERRE DE SESIÓN EN BACKEND (Si el ID es válido)
+      // FINALIZACIÓN TÉCNICA DE SESIÓN
       if (sessionId && sessionId !== "undefined" && sessionId.length >= 36) {
         try {
           await api.post(`/gamificacion/sesion/${sessionId}/finalizar/`, { notas: [] });
         } catch (e) {
-          console.warn("No se pudo cerrar la sesión técnica, pero las notas fueron procesadas.");
+          console.warn("Aviso: No se pudo cerrar la sesión técnica, pero las notas se procesaron.");
         }
       }
 
       toast({ 
-        title: "Sincronización Completa", 
+        title: "Sincronización Exitosa", 
         description: `Se han registrado las notas de ${validParticipants.length} alumnos.` 
       });
       
-      // Redirección con periodo real
-      const targetPeriodId = config?.periodo_id || searchParams.get('periodo_id') || 'ACTUAL';
-      router.push(`/instructor/grades/${config?.unidad_id || "SALLE"}?periodo_id=${targetPeriodId}`);
+      // REDIRECCIÓN CON PARÁMETROS REALES
+      router.push(`/instructor/grades/${finalUnidadId}?periodo_id=${finalPeriodoId}`);
     } catch (e: any) {
       toast({ 
         variant: "destructive", 
-        title: "Fallo de Sincronización", 
-        description: e.message || "Verifica la integridad de los datos de los alumnos." 
+        title: "Fallo Crítico", 
+        description: e.message || "Error al comunicarse con FastAPI." 
       });
     } finally {
       setIsClosing(false);
@@ -244,7 +245,7 @@ export default function InstructorQuizPage() {
     return (
       <div className="h-screen flex flex-col items-center justify-center bg-white gap-4">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
-        <p className="font-black uppercase text-[10px] tracking-widest text-slate-400">Preparando Arena Rank-UP...</p>
+        <p className="font-black uppercase text-[10px] tracking-widest text-slate-400">Iniciando Rank-UP Arena...</p>
       </div>
     )
   }
@@ -255,8 +256,8 @@ export default function InstructorQuizPage() {
         <div className="flex flex-col md:flex-row justify-between items-end gap-6 border-b-2 border-slate-100 pb-10">
           <div className="space-y-2">
             <Badge className="bg-emerald-100 text-emerald-700 border-none font-black uppercase text-[9px] px-3 tracking-widest">Desafío Completado</Badge>
-            <h2 className="text-4xl font-black text-slate-900 uppercase italic tracking-tighter leading-none">Resumen Académico</h2>
-            <p className="text-slate-400 font-medium italic">Conversión automática a escala vigesimal (0-20)</p>
+            <h2 className="text-4xl font-black text-slate-900 uppercase italic tracking-tighter leading-none">Resumen de Notas</h2>
+            <p className="text-slate-400 font-medium italic">Conversión a escala 0-20 calculada por la arena</p>
           </div>
           <Button 
             onClick={handleCloseAndPersist} 
@@ -273,10 +274,10 @@ export default function InstructorQuizPage() {
             <TableHeader className="bg-slate-50/50">
               <TableRow>
                 <TableHead className="pl-10 font-black text-[10px] uppercase text-slate-400 tracking-widest">Aspirante</TableHead>
-                <TableHead className="font-black text-[10px] uppercase text-slate-400 tracking-widest">Programa y Ciclo</TableHead>
+                <TableHead className="font-black text-[10px] uppercase text-slate-400 tracking-widest">Programa Profesional</TableHead>
                 <TableHead className="text-center font-black text-[10px] uppercase text-slate-400 tracking-widest">Ranking pts</TableHead>
-                <TableHead className="text-center font-black text-[10px] uppercase text-slate-400 tracking-widest">Correctas</TableHead>
-                <TableHead className="text-right pr-10 font-black text-[10px] uppercase text-primary tracking-widest">Nota Final</TableHead>
+                <TableHead className="text-center font-black text-[10px] uppercase text-slate-400 tracking-widest">Desempeño</TableHead>
+                <TableHead className="text-right pr-10 font-black text-[10px] uppercase text-primary tracking-widest">Nota 0-20</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -296,21 +297,21 @@ export default function InstructorQuizPage() {
                           </Avatar>
                           <div className="flex flex-col">
                             <span className="font-bold text-slate-900 uppercase text-sm truncate w-64">{p.name}</span>
-                            {!isIdentified && <span className="text-[8px] font-black text-amber-600 uppercase">Sin Identidad Técnica</span>}
+                            {!isIdentified && <span className="text-[8px] font-black text-amber-600 uppercase">Falta Vinculación Técnica</span>}
                           </div>
                         </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-col">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase truncate w-48">{p.programa || 'No especificado'}</span>
-                        <Badge variant="outline" className="w-fit text-[8px] font-black border-slate-200 mt-1">{p.semestre ? `SEM ${p.semestre}` : 'S/C'}</Badge>
+                        <span className="text-[10px] font-bold text-slate-500 uppercase truncate w-48">{p.programa || 'No identificado'}</span>
+                        <Badge variant="outline" className="w-fit text-[8px] font-black border-slate-200 mt-1">{p.semestre ? `CICLO ${p.semestre}` : 'S/C'}</Badge>
                       </div>
                     </TableCell>
                     <TableCell className="text-center">
                         <Badge variant="outline" className="border-primary/20 text-primary font-mono font-black">{p.score} PTS</Badge>
                     </TableCell>
                     <TableCell className="text-center">
-                        <span className="text-xs font-bold text-slate-500">{corrects} / {totalQ}</span>
+                        <span className="text-xs font-bold text-slate-500">{corrects} / {totalQ} correctas</span>
                     </TableCell>
                     <TableCell className="text-right pr-10">
                         <span className={cn("text-2xl font-black font-mono", grade < 13 ? 'text-red-600' : 'text-emerald-600')}>
@@ -472,7 +473,7 @@ export default function InstructorQuizPage() {
                   <div className="w-full max-w-4xl space-y-4 animate-in fade-in duration-1000 pb-20 relative z-10">
                     <div className="flex items-center gap-4 px-10 mb-6">
                        <Medal className="h-6 w-6 text-yellow-400" />
-                       <span className="text-white font-black uppercase text-sm tracking-[0.3em] italic">Ranking Salle Honor</span>
+                       <span className="text-white font-black uppercase text-sm tracking-[0.3em] italic">Ranking de Honor Salle</span>
                        <div className="flex-1 h-px bg-white/10" />
                     </div>
                     {sortedParticipants.slice(3, 10).map((p, idx) => (
@@ -544,9 +545,9 @@ export default function InstructorQuizPage() {
               <Zap className="h-10 w-10 fill-current" />
             </div>
             <div>
-              <h2 className="text-4xl md:text-5xl font-black text-slate-900 uppercase italic tracking-tighter leading-none">Rank-UP</h2>
+              <h2 className="text-4xl md:text-5xl font-black text-slate-900 uppercase italic tracking-tighter leading-none">Rank-UP Arena</h2>
               <p className="text-slate-400 font-bold italic text-base mt-2 flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-accent" /> Arena de Gamificación Técnica Salle
+                <Sparkles className="h-4 w-4 text-accent" /> Desafío de Gamificación Técnica Salle
               </p>
             </div>
           </div>
@@ -559,7 +560,7 @@ export default function InstructorQuizPage() {
         ) : (
           <div className="flex items-center gap-6 bg-white border-2 border-slate-100 p-6 rounded-[2.5rem] shadow-2xl">
             <div className="flex flex-col px-8 border-r-2 border-slate-100">
-              <span className="text-[11px] font-black uppercase text-slate-400 tracking-[0.3em]">CÓDIGO ACTIVO</span>
+              <span className="text-[11px] font-black uppercase text-slate-400 tracking-[0.3em]">PIN ACTIVO</span>
               <span className="text-5xl font-black font-mono text-primary tracking-tighter">{roomCode}</span>
             </div>
             <Button onClick={handleProjectArena} disabled={isSyncing} className="bg-primary text-white h-20 px-12 rounded-[2rem] font-black uppercase text-sm tracking-widest gap-4 shadow-xl hover:scale-105 active:scale-95 transition-all">
@@ -574,14 +575,14 @@ export default function InstructorQuizPage() {
           <Card className="p-12 border-none shadow-2xl bg-white rounded-[4rem] relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-3 bg-gradient-to-r from-primary via-blue-400 to-accent" />
             <h3 className="text-2xl font-black uppercase tracking-tighter italic text-slate-800 mb-10 flex items-center gap-4">
-              <BookOpen className="h-7 w-7 text-primary" /> Banco de Preguntas (20 Items)
+              <BookOpen className="h-7 w-7 text-primary" /> Banco de Preguntas Generadas
             </h3>
             <div className="space-y-10">
               {(config?.configuracion_json?.questions || []).map((q: any, idx: number) => (
                 <div key={idx} className="p-10 bg-slate-50/50 rounded-[3.5rem] border-2 border-slate-100 space-y-8 group hover:bg-white hover:border-primary/10 transition-all">
                   <div className="flex justify-between items-start">
                     <div className="space-y-3">
-                       <Badge className="bg-primary text-white font-black text-[10px] px-6 py-1 rounded-full uppercase tracking-[0.3em]">PREGUNTA {idx + 1}</Badge>
+                       <Badge className="bg-primary text-white font-black text-[10px] px-6 py-1 rounded-full uppercase tracking-[0.3em]">ITEM {idx + 1}</Badge>
                        <p className="text-2xl font-black text-slate-800 uppercase tracking-tight leading-tight max-w-2xl">{q.text}</p>
                     </div>
                     <div className="bg-white p-4 rounded-3xl border-2 border-slate-100 shadow-sm shrink-0 flex flex-col items-center">
@@ -612,7 +613,7 @@ export default function InstructorQuizPage() {
           <Card className="p-10 border-none shadow-2xl bg-white rounded-[3.5rem] sticky top-28 overflow-hidden border-2 border-slate-50">
             <div className="absolute top-0 left-0 w-full h-2 bg-primary" />
             <h4 className="text-xl font-black uppercase tracking-widest mb-10 flex items-center gap-4 text-slate-900">
-              <ShieldCheck className="h-7 w-7 text-primary" /> Contexto Académico
+              <ShieldCheck className="h-7 w-7 text-primary" /> Datos de la Actividad
             </h4>
             
             {config && (
@@ -620,7 +621,7 @@ export default function InstructorQuizPage() {
                 <div className="space-y-6">
                   <div className="p-6 bg-slate-50 rounded-[2.5rem] border-2 border-slate-100 space-y-5">
                     <div className="flex flex-col">
-                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Nombre de la Actividad</span>
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Actividad Evaluativa</span>
                       <p className="text-lg font-black text-slate-900 uppercase leading-tight italic">{config.nombre}</p>
                     </div>
                     
@@ -653,9 +654,9 @@ export default function InstructorQuizPage() {
 
                 <div className="space-y-6">
                   <div className="flex items-center justify-between px-2">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Criterios del Quizz</span>
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Criterios Técnicos</span>
                     <Badge variant="outline" className="text-[9px] font-black border-slate-200 text-slate-400">
-                      {(config.configuracion_json?.criteria || []).length} CRITERIOS
+                      {(config.configuracion_json?.criteria || []).length} ITEMS
                     </Badge>
                   </div>
                   <div className="grid gap-3">
@@ -670,7 +671,7 @@ export default function InstructorQuizPage() {
 
                 <div className="pt-8 text-center border-t border-slate-100">
                    <p className="text-[10px] font-black uppercase text-slate-300 tracking-[0.3em]">
-                     IES LA SALLE URUBAMBA
+                     PLATAFORMA ACADÉMICA SALLE
                    </p>
                 </div>
               </div>
@@ -681,4 +682,3 @@ export default function InstructorQuizPage() {
     </div>
   )
 }
-
