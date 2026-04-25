@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -214,7 +213,6 @@ export default function InstructorQuizPage() {
         const alumnoId = p.alumno_id || p.studentId;
         const correctAnswers = p.answers?.filter((a: any) => a.isCorrect).length || 0;
         
-        // CÁLCULO FLOTANTE DE PRECISIÓN PARA EVITAR 0.00 EN POSTGRES
         const academicGrade = parseFloat(
           ((correctAnswers / totalQuestions) * maxScore).toFixed(2)
         );
@@ -235,13 +233,6 @@ export default function InstructorQuizPage() {
 
       const results = await Promise.allSettled(gradePromises);
       const exitosas = results.filter(r => r.status === 'fulfilled').length;
-
-      // Log de diagnósticos fallidos sin interrumpir el flujo
-      results.forEach((r, idx) => {
-        if (r.status === 'rejected') {
-          console.error(`Fallo al calificar participante ${idx}:`, r.reason);
-        }
-      });
 
       if (sessionId && sessionId.length >= 36) {
         await api.post(`/gamificacion/sesion/${sessionId}/finalizar/`, { notas: [] }).catch((e) => {
@@ -441,7 +432,7 @@ export default function InstructorQuizPage() {
             {room.status === 'finished' ? (
               <div className="h-full flex flex-col items-center animate-in zoom-in-95 relative z-10">
                 <div className="text-center mt-2 md:mt-4 mb-20 space-y-1">
-                   <h2 className="text-3xl md:text-4xl font-black uppercase italic tracking-tighter text-white drop-shadow-[0_10px_10px_rgba(0,0,0,0.3)]">Podio de Campeones</h2>
+                   <h2 className="text-2xl md:text-3xl font-black uppercase italic tracking-tighter text-white drop-shadow-[0_10px_10px_rgba(0,0,0,0.3)]">Podio de Campeones</h2>
                    <p className="text-yellow-400 font-black text-xs uppercase tracking-[0.5em] italic">Salle Rank-UP Challenge</p>
                 </div>
 
@@ -559,7 +550,7 @@ export default function InstructorQuizPage() {
                         </AvatarFallback>
                       </Avatar>
                     </div>
-                    <div classNametext-center space-y-3 w-full overflow-hidden relative z-10">
+                    <div className="text-center space-y-3 w-full overflow-hidden relative z-10">
                       <Badge variant="outline" className="text-[9px] font-black uppercase text-slate-400 border-slate-100 px-3 tracking-widest">{p.avatar}</Badge>
                       <p className="text-lg font-black text-slate-900 truncate w-full leading-none uppercase italic tracking-tighter">{p.name.split(',')[0]}</p>
                       <div className="bg-primary/5 rounded-[1.5rem] py-3 px-6 inline-block mt-2 border border-primary/5">
