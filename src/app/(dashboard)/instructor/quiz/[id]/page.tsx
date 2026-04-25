@@ -37,12 +37,21 @@ export default function InstructorQuizPage() {
   const [showAcademicSummary, setShowAcademicSummary] = React.useState(false)
   const [mounted, setMounted] = React.useState(false)
 
+  // PERSISTENCIA DE IDS CON REFS PARA EVITAR PÉRDIDA POR RE-RENDER
+  const unidadIdRef = React.useRef<string | null>(null)
+  const periodoIdRef = React.useRef<string | null>(null)
+
   const createRoom = useMutation(convexApi.rooms.createRoom)
   const updateStatus = useMutation(convexApi.rooms.updateStatus)
   const room = useQuery(convexApi.rooms.getRoom, roomCode ? { roomCode } : "skip")
 
-  // FIX 1: Asegurar que el unidadId no sea null
-  const unidadIdFromUrl = searchParams.get('unidad_id') ?? searchParams.get('unidadId') ?? null
+  // Inicialización de IDs desde la URL al montar
+  React.useEffect(() => {
+    const uid = searchParams.get('unidad_id') ?? searchParams.get('unidadId')
+    const pid = searchParams.get('periodo_id')
+    if (uid) unidadIdRef.current = uid
+    if (pid) periodoIdRef.current = pid
+  }, [searchParams])
 
   const fetchSession = React.useCallback(async () => {
     const evalId = params.id as string;
@@ -52,11 +61,11 @@ export default function InstructorQuizPage() {
     try {
       const quizEval = await api.get<any>(`/evaluaciones/${evalId}`)
       if (quizEval) {
-        // FIX 2: Inyectar el unidad_id en el config si viene de la URL
-        const enrichedConfig = { ...quizEval };
-        if (unidadIdFromUrl) {
-          enrichedConfig.unidad_id = unidadIdFromUrl;
-        }
+        const enrichedConfig = { 
+          ...quizEval,
+          unidad_id: unidadIdRef.current || quizEval.unidad_id,
+          periodo_id: periodoIdRef.current || quizEval.periodo_id
+        };
         setConfig(enrichedConfig)
         
         try {
@@ -75,7 +84,7 @@ export default function InstructorQuizPage() {
     } finally {
       setLoadingConfig(false)
     }
-  }, [params.id, unidadIdFromUrl])
+  }, [params.id])
 
   React.useEffect(() => {
     setMounted(true)
@@ -86,6 +95,11 @@ export default function InstructorQuizPage() {
     const questions = config?.configuracion_json?.questions;
     if (!config || !questions?.length) {
       return toast({ variant: "destructive", title: "Sin preguntas", description: "Genera el banco de preguntas en el registro auxiliar primero." })
+    }
+
+    const currentUnidadId = unidadIdRef.current || config.unidad_id
+    if (!currentUnidadId || currentUnidadId === "SALLE" || currentUnidadId.length < 36) {
+      return toast({ variant: "destructive", title: "Sin ID de Unidad", description: "Vuelve al registro y entra de nuevo para fijar el ID real." })
     }
     
     setIsSyncing(true)
@@ -98,12 +112,11 @@ export default function InstructorQuizPage() {
       const finalSessionId = session?.id || session?.sesion_id || session?.sesion?.id;
       if (!session?.room_code || !finalSessionId) throw new Error("No se pudo generar el PIN o ID de sesión")
 
-      // FIX 4: Priorizar unidadIdFromUrl para que no caiga en "SALLE"
       await createRoom({
         roomCode: session.room_code,
         questions: questions,
         configId: config.id,
-        unidadId: unidadIdFromUrl || config.unidad_id || "SALLE"
+        unidadId: currentUnidadId
       })
 
       setRoomCode(session.room_code)
@@ -125,7 +138,7 @@ export default function InstructorQuizPage() {
           roomCode: roomCode,
           questions: config?.configuracion_json?.questions || [],
           configId: config.id,
-          unidadId: unidadIdFromUrl || config.unidad_id || "SALLE"
+          unidadId: unidadIdRef.current || config.unidad_id || "SALLE"
         })
       } catch (e: any) {
         toast({ variant: "destructive", title: "Error de Sincronización", description: e.message })
@@ -160,9 +173,8 @@ export default function InstructorQuizPage() {
 
   const handleCloseAndPersist = async () => {
     const finalEvalId = config?.id || params.id as string;
-    // FIX 3: Validación estricta del finalUnidadId
-    const finalUnidadId = unidadIdFromUrl || config?.unidad_id;
-    const finalPeriodoId = config?.periodo_id || searchParams.get('periodo_id') || 'ACTUAL';
+    const finalUnidadId = unidadIdRef.current || config?.unidad_id;
+    const finalPeriodoId = periodoIdRef.current || config?.periodo_id || searchParams.get('periodo_id') || 'ACTUAL';
 
     console.log("[SYNC DIAGNOSTIC]", { finalEvalId, finalUnidadId, finalPeriodoId, sessionId });
 
@@ -172,7 +184,7 @@ export default function InstructorQuizPage() {
     }
 
     if (!finalUnidadId || finalUnidadId === "SALLE" || finalUnidadId.length < 36) {
-      toast({ variant: "destructive", title: "ID de Unidad Perdido", description: `ID: ${finalUnidadId}. Vuelve al registro e ingresa de nuevo.` });
+      toast({ variant: "destructive", title: "ID de Unidad Perdido", description: "Vuelve al registro e ingresa de nuevo para fijar el UUID." });
       return;
     }
 
@@ -186,30 +198,39 @@ export default function InstructorQuizPage() {
       const totalQuestions = config?.configuracion_json?.questions?.length || 20;
       const maxScore = config?.puntaje_maximo || 20;
 
-      const validParticipants = room.participants.filter(p => 
-        p.studentId && p.studentId !== "undefined" && p.studentId.length >= 36
-      );
+      const validParticipants = room.participants.filter((p: any) => {
+        const aid = p.alumno_id || p.studentId;
+        return aid && aid !== "undefined" && aid.length >= 36;
+      });
 
-      const gradePromises = validParticipants.map(p => {
+      if (validParticipants.length === 0) {
+        toast({ variant: "destructive", title: "Identidad Inválida", description: "Los participantes no tienen UUID oficial vinculado." });
+        setIsClosing(false);
+        return;
+      }
+
+      const gradePromises = validParticipants.map((p: any) => {
+        const alumnoId = p.alumno_id || p.studentId;
         const correctAnswers = p.answers?.filter((a: any) => a.isCorrect).length || 0;
         const academicGrade = Math.round((correctAnswers / totalQuestions) * maxScore);
         
         return api.post('/evaluaciones/calificar/', {
           evaluacion_id: finalEvalId,
-          alumno_id: p.studentId,
+          alumno_id: alumnoId,
           puntaje: academicGrade,
           observacion: `Rank-UP: ${correctAnswers}/${totalQuestions} correctas. (${p.score} pts)`,
           detalles_json: { ranking_pts: p.score, avatar: p.avatar }
         });
       });
 
-      await Promise.allSettled(gradePromises);
-      
+      const results = await Promise.allSettled(gradePromises);
+      const exitosas = results.filter(r => r.status === 'fulfilled').length;
+
       if (sessionId && sessionId.length >= 36) {
         await api.post(`/gamificacion/sesion/${sessionId}/finalizar/`, { notas: [] }).catch(() => {});
       }
 
-      toast({ title: "Sincronización Exitosa" });
+      toast({ title: "Sincronización Exitosa", description: `${exitosas} notas registradas en el auxiliar.` });
       router.push(`/instructor/grades/${finalUnidadId}?periodo_id=${finalPeriodoId}`);
     } catch (e: any) {
       toast({ variant: "destructive", title: "Fallo Crítico", description: e.message });
@@ -253,7 +274,7 @@ export default function InstructorQuizPage() {
 
   const sortedParticipants = React.useMemo(() => {
     if (!room?.participants) return []
-    return [...room.participants].sort((a, b) => b.score - a.score)
+    return [...room.participants].sort((a: any, b: any) => b.score - a.score)
   }, [room?.participants])
 
   if (!mounted || loadingConfig) {
@@ -400,54 +421,54 @@ export default function InstructorQuizPage() {
             
             {room.status === 'finished' ? (
               <div className="h-full flex flex-col items-center animate-in zoom-in-95 relative z-10">
-                <div className="text-center mt-2 md:mt-4 mb-20 space-y-1">
-                   <h2 className="text-3xl md:text-4xl font-black uppercase italic tracking-tighter text-white drop-shadow-[0_10px_10px_rgba(0,0,0,0.3)]">Podio de Campeones</h2>
-                   <p className="text-yellow-400 font-black text-xs uppercase tracking-[0.5em] italic">Salle Rank-UP Challenge</p>
+                <div className="text-center mt-0 mb-16 space-y-1">
+                   <h2 className="text-3xl font-black uppercase italic tracking-tighter text-white drop-shadow-[0_10px_10px_rgba(0,0,0,0.3)]">Podio de Campeones</h2>
+                   <p className="text-yellow-400 font-black text-[10px] uppercase tracking-[0.5em] italic">Salle Rank-UP Challenge</p>
                 </div>
 
-                <div className="flex items-end justify-center gap-4 md:gap-16 h-[380px] mb-16 relative z-40">
+                <div className="flex items-end justify-center gap-4 md:gap-16 h-[320px] mb-16 relative z-40">
                   {/* Puesto 2 */}
                   {sortedParticipants[1] && (
                     <div className="flex flex-col items-center gap-6 animate-in slide-in-from-bottom-24 duration-700">
                       <div className="relative group">
                          <div className="absolute inset-0 bg-yellow-400 blur-2xl opacity-20 group-hover:opacity-40 transition-opacity" />
-                         <div className="w-28 h-28 md:w-32 md:h-32 bg-white/20 backdrop-blur-xl rounded-[2.5rem] p-2 border-4 border-slate-300 shadow-2xl relative z-10 flex items-center justify-center">
+                         <div className="w-24 h-24 md:w-28 md:h-28 bg-white/20 backdrop-blur-xl rounded-[2.5rem] p-2 border-4 border-slate-300 shadow-2xl relative z-10 flex items-center justify-center">
                             <Avatar className="w-full h-full rounded-[2rem]">
                               <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(sortedParticipants[1].avatar)}`} />
                               <AvatarFallback className="text-3xl font-black bg-slate-100">{getInitials(sortedParticipants[1].name)}</AvatarFallback>
                             </Avatar>
                          </div>
-                         <div className="absolute -top-4 -right-4 h-10 w-10 bg-slate-400 rounded-2xl flex items-center justify-center font-black text-white text-lg border-4 border-[#6D28D9] shadow-xl z-20">2</div>
+                         <div className="absolute -top-4 -right-4 h-9 w-9 bg-slate-400 rounded-2xl flex items-center justify-center font-black text-white text-base border-4 border-[#6D28D9] shadow-xl z-20">2</div>
                       </div>
                       <div className="text-center space-y-1">
-                        <p className="font-black text-white text-base uppercase truncate w-36">{sortedParticipants[1].name.split(',')[0]}</p>
-                        <span className="text-yellow-400 font-black text-lg">{sortedParticipants[1].score}</span>
+                        <p className="font-black text-white text-xs uppercase truncate w-32">{sortedParticipants[1].name.split(',')[0]}</p>
+                        <span className="text-yellow-400 font-black text-base">{sortedParticipants[1].score}</span>
                       </div>
-                      <div className="w-28 md:w-32 h-24 bg-white/10 backdrop-blur-md rounded-t-[2.5rem] border-t-8 border-slate-300/50 shadow-2xl" />
+                      <div className="w-24 md:w-28 h-20 bg-white/10 backdrop-blur-md rounded-t-[2.5rem] border-t-8 border-slate-300/50 shadow-2xl" />
                     </div>
                   )}
 
                   {/* Puesto 1 */}
                   {sortedParticipants[0] && (
                     <div className="flex flex-col items-center gap-8 animate-in slide-in-from-bottom-40 duration-1000 relative z-50">
-                      <Crown className="h-14 w-14 text-yellow-400 animate-bounce filter drop-shadow-[0_0_15px_rgba(250,204,21,0.5)]" />
+                      <Crown className="h-12 w-12 text-yellow-400 animate-bounce filter drop-shadow-[0_0_15px_rgba(250,204,21,0.5)]" />
                       <div className="relative group">
                          <div className="absolute inset-0 bg-yellow-400 blur-3xl opacity-30 group-hover:opacity-50 transition-opacity animate-pulse" />
-                         <div className="w-36 h-40 md:w-48 md:h-48 bg-white/30 backdrop-blur-2xl rounded-[3.5rem] p-3 border-[10px] border-yellow-400 shadow-2xl relative z-10 flex items-center justify-center">
+                         <div className="w-32 h-36 md:w-40 md:h-40 bg-white/30 backdrop-blur-2xl rounded-[3.5rem] p-3 border-[8px] border-yellow-400 shadow-2xl relative z-10 flex items-center justify-center">
                             <Avatar className="w-full h-full rounded-[2.5rem]">
                               <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(sortedParticipants[0].avatar)}`} />
                               <AvatarFallback className="text-5xl font-black bg-yellow-50">{getInitials(sortedParticipants[0].name)}</AvatarFallback>
                             </Avatar>
                          </div>
-                         <div className="absolute -top-6 -right-6 h-14 w-14 bg-yellow-400 rounded-3xl flex items-center justify-center font-black text-primary text-2xl border-8 border-[#6D28D9] shadow-2xl z-20">1</div>
+                         <div className="absolute -top-6 -right-6 h-12 w-12 bg-yellow-400 rounded-3xl flex items-center justify-center font-black text-primary text-xl border-8 border-[#6D28D9] shadow-2xl z-20">1</div>
                       </div>
                       <div className="text-center space-y-2">
-                        <p className="font-black text-white text-xl uppercase tracking-tighter drop-shadow-lg">{sortedParticipants[0].name.split(',')[0]}</p>
-                        <div className="bg-yellow-400 px-6 py-1.5 rounded-full shadow-[0_0_20px_rgba(250,204,21,0.4)]">
-                          <span className="text-primary font-black text-2xl">{sortedParticipants[0].score}</span>
+                        <p className="font-black text-white text-lg uppercase tracking-tighter drop-shadow-lg">{sortedParticipants[0].name.split(',')[0]}</p>
+                        <div className="bg-yellow-400 px-5 py-1.5 rounded-full shadow-[0_0_20px_rgba(250,204,21,0.4)]">
+                          <span className="text-primary font-black text-xl">{sortedParticipants[0].score}</span>
                         </div>
                       </div>
-                      <div className="w-36 md:w-48 h-40 bg-white/20 backdrop-blur-lg rounded-t-[4rem] border-t-[14px] border-yellow-400 shadow-2xl" />
+                      <div className="w-32 md:w-40 h-32 bg-white/20 backdrop-blur-lg rounded-t-[4rem] border-t-[12px] border-yellow-400 shadow-2xl" />
                     </div>
                   )}
 
@@ -456,7 +477,7 @@ export default function InstructorQuizPage() {
                     <div className="flex flex-col items-center gap-6 animate-in slide-in-from-bottom-16 duration-1000">
                       <div className="relative group">
                          <div className="absolute inset-0 bg-amber-700 blur-2xl opacity-10 group-hover:opacity-30 transition-opacity" />
-                         <div className="w-24 h-24 md:w-28 md:h-28 bg-white/20 backdrop-blur-xl rounded-[2rem] p-2 border-4 border-amber-600/50 shadow-2xl relative z-10 flex items-center justify-center">
+                         <div className="w-20 h-20 md:w-24 md:h-24 bg-white/20 backdrop-blur-xl rounded-[2rem] p-2 border-4 border-amber-600/50 shadow-2xl relative z-10 flex items-center justify-center">
                             <Avatar className="w-full h-full rounded-[1.5rem]">
                               <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(sortedParticipants[2].avatar)}`} />
                               <AvatarFallback className="text-2xl font-black bg-amber-50">{getInitials(sortedParticipants[2].name)}</AvatarFallback>
@@ -465,10 +486,10 @@ export default function InstructorQuizPage() {
                          <div className="absolute -top-3 -right-3 h-8 w-8 bg-amber-700 rounded-2xl flex items-center justify-center font-black text-white text-base border-4 border-[#6D28D9] shadow-xl z-20">3</div>
                       </div>
                       <div className="text-center space-y-1">
-                        <p className="font-black text-white text-sm uppercase truncate w-32">{sortedParticipants[2].name.split(',')[0]}</p>
-                        <span className="text-yellow-400 font-black text-base">{sortedParticipants[2].score}</span>
+                        <p className="font-black text-white text-[10px] uppercase truncate w-28">{sortedParticipants[2].name.split(',')[0]}</p>
+                        <span className="text-yellow-400 font-black text-sm">{sortedParticipants[2].score}</span>
                       </div>
-                      <div className="w-24 md:w-28 h-20 bg-white/10 backdrop-blur-md rounded-t-[2.5rem] border-t-8 border-amber-700/40 shadow-2xl" />
+                      <div className="w-20 md:w-24 h-16 bg-white/10 backdrop-blur-md rounded-t-[2.5rem] border-t-8 border-amber-700/40 shadow-2xl" />
                     </div>
                   )}
                 </div>

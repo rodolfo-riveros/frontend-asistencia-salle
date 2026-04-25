@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -37,6 +36,7 @@ function JoinForm() {
         
         if (student && student.id && student.id !== "undefined") {
           setStudentData(student)
+          // El seed del avatar ahora es consistente con el monitor del docente
           setAvatarSeed(student.nombre.split(',')[0])
           toast({ title: "Identidad Verificada", description: `Bienvenido, aspirante ${student.nombre}` })
         } else {
@@ -58,7 +58,6 @@ function JoinForm() {
     e.preventDefault()
     const cleanPin = pin.trim().toUpperCase();
     
-    // Validación de seguridad final antes de enviar a Convex
     if (!cleanPin || !dni || !studentData || !studentData.id || studentData.id === "undefined") {
       toast({ variant: "destructive", title: "Error de Identidad", description: "Vuelva a ingresar su DNI." });
       return;
@@ -66,10 +65,11 @@ function JoinForm() {
     
     setIsJoining(true)
     try {
+      // FIX: usar alumno_id para consistencia con el backend
       const participantId = await joinRoom({ 
         roomCode: cleanPin, 
         name: studentData.nombre,
-        studentId: studentData.id,
+        alumno_id: studentData.id,
         programa: studentData.programa_nombre,
         semestre: studentData.semestre
       })

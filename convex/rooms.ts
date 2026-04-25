@@ -46,7 +46,7 @@ export const joinRoom = mutation({
   args: { 
     roomCode: v.string(), 
     name: v.string(), 
-    studentId: v.string(),
+    alumno_id: v.string(),
     programa: v.optional(v.string()),
     semestre: v.optional(v.string())
   },
@@ -62,7 +62,7 @@ export const joinRoom = mutation({
     // RECUPERACIÓN DE SESIÓN POR UUID TÉCNICO
     const existingParticipant = await ctx.db
       .query("participants")
-      .withIndex("by_student_in_room", (q) => q.eq("roomId", room._id).eq("studentId", args.studentId))
+      .withIndex("by_alumno_in_room", (q) => q.eq("roomId", room._id).eq("alumno_id", args.alumno_id))
       .first();
     
     if (existingParticipant) {
@@ -74,15 +74,15 @@ export const joinRoom = mutation({
     const randomAvatar = AVATARS[Math.floor(Math.random() * AVATARS.length)];
 
     return await ctx.db.insert("participants", {
-      roomId:  room._id,
-      studentId: args.studentId,
-      name:    args.name.trim().toUpperCase(),
-      programa: args.programa,
-      semestre: args.semestre,
-      score:   0,
-      avatar:  randomAvatar,
+      roomId:    room._id,
+      alumno_id: args.alumno_id,
+      name:      args.name.trim().toUpperCase(),
+      programa:  args.programa,
+      semestre:  args.semestre,
+      score:     0,
+      avatar:    randomAvatar,
       isCheating: false,
-      answers: [],
+      answers:   [],
     });
   },
 });
