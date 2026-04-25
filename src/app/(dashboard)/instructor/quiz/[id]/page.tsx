@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -42,7 +41,8 @@ export default function InstructorQuizPage() {
   const updateStatus = useMutation(convexApi.rooms.updateStatus)
   const room = useQuery(convexApi.rooms.getRoom, roomCode ? { roomCode } : "skip")
 
-  const unidadIdFromUrl = searchParams.get('unidad_id')
+  // FIX 1: Asegurar que el unidadId no sea null
+  const unidadIdFromUrl = searchParams.get('unidad_id') ?? searchParams.get('unidadId') ?? null
 
   const fetchSession = React.useCallback(async () => {
     const evalId = params.id as string;
@@ -52,7 +52,13 @@ export default function InstructorQuizPage() {
     try {
       const quizEval = await api.get<any>(`/evaluaciones/${evalId}`)
       if (quizEval) {
-        setConfig(quizEval)
+        // FIX 2: Inyectar el unidad_id en el config si viene de la URL
+        const enrichedConfig = { ...quizEval };
+        if (unidadIdFromUrl) {
+          enrichedConfig.unidad_id = unidadIdFromUrl;
+        }
+        setConfig(enrichedConfig)
+        
         try {
           const activeSession = await api.get<any>(`/gamificacion/sesion/${quizEval.id}/`)
           if (activeSession && activeSession.room_code) {
@@ -69,7 +75,7 @@ export default function InstructorQuizPage() {
     } finally {
       setLoadingConfig(false)
     }
-  }, [params.id])
+  }, [params.id, unidadIdFromUrl])
 
   React.useEffect(() => {
     setMounted(true)
@@ -92,11 +98,12 @@ export default function InstructorQuizPage() {
       const finalSessionId = session?.id || session?.sesion_id || session?.sesion?.id;
       if (!session?.room_code || !finalSessionId) throw new Error("No se pudo generar el PIN o ID de sesión")
 
+      // FIX 4: Priorizar unidadIdFromUrl para que no caiga en "SALLE"
       await createRoom({
         roomCode: session.room_code,
         questions: questions,
         configId: config.id,
-        unidadId: config.unidad_id || unidadIdFromUrl || "SALLE"
+        unidadId: unidadIdFromUrl || config.unidad_id || "SALLE"
       })
 
       setRoomCode(session.room_code)
@@ -118,7 +125,7 @@ export default function InstructorQuizPage() {
           roomCode: roomCode,
           questions: config?.configuracion_json?.questions || [],
           configId: config.id,
-          unidadId: config.unidad_id || unidadIdFromUrl || "SALLE"
+          unidadId: unidadIdFromUrl || config.unidad_id || "SALLE"
         })
       } catch (e: any) {
         toast({ variant: "destructive", title: "Error de Sincronización", description: e.message })
@@ -153,7 +160,8 @@ export default function InstructorQuizPage() {
 
   const handleCloseAndPersist = async () => {
     const finalEvalId = config?.id || params.id as string;
-    const finalUnidadId = config?.unidad_id || unidadIdFromUrl;
+    // FIX 3: Validación estricta del finalUnidadId
+    const finalUnidadId = unidadIdFromUrl || config?.unidad_id;
     const finalPeriodoId = config?.periodo_id || searchParams.get('periodo_id') || 'ACTUAL';
 
     console.log("[SYNC DIAGNOSTIC]", { finalEvalId, finalUnidadId, finalPeriodoId, sessionId });
@@ -163,8 +171,8 @@ export default function InstructorQuizPage() {
       return;
     }
 
-    if (!finalUnidadId || finalUnidadId === "SALLE") {
-      toast({ variant: "destructive", title: "ID de Unidad Perdido", description: "Vuelve al registro auxiliar e intenta ingresar de nuevo." });
+    if (!finalUnidadId || finalUnidadId === "SALLE" || finalUnidadId.length < 36) {
+      toast({ variant: "destructive", title: "ID de Unidad Perdido", description: `ID: ${finalUnidadId}. Vuelve al registro e ingresa de nuevo.` });
       return;
     }
 
@@ -392,12 +400,12 @@ export default function InstructorQuizPage() {
             
             {room.status === 'finished' ? (
               <div className="h-full flex flex-col items-center animate-in zoom-in-95 relative z-10">
-                <div className="text-center mt-10 mb-16 space-y-1">
-                   <h2 className="text-4xl md:text-5xl font-black uppercase italic tracking-tighter text-white drop-shadow-[0_10px_10px_rgba(0,0,0,0.3)]">Podio de Campeones</h2>
-                   <p className="text-yellow-400 font-black text-sm uppercase tracking-[0.5em] italic">Salle Rank-UP Challenge</p>
+                <div className="text-center mt-2 md:mt-4 mb-20 space-y-1">
+                   <h2 className="text-3xl md:text-4xl font-black uppercase italic tracking-tighter text-white drop-shadow-[0_10px_10px_rgba(0,0,0,0.3)]">Podio de Campeones</h2>
+                   <p className="text-yellow-400 font-black text-xs uppercase tracking-[0.5em] italic">Salle Rank-UP Challenge</p>
                 </div>
 
-                <div className="flex items-end justify-center gap-4 md:gap-16 h-[350px] mb-12 relative z-40">
+                <div className="flex items-end justify-center gap-4 md:gap-16 h-[380px] mb-16 relative z-40">
                   {/* Puesto 2 */}
                   {sortedParticipants[1] && (
                     <div className="flex flex-col items-center gap-6 animate-in slide-in-from-bottom-24 duration-700">
