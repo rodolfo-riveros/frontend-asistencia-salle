@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -212,22 +213,40 @@ export default function InstructorQuizPage() {
       const gradePromises = validParticipants.map((p: any) => {
         const alumnoId = p.alumno_id || p.studentId;
         const correctAnswers = p.answers?.filter((a: any) => a.isCorrect).length || 0;
-        const academicGrade = Math.round((correctAnswers / totalQuestions) * maxScore);
+        
+        // CÁLCULO FLOTANTE DE PRECISIÓN PARA EVITAR 0.00 EN POSTGRES
+        const academicGrade = parseFloat(
+          ((correctAnswers / totalQuestions) * maxScore).toFixed(2)
+        );
         
         return api.post('/evaluaciones/calificar/', {
           evaluacion_id: finalEvalId,
           alumno_id: alumnoId,
           puntaje: academicGrade,
           observacion: `Rank-UP: ${correctAnswers}/${totalQuestions} correctas. (${p.score} pts)`,
-          detalles_json: { ranking_pts: p.score, avatar: p.avatar }
+          detalles_json: { 
+            aciertos: correctAnswers, 
+            total_preguntas: totalQuestions,
+            ranking_pts: p.score, 
+            avatar: p.avatar 
+          }
         });
       });
 
       const results = await Promise.allSettled(gradePromises);
       const exitosas = results.filter(r => r.status === 'fulfilled').length;
 
+      // Log de diagnósticos fallidos sin interrumpir el flujo
+      results.forEach((r, idx) => {
+        if (r.status === 'rejected') {
+          console.error(`Fallo al calificar participante ${idx}:`, r.reason);
+        }
+      });
+
       if (sessionId && sessionId.length >= 36) {
-        await api.post(`/gamificacion/sesion/${sessionId}/finalizar/`, { notas: [] }).catch(() => {});
+        await api.post(`/gamificacion/sesion/${sessionId}/finalizar/`, { notas: [] }).catch((e) => {
+           console.warn("No se pudo cerrar la sesión técnica:", e);
+        });
       }
 
       toast({ title: "Sincronización Exitosa", description: `${exitosas} notas registradas en el auxiliar.` });
@@ -421,54 +440,54 @@ export default function InstructorQuizPage() {
             
             {room.status === 'finished' ? (
               <div className="h-full flex flex-col items-center animate-in zoom-in-95 relative z-10">
-                <div className="text-center mt-0 mb-16 space-y-1">
-                   <h2 className="text-3xl font-black uppercase italic tracking-tighter text-white drop-shadow-[0_10px_10px_rgba(0,0,0,0.3)]">Podio de Campeones</h2>
-                   <p className="text-yellow-400 font-black text-[10px] uppercase tracking-[0.5em] italic">Salle Rank-UP Challenge</p>
+                <div className="text-center mt-2 md:mt-4 mb-20 space-y-1">
+                   <h2 className="text-3xl md:text-4xl font-black uppercase italic tracking-tighter text-white drop-shadow-[0_10px_10px_rgba(0,0,0,0.3)]">Podio de Campeones</h2>
+                   <p className="text-yellow-400 font-black text-xs uppercase tracking-[0.5em] italic">Salle Rank-UP Challenge</p>
                 </div>
 
-                <div className="flex items-end justify-center gap-4 md:gap-16 h-[320px] mb-16 relative z-40">
+                <div className="flex items-end justify-center gap-4 md:gap-16 h-[380px] mb-16 relative z-40">
                   {/* Puesto 2 */}
                   {sortedParticipants[1] && (
                     <div className="flex flex-col items-center gap-6 animate-in slide-in-from-bottom-24 duration-700">
                       <div className="relative group">
                          <div className="absolute inset-0 bg-yellow-400 blur-2xl opacity-20 group-hover:opacity-40 transition-opacity" />
-                         <div className="w-24 h-24 md:w-28 md:h-28 bg-white/20 backdrop-blur-xl rounded-[2.5rem] p-2 border-4 border-slate-300 shadow-2xl relative z-10 flex items-center justify-center">
+                         <div className="w-28 h-28 md:w-32 md:h-32 bg-white/20 backdrop-blur-xl rounded-[2.5rem] p-2 border-4 border-slate-300 shadow-2xl relative z-10 flex items-center justify-center">
                             <Avatar className="w-full h-full rounded-[2rem]">
                               <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(sortedParticipants[1].avatar)}`} />
                               <AvatarFallback className="text-3xl font-black bg-slate-100">{getInitials(sortedParticipants[1].name)}</AvatarFallback>
                             </Avatar>
                          </div>
-                         <div className="absolute -top-4 -right-4 h-9 w-9 bg-slate-400 rounded-2xl flex items-center justify-center font-black text-white text-base border-4 border-[#6D28D9] shadow-xl z-20">2</div>
+                         <div className="absolute -top-4 -right-4 h-10 w-10 bg-slate-400 rounded-2xl flex items-center justify-center font-black text-white text-lg border-4 border-[#6D28D9] shadow-xl z-20">2</div>
                       </div>
                       <div className="text-center space-y-1">
-                        <p className="font-black text-white text-xs uppercase truncate w-32">{sortedParticipants[1].name.split(',')[0]}</p>
-                        <span className="text-yellow-400 font-black text-base">{sortedParticipants[1].score}</span>
+                        <p className="font-black text-white text-base uppercase truncate w-36">{sortedParticipants[1].name.split(',')[0]}</p>
+                        <span className="text-yellow-400 font-black text-lg">{sortedParticipants[1].score}</span>
                       </div>
-                      <div className="w-24 md:w-28 h-20 bg-white/10 backdrop-blur-md rounded-t-[2.5rem] border-t-8 border-slate-300/50 shadow-2xl" />
+                      <div className="w-28 md:w-32 h-24 bg-white/10 backdrop-blur-md rounded-t-[2.5rem] border-t-8 border-slate-300/50 shadow-2xl" />
                     </div>
                   )}
 
                   {/* Puesto 1 */}
                   {sortedParticipants[0] && (
                     <div className="flex flex-col items-center gap-8 animate-in slide-in-from-bottom-40 duration-1000 relative z-50">
-                      <Crown className="h-12 w-12 text-yellow-400 animate-bounce filter drop-shadow-[0_0_15px_rgba(250,204,21,0.5)]" />
+                      <Crown className="h-14 w-14 text-yellow-400 animate-bounce filter drop-shadow-[0_0_15px_rgba(250,204,21,0.5)]" />
                       <div className="relative group">
                          <div className="absolute inset-0 bg-yellow-400 blur-3xl opacity-30 group-hover:opacity-50 transition-opacity animate-pulse" />
-                         <div className="w-32 h-36 md:w-40 md:h-40 bg-white/30 backdrop-blur-2xl rounded-[3.5rem] p-3 border-[8px] border-yellow-400 shadow-2xl relative z-10 flex items-center justify-center">
+                         <div className="w-36 h-40 md:w-48 md:h-48 bg-white/30 backdrop-blur-2xl rounded-[3.5rem] p-3 border-[10px] border-yellow-400 shadow-2xl relative z-10 flex items-center justify-center">
                             <Avatar className="w-full h-full rounded-[2.5rem]">
                               <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(sortedParticipants[0].avatar)}`} />
                               <AvatarFallback className="text-5xl font-black bg-yellow-50">{getInitials(sortedParticipants[0].name)}</AvatarFallback>
                             </Avatar>
                          </div>
-                         <div className="absolute -top-6 -right-6 h-12 w-12 bg-yellow-400 rounded-3xl flex items-center justify-center font-black text-primary text-xl border-8 border-[#6D28D9] shadow-2xl z-20">1</div>
+                         <div className="absolute -top-6 -right-6 h-14 w-14 bg-yellow-400 rounded-3xl flex items-center justify-center font-black text-primary text-2xl border-8 border-[#6D28D9] shadow-2xl z-20">1</div>
                       </div>
                       <div className="text-center space-y-2">
-                        <p className="font-black text-white text-lg uppercase tracking-tighter drop-shadow-lg">{sortedParticipants[0].name.split(',')[0]}</p>
-                        <div className="bg-yellow-400 px-5 py-1.5 rounded-full shadow-[0_0_20px_rgba(250,204,21,0.4)]">
-                          <span className="text-primary font-black text-xl">{sortedParticipants[0].score}</span>
+                        <p className="font-black text-white text-xl uppercase tracking-tighter drop-shadow-lg">{sortedParticipants[0].name.split(',')[0]}</p>
+                        <div className="bg-yellow-400 px-6 py-1.5 rounded-full shadow-[0_0_20px_rgba(250,204,21,0.4)]">
+                          <span className="text-primary font-black text-2xl">{sortedParticipants[0].score}</span>
                         </div>
                       </div>
-                      <div className="w-32 md:w-40 h-32 bg-white/20 backdrop-blur-lg rounded-t-[4rem] border-t-[12px] border-yellow-400 shadow-2xl" />
+                      <div className="w-36 md:w-48 h-40 bg-white/20 backdrop-blur-lg rounded-t-[4rem] border-t-[14px] border-yellow-400 shadow-2xl" />
                     </div>
                   )}
 
@@ -477,7 +496,7 @@ export default function InstructorQuizPage() {
                     <div className="flex flex-col items-center gap-6 animate-in slide-in-from-bottom-16 duration-1000">
                       <div className="relative group">
                          <div className="absolute inset-0 bg-amber-700 blur-2xl opacity-10 group-hover:opacity-30 transition-opacity" />
-                         <div className="w-20 h-20 md:w-24 md:h-24 bg-white/20 backdrop-blur-xl rounded-[2rem] p-2 border-4 border-amber-600/50 shadow-2xl relative z-10 flex items-center justify-center">
+                         <div className="w-24 h-24 md:w-28 md:h-28 bg-white/20 backdrop-blur-xl rounded-[2rem] p-2 border-4 border-amber-600/50 shadow-2xl relative z-10 flex items-center justify-center">
                             <Avatar className="w-full h-full rounded-[1.5rem]">
                               <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(sortedParticipants[2].avatar)}`} />
                               <AvatarFallback className="text-2xl font-black bg-amber-50">{getInitials(sortedParticipants[2].name)}</AvatarFallback>
@@ -486,10 +505,10 @@ export default function InstructorQuizPage() {
                          <div className="absolute -top-3 -right-3 h-8 w-8 bg-amber-700 rounded-2xl flex items-center justify-center font-black text-white text-base border-4 border-[#6D28D9] shadow-xl z-20">3</div>
                       </div>
                       <div className="text-center space-y-1">
-                        <p className="font-black text-white text-[10px] uppercase truncate w-28">{sortedParticipants[2].name.split(',')[0]}</p>
-                        <span className="text-yellow-400 font-black text-sm">{sortedParticipants[2].score}</span>
+                        <p className="font-black text-white text-sm uppercase truncate w-32">{sortedParticipants[2].name.split(',')[0]}</p>
+                        <span className="text-yellow-400 font-black text-base">{sortedParticipants[2].score}</span>
                       </div>
-                      <div className="w-20 md:w-24 h-16 bg-white/10 backdrop-blur-md rounded-t-[2.5rem] border-t-8 border-amber-700/40 shadow-2xl" />
+                      <div className="w-24 md:w-28 h-20 bg-white/10 backdrop-blur-md rounded-t-[2.5rem] border-t-8 border-amber-700/40 shadow-2xl" />
                     </div>
                   )}
                 </div>
@@ -540,7 +559,7 @@ export default function InstructorQuizPage() {
                         </AvatarFallback>
                       </Avatar>
                     </div>
-                    <div className="text-center space-y-3 w-full overflow-hidden relative z-10">
+                    <div classNametext-center space-y-3 w-full overflow-hidden relative z-10">
                       <Badge variant="outline" className="text-[9px] font-black uppercase text-slate-400 border-slate-100 px-3 tracking-widest">{p.avatar}</Badge>
                       <p className="text-lg font-black text-slate-900 truncate w-full leading-none uppercase italic tracking-tighter">{p.name.split(',')[0]}</p>
                       <div className="bg-primary/5 rounded-[1.5rem] py-3 px-6 inline-block mt-2 border border-primary/5">
