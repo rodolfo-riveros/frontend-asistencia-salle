@@ -25,6 +25,7 @@ export default defineSchema({
   participants: defineTable({
     roomId:      v.id("rooms"),
     alumno_id:   v.optional(v.string()), // UUID oficial de la base de datos (Supabase)
+    studentId:   v.optional(v.string()), // Compatibilidad con registros antiguos durante despliegue
     name:        v.string(),
     score:       v.number(),
     avatar:      v.string(), // Nombre del personaje (Maestro Jedi, etc.)

@@ -501,7 +501,7 @@ export default function InstructorQuizPage() {
                        <span className="text-white font-black uppercase text-xs tracking-[0.3em] italic">Ranking de Honor Salle</span>
                        <div className="flex-1 h-px bg-white/10" />
                     </div>
-                    {sortedParticipants.slice(3, 10).map((p, idx) => (
+                    {sortedParticipants.slice(3, 10).map((p: any, idx: number) => (
                       <div key={p._id} className="bg-white/5 backdrop-blur-sm p-3 rounded-2xl border border-white/10 flex items-center gap-6 group hover:bg-white/10 transition-all">
                         <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center font-black text-white/50 text-lg border border-white/5">{idx + 4}</div>
                         <Avatar className="h-10 w-10 border-2 border-white/20">
