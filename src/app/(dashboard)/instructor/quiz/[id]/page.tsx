@@ -11,7 +11,7 @@ import {
   Medal, ListChecks, CheckCircle2, XCircle, LogOut, GraduationCap
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
@@ -50,18 +50,16 @@ export default function InstructorQuizPage() {
       if (quizEval) {
         setConfig(quizEval)
         try {
-          // Intentar recuperar sesión activa para esta evaluación
           const activeSession = await api.get<any>(`/gamificacion/sesion/${quizEval.id}/`)
           if (activeSession && activeSession.room_code) {
             setRoomCode(activeSession.room_code)
+            // Normalizar ID de sesión
             const sid = activeSession.id || activeSession.sesion_id || activeSession.sesion?.id;
             if (sid && sid !== "undefined") {
               setSessionId(sid);
             }
           }
-        } catch (e) { 
-          // No hay sesión activa, es normal
-        }
+        } catch (e) { /* Sin sesión activa */ }
       }
     } catch (e: any) {
       console.error("Error cargando configuración:", e)
@@ -151,10 +149,15 @@ export default function InstructorQuizPage() {
   }
 
   const handleCloseAndPersist = async () => {
+    // RECUPERACIÓN SEGURA DE EVALUACION_ID
     const finalEvalId = config?.id || params.id;
     
-    if (!finalEvalId || finalEvalId === "undefined") {
-      toast({ variant: "destructive", title: "Error técnico", description: "ID de evaluación no válido para sincronización." });
+    if (!finalEvalId || finalEvalId === "undefined" || finalEvalId === "null") {
+      toast({ 
+        variant: "destructive", 
+        title: "Error de Configuración", 
+        description: "No se encontró un ID de evaluación válido para sincronizar." 
+      });
       return;
     }
 
@@ -168,19 +171,19 @@ export default function InstructorQuizPage() {
       const totalQuestions = config?.configuracion_json?.questions?.length || 20;
       const maxScore = config?.puntaje_maximo || 20;
 
-      // Filtrado riguroso de participantes con identidad verificada (UUID real)
+      // FILTRO RIGUROSO DE ESTUDIANTES CON UUID REAL
       const validParticipants = room.participants.filter(p => 
         p.studentId && 
         p.studentId !== "undefined" && 
         p.studentId !== "null" &&
-        p.studentId.length > 20 // Un UUID tiene 36 caracteres
+        p.studentId.length >= 36 // Longitud estándar de un UUID
       );
 
       if (validParticipants.length === 0) {
-        throw new Error("No hay participantes con ID técnico verificado. No se pueden pasar las notas.");
+        throw new Error("No se detectaron alumnos con identidad técnica verificada.");
       }
 
-      // Sincronización masiva hacia FastAPI
+      // SINCRONIZACIÓN EN PARALELO
       const gradePromises = validParticipants.map(p => {
         const correctAnswers = p.answers?.filter((a: any) => a.isCorrect).length || 0;
         const academicGrade = Math.round((correctAnswers / totalQuestions) * maxScore);
@@ -197,34 +200,35 @@ export default function InstructorQuizPage() {
             avatar: p.avatar 
           }
         }).catch(err => {
-          console.error(`Error calificando a ${p.name}:`, err);
+          console.error(`[SYNC ERROR] Alumno: ${p.name}`, err);
           return { error: true, student: p.name };
         });
       });
 
       await Promise.allSettled(gradePromises);
       
-      // Intentar cerrar la sesión en el backend si el ID es válido
-      if (sessionId && sessionId !== "undefined" && sessionId !== "null" && sessionId.length > 20) {
+      // CIERRE DE SESIÓN EN BACKEND (Si el ID es válido)
+      if (sessionId && sessionId !== "undefined" && sessionId.length >= 36) {
         try {
           await api.post(`/gamificacion/sesion/${sessionId}/finalizar/`, { notas: [] });
         } catch (e) {
-          console.warn("Sesión no se pudo marcar como finalizada en Render.");
+          console.warn("No se pudo cerrar la sesión técnica, pero las notas fueron procesadas.");
         }
       }
 
       toast({ 
-        title: "Sincronización Exitosa", 
-        description: `Se han registrado las notas de ${validParticipants.length} alumnos en el Registro Auxiliar.` 
+        title: "Sincronización Completa", 
+        description: `Se han registrado las notas de ${validParticipants.length} alumnos.` 
       });
       
+      // Redirección con periodo real
       const targetPeriodId = config?.periodo_id || searchParams.get('periodo_id') || 'ACTUAL';
       router.push(`/instructor/grades/${config?.unidad_id || "SALLE"}?periodo_id=${targetPeriodId}`);
     } catch (e: any) {
       toast({ 
         variant: "destructive", 
-        title: "Error de Sincronización", 
-        description: e.message || "Ocurrió un error al intentar guardar las notas." 
+        title: "Fallo de Sincronización", 
+        description: e.message || "Verifica la integridad de los datos de los alumnos." 
       });
     } finally {
       setIsClosing(false);
@@ -280,7 +284,7 @@ export default function InstructorQuizPage() {
                 const totalQ = config?.configuracion_json?.questions?.length || 20;
                 const corrects = p.answers?.filter((a: any) => a.isCorrect).length || 0;
                 const grade = Math.round((corrects / totalQ) * (config?.puntaje_maximo || 20));
-                const isIdentified = p.studentId && p.studentId !== "undefined" && p.studentId !== "null" && p.studentId.length > 20;
+                const isIdentified = p.studentId && p.studentId !== "undefined" && p.studentId.length >= 36;
                 
                 return (
                   <TableRow key={p._id} className={cn("hover:bg-slate-50 transition-colors", !isIdentified && "bg-amber-50/30")}>
@@ -292,7 +296,7 @@ export default function InstructorQuizPage() {
                           </Avatar>
                           <div className="flex flex-col">
                             <span className="font-bold text-slate-900 uppercase text-sm truncate w-64">{p.name}</span>
-                            {!isIdentified && <span className="text-[8px] font-black text-amber-600 uppercase">Sin Identidad Verificada</span>}
+                            {!isIdentified && <span className="text-[8px] font-black text-amber-600 uppercase">Sin Identidad Técnica</span>}
                           </div>
                         </div>
                     </TableCell>
@@ -677,3 +681,4 @@ export default function InstructorQuizPage() {
     </div>
   )
 }
+
