@@ -102,10 +102,12 @@ function GradebookContent() {
     setIsLoading(true)
     setError(null)
     try {
-      const [studentData, configData, userData] = await Promise.all([
+      const [studentData, configData, userData, periodData, assignmentsData] = await Promise.all([
         api.get<any[]>(`/me/unidades/${params.id}/alumnos`),
         api.get<any>(`/evaluaciones/config/${params.id}/${periodoId}`),
-        supabase.auth.getUser()
+        supabase.auth.getUser(),
+        api.get<any[]>('/periodos/'),
+        api.get<any[]>(`/me/asignaciones/?periodo_id=${periodoId}`)
       ]);
 
       setStudents(studentData)
@@ -113,9 +115,19 @@ function GradebookContent() {
         setUserName(`${userData.data.user.user_metadata.firstname || ""} ${userData.data.user.user_metadata.lastname || ""}`.trim().toUpperCase());
       }
 
+      // Resolve metadata
+      const periodObj = periodData.find((p: any) => p.id === periodoId);
+      const currentAsg = assignmentsData.find((asg: any) => asg.unidad_id === params.id);
+
+      setCourseInfo({
+        nombre: currentAsg?.unidad_nombre || configData?.unidad?.nombre || "N/A",
+        programa: currentAsg?.programa_nombre || "N/A",
+        semestre: currentAsg?.semestre || "N/A",
+        periodoNombre: periodObj ? periodObj.nombre : periodoId
+      });
+
       if (configData) {
         setIndicators(configData.indicadores || []);
-        setCourseInfo(configData.unidad); // Asumiendo que el backend envía metadatos de la unidad
 
         const mappedCols: Column[] = configData.evaluaciones.map((ev: any) => {
           const groupMap: Record<string, string> = {};
@@ -197,7 +209,6 @@ function GradebookContent() {
     const studentGrades = grades[studentId] || {}
     if (columns.length === 0) return 0
     
-    // Agrupar por Indicador
     const indicatorsMap = new Map<string, { weight: number, cols: Column[] }>()
     columns.forEach(c => {
       if (!indicatorsMap.has(c.indicatorCode)) {
@@ -228,7 +239,6 @@ function GradebookContent() {
       totalWeightsUsed += (weight / 100)
     })
 
-    // Normalizar si no se evaluaron todos los indicadores todavía (opcional)
     const finalResult = totalWeightsUsed > 0 ? finalSum / totalWeightsUsed : finalSum
     return Math.round(finalResult)
   }
@@ -299,16 +309,16 @@ function GradebookContent() {
     setIsExporting(true);
     try {
       const rows: any[] = [];
-      // Header
       rows.push(["INSTITUTO DE EDUCACIÓN SUPERIOR LA SALLE - URUBAMBA"]);
       rows.push(["REGISTRO AUXILIAR DE CALIFICACIONES"]);
       rows.push([]);
-      rows.push(["UNIDAD DIDÁCTICA:", courseInfo?.nombre || "Cargando...", "", "PERIODO:", periodoId]);
+      rows.push(["UNIDAD DIDÁCTICA:", courseInfo?.nombre.toUpperCase() || "N/A", "", "CICLO:", courseInfo?.periodoNombre || "N/A"]);
+      rows.push(["PROGRAMA:", courseInfo?.programa.toUpperCase() || "N/A", "", "SEMESTRE:", courseInfo?.semestre || "N/A"]);
       rows.push(["DOCENTE:", userName, "", "FECHA EMISIÓN:", new Date().toLocaleDateString()]);
       rows.push([]);
       
       const head = ["N°", "APELLIDOS Y NOMBRES", "DNI"];
-      columns.forEach(c => head.push(`${c.indicatorCode} - ${c.name}`));
+      columns.forEach(c => head.push(`${c.indicatorCode}`));
       head.push("PROMEDIO FINAL");
       rows.push(head);
 
@@ -329,7 +339,7 @@ function GradebookContent() {
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.aoa_to_sheet(rows);
       XLSX.utils.book_append_sheet(wb, ws, "Calificaciones");
-      XLSX.writeFile(wb, `REGISTRO_${courseInfo?.nombre || 'UD'}.xlsx`);
+      XLSX.writeFile(wb, `REGISTRO_${courseInfo?.nombre.replace(/\s+/g, '_')}.xlsx`);
     } catch (e) {
       toast({ variant: "destructive", title: "Error Excel" });
     } finally {
@@ -347,10 +357,13 @@ function GradebookContent() {
       doc.setFontSize(9); doc.setTextColor(100); doc.text("REGISTRO AUXILIAR DE CALIFICACIONES ACADÉMICAS", 14, 22);
       
       doc.setFontSize(8); doc.setTextColor(0); doc.setFont("helvetica", "normal");
-      doc.text("UNIDAD DIDÁCTICA:", 14, 30); doc.setFont("helvetica", "bold"); doc.text(`${courseInfo?.nombre || "N/A"}`, 45, 30);
-      doc.setFont("helvetica", "normal"); doc.text("DOCENTE RESPONSABLE:", 14, 35); doc.setFont("helvetica", "bold"); doc.text(`${userName}`, 55, 35);
-      doc.setFont("helvetica", "normal"); doc.text("CICLO ACADÉMICO:", 230, 30); doc.setFont("helvetica", "bold"); doc.text(`${periodoId}`, 265, 30);
-      doc.setFont("helvetica", "normal"); doc.text("FECHA EMISIÓN:", 230, 35); doc.setFont("helvetica", "bold"); doc.text(`${new Date().toLocaleDateString()}`, 260, 35);
+      doc.text("UNIDAD DIDÁCTICA:", 14, 30); doc.setFont("helvetica", "bold"); doc.text(`${courseInfo?.nombre.toUpperCase() || "N/A"}`, 45, 30);
+      doc.setFont("helvetica", "normal"); doc.text("PROGRAMA PROFESIONAL:", 14, 35); doc.setFont("helvetica", "bold"); doc.text(`${courseInfo?.programa.toUpperCase() || "N/A"}`, 55, 35);
+      doc.setFont("helvetica", "normal"); doc.text("DOCENTE RESPONSABLE:", 14, 40); doc.setFont("helvetica", "bold"); doc.text(`${userName}`, 55, 40);
+      
+      doc.setFont("helvetica", "normal"); doc.text("CICLO ACADÉMICO:", 230, 30); doc.setFont("helvetica", "bold"); doc.text(`${courseInfo?.periodoNombre || "N/A"}`, 265, 30);
+      doc.setFont("helvetica", "normal"); doc.text("SEMESTRE:", 230, 35); doc.setFont("helvetica", "bold"); doc.text(`${courseInfo?.semestre || "N/A"}`, 255, 35);
+      doc.setFont("helvetica", "normal"); doc.text("FECHA EMISIÓN:", 230, 40); doc.setFont("helvetica", "bold"); doc.text(`${new Date().toLocaleDateString()}`, 260, 40);
 
       const head = ["N°", "APELLIDOS Y NOMBRES", ...columns.map(c => c.indicatorCode), "PROMEDIO"];
       const body = students.sort((a, b) => a.nombre.localeCompare(b.nombre)).map((s, i) => [
@@ -361,7 +374,7 @@ function GradebookContent() {
       ]);
 
       autoTable(doc, {
-        startY: 45,
+        startY: 48,
         head: [head],
         body: body,
         theme: 'grid',
@@ -370,7 +383,7 @@ function GradebookContent() {
         columnStyles: { 1: { halign: 'left', fontStyle: 'bold', cellWidth: 70 } }
       });
 
-      doc.save(`REGISTRO_${courseInfo?.nombre || 'UD'}.pdf`);
+      doc.save(`REGISTRO_${courseInfo?.nombre.replace(/\s+/g, '_')}.pdf`);
     } catch (e) {
       toast({ variant: "destructive", title: "Error PDF" });
     } finally {
