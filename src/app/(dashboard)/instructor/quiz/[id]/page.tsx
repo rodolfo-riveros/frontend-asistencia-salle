@@ -8,7 +8,7 @@ import {
   Loader2, Radio, Users, Maximize2, Play, Trophy, 
   ShieldCheck, UserX, Crown, Zap, Clock, BookOpen, 
   AlertTriangle, Target, Percent, Award, ChevronRight,
-  Medal, ListChecks, CheckCircle2, XCircle, LogOut, GraduationCap
+  Medal, ListChecks, CheckCircle2, XCircle, LogOut, GraduationCap, Download
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardTitle } from "@/components/ui/card"
@@ -20,6 +20,8 @@ import { api as convexApi } from "@convex/_generated/api"
 import { cn, getInitials } from "@/lib/utils"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
 export default function InstructorQuizPage() {
   const params = useParams()
@@ -39,6 +41,8 @@ export default function InstructorQuizPage() {
   const createRoom = useMutation(convexApi.rooms.createRoom)
   const updateStatus = useMutation(convexApi.rooms.updateStatus)
   const room = useQuery(convexApi.rooms.getRoom, roomCode ? { roomCode } : "skip")
+
+  const unidadIdFromUrl = searchParams.get('unidad_id')
 
   const fetchSession = React.useCallback(async () => {
     const evalId = params.id as string;
@@ -92,7 +96,7 @@ export default function InstructorQuizPage() {
         roomCode: session.room_code,
         questions: questions,
         configId: config.id,
-        unidadId: config.unidad_id || "SALLE"
+        unidadId: config.unidad_id || unidadIdFromUrl || "SALLE"
       })
 
       setRoomCode(session.room_code)
@@ -114,7 +118,7 @@ export default function InstructorQuizPage() {
           roomCode: roomCode,
           questions: config?.configuracion_json?.questions || [],
           configId: config.id,
-          unidadId: config.unidad_id || "SALLE"
+          unidadId: config.unidad_id || unidadIdFromUrl || "SALLE"
         })
       } catch (e: any) {
         toast({ variant: "destructive", title: "Error de Sincronización", description: e.message })
@@ -148,24 +152,24 @@ export default function InstructorQuizPage() {
   }
 
   const handleCloseAndPersist = async () => {
-    // CAPTURA SEGURA DE IDENTIFICADORES
     const finalEvalId = config?.id || params.id as string;
-    const finalUnidadId = config?.unidad_id || "SALLE";
+    const finalUnidadId = config?.unidad_id || unidadIdFromUrl;
     const finalPeriodoId = config?.periodo_id || searchParams.get('periodo_id') || 'ACTUAL';
 
     console.log("[SYNC DIAGNOSTIC]", { finalEvalId, finalUnidadId, finalPeriodoId, sessionId });
 
-    if (!finalEvalId || finalEvalId === "undefined" || finalEvalId === "null" || finalEvalId.length < 36) {
-      toast({ 
-        variant: "destructive", 
-        title: "Error de Evaluación", 
-        description: "El ID de la evaluación es inválido. Refresca la página." 
-      });
+    if (!finalEvalId || finalEvalId === "undefined" || finalEvalId.length < 36) {
+      toast({ variant: "destructive", title: "Error de Evaluación", description: "ID de evaluación inválido." });
+      return;
+    }
+
+    if (!finalUnidadId || finalUnidadId === "SALLE") {
+      toast({ variant: "destructive", title: "ID de Unidad Perdido", description: "Vuelve al registro auxiliar e intenta ingresar de nuevo." });
       return;
     }
 
     if (!room?.participants?.length) {
-      toast({ variant: "destructive", title: "Sin participantes", description: "No hay alumnos en la arena para calificar." });
+      toast({ variant: "destructive", title: "Sin participantes", description: "No hay alumnos para calificar." });
       return;
     }
     
@@ -174,18 +178,10 @@ export default function InstructorQuizPage() {
       const totalQuestions = config?.configuracion_json?.questions?.length || 20;
       const maxScore = config?.puntaje_maximo || 20;
 
-      // FILTRO RIGUROSO POR UUID
       const validParticipants = room.participants.filter(p => 
-        p.studentId && 
-        p.studentId !== "undefined" && 
-        p.studentId.length >= 36
+        p.studentId && p.studentId !== "undefined" && p.studentId.length >= 36
       );
 
-      if (validParticipants.length === 0) {
-        throw new Error("No se detectaron alumnos con identidad técnica verificada (UUID).");
-      }
-
-      // REGISTRO DE NOTAS EN PARALELO
       const gradePromises = validParticipants.map(p => {
         const correctAnswers = p.answers?.filter((a: any) => a.isCorrect).length || 0;
         const academicGrade = Math.round((correctAnswers / totalQuestions) * maxScore);
@@ -195,45 +191,56 @@ export default function InstructorQuizPage() {
           alumno_id: p.studentId,
           puntaje: academicGrade,
           observacion: `Rank-UP: ${correctAnswers}/${totalQuestions} correctas. (${p.score} pts)`,
-          detalles_json: { 
-            ranking_pts: p.score, 
-            correctas: correctAnswers, 
-            totales: totalQuestions,
-            avatar: p.avatar 
-          }
-        }).catch(err => {
-          console.error(`[SYNC ERROR] Estudiante: ${p.name}`, err);
-          return { error: true, student: p.name };
+          detalles_json: { ranking_pts: p.score, avatar: p.avatar }
         });
       });
 
       await Promise.allSettled(gradePromises);
       
-      // FINALIZACIÓN TÉCNICA DE SESIÓN
-      if (sessionId && sessionId !== "undefined" && sessionId.length >= 36) {
-        try {
-          await api.post(`/gamificacion/sesion/${sessionId}/finalizar/`, { notas: [] });
-        } catch (e) {
-          console.warn("Aviso: No se pudo cerrar la sesión técnica, pero las notas se procesaron.");
-        }
+      if (sessionId && sessionId.length >= 36) {
+        await api.post(`/gamificacion/sesion/${sessionId}/finalizar/`, { notas: [] }).catch(() => {});
       }
 
-      toast({ 
-        title: "Sincronización Exitosa", 
-        description: `Se han registrado las notas de ${validParticipants.length} alumnos.` 
-      });
-      
-      // REDIRECCIÓN CON PARÁMETROS REALES
+      toast({ title: "Sincronización Exitosa" });
       router.push(`/instructor/grades/${finalUnidadId}?periodo_id=${finalPeriodoId}`);
     } catch (e: any) {
-      toast({ 
-        variant: "destructive", 
-        title: "Fallo Crítico", 
-        description: e.message || "Error al comunicarse con FastAPI." 
-      });
+      toast({ variant: "destructive", title: "Fallo Crítico", description: e.message });
     } finally {
       setIsClosing(false);
     }
+  }
+
+  const handleExportQuestions = () => {
+    if (!config?.configuracion_json?.questions) return;
+    
+    const doc = new jsPDF();
+    doc.setFontSize(18);
+    doc.setTextColor(0, 51, 102);
+    doc.text("IES LA SALLE URUBAMBA", 14, 20);
+    
+    doc.setFontSize(12);
+    doc.setTextColor(100);
+    doc.text(`BANCO DE PREGUNTAS: ${config.nombre.toUpperCase()}`, 14, 30);
+    doc.text(`CÓDIGO INDICADOR: ${config.indicador_codigo}`, 14, 38);
+
+    const questions = config.configuracion_json.questions;
+    const body = questions.map((q: any, idx: number) => [
+      `${idx + 1}`,
+      q.text,
+      q.options.map((opt: string, oIdx: number) => `${String.fromCharCode(65 + oIdx)}) ${opt}${q.correctIndex === oIdx ? ' [CORRECTA]' : ''}`).join('\n')
+    ]);
+
+    autoTable(doc, {
+      startY: 45,
+      head: [['N°', 'PREGUNTA', 'ALTERNATIVAS']],
+      body: body,
+      theme: 'grid',
+      headStyles: { fillColor: [0, 51, 102], textColor: 255 },
+      styles: { fontSize: 9, cellPadding: 4 },
+      columnStyles: { 0: { cellWidth: 10 }, 2: { cellWidth: 80 } }
+    });
+
+    doc.save(`BANCO_PREGUNTAS_${config.nombre.replace(/\s+/g, '_')}.pdf`);
   }
 
   const sortedParticipants = React.useMemo(() => {
@@ -285,27 +292,20 @@ export default function InstructorQuizPage() {
                 const totalQ = config?.configuracion_json?.questions?.length || 20;
                 const corrects = p.answers?.filter((a: any) => a.isCorrect).length || 0;
                 const grade = Math.round((corrects / totalQ) * (config?.puntaje_maximo || 20));
-                const isIdentified = p.studentId && p.studentId !== "undefined" && p.studentId.length >= 36;
                 
                 return (
-                  <TableRow key={p._id} className={cn("hover:bg-slate-50 transition-colors", !isIdentified && "bg-amber-50/30")}>
+                  <TableRow key={p._id} className="hover:bg-slate-50 transition-colors">
                     <TableCell className="pl-10 py-6">
                         <div className="flex items-center gap-4">
                           <Avatar className="h-10 w-10 border-2 border-white shadow-md">
                               <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(p.avatar)}`} />
                               <AvatarFallback className="bg-slate-100 font-black text-[10px]">{getInitials(p.name)}</AvatarFallback>
                           </Avatar>
-                          <div className="flex flex-col">
-                            <span className="font-bold text-slate-900 uppercase text-sm truncate w-64">{p.name}</span>
-                            {!isIdentified && <span className="text-[8px] font-black text-amber-600 uppercase">Falta Vinculación Técnica</span>}
-                          </div>
+                          <span className="font-bold text-slate-900 uppercase text-sm truncate w-64">{p.name}</span>
                         </div>
                     </TableCell>
                     <TableCell>
-                      <div className="flex flex-col">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase truncate w-48">{p.programa || 'No identificado'}</span>
-                        <Badge variant="outline" className="w-fit text-[8px] font-black border-slate-200 mt-1">{p.semestre ? `CICLO ${p.semestre}` : 'S/C'}</Badge>
-                      </div>
+                      <span className="text-[10px] font-bold text-slate-500 uppercase truncate w-48">{p.programa || 'General'}</span>
                     </TableCell>
                     <TableCell className="text-center">
                         <Badge variant="outline" className="border-primary/20 text-primary font-mono font-black">{p.score} PTS</Badge>
@@ -391,57 +391,55 @@ export default function InstructorQuizPage() {
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_2px_2px,rgba(255,255,255,0.05)_2px,transparent_0)] bg-[size:64px_64px]" />
             
             {room.status === 'finished' ? (
-              <div className="h-full flex flex-col items-center animate-in zoom-in-95 relative z-10 pt-40">
-                <div className="text-center mb-24 space-y-2 z-[60]">
-                   <h2 className="text-5xl md:text-7xl font-black uppercase italic tracking-tighter text-white drop-shadow-[0_10px_10px_rgba(0,0,0,0.3)]">Podio de Campeones</h2>
-                   <p className="text-yellow-400 font-black text-lg uppercase tracking-[0.5em] italic">Salle Rank-UP Challenge</p>
+              <div className="h-full flex flex-col items-center animate-in zoom-in-95 relative z-10">
+                <div className="text-center mt-10 mb-16 space-y-1">
+                   <h2 className="text-4xl md:text-5xl font-black uppercase italic tracking-tighter text-white drop-shadow-[0_10px_10px_rgba(0,0,0,0.3)]">Podio de Campeones</h2>
+                   <p className="text-yellow-400 font-black text-sm uppercase tracking-[0.5em] italic">Salle Rank-UP Challenge</p>
                 </div>
 
-                <div className="flex items-end justify-center gap-4 md:gap-16 h-[400px] mb-12 relative z-40">
+                <div className="flex items-end justify-center gap-4 md:gap-16 h-[350px] mb-12 relative z-40">
                   {/* Puesto 2 */}
                   {sortedParticipants[1] && (
                     <div className="flex flex-col items-center gap-6 animate-in slide-in-from-bottom-24 duration-700">
                       <div className="relative group">
                          <div className="absolute inset-0 bg-yellow-400 blur-2xl opacity-20 group-hover:opacity-40 transition-opacity" />
-                         <div className="w-32 h-32 md:w-36 md:h-36 bg-white/20 backdrop-blur-xl rounded-[2.5rem] p-2 border-4 border-slate-300 shadow-2xl relative z-10 flex items-center justify-center">
+                         <div className="w-28 h-28 md:w-32 md:h-32 bg-white/20 backdrop-blur-xl rounded-[2.5rem] p-2 border-4 border-slate-300 shadow-2xl relative z-10 flex items-center justify-center">
                             <Avatar className="w-full h-full rounded-[2rem]">
                               <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(sortedParticipants[1].avatar)}`} />
                               <AvatarFallback className="text-3xl font-black bg-slate-100">{getInitials(sortedParticipants[1].name)}</AvatarFallback>
                             </Avatar>
                          </div>
-                         <div className="absolute -top-4 -right-4 h-12 w-12 bg-slate-400 rounded-2xl flex items-center justify-center font-black text-white text-xl border-4 border-[#6D28D9] shadow-xl z-20">2</div>
+                         <div className="absolute -top-4 -right-4 h-10 w-10 bg-slate-400 rounded-2xl flex items-center justify-center font-black text-white text-lg border-4 border-[#6D28D9] shadow-xl z-20">2</div>
                       </div>
-                      <div className="text-center space-y-2">
-                        <p className="font-black text-white text-lg uppercase truncate w-40">{sortedParticipants[1].name.split(',')[0]}</p>
-                        <div className="bg-white/10 px-4 py-1.5 rounded-full border border-white/10">
-                          <span className="text-yellow-400 font-black text-xl">{sortedParticipants[1].score}</span>
-                        </div>
+                      <div className="text-center space-y-1">
+                        <p className="font-black text-white text-base uppercase truncate w-36">{sortedParticipants[1].name.split(',')[0]}</p>
+                        <span className="text-yellow-400 font-black text-lg">{sortedParticipants[1].score}</span>
                       </div>
-                      <div className="w-32 md:w-36 h-32 bg-white/10 backdrop-blur-md rounded-t-[3rem] border-t-8 border-slate-300/50 shadow-2xl" />
+                      <div className="w-28 md:w-32 h-24 bg-white/10 backdrop-blur-md rounded-t-[2.5rem] border-t-8 border-slate-300/50 shadow-2xl" />
                     </div>
                   )}
 
                   {/* Puesto 1 */}
                   {sortedParticipants[0] && (
                     <div className="flex flex-col items-center gap-8 animate-in slide-in-from-bottom-40 duration-1000 relative z-50">
-                      <Crown className="h-16 w-16 text-yellow-400 animate-bounce filter drop-shadow-[0_0_15px_rgba(250,204,21,0.5)]" />
+                      <Crown className="h-14 w-14 text-yellow-400 animate-bounce filter drop-shadow-[0_0_15px_rgba(250,204,21,0.5)]" />
                       <div className="relative group">
                          <div className="absolute inset-0 bg-yellow-400 blur-3xl opacity-30 group-hover:opacity-50 transition-opacity animate-pulse" />
-                         <div className="w-40 h-44 md:w-52 md:h-52 bg-white/30 backdrop-blur-2xl rounded-[3.5rem] p-3 border-[10px] border-yellow-400 shadow-2xl relative z-10 flex items-center justify-center">
+                         <div className="w-36 h-40 md:w-48 md:h-48 bg-white/30 backdrop-blur-2xl rounded-[3.5rem] p-3 border-[10px] border-yellow-400 shadow-2xl relative z-10 flex items-center justify-center">
                             <Avatar className="w-full h-full rounded-[2.5rem]">
                               <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(sortedParticipants[0].avatar)}`} />
                               <AvatarFallback className="text-5xl font-black bg-yellow-50">{getInitials(sortedParticipants[0].name)}</AvatarFallback>
                             </Avatar>
                          </div>
-                         <div className="absolute -top-6 -right-6 h-16 w-16 bg-yellow-400 rounded-3xl flex items-center justify-center font-black text-primary text-3xl border-8 border-[#6D28D9] shadow-2xl z-20">1</div>
+                         <div className="absolute -top-6 -right-6 h-14 w-14 bg-yellow-400 rounded-3xl flex items-center justify-center font-black text-primary text-2xl border-8 border-[#6D28D9] shadow-2xl z-20">1</div>
                       </div>
-                      <div className="text-center space-y-3">
-                        <p className="font-black text-white text-2xl uppercase tracking-tighter drop-shadow-lg">{sortedParticipants[0].name.split(',')[0]}</p>
-                        <div className="bg-yellow-400 px-8 py-2.5 rounded-full shadow-[0_0_20px_rgba(250,204,21,0.4)]">
-                          <span className="text-primary font-black text-3xl">{sortedParticipants[0].score}</span>
+                      <div className="text-center space-y-2">
+                        <p className="font-black text-white text-xl uppercase tracking-tighter drop-shadow-lg">{sortedParticipants[0].name.split(',')[0]}</p>
+                        <div className="bg-yellow-400 px-6 py-1.5 rounded-full shadow-[0_0_20px_rgba(250,204,21,0.4)]">
+                          <span className="text-primary font-black text-2xl">{sortedParticipants[0].score}</span>
                         </div>
                       </div>
-                      <div className="w-40 md:w-52 h-48 bg-white/20 backdrop-blur-lg rounded-t-[4rem] border-t-[14px] border-yellow-400 shadow-2xl" />
+                      <div className="w-36 md:w-48 h-40 bg-white/20 backdrop-blur-lg rounded-t-[4rem] border-t-[14px] border-yellow-400 shadow-2xl" />
                     </div>
                   )}
 
@@ -450,45 +448,42 @@ export default function InstructorQuizPage() {
                     <div className="flex flex-col items-center gap-6 animate-in slide-in-from-bottom-16 duration-1000">
                       <div className="relative group">
                          <div className="absolute inset-0 bg-amber-700 blur-2xl opacity-10 group-hover:opacity-30 transition-opacity" />
-                         <div className="w-28 h-28 md:w-32 md:h-32 bg-white/20 backdrop-blur-xl rounded-[2rem] p-2 border-4 border-amber-600/50 shadow-2xl relative z-10 flex items-center justify-center">
+                         <div className="w-24 h-24 md:w-28 md:h-28 bg-white/20 backdrop-blur-xl rounded-[2rem] p-2 border-4 border-amber-600/50 shadow-2xl relative z-10 flex items-center justify-center">
                             <Avatar className="w-full h-full rounded-[1.5rem]">
                               <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(sortedParticipants[2].avatar)}`} />
                               <AvatarFallback className="text-2xl font-black bg-amber-50">{getInitials(sortedParticipants[2].name)}</AvatarFallback>
                             </Avatar>
                          </div>
-                         <div className="absolute -top-3 -right-3 h-10 w-10 bg-amber-700 rounded-2xl flex items-center justify-center font-black text-white text-lg border-4 border-[#6D28D9] shadow-xl z-20">3</div>
+                         <div className="absolute -top-3 -right-3 h-8 w-8 bg-amber-700 rounded-2xl flex items-center justify-center font-black text-white text-base border-4 border-[#6D28D9] shadow-xl z-20">3</div>
                       </div>
-                      <div className="text-center space-y-2">
-                        <p className="font-black text-white text-base uppercase truncate w-36">{sortedParticipants[2].name.split(',')[0]}</p>
-                        <div className="bg-white/10 px-4 py-1 rounded-full border border-white/10">
-                          <span className="text-yellow-400 font-black text-lg">{sortedParticipants[2].score}</span>
-                        </div>
+                      <div className="text-center space-y-1">
+                        <p className="font-black text-white text-sm uppercase truncate w-32">{sortedParticipants[2].name.split(',')[0]}</p>
+                        <span className="text-yellow-400 font-black text-base">{sortedParticipants[2].score}</span>
                       </div>
-                      <div className="w-28 md:w-32 h-24 bg-white/10 backdrop-blur-md rounded-t-[2.5rem] border-t-8 border-amber-700/40 shadow-2xl" />
+                      <div className="w-24 md:w-28 h-20 bg-white/10 backdrop-blur-md rounded-t-[2.5rem] border-t-8 border-amber-700/40 shadow-2xl" />
                     </div>
                   )}
                 </div>
 
                 {sortedParticipants.length > 3 && (
-                  <div className="w-full max-w-4xl space-y-4 animate-in fade-in duration-1000 pb-20 relative z-10">
-                    <div className="flex items-center gap-4 px-10 mb-6">
-                       <Medal className="h-6 w-6 text-yellow-400" />
-                       <span className="text-white font-black uppercase text-sm tracking-[0.3em] italic">Ranking de Honor Salle</span>
+                  <div className="w-full max-w-4xl space-y-3 animate-in fade-in duration-1000 pb-20 relative z-10">
+                    <div className="flex items-center gap-4 px-10 mb-4">
+                       <Medal className="h-5 w-5 text-yellow-400" />
+                       <span className="text-white font-black uppercase text-xs tracking-[0.3em] italic">Ranking de Honor Salle</span>
                        <div className="flex-1 h-px bg-white/10" />
                     </div>
                     {sortedParticipants.slice(3, 10).map((p, idx) => (
-                      <div key={p._id} className="bg-white/5 backdrop-blur-sm p-4 rounded-3xl border border-white/10 flex items-center gap-6 group hover:bg-white/10 transition-all">
-                        <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center font-black text-white/50 text-xl border border-white/5">{idx + 4}</div>
-                        <Avatar className="h-12 w-12 border-2 border-white/20">
+                      <div key={p._id} className="bg-white/5 backdrop-blur-sm p-3 rounded-2xl border border-white/10 flex items-center gap-6 group hover:bg-white/10 transition-all">
+                        <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center font-black text-white/50 text-lg border border-white/5">{idx + 4}</div>
+                        <Avatar className="h-10 w-10 border-2 border-white/20">
                            <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(p.avatar)}`} />
                            <AvatarFallback className="bg-primary text-white font-bold">{getInitials(p.name)}</AvatarFallback>
                         </Avatar>
-                        <p className="flex-1 font-black text-white uppercase text-lg truncate">{p.name}</p>
-                        <div className="px-6 py-2 bg-yellow-400/10 rounded-2xl border border-yellow-400/20">
-                           <span className="font-black text-yellow-400 text-xl">{p.score}</span>
-                           <span className="text-[10px] font-black text-yellow-400/60 uppercase ml-2">PTS</span>
+                        <p className="flex-1 font-black text-white uppercase text-base truncate">{p.name}</p>
+                        <div className="px-4 py-1 bg-yellow-400/10 rounded-xl border border-yellow-400/20">
+                           <span className="font-black text-yellow-400 text-lg">{p.score}</span>
                         </div>
-                        <ChevronRight className="h-5 w-5 text-white/20" />
+                        <ChevronRight className="h-4 w-4 text-white/20" />
                       </div>
                     ))}
                   </div>
@@ -553,21 +548,30 @@ export default function InstructorQuizPage() {
           </div>
         </div>
 
-        {!roomCode ? (
-          <Button onClick={handleLaunchRoom} disabled={isSyncing} className="h-20 px-14 bg-primary text-white rounded-[2rem] font-black uppercase text-sm tracking-widest shadow-2xl gap-4 transition-all active:scale-95 disabled:grayscale">
-            {isSyncing ? <Loader2 className="h-6 w-6 animate-spin" /> : <Radio className="h-6 w-6 animate-pulse" />} LANZAR DESAFÍO
-          </Button>
-        ) : (
-          <div className="flex items-center gap-6 bg-white border-2 border-slate-100 p-6 rounded-[2.5rem] shadow-2xl">
-            <div className="flex flex-col px-8 border-r-2 border-slate-100">
-              <span className="text-[11px] font-black uppercase text-slate-400 tracking-[0.3em]">PIN ACTIVO</span>
-              <span className="text-5xl font-black font-mono text-primary tracking-tighter">{roomCode}</span>
-            </div>
-            <Button onClick={handleProjectArena} disabled={isSyncing} className="bg-primary text-white h-20 px-12 rounded-[2rem] font-black uppercase text-sm tracking-widest gap-4 shadow-xl hover:scale-105 active:scale-95 transition-all">
-              {isSyncing ? <Loader2 className="h-6 w-6 animate-spin" /> : <Maximize2 className="h-6 w-6" />} PROYECTAR ARENA
+        <div className="flex flex-col items-end gap-4">
+          {!roomCode ? (
+            <Button onClick={handleLaunchRoom} disabled={isSyncing} className="h-20 px-14 bg-primary text-white rounded-[2rem] font-black uppercase text-sm tracking-widest shadow-2xl gap-4 transition-all active:scale-95 disabled:grayscale">
+              {isSyncing ? <Loader2 className="h-6 w-6 animate-spin" /> : <Radio className="h-6 w-6 animate-pulse" />} LANZAR DESAFÍO
             </Button>
-          </div>
-        )}
+          ) : (
+            <div className="flex items-center gap-6 bg-white border-2 border-slate-100 p-6 rounded-[2.5rem] shadow-2xl">
+              <div className="flex flex-col px-8 border-r-2 border-slate-100">
+                <span className="text-[11px] font-black uppercase text-slate-400 tracking-[0.3em]">PIN ACTIVO</span>
+                <span className="text-5xl font-black font-mono text-primary tracking-tighter">{roomCode}</span>
+              </div>
+              <Button onClick={handleProjectArena} disabled={isSyncing} className="bg-primary text-white h-20 px-12 rounded-[2rem] font-black uppercase text-sm tracking-widest gap-4 shadow-xl hover:scale-105 active:scale-95 transition-all">
+                {isSyncing ? <Loader2 className="h-6 w-6 animate-spin" /> : <Maximize2 className="h-6 w-6" />} PROYECTAR ARENA
+              </Button>
+            </div>
+          )}
+          <Button 
+            variant="outline" 
+            onClick={handleExportQuestions} 
+            className="h-12 px-8 border-red-200 text-red-600 hover:bg-red-50 font-black uppercase text-[10px] tracking-widest rounded-2xl gap-3 shadow-sm"
+          >
+            <Download className="h-4 w-4" /> EXPORTAR BANCO (PDF)
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
