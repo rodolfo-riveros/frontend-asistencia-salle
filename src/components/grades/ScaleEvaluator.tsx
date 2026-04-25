@@ -25,7 +25,7 @@ export function ScaleEvaluator({ criteria, scaleLevels, evalData, onUpdate }: Sc
         <table className="w-full border-collapse">
           <thead>
             <tr className="bg-slate-50/80">
-              <th className="p-8 text-left font-black text-[10px] uppercase text-slate-400 tracking-widest border-b-2 border-slate-100 w-2/5">
+              <th className="p-8 text-left font-black text-[10px] uppercase text-slate-400 tracking-widest border-b-2 border-slate-100 w-1/2">
                 Indicador de Desempeño Técnico
               </th>
               {sortedLevels.map((lvl) => (
@@ -44,7 +44,7 @@ export function ScaleEvaluator({ criteria, scaleLevels, evalData, onUpdate }: Sc
                 <td className="p-8 border-b border-slate-100">
                   <div className="flex gap-4 items-start">
                     <span className="font-black text-xs text-slate-300 mt-1 shrink-0">{idx + 1}</span>
-                    <p className="text-sm font-bold text-slate-700 leading-relaxed uppercase tracking-tight">
+                    <p className="text-sm font-bold text-slate-700 leading-relaxed uppercase tracking-tight whitespace-normal">
                       {cr.description}
                     </p>
                   </div>

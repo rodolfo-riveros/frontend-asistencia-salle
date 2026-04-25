@@ -93,21 +93,17 @@ function GradebookContent() {
 
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
-  const totalPointsStep = React.useMemo(() => {
-    if (newInstType !== 'cotejo' && newInstType !== 'anecdotario') return 0
-    return editorCriteria.reduce((acc, curr) => acc + (Number(curr.points) || 0), 0)
-  }, [editorCriteria, newInstType])
-
   const fetchFullGradebook = React.useCallback(async () => {
     setIsLoading(true)
     setError(null)
     try {
-      const [studentData, configData, userData, periodData, assignmentsData] = await Promise.all([
+      const [studentData, configData, userData, periodData, assignmentsData, allProgs] = await Promise.all([
         api.get<any[]>(`/me/unidades/${params.id}/alumnos`),
         api.get<any>(`/evaluaciones/config/${params.id}/${periodoId}`),
         supabase.auth.getUser(),
         api.get<any[]>('/periodos/'),
-        api.get<any[]>(`/me/asignaciones/?periodo_id=${periodoId}`)
+        api.get<any[]>(`/me/asignaciones/?periodo_id=${periodoId}`),
+        api.get<any[]>('/programas/')
       ]);
 
       setStudents(studentData)
@@ -115,15 +111,15 @@ function GradebookContent() {
         setUserName(`${userData.data.user.user_metadata.firstname || ""} ${userData.data.user.user_metadata.lastname || ""}`.trim().toUpperCase());
       }
 
-      // Resolviedo Metadatos Reales
       const periodObj = periodData.find((p: any) => p.id === periodoId);
       const currentAsg = Array.isArray(assignmentsData) ? assignmentsData.find((asg: any) => asg.unidad_id === params.id) : null;
+      const progObj = allProgs.find((p: any) => p.id === currentAsg?.programa_id);
 
       setCourseInfo({
-        nombre: currentAsg?.unidad_nombre || configData?.unidad?.nombre || "N/A",
-        programa: currentAsg?.programa_nombre || "PROGRAMA NO DEFINIDO",
-        semestre: currentAsg?.semestre || "N/A",
-        periodoNombre: periodObj ? periodObj.nombre : (configData?.periodo?.nombre || "N/A")
+        nombre: currentAsg?.unidad_nombre || configData?.unidad?.nombre || "UNIDAD NO IDENTIFICADA",
+        programa: progObj?.nombre || currentAsg?.programa_nombre || "PROGRAMA NO DEFINIDO",
+        semestre: currentAsg?.semestre || "I",
+        periodoNombre: periodObj ? periodObj.nombre : (configData?.periodo?.nombre || "ACTUAL")
       });
 
       if (configData) {
@@ -249,6 +245,7 @@ function GradebookContent() {
     if (!column) return
     const max = column.maxPoints || 20
     
+    // Identificar IDs de destino (si es grupal, incluir a los compañeros)
     const targetStudentIds = [studentId];
     if (column.strategy === 'grupal' && column.groups) {
       const groupName = column.groups[studentId];
@@ -279,6 +276,7 @@ function GradebookContent() {
     const numValue = Math.min(max, Math.max(0, parseFloat(value)));
     if (isNaN(numValue)) return;
     
+    // Actualizar estado local para todos los alumnos del grupo
     setGrades(prev => {
       const next = { ...prev };
       targetStudentIds.forEach(id => {
@@ -287,16 +285,40 @@ function GradebookContent() {
       return next;
     });
 
+    if (overrideDetails) {
+      setEvalDetails(prev => {
+        const next = { ...prev };
+        targetStudentIds.forEach(id => {
+          next[id] = { ...(next[id] || {}), [columnId]: overrideDetails };
+        });
+        return next;
+      });
+    }
+
+    if (overrideComment !== undefined) {
+      setComments(prev => {
+        const next = { ...prev };
+        targetStudentIds.forEach(id => {
+          next[id] = { ...(next[id] || {}), [columnId]: overrideComment };
+        });
+        return next;
+      });
+    }
+
+    // Persistencia masiva en DB
     try {
-      await api.post('/evaluaciones/calificar/', {
-        evaluacion_id: columnId,
-        alumno_id: studentId,
-        puntaje: numValue,
-        observacion: overrideComment ?? (comments[studentId]?.[columnId] || ""),
-        detalles_json: overrideDetails ?? (evalDetails[studentId]?.[columnId] || null)
-      })
+      const promises = targetStudentIds.map(id => 
+        api.post('/evaluaciones/calificar/', {
+          evaluacion_id: columnId,
+          alumno_id: id,
+          puntaje: numValue,
+          observacion: overrideComment ?? (comments[id]?.[columnId] || ""),
+          detalles_json: overrideDetails ?? (evalDetails[id]?.[columnId] || null)
+        })
+      );
+      await Promise.all(promises);
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Error al calificar", description: "No se pudo guardar la nota." })
+      toast({ variant: "destructive", title: "Error al calificar", description: "No se pudo sincronizar la nota grupal." })
     }
   }
 

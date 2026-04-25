@@ -78,7 +78,7 @@ export function EvaluationModal({
   };
 
   const score = calculateScore();
-  const showObservations = column.type === 'cotejo' || column.type === 'anecdotario';
+  const showSidebar = column.type === 'cotejo' || column.type === 'anecdotario';
   const showScoreInHeader = column.type === 'rubrica' || column.type === 'escala';
 
   const handleApply = async () => {
@@ -92,7 +92,7 @@ export function EvaluationModal({
         evalComment
       );
       
-      toast({ title: "Nota Aplicada", description: `Se ha registrado ${score} para ${student.nombre}.` });
+      toast({ title: "Nota Aplicada", description: `Se ha registrado ${score} para el alumno ${column.strategy === 'grupal' ? 'y su equipo' : ''}.` });
       onClose();
     } catch (e) {
       toast({ variant: "destructive", title: "Error", description: "No se pudo guardar la calificación." });
@@ -109,7 +109,7 @@ export function EvaluationModal({
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Badge className="bg-white/20 text-white font-black uppercase text-[9px] md:text-[10px]">{column.type ? INST_LABELS[column.type].toUpperCase() : "EVALUACIÓN"}</Badge>
-                {column.strategy === 'grupal' && <Badge className="bg-blue-400 text-white font-black uppercase text-[9px] md:text-[10px]">EQUIPO: {column.groups?.[student.id]}</Badge>}
+                {column.strategy === 'grupal' && <Badge className="bg-blue-400 text-white font-black uppercase text-[9px] md:text-[10px]">EQUIPO: {column.groups?.[student.id] || "SIN GRUPO"}</Badge>}
               </div>
               <DialogTitle className="text-xl md:text-3xl font-black uppercase tracking-tighter leading-tight">
                 {student.nombre}
@@ -146,7 +146,7 @@ export function EvaluationModal({
             </ScrollArea>
           </div>
           
-          {showObservations && (
+          {showSidebar && (
             <div className="w-full lg:w-[420px] p-6 md:p-10 bg-white border-t lg:border-t-0 lg:border-l flex flex-col gap-8 shrink-0">
               <div className="space-y-4">
                 <Label className="font-black text-[10px] uppercase text-slate-400 tracking-[0.2em] flex items-center gap-2">

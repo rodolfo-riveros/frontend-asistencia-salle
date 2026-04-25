@@ -64,7 +64,7 @@ export function RubricEvaluator({ criteria, evalData, onUpdate }: RubricEvaluato
                   </div>
                   <div className="w-full">
                     <p className={cn(
-                      "text-[12px] leading-relaxed font-medium italic",
+                      "text-[12px] leading-relaxed font-medium italic whitespace-normal",
                       isActive ? "text-slate-700" : "text-slate-500"
                     )}>
                       {lvl.description || 'Sin descripción para este nivel.'}
