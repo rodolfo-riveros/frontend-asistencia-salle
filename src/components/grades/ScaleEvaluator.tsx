@@ -17,16 +17,15 @@ export function ScaleEvaluator({ criteria, scaleLevels, evalData, onUpdate }: Sc
     onUpdate({ ...evalData, [idx]: points })
   }
 
-  // Ordenar niveles por puntaje descendente para la cabecera
   const sortedLevels = [...(scaleLevels || [])].sort((a, b) => b.points - a.points)
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-10">
       <div className="bg-white rounded-[2rem] border-2 border-slate-100 overflow-hidden shadow-sm">
         <table className="w-full border-collapse">
           <thead>
             <tr className="bg-slate-50/80">
-              <th className="p-8 text-left font-black text-[10px] uppercase text-slate-400 tracking-widest border-b-2 border-slate-100">
+              <th className="p-8 text-left font-black text-[10px] uppercase text-slate-400 tracking-widest border-b-2 border-slate-100 w-2/5">
                 Indicador de Desempeño Técnico
               </th>
               {sortedLevels.map((lvl) => (
@@ -44,14 +43,13 @@ export function ScaleEvaluator({ criteria, scaleLevels, evalData, onUpdate }: Sc
               <tr key={idx} className="group hover:bg-slate-50/30 transition-colors">
                 <td className="p-8 border-b border-slate-100">
                   <div className="flex gap-4 items-start">
-                    <span className="font-black text-xs text-slate-300 mt-0.5">{idx + 1}</span>
+                    <span className="font-black text-xs text-slate-300 mt-1 shrink-0">{idx + 1}</span>
                     <p className="text-sm font-bold text-slate-700 leading-relaxed uppercase tracking-tight">
                       {cr.description}
                     </p>
                   </div>
                 </td>
                 {sortedLevels.map((lvl) => {
-                  // Comparamos numéricamente para persistencia
                   const isActive = Number(evalData[idx]) === Number(lvl.points)
                   const isPositive = lvl.points >= (sortedLevels[0].points * 0.7)
                   
@@ -60,18 +58,18 @@ export function ScaleEvaluator({ criteria, scaleLevels, evalData, onUpdate }: Sc
                       <button
                         onClick={() => handleSelect(idx, lvl.points)}
                         className={cn(
-                          "w-full h-full min-h-[90px] flex items-center justify-center transition-all outline-none group/cell",
+                          "w-full h-full min-h-[100px] flex items-center justify-center transition-all outline-none group/cell",
                           isActive 
                             ? isPositive 
-                              ? "bg-emerald-50 text-emerald-600" 
-                              : "bg-amber-50 text-amber-600"
+                              ? "bg-emerald-50 text-emerald-600 shadow-inner" 
+                              : "bg-amber-50 text-amber-600 shadow-inner"
                             : "hover:bg-slate-50 text-slate-200"
                         )}
                       >
                         {isActive ? (
                           <div className="flex flex-col items-center gap-1 animate-in zoom-in-50 duration-300">
-                            <CheckCircle2 className="h-8 w-8" />
-                            <span className="text-[9px] font-black uppercase tracking-widest">MARCADO</span>
+                            <CheckCircle2 className="h-9 w-9" />
+                            <span className="text-[9px] font-black uppercase tracking-widest">OK</span>
                           </div>
                         ) : (
                           <Circle className="h-6 w-6 opacity-20 group-hover/cell:opacity-40 transition-opacity" />
@@ -86,8 +84,8 @@ export function ScaleEvaluator({ criteria, scaleLevels, evalData, onUpdate }: Sc
         </table>
       </div>
       <div className="flex items-center gap-2 px-6">
-         <div className="h-2 w-2 rounded-full bg-emerald-500" />
-         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Las opciones se guardan automáticamente al seleccionar</p>
+         <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Auditando: Las opciones marcadas son persistentes</p>
       </div>
     </div>
   )
