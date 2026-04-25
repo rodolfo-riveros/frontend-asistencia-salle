@@ -573,7 +573,7 @@ function GradebookContent() {
         newMaxPoints={newMaxPoints} setNewMaxPoints={setNewMaxPoints}
         editorCriteria={editorCriteria} setEditorCriteria={setEditorCriteria}
         fileInputRef={fileInputRef} 
-        totalPointsStep={totalPointsStep} students={students}
+        students={students}
         groupSize={groupSize} setGroupSize={setGroupSize}
         studentGroups={studentGroups} setStudentGroups={setStudentGroups}
         addColumn={fetchFullGradebook} resetEditor={() => {

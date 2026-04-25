@@ -72,7 +72,6 @@ interface ConfigWizardProps {
   editorCriteria: any[]
   setEditorCriteria: (val: any[]) => void
   fileInputRef: React.RefObject<HTMLInputElement>
-  totalPointsStep: number
   students: any[]
   groupSize: number
   setGroupSize: (val: number) => void
@@ -99,7 +98,6 @@ export function ConfigWizard({
   const [quizQuestions, setQuizQuestions] = React.useState<any[]>([])
   const [isFromLibrary, setIsFromLibrary] = React.useState(false)
 
-  // Función reutilizable para crear la evaluación en la DB
   const createEvaluationRecord = async (criteria: any[] = [], name?: string, weight?: number) => {
     const payload = {
       indicador_id: registeredIndicatorId,
@@ -160,11 +158,7 @@ export function ConfigWizard({
       if (parsedCriteria.length > 0) {
         setEditorCriteria(parsedCriteria);
         toast({ title: "Digitalización Exitosa", description: "Creando registro en el auxiliar..." });
-        
-        // AUTO-REGISTRO: Creamos la evaluación de inmediato para evitar que el botón del paso 3 se bloquee
         await createEvaluationRecord(parsedCriteria, finalName, finalWeight);
-        
-        // SALTO AUTOMÁTICO AL PASO DE DISEÑO (3)
         setSetupStep(3);
       }
     } catch (err: any) {
@@ -253,7 +247,6 @@ export function ConfigWizard({
 
   const registerStep3 = async () => {
     if (!registeredEvalId) {
-        // Por si acaso falló el auto-registro de IA, intentamos crear uno aquí
         try {
             await createEvaluationRecord();
         } catch (e) {
@@ -285,6 +278,7 @@ export function ConfigWizard({
     try {
       const groupsMap: Record<string, string[]> = {};
       Object.entries(studentGroups).forEach(([studentId, groupName]) => {
+        if (!groupName) return;
         if (!groupsMap[groupName]) groupsMap[groupName] = [];
         groupsMap[groupName].push(studentId);
       });
