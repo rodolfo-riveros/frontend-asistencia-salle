@@ -3,7 +3,7 @@
 
 import * as React from "react"
 import { useParams, useSearchParams, useRouter } from "next/navigation"
-import { Target, FileText, LayoutList, Star, Quote, Loader2, Gamepad2, Play } from "lucide-react"
+import { Target, FileText, LayoutList, Star, Quote, Loader2, Gamepad2, Play, RefreshCcw } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -14,6 +14,10 @@ import { toast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
 import { getInitials, cn } from "@/lib/utils"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
+import { supabase } from "@/lib/supabase"
+import * as XLSX from 'xlsx'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
 // Modular Components
 import { GradebookHeader } from "@/components/grades/GradebookHeader"
@@ -61,6 +65,7 @@ function GradebookContent() {
   const [comments, setComments] = React.useState<Record<string, Record<string, string>>>({})
   
   const [isLoading, setIsLoading] = React.useState(true)
+  const [error, setError] = React.useState<string | null>(null)
   const [searchTerm, setSearchTerm] = React.useState("")
   
   const [isNewColOpen, setIsNewColOpen] = React.useState(false)
@@ -81,6 +86,10 @@ function GradebookContent() {
 
   const [groupSize, setGroupSize] = React.useState(3)
   const [studentGroups, setStudentGroups] = React.useState<Record<string, string>>({})
+  
+  const [courseInfo, setCourseInfo] = React.useState<any>(null)
+  const [userName, setUserName] = React.useState("")
+  const [isExporting, setIsExporting] = React.useState(false)
 
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
@@ -91,16 +100,22 @@ function GradebookContent() {
 
   const fetchFullGradebook = React.useCallback(async () => {
     setIsLoading(true)
+    setError(null)
     try {
-      const [studentData, configData] = await Promise.all([
+      const [studentData, configData, userData] = await Promise.all([
         api.get<any[]>(`/me/unidades/${params.id}/alumnos`),
-        api.get<any>(`/evaluaciones/config/${params.id}/${periodoId}`)
+        api.get<any>(`/evaluaciones/config/${params.id}/${periodoId}`),
+        supabase.auth.getUser()
       ]);
 
       setStudents(studentData)
+      if (userData.data.user?.user_metadata) {
+        setUserName(`${userData.data.user.user_metadata.firstname || ""} ${userData.data.user.user_metadata.lastname || ""}`.trim().toUpperCase());
+      }
 
       if (configData) {
         setIndicators(configData.indicadores || []);
+        setCourseInfo(configData.unidad); // Asumiendo que el backend envía metadatos de la unidad
 
         const mappedCols: Column[] = configData.evaluaciones.map((ev: any) => {
           const groupMap: Record<string, string> = {};
@@ -159,49 +174,17 @@ function GradebookContent() {
           commentsMap[cal.alumno_id][cal.evaluacion_id] = cal.observacion;
         });
 
-        sortedCols.forEach(col => {
-          if (col.strategy === 'grupal' && col.groups) {
-            const groupGrades: Record<string, { grade: number, detail: any, comment: string }> = {};
-            
-            Object.entries(col.groups).forEach(([sId, gName]) => {
-              if (gradesMap[sId]?.[col.id] !== undefined && !groupGrades[gName]) {
-                groupGrades[gName] = {
-                  grade: gradesMap[sId][col.id],
-                  detail: detailsMap[sId]?.[col.id],
-                  comment: commentsMap[sId]?.[col.id] || ""
-                };
-              }
-            });
-
-            Object.entries(col.groups).forEach(([sId, gName]) => {
-              if (groupGrades[gName]) {
-                if (!gradesMap[sId]) gradesMap[sId] = {};
-                gradesMap[sId][col.id] = groupGrades[gName].grade;
-                
-                if (groupGrades[gName].detail) {
-                  if (!detailsMap[sId]) detailsMap[sId] = {};
-                  detailsMap[sId][col.id] = groupGrades[gName].detail;
-                }
-                
-                if (groupGrades[gName].comment) {
-                  if (!commentsMap[sId]) commentsMap[sId] = {};
-                  commentsMap[sId][col.id] = groupGrades[gName].comment;
-                }
-              }
-            });
-          }
-        });
-
         setGrades(gradesMap);
         setEvalDetails(detailsMap);
         setComments(commentsMap);
       }
     } catch (err: any) {
       console.error("Error al cargar datos:", err)
+      setError(err.message || "Error de base de datos");
       toast({ 
         variant: "destructive", 
         title: "Error de Sincronización", 
-        description: err.message || "No se pudo obtener el historial de notas." 
+        description: "El servidor de datos no responde. Intente reintentar." 
       })
     } finally {
       setIsLoading(false)
@@ -209,6 +192,46 @@ function GradebookContent() {
   }, [params.id, periodoId])
 
   React.useEffect(() => { fetchFullGradebook() }, [fetchFullGradebook])
+
+  const calculateFinal = (studentId: string) => {
+    const studentGrades = grades[studentId] || {}
+    if (columns.length === 0) return 0
+    
+    // Agrupar por Indicador
+    const indicatorsMap = new Map<string, { weight: number, cols: Column[] }>()
+    columns.forEach(c => {
+      if (!indicatorsMap.has(c.indicatorCode)) {
+        indicatorsMap.set(c.indicatorCode, { weight: c.indicatorWeight, cols: [] })
+      }
+      indicatorsMap.get(c.indicatorCode)!.cols.push(c)
+    })
+
+    let finalSum = 0
+    let totalWeightsUsed = 0
+
+    indicatorsMap.forEach((data) => {
+      const { cols, weight } = data
+      let weightedSum = 0
+      let weightFactor = 0
+      
+      cols.forEach(c => {
+        const rawScore = studentGrades[c.id]
+        if (rawScore !== undefined) {
+          const normalized = (rawScore / c.maxPoints) * 20
+          weightedSum += normalized * (c.instrumentWeight / 100)
+          weightFactor += (c.instrumentWeight / 100)
+        }
+      })
+      
+      const indicatorAvg = weightFactor > 0 ? weightedSum / weightFactor : 0
+      finalSum += indicatorAvg * (weight / 100)
+      totalWeightsUsed += (weight / 100)
+    })
+
+    // Normalizar si no se evaluaron todos los indicadores todavía (opcional)
+    const finalResult = totalWeightsUsed > 0 ? finalSum / totalWeightsUsed : finalSum
+    return Math.round(finalResult)
+  }
 
   const handleGradeChange = async (
     studentId: string, 
@@ -259,26 +282,6 @@ function GradebookContent() {
       return next;
     });
 
-    if (overrideDetails) {
-      setEvalDetails(prev => {
-        const next = { ...prev };
-        targetStudentIds.forEach(id => {
-          next[id] = { ...(next[id] || {}), [columnId]: overrideDetails };
-        });
-        return next;
-      });
-    }
-
-    if (overrideComment !== undefined) {
-      setComments(prev => {
-        const next = { ...prev };
-        targetStudentIds.forEach(id => {
-          next[id] = { ...(next[id] || {}), [columnId]: overrideComment };
-        });
-        return next;
-      });
-    }
-
     try {
       await api.post('/evaluaciones/calificar/', {
         evaluacion_id: columnId,
@@ -288,37 +291,91 @@ function GradebookContent() {
         detalles_json: overrideDetails ?? (evalDetails[studentId]?.[columnId] || null)
       })
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Error al calificar", description: "No se pudo guardar la nota en el servidor." })
+      toast({ variant: "destructive", title: "Error al calificar", description: "No se pudo guardar la nota." })
     }
   }
 
-  const calculateFinal = (studentId: string) => {
-    const studentGrades = grades[studentId] || {}
-    if (columns.length === 0) return 0
-    const indicatorsMap = new Map<string, { weight: number, cols: Column[] }>()
-    columns.forEach(c => {
-      if (!indicatorsMap.has(c.indicatorCode)) indicatorsMap.set(c.indicatorCode, { weight: c.indicatorWeight, cols: [] })
-      indicatorsMap.get(c.indicatorCode)!.cols.push(c)
-    })
-    let finalSum = 0
-    let totalIndicatorWeight = 0
-    indicatorsMap.forEach((data) => {
-      const { cols, weight } = data
-      let weightedSum = 0
-      let weightFactor = 0
-      cols.forEach(c => {
-        const rawScore = studentGrades[c.id]
-        if (rawScore !== undefined) {
-          const normalized = (rawScore / c.maxPoints) * 20
-          weightedSum += normalized * (c.instrumentWeight / 100)
-          weightFactor += (c.instrumentWeight / 100)
-        }
-      })
-      const indicatorAvg = weightFactor > 0 ? weightedSum / weightFactor : 0
-      finalSum += indicatorAvg * (weight / 100)
-      totalIndicatorWeight += (weight / 100)
-    })
-    return Math.round(totalIndicatorWeight > 0 ? finalSum / totalIndicatorWeight : finalSum)
+  const handleExportExcel = () => {
+    setIsExporting(true);
+    try {
+      const rows: any[] = [];
+      // Header
+      rows.push(["INSTITUTO DE EDUCACIÓN SUPERIOR LA SALLE - URUBAMBA"]);
+      rows.push(["REGISTRO AUXILIAR DE CALIFICACIONES"]);
+      rows.push([]);
+      rows.push(["UNIDAD DIDÁCTICA:", courseInfo?.nombre || "Cargando...", "", "PERIODO:", periodoId]);
+      rows.push(["DOCENTE:", userName, "", "FECHA EMISIÓN:", new Date().toLocaleDateString()]);
+      rows.push([]);
+      
+      const head = ["N°", "APELLIDOS Y NOMBRES", "DNI"];
+      columns.forEach(c => head.push(`${c.indicatorCode} - ${c.name}`));
+      head.push("PROMEDIO FINAL");
+      rows.push(head);
+
+      students.sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach((s, i) => {
+        const row = [
+          (i + 1).toString().padStart(2, '0'),
+          s.nombre.toUpperCase(),
+          s.dni
+        ];
+        columns.forEach(c => {
+          const v = grades[s.id]?.[c.id];
+          row.push(v !== undefined ? v.toString() : "-");
+        });
+        row.push(calculateFinal(s.id).toString());
+        rows.push(row);
+      });
+
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      XLSX.utils.book_append_sheet(wb, ws, "Calificaciones");
+      XLSX.writeFile(wb, `REGISTRO_${courseInfo?.nombre || 'UD'}.xlsx`);
+    } catch (e) {
+      toast({ variant: "destructive", title: "Error Excel" });
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
+  const handleExportPdf = () => {
+    setIsExporting(true);
+    try {
+      const doc = new jsPDF('l', 'mm', 'a4');
+      doc.setFontSize(16); doc.setTextColor(0, 51, 102); doc.setFont("helvetica", "bold");
+      doc.text("INSTITUTO DE EDUCACIÓN SUPERIOR LA SALLE - URUBAMBA", 14, 15);
+      
+      doc.setFontSize(9); doc.setTextColor(100); doc.text("REGISTRO AUXILIAR DE CALIFICACIONES ACADÉMICAS", 14, 22);
+      
+      doc.setFontSize(8); doc.setTextColor(0); doc.setFont("helvetica", "normal");
+      doc.text("UNIDAD DIDÁCTICA:", 14, 30); doc.setFont("helvetica", "bold"); doc.text(`${courseInfo?.nombre || "N/A"}`, 45, 30);
+      doc.setFont("helvetica", "normal"); doc.text("DOCENTE RESPONSABLE:", 14, 35); doc.setFont("helvetica", "bold"); doc.text(`${userName}`, 55, 35);
+      doc.setFont("helvetica", "normal"); doc.text("CICLO ACADÉMICO:", 230, 30); doc.setFont("helvetica", "bold"); doc.text(`${periodoId}`, 265, 30);
+      doc.setFont("helvetica", "normal"); doc.text("FECHA EMISIÓN:", 230, 35); doc.setFont("helvetica", "bold"); doc.text(`${new Date().toLocaleDateString()}`, 260, 35);
+
+      const head = ["N°", "APELLIDOS Y NOMBRES", ...columns.map(c => c.indicatorCode), "PROMEDIO"];
+      const body = students.sort((a, b) => a.nombre.localeCompare(b.nombre)).map((s, i) => [
+        (i + 1).toString().padStart(2, '0'),
+        s.nombre.toUpperCase(),
+        ...columns.map(c => grades[s.id]?.[c.id]?.toString() || "-"),
+        calculateFinal(s.id).toString().padStart(2, '0')
+      ]);
+
+      autoTable(doc, {
+        startY: 45,
+        head: [head],
+        body: body,
+        theme: 'grid',
+        styles: { fontSize: 7, halign: 'center' },
+        headStyles: { fillColor: [0, 51, 102], textColor: 255 },
+        columnStyles: { 1: { halign: 'left', fontStyle: 'bold', cellWidth: 70 } }
+      });
+
+      doc.save(`REGISTRO_${courseInfo?.nombre || 'UD'}.pdf`);
+    } catch (e) {
+      toast({ variant: "destructive", title: "Error PDF" });
+    } finally {
+      setIsExporting(false);
+    }
   }
 
   const getInstrumentIcon = (type: InstrumentType) => {
@@ -343,9 +400,31 @@ function GradebookContent() {
     )
   }
 
+  if (error && students.length === 0) {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center gap-6 p-10 text-center">
+        <div className="p-6 bg-red-50 rounded-full text-red-500 shadow-inner">
+          <RefreshCcw className="h-12 w-12" />
+        </div>
+        <div className="space-y-2">
+          <h3 className="text-xl font-black text-slate-900 uppercase">Fallo de Conexión</h3>
+          <p className="text-slate-400 font-medium max-w-md">No se pudo recuperar la información del servidor. Esto puede deberse a saturación de recursos temporales.</p>
+        </div>
+        <Button onClick={fetchFullGradebook} className="bg-primary px-10 h-14 font-black uppercase text-xs tracking-widest shadow-xl shadow-primary/20 gap-3">
+          <RefreshCcw className="h-5 w-5" /> REINTENTAR SINCRONIZACIÓN
+        </Button>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6 md:space-y-10 pb-20">
-      <GradebookHeader onNewEval={() => setIsNewColOpen(true)} />
+      <GradebookHeader 
+        onNewEval={() => setIsNewColOpen(true)} 
+        onExportExcel={handleExportExcel}
+        onExportPdf={handleExportPdf}
+        isExporting={isExporting}
+      />
 
       <Card className="border-none shadow-2xl overflow-hidden bg-white rounded-2xl md:rounded-[2.5rem]">
         <GradebookToolbar 
