@@ -8,7 +8,7 @@ import {
   Loader2, Radio, Users, Maximize2, Play, Trophy, 
   ShieldCheck, UserX, Crown, Zap, Clock, BookOpen, 
   AlertTriangle, Target, Percent, Award, ChevronRight,
-  Medal, ListChecks, CheckCircle2, XCircle, LogOut, GraduationCap, Download, Copy, Link as LinkIcon
+  Medal, ListChecks, CheckCircle2, XCircle, LogOut, Download, Copy, Link as LinkIcon
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardTitle } from "@/components/ui/card"
@@ -53,7 +53,7 @@ export default function InstructorQuizPage() {
     const pid = searchParams.get('periodo_id')
     if (uid) unidadIdRef.current = uid
     if (pid) periodoIdRef.current = pid
-  }, [searchParams])
+  }, [])
 
   const fetchSession = React.useCallback(async () => {
     const evalId = params.id as string;
@@ -273,8 +273,7 @@ export default function InstructorQuizPage() {
     doc.setTextColor(100);
     doc.text(`BANCO DE PREGUNTAS TÉCNICAS: ${config.nombre.toUpperCase()}`, 14, 30);
     
-    // El código del indicador se toma del config enriquecido
-    const indicadorCodigo = config.indicador_codigo || config.indicador?.codigo || "N/A";
+    const indicadorCodigo = config.indicador_codigo || "LOGRO NO DEFINIDO";
     doc.text(`CÓDIGO INDICADOR: ${indicadorCodigo}`, 14, 38);
 
     const questions = config.configuracion_json.questions;

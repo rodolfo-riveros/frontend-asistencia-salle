@@ -99,6 +99,22 @@ export function ConfigWizard({
   const [quizQuestions, setQuizQuestions] = React.useState<any[]>([])
   const [isFromLibrary, setIsFromLibrary] = React.useState(false)
 
+  // Función reutilizable para crear la evaluación en la DB
+  const createEvaluationRecord = async (criteria: any[] = [], name?: string, weight?: number) => {
+    const payload = {
+      indicador_id: registeredIndicatorId,
+      periodo_id: periodoId,
+      nombre: name || newColName,
+      tipo: newStrategyType === 'quizz' ? 'quizz' : newInstType,
+      peso_instrumento: weight !== undefined ? weight : newInstrumentWeight,
+      puntaje_maximo: newMaxPoints,
+      configuracion_json: { strategy: newStrategyType, criteria: criteria.length > 0 ? criteria : editorCriteria }
+    }
+    const res: any = await api.post('/evaluaciones/', payload)
+    setRegisteredEvalId(res.id)
+    return res.id
+  }
+
   const handleAiScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -114,6 +130,9 @@ export function ConfigWizard({
         photoDataUri: base64,
         expectedType: newInstType 
       });
+      
+      let finalName = analysis.name || newColName;
+      let finalWeight = analysis.suggestedWeight || newInstrumentWeight;
       
       if (analysis.name) setNewColName(analysis.name);
       if (analysis.suggestedWeight) setNewInstrumentWeight(analysis.suggestedWeight);
@@ -140,7 +159,11 @@ export function ConfigWizard({
 
       if (parsedCriteria.length > 0) {
         setEditorCriteria(parsedCriteria);
-        toast({ title: "Digitalización Exitosa", description: "El instrumento ha sido estructurado correctamente." });
+        toast({ title: "Digitalización Exitosa", description: "Creando registro en el auxiliar..." });
+        
+        // AUTO-REGISTRO: Creamos la evaluación de inmediato para evitar que el botón del paso 3 se bloquee
+        await createEvaluationRecord(parsedCriteria, finalName, finalWeight);
+        
         // SALTO AUTOMÁTICO AL PASO DE DISEÑO (3)
         setSetupStep(3);
       }
@@ -214,17 +237,7 @@ export function ConfigWizard({
   const registerStep2 = async () => {
     setIsFinishing(true)
     try {
-      const payload = {
-        indicador_id: registeredIndicatorId,
-        periodo_id: periodoId,
-        nombre: newColName,
-        tipo: newStrategyType === 'quizz' ? 'quizz' : newInstType,
-        peso_instrumento: newInstrumentWeight,
-        puntaje_maximo: newMaxPoints,
-        configuracion_json: { strategy: newStrategyType, criteria: editorCriteria }
-      }
-      let res: any = await api.post('/evaluaciones/', payload)
-      setRegisteredEvalId(res.id)
+      await createEvaluationRecord();
       if (newInstType === 'manual') {
         toast({ title: "Registro Exitoso", description: "La columna ha sido añadida al registro auxiliar." })
         addColumn(); setIsOpen(false); resetEditor();
@@ -239,7 +252,15 @@ export function ConfigWizard({
   }
 
   const registerStep3 = async () => {
-    if (!registeredEvalId) return;
+    if (!registeredEvalId) {
+        // Por si acaso falló el auto-registro de IA, intentamos crear uno aquí
+        try {
+            await createEvaluationRecord();
+        } catch (e) {
+            return toast({ variant: "destructive", title: "Error de Guardado", description: "No se encontró el registro de evaluación." });
+        }
+    }
+    
     setIsFinishing(true)
     try {
       const payload = {

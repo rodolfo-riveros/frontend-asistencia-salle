@@ -115,21 +115,21 @@ function GradebookContent() {
         setUserName(`${userData.data.user.user_metadata.firstname || ""} ${userData.data.user.user_metadata.lastname || ""}`.trim().toUpperCase());
       }
 
-      // Resolve metadata
+      // Resolviedo Metadatos Reales
       const periodObj = periodData.find((p: any) => p.id === periodoId);
-      const currentAsg = assignmentsData.find((asg: any) => asg.unidad_id === params.id);
+      const currentAsg = Array.isArray(assignmentsData) ? assignmentsData.find((asg: any) => asg.unidad_id === params.id) : null;
 
       setCourseInfo({
         nombre: currentAsg?.unidad_nombre || configData?.unidad?.nombre || "N/A",
-        programa: currentAsg?.programa_nombre || "N/A",
+        programa: currentAsg?.programa_nombre || "PROGRAMA NO DEFINIDO",
         semestre: currentAsg?.semestre || "N/A",
-        periodoNombre: periodObj ? periodObj.nombre : periodoId
+        periodoNombre: periodObj ? periodObj.nombre : (configData?.periodo?.nombre || "N/A")
       });
 
       if (configData) {
         setIndicators(configData.indicadores || []);
 
-        const mappedCols: Column[] = configData.evaluaciones.map((ev: any) => {
+        const mappedCols: Column[] = (configData.evaluaciones || []).map((ev: any) => {
           const groupMap: Record<string, string> = {};
           const evalGroups = configData.grupos?.filter((g: any) => g.evaluacion_id === ev.id) || [];
           evalGroups.forEach((g: any) => {
@@ -160,7 +160,7 @@ function GradebookContent() {
         setColumns(sortedCols);
 
         const instMap: Record<string, any> = {};
-        configData.evaluaciones.forEach((ev: any) => {
+        (configData.evaluaciones || []).forEach((ev: any) => {
           instMap[ev.id] = {
             id: ev.id,
             name: ev.nombre,
@@ -175,7 +175,7 @@ function GradebookContent() {
         const detailsMap: Record<string, Record<string, any>> = {};
         const commentsMap: Record<string, Record<string, string>> = {};
 
-        configData.calificaciones?.forEach((cal: any) => {
+        (configData.calificaciones || []).forEach((cal: any) => {
           if (!gradesMap[cal.alumno_id]) gradesMap[cal.alumno_id] = {};
           gradesMap[cal.alumno_id][cal.evaluacion_id] = cal.puntaje;
 
@@ -193,11 +193,6 @@ function GradebookContent() {
     } catch (err: any) {
       console.error("Error al cargar datos:", err)
       setError(err.message || "Error de base de datos");
-      toast({ 
-        variant: "destructive", 
-        title: "Error de Sincronización", 
-        description: "El servidor de datos no responde. Intente reintentar." 
-      })
     } finally {
       setIsLoading(false)
     }
@@ -312,8 +307,8 @@ function GradebookContent() {
       rows.push(["INSTITUTO DE EDUCACIÓN SUPERIOR LA SALLE - URUBAMBA"]);
       rows.push(["REGISTRO AUXILIAR DE CALIFICACIONES"]);
       rows.push([]);
-      rows.push(["UNIDAD DIDÁCTICA:", courseInfo?.nombre.toUpperCase() || "N/A", "", "CICLO:", courseInfo?.periodoNombre || "N/A"]);
-      rows.push(["PROGRAMA:", courseInfo?.programa.toUpperCase() || "N/A", "", "SEMESTRE:", courseInfo?.semestre || "N/A"]);
+      rows.push(["UNIDAD DIDÁCTICA:", (courseInfo?.nombre || "N/A").toUpperCase(), "", "CICLO:", courseInfo?.periodoNombre || "N/A"]);
+      rows.push(["PROGRAMA:", (courseInfo?.programa || "N/A").toUpperCase(), "", "SEMESTRE:", courseInfo?.semestre || "N/A"]);
       rows.push(["DOCENTE:", userName, "", "FECHA EMISIÓN:", new Date().toLocaleDateString()]);
       rows.push([]);
       
@@ -339,7 +334,7 @@ function GradebookContent() {
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.aoa_to_sheet(rows);
       XLSX.utils.book_append_sheet(wb, ws, "Calificaciones");
-      XLSX.writeFile(wb, `REGISTRO_${courseInfo?.nombre.replace(/\s+/g, '_')}.xlsx`);
+      XLSX.writeFile(wb, `REGISTRO_${(courseInfo?.nombre || 'UD').replace(/\s+/g, '_')}.xlsx`);
     } catch (e) {
       toast({ variant: "destructive", title: "Error Excel" });
     } finally {
@@ -357,8 +352,8 @@ function GradebookContent() {
       doc.setFontSize(9); doc.setTextColor(100); doc.text("REGISTRO AUXILIAR DE CALIFICACIONES ACADÉMICAS", 14, 22);
       
       doc.setFontSize(8); doc.setTextColor(0); doc.setFont("helvetica", "normal");
-      doc.text("UNIDAD DIDÁCTICA:", 14, 30); doc.setFont("helvetica", "bold"); doc.text(`${courseInfo?.nombre.toUpperCase() || "N/A"}`, 45, 30);
-      doc.setFont("helvetica", "normal"); doc.text("PROGRAMA PROFESIONAL:", 14, 35); doc.setFont("helvetica", "bold"); doc.text(`${courseInfo?.programa.toUpperCase() || "N/A"}`, 55, 35);
+      doc.text("UNIDAD DIDÁCTICA:", 14, 30); doc.setFont("helvetica", "bold"); doc.text(`${(courseInfo?.nombre || "N/A").toUpperCase()}`, 45, 30);
+      doc.setFont("helvetica", "normal"); doc.text("PROGRAMA PROFESIONAL:", 14, 35); doc.setFont("helvetica", "bold"); doc.text(`${(courseInfo?.programa || "N/A").toUpperCase()}`, 55, 35);
       doc.setFont("helvetica", "normal"); doc.text("DOCENTE RESPONSABLE:", 14, 40); doc.setFont("helvetica", "bold"); doc.text(`${userName}`, 55, 40);
       
       doc.setFont("helvetica", "normal"); doc.text("CICLO ACADÉMICO:", 230, 30); doc.setFont("helvetica", "bold"); doc.text(`${courseInfo?.periodoNombre || "N/A"}`, 265, 30);
@@ -383,22 +378,11 @@ function GradebookContent() {
         columnStyles: { 1: { halign: 'left', fontStyle: 'bold', cellWidth: 70 } }
       });
 
-      doc.save(`REGISTRO_${courseInfo?.nombre.replace(/\s+/g, '_')}.pdf`);
+      doc.save(`REGISTRO_${(courseInfo?.nombre || 'UD').replace(/\s+/g, '_')}.pdf`);
     } catch (e) {
       toast({ variant: "destructive", title: "Error PDF" });
     } finally {
       setIsExporting(false);
-    }
-  }
-
-  const getInstrumentIcon = (type: InstrumentType) => {
-    switch (type) {
-      case 'cotejo': return <LayoutList className="h-3 w-3" />;
-      case 'rubrica': return <Target className="h-3 w-3" />;
-      case 'escala': return <Star className="h-3 w-3" />;
-      case 'anecdotario': return <Quote className="h-3 w-3" />;
-      case 'quizz': return <Gamepad2 className="h-3 w-3" />;
-      default: return <FileText className="h-3 w-3" />;
     }
   }
 
@@ -459,7 +443,6 @@ function GradebookContent() {
                         <TableHead key={c.id} className="text-center font-black text-[10px] uppercase text-slate-400 tracking-widest px-4 md:px-6 border-l min-w-[120px] md:min-w-[140px]">
                           <div className="flex flex-col items-center gap-1">
                             <div className="flex items-center justify-center gap-1">
-                              <div className="text-primary/60">{getInstrumentIcon(c.type)}</div>
                               <Badge variant="outline" className="border-primary/20 text-primary text-[8px] font-black px-1.5">{c.indicatorCode}</Badge>
                             </div>
                             <div className="flex items-center gap-2">
