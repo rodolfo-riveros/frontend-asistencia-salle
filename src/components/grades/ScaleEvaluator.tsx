@@ -4,7 +4,6 @@
 import * as React from "react"
 import { CheckCircle2, Circle } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
 
 interface ScaleEvaluatorProps {
   criteria: any[]
@@ -27,14 +26,14 @@ export function ScaleEvaluator({ criteria, scaleLevels, evalData, onUpdate }: Sc
         <table className="w-full border-collapse">
           <thead>
             <tr className="bg-slate-50/80">
-              <th className="p-6 text-left font-black text-[10px] uppercase text-slate-400 tracking-widest border-b-2 border-slate-100">
-                Indicador de Desempeño
+              <th className="p-8 text-left font-black text-[10px] uppercase text-slate-400 tracking-widest border-b-2 border-slate-100">
+                Indicador de Desempeño Técnico
               </th>
               {sortedLevels.map((lvl) => (
                 <th key={lvl.label} className="p-6 text-center font-black text-[10px] uppercase text-slate-400 tracking-widest border-b-2 border-slate-100 border-l">
                   <div className="flex flex-col items-center gap-1">
                     <span className="text-slate-900">{lvl.label}</span>
-                    <span className="text-primary/40 font-mono">({lvl.points} pts)</span>
+                    <span className="text-primary/40 font-mono text-[9px]">({lvl.points} pts)</span>
                   </div>
                 </th>
               ))}
@@ -43,7 +42,7 @@ export function ScaleEvaluator({ criteria, scaleLevels, evalData, onUpdate }: Sc
           <tbody>
             {criteria.map((cr, idx) => (
               <tr key={idx} className="group hover:bg-slate-50/30 transition-colors">
-                <td className="p-6 border-b border-slate-100">
+                <td className="p-8 border-b border-slate-100">
                   <div className="flex gap-4 items-start">
                     <span className="font-black text-xs text-slate-300 mt-0.5">{idx + 1}</span>
                     <p className="text-sm font-bold text-slate-700 leading-relaxed uppercase tracking-tight">
@@ -52,7 +51,8 @@ export function ScaleEvaluator({ criteria, scaleLevels, evalData, onUpdate }: Sc
                   </div>
                 </td>
                 {sortedLevels.map((lvl) => {
-                  const isActive = evalData[idx] === lvl.points
+                  // Comparamos numéricamente para persistencia
+                  const isActive = Number(evalData[idx]) === Number(lvl.points)
                   const isPositive = lvl.points >= (sortedLevels[0].points * 0.7)
                   
                   return (
@@ -60,7 +60,7 @@ export function ScaleEvaluator({ criteria, scaleLevels, evalData, onUpdate }: Sc
                       <button
                         onClick={() => handleSelect(idx, lvl.points)}
                         className={cn(
-                          "w-full h-full min-h-[80px] flex items-center justify-center transition-all outline-none",
+                          "w-full h-full min-h-[90px] flex items-center justify-center transition-all outline-none group/cell",
                           isActive 
                             ? isPositive 
                               ? "bg-emerald-50 text-emerald-600" 
@@ -70,11 +70,11 @@ export function ScaleEvaluator({ criteria, scaleLevels, evalData, onUpdate }: Sc
                       >
                         {isActive ? (
                           <div className="flex flex-col items-center gap-1 animate-in zoom-in-50 duration-300">
-                            <CheckCircle2 className="h-7 w-7" />
-                            <span className="text-[10px] font-black uppercase">MARCADO</span>
+                            <CheckCircle2 className="h-8 w-8" />
+                            <span className="text-[9px] font-black uppercase tracking-widest">MARCADO</span>
                           </div>
                         ) : (
-                          <Circle className="h-6 w-6 opacity-20" />
+                          <Circle className="h-6 w-6 opacity-20 group-hover/cell:opacity-40 transition-opacity" />
                         )}
                       </button>
                     </td>
@@ -84,6 +84,10 @@ export function ScaleEvaluator({ criteria, scaleLevels, evalData, onUpdate }: Sc
             ))}
           </tbody>
         </table>
+      </div>
+      <div className="flex items-center gap-2 px-6">
+         <div className="h-2 w-2 rounded-full bg-emerald-500" />
+         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Las opciones se guardan automáticamente al seleccionar</p>
       </div>
     </div>
   )
