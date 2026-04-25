@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -7,7 +8,7 @@ import {
   Loader2, Radio, Users, Maximize2, Play, Trophy, 
   ShieldCheck, UserX, Crown, Zap, Clock, BookOpen, 
   AlertTriangle, Target, Percent, Award, ChevronRight,
-  Medal, ListChecks, CheckCircle2, XCircle, LogOut, GraduationCap, Download
+  Medal, ListChecks, CheckCircle2, XCircle, LogOut, GraduationCap, Download, Copy, Link as LinkIcon
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardTitle } from "@/components/ui/card"
@@ -19,8 +20,10 @@ import { api as convexApi } from "@convex/_generated/api"
 import { cn, getInitials } from "@/lib/utils"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import confetti from "canvas-confetti"
 
 export default function InstructorQuizPage() {
   const params = useParams()
@@ -36,8 +39,8 @@ export default function InstructorQuizPage() {
   const [isFullscreen, setIsFullscreen] = React.useState(false)
   const [showAcademicSummary, setShowAcademicSummary] = React.useState(false)
   const [mounted, setMounted] = React.useState(false)
+  const [ceremonyPhase, setCeremonyPhase] = React.useState<'idle' | 'announcement' | 'podium'>('idle')
 
-  // PERSISTENCIA DE IDS CON REFS PARA EVITAR PÉRDIDA POR RE-RENDER
   const unidadIdRef = React.useRef<string | null>(null)
   const periodoIdRef = React.useRef<string | null>(null)
 
@@ -45,7 +48,6 @@ export default function InstructorQuizPage() {
   const updateStatus = useMutation(convexApi.rooms.updateStatus)
   const room = useQuery(convexApi.rooms.getRoom, roomCode ? { roomCode } : "skip")
 
-  // Inicialización de IDs desde la URL al montar
   React.useEffect(() => {
     const uid = searchParams.get('unidad_id') ?? searchParams.get('unidadId')
     const pid = searchParams.get('periodo_id')
@@ -90,6 +92,22 @@ export default function InstructorQuizPage() {
     setMounted(true)
     fetchSession()
   }, [fetchSession])
+
+  // Lógica de Ceremonia
+  React.useEffect(() => {
+    if (room?.status === 'finished' && isFullscreen && ceremonyPhase === 'idle') {
+      setCeremonyPhase('announcement')
+      confetti({
+        particleCount: 200,
+        spread: 100,
+        origin: { y: 0.6 },
+        colors: ['#FFD700', '#FFFFFF', '#6D28D9']
+      })
+      setTimeout(() => {
+        setCeremonyPhase('podium')
+      }, 4000)
+    }
+  }, [room?.status, isFullscreen, ceremonyPhase])
 
   const handleLaunchRoom = async () => {
     const questions = config?.configuracion_json?.questions;
@@ -150,6 +168,13 @@ export default function InstructorQuizPage() {
     setIsFullscreen(true)
   }
 
+  const handleCopyLink = () => {
+    if (!roomCode) return
+    const link = `${window.location.origin}/student/quiz/join?pin=${roomCode}`
+    navigator.clipboard.writeText(link)
+    toast({ title: "Enlace Copiado", description: "Envía este link a los alumnos que no pueden escanear." })
+  }
+
   const handleStartGame = async () => {
     if (!roomCode) return
     await updateStatus({ roomCode, status: 'active' })
@@ -176,8 +201,6 @@ export default function InstructorQuizPage() {
     const finalUnidadId = unidadIdRef.current || config?.unidad_id;
     const finalPeriodoId = periodoIdRef.current || config?.periodo_id || searchParams.get('periodo_id') || 'ACTUAL';
 
-    console.log("[SYNC DIAGNOSTIC]", { finalEvalId, finalUnidadId, finalPeriodoId, sessionId });
-
     if (!finalEvalId || finalEvalId === "undefined" || finalEvalId.length < 36) {
       toast({ variant: "destructive", title: "Error de Evaluación", description: "ID de evaluación inválido." });
       return;
@@ -203,19 +226,10 @@ export default function InstructorQuizPage() {
         return aid && aid !== "undefined" && aid.length >= 36;
       });
 
-      if (validParticipants.length === 0) {
-        toast({ variant: "destructive", title: "Identidad Inválida", description: "Los participantes no tienen UUID oficial vinculado." });
-        setIsClosing(false);
-        return;
-      }
-
       const gradePromises = validParticipants.map((p: any) => {
         const alumnoId = p.alumno_id || p.studentId;
         const correctAnswers = p.answers?.filter((a: any) => a.isCorrect).length || 0;
-        
-        const academicGrade = parseFloat(
-          ((correctAnswers / totalQuestions) * maxScore).toFixed(2)
-        );
+        const academicGrade = parseFloat(((correctAnswers / totalQuestions) * maxScore).toFixed(2));
         
         return api.post('/evaluaciones/calificar/', {
           evaluacion_id: finalEvalId,
@@ -235,9 +249,7 @@ export default function InstructorQuizPage() {
       const exitosas = results.filter(r => r.status === 'fulfilled').length;
 
       if (sessionId && sessionId.length >= 36) {
-        await api.post(`/gamificacion/sesion/${sessionId}/finalizar/`, { notas: [] }).catch((e) => {
-           console.warn("No se pudo cerrar la sesión técnica:", e);
-        });
+        await api.post(`/gamificacion/sesion/${sessionId}/finalizar/`, { notas: [] }).catch(() => {});
       }
 
       toast({ title: "Sincronización Exitosa", description: `${exitosas} notas registradas en el auxiliar.` });
@@ -255,31 +267,35 @@ export default function InstructorQuizPage() {
     const doc = new jsPDF();
     doc.setFontSize(18);
     doc.setTextColor(0, 51, 102);
-    doc.text("IES LA SALLE URUBAMBA", 14, 20);
+    doc.text("INSTITUTO DE EDUCACIÓN SUPERIOR LA SALLE - URUBAMBA", 14, 20);
     
     doc.setFontSize(12);
     doc.setTextColor(100);
-    doc.text(`BANCO DE PREGUNTAS: ${config.nombre.toUpperCase()}`, 14, 30);
-    doc.text(`CÓDIGO INDICADOR: ${config.indicador_codigo}`, 14, 38);
+    doc.text(`BANCO DE PREGUNTAS TÉCNICAS: ${config.nombre.toUpperCase()}`, 14, 30);
+    
+    // El código del indicador se toma del config enriquecido
+    const indicadorCodigo = config.indicador_codigo || config.indicador?.codigo || "N/A";
+    doc.text(`CÓDIGO INDICADOR: ${indicadorCodigo}`, 14, 38);
 
     const questions = config.configuracion_json.questions;
     const body = questions.map((q: any, idx: number) => [
       `${idx + 1}`,
       q.text,
-      q.options.map((opt: string, oIdx: number) => `${String.fromCharCode(65 + oIdx)}) ${opt}${q.correctIndex === oIdx ? ' [CORRECTA]' : ''}`).join('\n')
+      q.options.map((opt: string, oIdx: number) => `${String.fromCharCode(65 + oIdx)}) ${opt}${q.correctIndex === oIdx ? ' [RESPUESTA CORRECTA]' : ''}`).join('\n')
     ]);
 
     autoTable(doc, {
       startY: 45,
-      head: [['N°', 'PREGUNTA', 'ALTERNATIVAS']],
+      head: [['N°', 'ENUNCIADO DE LA PREGUNTA', 'ALTERNATIVAS']],
       body: body,
       theme: 'grid',
-      headStyles: { fillColor: [0, 51, 102], textColor: 255 },
-      styles: { fontSize: 9, cellPadding: 4 },
+      headStyles: { fillColor: [0, 51, 102], textColor: 255, fontStyle: 'bold' },
+      styles: { fontSize: 8, cellPadding: 3 },
       columnStyles: { 0: { cellWidth: 10 }, 2: { cellWidth: 80 } }
     });
 
     doc.save(`BANCO_PREGUNTAS_${config.nombre.replace(/\s+/g, '_')}.pdf`);
+    toast({ title: "PDF Generado", description: "Se ha descargado el banco de preguntas con respuestas." });
   }
 
   const sortedParticipants = React.useMemo(() => {
@@ -303,7 +319,7 @@ export default function InstructorQuizPage() {
           <div className="space-y-2">
             <Badge className="bg-emerald-100 text-emerald-700 border-none font-black uppercase text-[9px] px-3 tracking-widest">Desafío Completado</Badge>
             <h2 className="text-4xl font-black text-slate-900 uppercase italic tracking-tighter leading-none">Resumen de Notas</h2>
-            <p className="text-slate-400 font-medium italic">Conversión a escala 0-20 calculada por la arena</p>
+            <p className="text-slate-400 font-medium italic">Sincronización masiva con el Registro Auxiliar</p>
           </div>
           <Button 
             onClick={handleCloseAndPersist} 
@@ -371,7 +387,7 @@ export default function InstructorQuizPage() {
     if (room === undefined) return (
       <div className="fixed inset-0 z-[100] bg-white flex flex-col items-center justify-center gap-6">
         <Loader2 className="h-12 w-12 animate-spin text-primary opacity-20" />
-        <p className="font-black uppercase text-[10px] text-slate-400 tracking-widest">Sincronizando con la Nube...</p>
+        <p className="font-black uppercase text-[10px] text-slate-400 tracking-widest">Sincronizando Arena...</p>
       </div>
     )
 
@@ -379,24 +395,29 @@ export default function InstructorQuizPage() {
       <div className="fixed inset-0 z-[100] bg-[#6D28D9] flex flex-col animate-in fade-in duration-500 overflow-hidden font-body">
         <div className="h-2 bg-yellow-400 w-full shadow-lg" />
         <div className="flex-grow flex flex-col lg:flex-row">
-          <div className="w-full lg:w-[450px] bg-white/10 backdrop-blur-md p-12 flex flex-col justify-between border-r border-white/10 shadow-2xl z-20">
-            <div className="space-y-10">
+          <div className="w-full lg:w-[450px] bg-white/10 backdrop-blur-md p-10 flex flex-col justify-between border-r border-white/10 shadow-2xl z-20">
+            <div className="space-y-8">
               <div className="flex items-center gap-4">
                 <Zap className="h-10 w-10 text-yellow-400 fill-yellow-400" />
-                <h2 className="text-3xl font-black text-white uppercase tracking-tighter italic leading-none">Monitor Arena</h2>
+                <h2 className="text-3xl font-black text-white uppercase tracking-tighter italic leading-none">Arena Live</h2>
               </div>
 
-              <div className="bg-white p-10 rounded-[3rem] shadow-2xl text-center space-y-6 border-b-8 border-yellow-400 relative overflow-hidden">
-                 <p className="text-[11px] font-black uppercase text-slate-400 tracking-widest">PIN DE ACCESO</p>
-                 <h3 className="text-8xl font-black text-primary font-mono tracking-tighter">{roomCode}</h3>
-                 <div className="p-6 bg-slate-50 rounded-[2.5rem] inline-block border-2 border-slate-100 shadow-inner">
+              <div className="bg-white p-8 rounded-[3rem] shadow-2xl text-center space-y-4 border-b-8 border-yellow-400 relative overflow-hidden">
+                 <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">CÓDIGO PIN</p>
+                 <h3 className="text-7xl font-black text-primary font-mono tracking-tighter leading-none">{roomCode}</h3>
+                 <div className="p-4 bg-slate-50 rounded-[2.5rem] inline-block border-2 border-slate-100 shadow-inner">
                     {mounted && (
                       <img 
-                        src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(window.location.origin)}/student/quiz/join?pin=${roomCode}`} 
-                        className="w-44 h-44 mix-blend-multiply" 
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(window.location.origin)}/student/quiz/join?pin=${roomCode}`} 
+                        className="w-40 h-44 mix-blend-multiply" 
                         alt="QR" 
                       />
                     )}
+                 </div>
+                 <div className="pt-2">
+                    <Button onClick={handleCopyLink} variant="ghost" className="h-10 gap-2 text-primary font-black uppercase text-[9px] tracking-widest hover:bg-slate-100 rounded-xl">
+                      <LinkIcon className="h-3.5 w-3.5" /> Copiar Enlace Directo
+                    </Button>
                  </div>
               </div>
             </div>
@@ -405,38 +426,46 @@ export default function InstructorQuizPage() {
               <div className="flex justify-between items-center px-6">
                 <div className="flex flex-col text-white">
                   <span className="text-[10px] font-black uppercase opacity-60 tracking-widest">ASPIRANTES</span>
-                  <span className="text-3xl font-black">{room?.participants?.length || 0}</span>
+                  <div className="flex items-center gap-2">
+                    <Users className="h-5 w-5 text-yellow-400" />
+                    <span className="text-4xl font-black">{room?.participants?.length || 0}</span>
+                  </div>
                 </div>
-                <Button variant="ghost" onClick={() => setIsFullscreen(false)} className="text-[10px] font-bold uppercase text-white/60 hover:text-white tracking-widest">Cerrar</Button>
+                <Button variant="ghost" onClick={() => setIsFullscreen(false)} className="text-[10px] font-bold uppercase text-white/60 hover:text-white tracking-widest">Cerrar Monitor</Button>
               </div>
               
               {room.status === 'lobby' ? (
-                <Button onClick={handleStartGame} disabled={!room?.participants?.length} className="w-full h-20 bg-yellow-400 text-primary rounded-[2rem] font-black text-xl shadow-2xl transition-all hover:scale-[1.02] active:scale-95 disabled:grayscale border-b-4 border-yellow-600">
-                  INICIAR ASCENSO
+                <Button onClick={handleStartGame} disabled={!room?.participants?.length} className="w-full h-20 bg-yellow-400 text-primary rounded-[2rem] font-black text-xl shadow-2xl transition-all hover:scale-[1.02] border-b-4 border-yellow-600">
+                  INICIAR ARENA
                 </Button>
               ) : room.status === 'active' ? (
                 <Button onClick={handleFinishGame} className="w-full h-20 bg-red-500 text-white rounded-[2rem] font-black text-xl shadow-2xl transition-all hover:scale-[1.02] border-b-4 border-red-700">
-                  FINALIZAR Y VER PODIO
+                  FINALIZAR DESAFÍO
                 </Button>
               ) : (
                 <Button onClick={handleShowSummary} className="w-full h-20 bg-white text-primary rounded-[2rem] font-black text-xl shadow-2xl border-b-4 border-slate-200 gap-3">
-                  <CheckCircle2 className="h-6 w-6" /> VER RESUMEN FINAL
+                  <CheckCircle2 className="h-6 w-6" /> VER RESULTADOS
                 </Button>
               )}
             </div>
           </div>
 
-          <div className="flex-grow p-16 bg-[#6D28D9] overflow-y-auto relative">
+          <div className="flex-grow p-10 bg-[#6D28D9] overflow-y-auto relative">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_2px_2px,rgba(255,255,255,0.05)_2px,transparent_0)] bg-[size:64px_64px]" />
             
-            {room.status === 'finished' ? (
-              <div className="h-full flex flex-col items-center animate-in zoom-in-95 relative z-10">
-                <div className="text-center mt-2 md:mt-4 mb-20 space-y-1">
-                   <h2 className="text-2xl md:text-3xl font-black uppercase italic tracking-tighter text-white drop-shadow-[0_10px_10px_rgba(0,0,0,0.3)]">Podio de Campeones</h2>
-                   <p className="text-yellow-400 font-black text-xs uppercase tracking-[0.5em] italic">Salle Rank-UP Challenge</p>
-                </div>
+            {ceremonyPhase === 'announcement' && (
+              <div className="h-full flex flex-col items-center justify-center animate-in zoom-in-50 duration-700 relative z-50">
+                 <Trophy className="h-32 w-32 text-yellow-400 animate-bounce mb-8" />
+                 <h2 className="text-7xl font-black text-white uppercase italic tracking-tighter text-center leading-none drop-shadow-[0_20px_20px_rgba(0,0,0,0.4)]">
+                    ¡PODIO DE<br />CAMPEONES!
+                 </h2>
+                 <p className="mt-6 text-yellow-400 font-black text-xl uppercase tracking-[0.5em] animate-pulse">Revelando Ganadores...</p>
+              </div>
+            )}
 
-                <div className="flex items-end justify-center gap-4 md:gap-16 h-[380px] mb-16 relative z-40">
+            {ceremonyPhase === 'podium' && (
+              <div className="h-full flex flex-col items-center justify-center animate-in fade-in duration-1000 relative z-10">
+                <div className="flex items-end justify-center gap-6 md:gap-16 h-[400px] mb-10 relative z-40">
                   {/* Puesto 2 */}
                   {sortedParticipants[1] && (
                     <div className="flex flex-col items-center gap-6 animate-in slide-in-from-bottom-24 duration-700">
@@ -461,7 +490,7 @@ export default function InstructorQuizPage() {
                   {/* Puesto 1 */}
                   {sortedParticipants[0] && (
                     <div className="flex flex-col items-center gap-8 animate-in slide-in-from-bottom-40 duration-1000 relative z-50">
-                      <Crown className="h-14 w-14 text-yellow-400 animate-bounce filter drop-shadow-[0_0_15px_rgba(250,204,21,0.5)]" />
+                      <Crown className="h-16 w-16 text-yellow-400 animate-bounce filter drop-shadow-[0_0_15px_rgba(250,204,21,0.5)]" />
                       <div className="relative group">
                          <div className="absolute inset-0 bg-yellow-400 blur-3xl opacity-30 group-hover:opacity-50 transition-opacity animate-pulse" />
                          <div className="w-36 h-40 md:w-48 md:h-48 bg-white/30 backdrop-blur-2xl rounded-[3.5rem] p-3 border-[10px] border-yellow-400 shadow-2xl relative z-10 flex items-center justify-center">
@@ -473,7 +502,7 @@ export default function InstructorQuizPage() {
                          <div className="absolute -top-6 -right-6 h-14 w-14 bg-yellow-400 rounded-3xl flex items-center justify-center font-black text-primary text-2xl border-8 border-[#6D28D9] shadow-2xl z-20">1</div>
                       </div>
                       <div className="text-center space-y-2">
-                        <p className="font-black text-white text-xl uppercase tracking-tighter drop-shadow-lg">{sortedParticipants[0].name.split(',')[0]}</p>
+                        <p className="font-black text-white text-2xl uppercase tracking-tighter drop-shadow-lg">{sortedParticipants[0].name.split(',')[0]}</p>
                         <div className="bg-yellow-400 px-6 py-1.5 rounded-full shadow-[0_0_20px_rgba(250,204,21,0.4)]">
                           <span className="text-primary font-black text-2xl">{sortedParticipants[0].score}</span>
                         </div>
@@ -505,56 +534,57 @@ export default function InstructorQuizPage() {
                 </div>
 
                 {sortedParticipants.length > 3 && (
-                  <div className="w-full max-w-4xl space-y-3 animate-in fade-in duration-1000 pb-20 relative z-10">
-                    <div className="flex items-center gap-4 px-10 mb-4">
-                       <Medal className="h-5 w-5 text-yellow-400" />
-                       <span className="text-white font-black uppercase text-xs tracking-[0.3em] italic">Ranking de Honor Salle</span>
+                  <div className="w-full max-w-4xl space-y-2 animate-in fade-in duration-1000 pb-20 relative z-10">
+                    <div className="flex items-center gap-4 px-10 mb-2">
+                       <Medal className="h-4 w-4 text-yellow-400" />
+                       <span className="text-white font-black uppercase text-[10px] tracking-[0.3em] italic">Honor Salle</span>
                        <div className="flex-1 h-px bg-white/10" />
                     </div>
-                    {sortedParticipants.slice(3, 10).map((p: any, idx: number) => (
-                      <div key={p._id} className="bg-white/5 backdrop-blur-sm p-3 rounded-2xl border border-white/10 flex items-center gap-6 group hover:bg-white/10 transition-all">
-                        <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center font-black text-white/50 text-lg border border-white/5">{idx + 4}</div>
-                        <Avatar className="h-10 w-10 border-2 border-white/20">
-                           <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(p.avatar)}`} />
-                           <AvatarFallback className="bg-primary text-white font-bold">{getInitials(p.name)}</AvatarFallback>
-                        </Avatar>
-                        <p className="flex-1 font-black text-white uppercase text-base truncate">{p.name}</p>
-                        <div className="px-4 py-1 bg-yellow-400/10 rounded-xl border border-yellow-400/20">
-                           <span className="font-black text-yellow-400 text-lg">{p.score}</span>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {sortedParticipants.slice(3, 11).map((p: any, idx: number) => (
+                        <div key={p._id} className="bg-white/5 backdrop-blur-sm p-3 rounded-2xl border border-white/10 flex items-center gap-4 group hover:bg-white/10 transition-all">
+                          <div className="w-8 h-8 bg-white/10 rounded-xl flex items-center justify-center font-black text-white/50 text-sm">{idx + 4}</div>
+                          <Avatar className="h-9 w-9 border-2 border-white/20">
+                             <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(p.avatar)}`} />
+                             <AvatarFallback className="bg-primary text-white font-bold">{getInitials(p.name)}</AvatarFallback>
+                          </Avatar>
+                          <p className="flex-1 font-black text-white uppercase text-xs truncate">{p.name}</p>
+                          <div className="px-3 py-1 bg-yellow-400/10 rounded-lg border border-yellow-400/20">
+                             <span className="font-black text-yellow-400 text-sm">{p.score}</span>
+                          </div>
                         </div>
-                        <ChevronRight className="h-4 w-4 text-white/20" />
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-8 relative z-10">
+            )}
+
+            {ceremonyPhase === 'idle' && (
+              <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-6 relative z-10">
                 {room?.participants?.map((p: any) => (
                   <Card key={p._id} className={cn(
-                    "flex flex-col items-center gap-6 p-10 rounded-[3.5rem] border-4 transition-all group relative bg-white shadow-2xl",
+                    "flex flex-col items-center gap-4 p-6 rounded-[2.5rem] border-4 transition-all group relative bg-white shadow-xl",
                     p.isCheating ? "border-red-500 animate-pulse bg-red-50" : "border-transparent hover:border-yellow-400/30"
                   )}>
                     {p.isCheating && (
-                      <div className="absolute -top-4 -right-4 flex items-center gap-2 bg-red-600 text-white px-5 py-2 rounded-2xl z-20 shadow-2xl border-4 border-white animate-bounce">
-                        <AlertTriangle className="h-5 w-5" />
-                        <span className="text-[11px] font-black uppercase tracking-widest">FRAUDE</span>
+                      <div className="absolute -top-3 -right-3 flex items-center gap-1.5 bg-red-600 text-white px-3 py-1.5 rounded-xl z-20 shadow-2xl border-4 border-white">
+                        <AlertTriangle className="h-3 w-3" />
+                        <span className="text-[9px] font-black uppercase tracking-widest">FRAUDE</span>
                       </div>
                     )}
                     <div className="relative">
-                      <div className="absolute inset-0 bg-primary/5 rounded-full blur-xl scale-125 group-hover:bg-primary/10 transition-colors" />
-                      <Avatar className="h-28 w-28 border-4 border-white shadow-xl group-hover:scale-110 transition-transform shrink-0 relative z-10">
+                      <Avatar className="h-16 w-16 border-2 border-white shadow-lg group-hover:scale-110 transition-transform shrink-0 relative z-10">
                         <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(p.avatar)}`} />
-                        <AvatarFallback className={cn("text-3xl font-black uppercase", p.isCheating ? "bg-red-200 text-red-800" : "bg-primary/10 text-primary")}>
+                        <AvatarFallback className={cn("text-xl font-black uppercase", p.isCheating ? "bg-red-200 text-red-800" : "bg-primary/10 text-primary")}>
                           {getInitials(p.name)}
                         </AvatarFallback>
                       </Avatar>
                     </div>
-                    <div className="text-center space-y-3 w-full overflow-hidden relative z-10">
-                      <Badge variant="outline" className="text-[9px] font-black uppercase text-slate-400 border-slate-100 px-3 tracking-widest">{p.avatar}</Badge>
-                      <p className="text-lg font-black text-slate-900 truncate w-full leading-none uppercase italic tracking-tighter">{p.name.split(',')[0]}</p>
-                      <div className="bg-primary/5 rounded-[1.5rem] py-3 px-6 inline-block mt-2 border border-primary/5">
-                        <p className="text-3xl font-black text-primary leading-none font-mono">{p.score}</p>
+                    <div className="text-center space-y-1 w-full overflow-hidden relative z-10">
+                      <p className="text-[11px] font-black text-slate-900 truncate w-full uppercase italic tracking-tighter leading-none">{p.name.split(',')[0]}</p>
+                      <div className="bg-primary/5 rounded-xl py-1.5 px-4 inline-block border border-primary/5">
+                        <p className="text-lg font-black text-primary leading-none font-mono">{p.score}</p>
                       </div>
                     </div>
                   </Card>
@@ -571,9 +601,32 @@ export default function InstructorQuizPage() {
     <div className="space-y-12 pb-20 font-body">
       <div className="flex flex-col md:flex-row justify-between items-start gap-8 border-b-2 border-slate-100 pb-10">
         <div className="space-y-6">
-          <Button variant="ghost" onClick={() => router.back()} className="h-10 text-primary font-black px-0 hover:bg-transparent uppercase tracking-[0.2em] text-[10px] gap-3">
-            <ArrowLeft className="h-4 w-4" /> VOLVER AL REGISTRO
-          </Button>
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" onClick={() => router.back()} className="h-10 text-primary font-black px-0 hover:bg-transparent uppercase tracking-[0.2em] text-[10px] gap-3">
+              <ArrowLeft className="h-4 w-4" /> VOLVER AL REGISTRO
+            </Button>
+            
+            <div className="h-4 w-px bg-slate-200" />
+            
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="icon"
+                    onClick={handleExportQuestions} 
+                    className="h-10 w-10 border-red-200 text-red-600 hover:bg-red-50 rounded-xl transition-all shadow-sm"
+                  >
+                    <Download className="h-5 w-5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent className="bg-red-600 text-white border-none font-black text-[10px] uppercase tracking-widest">
+                  Exportar Banco de Preguntas (PDF)
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+
           <div className="flex items-center gap-6">
             <div className="p-6 bg-primary rounded-[2rem] text-white shadow-2xl shadow-primary/30">
               <Zap className="h-10 w-10 fill-current" />
@@ -603,13 +656,6 @@ export default function InstructorQuizPage() {
               </Button>
             </div>
           )}
-          <Button 
-            variant="outline" 
-            onClick={handleExportQuestions} 
-            className="h-12 px-8 border-red-200 text-red-600 hover:bg-red-50 font-black uppercase text-[10px] tracking-widest rounded-2xl gap-3 shadow-sm"
-          >
-            <Download className="h-4 w-4" /> EXPORTAR BANCO (PDF)
-          </Button>
         </div>
       </div>
 
@@ -688,10 +734,10 @@ export default function InstructorQuizPage() {
 
                   <div className="p-6 bg-primary/5 rounded-3xl border-2 border-primary/10 space-y-4">
                     <div className="flex items-center justify-between">
-                      <Badge className="bg-primary text-white font-black text-[9px] px-3 py-0.5 rounded-lg tracking-widest uppercase">{config.indicador_codigo}</Badge>
+                      <Badge className="bg-primary text-white font-black text-[9px] px-3 py-0.5 rounded-lg tracking-widest uppercase">{config.indicador_codigo || config.indicador?.codigo || "LOGRO"}</Badge>
                       <Target className="h-4 w-4 text-primary/30" />
                     </div>
-                    <p className="text-[11px] font-bold text-primary uppercase leading-relaxed">{config.indicador_desc}</p>
+                    <p className="text-[11px] font-bold text-primary uppercase leading-relaxed">{config.indicador_desc || config.indicador?.descripcion}</p>
                   </div>
                 </div>
 
