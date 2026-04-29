@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -21,6 +20,7 @@ import { cn, getInitials } from "@/lib/utils"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import confetti from "canvas-confetti"
@@ -39,6 +39,8 @@ export default function InstructorQuizPage() {
   const [isFullscreen, setIsFullscreen] = React.useState(false)
   const [showAcademicSummary, setShowAcademicSummary] = React.useState(false)
   const [mounted, setMounted] = React.useState(false)
+  
+  // Fase de ceremonia: idle -> announcement -> podium
   const [ceremonyPhase, setCeremonyPhase] = React.useState<'idle' | 'announcement' | 'podium'>('idle')
 
   const unidadIdRef = React.useRef<string | null>(null)
@@ -53,7 +55,7 @@ export default function InstructorQuizPage() {
     const pid = searchParams.get('periodo_id')
     if (uid) unidadIdRef.current = uid
     if (pid) periodoIdRef.current = pid
-  }, [])
+  }, [searchParams])
 
   const fetchSession = React.useCallback(async () => {
     const evalId = params.id as string;
@@ -93,7 +95,7 @@ export default function InstructorQuizPage() {
     fetchSession()
   }, [fetchSession])
 
-  // Lógica de Ceremonia
+  // Lógica de Ceremonia Automática
   React.useEffect(() => {
     if (room?.status === 'finished' && isFullscreen && ceremonyPhase === 'idle') {
       setCeremonyPhase('announcement')
@@ -103,9 +105,13 @@ export default function InstructorQuizPage() {
         origin: { y: 0.6 },
         colors: ['#FFD700', '#FFFFFF', '#6D28D9']
       })
-      setTimeout(() => {
+      
+      // Pasar a podio después de 4 segundos de gloria central
+      const timer = setTimeout(() => {
         setCeremonyPhase('podium')
       }, 4000)
+      
+      return () => clearTimeout(timer)
     }
   }, [room?.status, isFullscreen, ceremonyPhase])
 
@@ -273,7 +279,7 @@ export default function InstructorQuizPage() {
     doc.setTextColor(100);
     doc.text(`BANCO DE PREGUNTAS TÉCNICAS: ${config.nombre.toUpperCase()}`, 14, 30);
     
-    const indicadorCodigo = config.indicador_codigo || "LOGRO NO DEFINIDO";
+    const indicadorCodigo = config.indicador_codigo || config.indicador?.codigo || "LOGRO NO DEFINIDO";
     doc.text(`CÓDIGO INDICADOR: ${indicadorCodigo}`, 14, 38);
 
     const questions = config.configuracion_json.questions;
@@ -393,65 +399,71 @@ export default function InstructorQuizPage() {
     return (
       <div className="fixed inset-0 z-[100] bg-[#6D28D9] flex flex-col animate-in fade-in duration-500 overflow-hidden font-body">
         <div className="h-2 bg-yellow-400 w-full shadow-lg" />
-        <div className="flex-grow flex flex-col lg:flex-row">
-          <div className="w-full lg:w-[450px] bg-white/10 backdrop-blur-md p-10 flex flex-col justify-between border-r border-white/10 shadow-2xl z-20">
-            <div className="space-y-8">
-              <div className="flex items-center gap-4">
-                <Zap className="h-10 w-10 text-yellow-400 fill-yellow-400" />
-                <h2 className="text-3xl font-black text-white uppercase tracking-tighter italic leading-none">Arena Live</h2>
-              </div>
-
-              <div className="bg-white p-8 rounded-[3rem] shadow-2xl text-center space-y-4 border-b-8 border-yellow-400 relative overflow-hidden">
-                 <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">CÓDIGO PIN</p>
-                 <h3 className="text-7xl font-black text-primary font-mono tracking-tighter leading-none">{roomCode}</h3>
-                 <div className="p-4 bg-slate-50 rounded-[2.5rem] inline-block border-2 border-slate-100 shadow-inner">
-                    {mounted && (
-                      <img 
-                        src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(window.location.origin)}/student/quiz/join?pin=${roomCode}`} 
-                        className="w-40 h-44 mix-blend-multiply" 
-                        alt="QR" 
-                      />
-                    )}
-                 </div>
-                 <div className="pt-2">
-                    <Button onClick={handleCopyLink} variant="ghost" className="h-10 gap-2 text-primary font-black uppercase text-[9px] tracking-widest hover:bg-slate-100 rounded-xl">
-                      <LinkIcon className="h-3.5 w-3.5" /> Copiar Enlace Directo
-                    </Button>
-                 </div>
-              </div>
-            </div>
-
-            <div className="space-y-6">
-              <div className="flex justify-between items-center px-6">
-                <div className="flex flex-col text-white">
-                  <span className="text-[10px] font-black uppercase opacity-60 tracking-widest">ASPIRANTES</span>
-                  <div className="flex items-center gap-2">
-                    <Users className="h-5 w-5 text-yellow-400" />
-                    <span className="text-4xl font-black">{room?.participants?.length || 0}</span>
-                  </div>
+        <div className="flex-grow flex flex-col lg:flex-row overflow-hidden">
+          {/* Panel Lateral con ScrollArea para evitar desaparición de botones */}
+          <div className="w-full lg:w-[450px] bg-white/10 backdrop-blur-md border-r border-white/10 shadow-2xl z-20 flex flex-col overflow-hidden">
+            <ScrollArea className="flex-grow p-10">
+              <div className="space-y-12 pb-10">
+                <div className="flex items-center gap-4">
+                  <Zap className="h-10 w-10 text-yellow-400 fill-yellow-400" />
+                  <h2 className="text-3xl font-black text-white uppercase tracking-tighter italic leading-none">Arena Live</h2>
                 </div>
-                <Button variant="ghost" onClick={() => setIsFullscreen(false)} className="text-[10px] font-bold uppercase text-white/60 hover:text-white tracking-widest">Cerrar Monitor</Button>
+
+                <div className="bg-white p-8 rounded-[3rem] shadow-2xl text-center space-y-4 border-b-8 border-yellow-400 relative overflow-hidden">
+                   <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">CÓDIGO PIN</p>
+                   <h3 className="text-7xl font-black text-primary font-mono tracking-tighter leading-none">{roomCode}</h3>
+                   <div className="p-4 bg-slate-50 rounded-[2.5rem] border-2 border-slate-100 shadow-inner">
+                      {mounted && (
+                        <img 
+                          src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(window.location.origin)}/student/quiz/join?pin=${roomCode}`} 
+                          className="w-40 h-44 mix-blend-multiply mx-auto" 
+                          alt="QR" 
+                        />
+                      )}
+                   </div>
+                   <div className="pt-2 flex flex-col gap-2">
+                      <Button onClick={handleCopyLink} variant="ghost" className="h-10 gap-2 text-primary font-black uppercase text-[9px] tracking-widest hover:bg-slate-100 rounded-xl w-full">
+                        <LinkIcon className="h-3.5 w-3.5" /> Copiar Enlace Directo
+                      </Button>
+                   </div>
+                </div>
+
+                <div className="space-y-6">
+                  <div className="flex justify-between items-center px-6">
+                    <div className="flex flex-col text-white">
+                      <span className="text-[10px] font-black uppercase opacity-60 tracking-widest">ASPIRANTES</span>
+                      <div className="flex items-center gap-2">
+                        <Users className="h-5 w-5 text-yellow-400" />
+                        <span className="text-4xl font-black">{room?.participants?.length || 0}</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {room.status === 'lobby' ? (
+                    <Button onClick={handleStartGame} disabled={!room?.participants?.length} className="w-full h-20 bg-yellow-400 text-primary rounded-[2rem] font-black text-xl shadow-2xl transition-all hover:scale-[1.02] border-b-4 border-yellow-600">
+                      INICIAR ARENA
+                    </Button>
+                  ) : room.status === 'active' ? (
+                    <Button onClick={handleFinishGame} className="w-full h-20 bg-red-500 text-white rounded-[2rem] font-black text-xl shadow-2xl transition-all hover:scale-[1.02] border-b-4 border-red-700">
+                      FINALIZAR DESAFÍO
+                    </Button>
+                  ) : (
+                    <Button onClick={handleShowSummary} className="w-full h-20 bg-white text-primary rounded-[2rem] font-black text-xl shadow-2xl border-b-4 border-slate-200 gap-3">
+                      <CheckCircle2 className="h-6 w-6" /> VER RESULTADOS
+                    </Button>
+                  )}
+                  
+                  <Button variant="ghost" onClick={() => setIsFullscreen(false)} className="w-full h-10 text-[10px] font-bold uppercase text-white/40 hover:text-white tracking-widest mt-4">Salir del Monitor</Button>
+                </div>
               </div>
-              
-              {room.status === 'lobby' ? (
-                <Button onClick={handleStartGame} disabled={!room?.participants?.length} className="w-full h-20 bg-yellow-400 text-primary rounded-[2rem] font-black text-xl shadow-2xl transition-all hover:scale-[1.02] border-b-4 border-yellow-600">
-                  INICIAR ARENA
-                </Button>
-              ) : room.status === 'active' ? (
-                <Button onClick={handleFinishGame} className="w-full h-20 bg-red-500 text-white rounded-[2rem] font-black text-xl shadow-2xl transition-all hover:scale-[1.02] border-b-4 border-red-700">
-                  FINALIZAR DESAFÍO
-                </Button>
-              ) : (
-                <Button onClick={handleShowSummary} className="w-full h-20 bg-white text-primary rounded-[2rem] font-black text-xl shadow-2xl border-b-4 border-slate-200 gap-3">
-                  <CheckCircle2 className="h-6 w-6" /> VER RESULTADOS
-                </Button>
-              )}
-            </div>
+            </ScrollArea>
           </div>
 
+          {/* Área Principal del Monitor */}
           <div className="flex-grow p-10 bg-[#6D28D9] overflow-y-auto relative">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_2px_2px,rgba(255,255,255,0.05)_2px,transparent_0)] bg-[size:64px_64px]" />
             
+            {/* FASE 1: ANUNCIO CENTRAL (Flashes con confeti) */}
             {ceremonyPhase === 'announcement' && (
               <div className="h-full flex flex-col items-center justify-center animate-in zoom-in-50 duration-700 relative z-50">
                  <Trophy className="h-32 w-32 text-yellow-400 animate-bounce mb-8" />
@@ -462,9 +474,14 @@ export default function InstructorQuizPage() {
               </div>
             )}
 
+            {/* FASE 2: PODIO REAL */}
             {ceremonyPhase === 'podium' && (
               <div className="h-full flex flex-col items-center justify-center animate-in fade-in duration-1000 relative z-10">
-                <div className="flex items-end justify-center gap-6 md:gap-16 h-[400px] mb-10 relative z-40">
+                <div className="text-center mb-10">
+                   <h2 className="text-3xl font-black text-white/30 uppercase tracking-[0.4em]">RANK-UP ARENA</h2>
+                </div>
+
+                <div className="flex items-end justify-center gap-6 md:gap-16 h-[400px] mb-16 relative z-40">
                   {/* Puesto 2 */}
                   {sortedParticipants[1] && (
                     <div className="flex flex-col items-center gap-6 animate-in slide-in-from-bottom-24 duration-700">
@@ -536,7 +553,7 @@ export default function InstructorQuizPage() {
                   <div className="w-full max-w-4xl space-y-2 animate-in fade-in duration-1000 pb-20 relative z-10">
                     <div className="flex items-center gap-4 px-10 mb-2">
                        <Medal className="h-4 w-4 text-yellow-400" />
-                       <span className="text-white font-black uppercase text-[10px] tracking-[0.3em] italic">Honor Salle</span>
+                       <span className="text-white font-black uppercase text-[10px] tracking-[0.3em] italic">Cuadro de Honor</span>
                        <div className="flex-1 h-px bg-white/10" />
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -559,31 +576,30 @@ export default function InstructorQuizPage() {
               </div>
             )}
 
+            {/* FASE LOBBY: Cuadrícula de alumnos conectándose */}
             {ceremonyPhase === 'idle' && (
-              <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-6 relative z-10">
+              <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-8 gap-4 relative z-10">
                 {room?.participants?.map((p: any) => (
                   <Card key={p._id} className={cn(
-                    "flex flex-col items-center gap-4 p-6 rounded-[2.5rem] border-4 transition-all group relative bg-white shadow-xl",
+                    "flex flex-col items-center gap-3 p-4 rounded-[2rem] border-4 transition-all group relative bg-white shadow-xl",
                     p.isCheating ? "border-red-500 animate-pulse bg-red-50" : "border-transparent hover:border-yellow-400/30"
                   )}>
                     {p.isCheating && (
-                      <div className="absolute -top-3 -right-3 flex items-center gap-1.5 bg-red-600 text-white px-3 py-1.5 rounded-xl z-20 shadow-2xl border-4 border-white">
+                      <div className="absolute -top-2 -right-2 flex items-center gap-1 bg-red-600 text-white px-2 py-1 rounded-lg z-20 shadow-2xl border-2 border-white">
                         <AlertTriangle className="h-3 w-3" />
-                        <span className="text-[9px] font-black uppercase tracking-widest">FRAUDE</span>
+                        <span className="text-[8px] font-black uppercase tracking-widest">FRAUDE</span>
                       </div>
                     )}
-                    <div className="relative">
-                      <Avatar className="h-16 w-16 border-2 border-white shadow-lg group-hover:scale-110 transition-transform shrink-0 relative z-10">
-                        <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(p.avatar)}`} />
-                        <AvatarFallback className={cn("text-xl font-black uppercase", p.isCheating ? "bg-red-200 text-red-800" : "bg-primary/10 text-primary")}>
-                          {getInitials(p.name)}
-                        </AvatarFallback>
-                      </Avatar>
-                    </div>
+                    <Avatar className="h-14 w-14 border-2 border-white shadow-lg group-hover:scale-110 transition-transform shrink-0 relative z-10">
+                      <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(p.avatar)}`} />
+                      <AvatarFallback className={cn("text-lg font-black uppercase", p.isCheating ? "bg-red-200 text-red-800" : "bg-primary/10 text-primary")}>
+                        {getInitials(p.name)}
+                      </AvatarFallback>
+                    </Avatar>
                     <div className="text-center space-y-1 w-full overflow-hidden relative z-10">
-                      <p className="text-[11px] font-black text-slate-900 truncate w-full uppercase italic tracking-tighter leading-none">{p.name.split(',')[0]}</p>
-                      <div className="bg-primary/5 rounded-xl py-1.5 px-4 inline-block border border-primary/5">
-                        <p className="text-lg font-black text-primary leading-none font-mono">{p.score}</p>
+                      <p className="text-[10px] font-black text-slate-900 truncate w-full uppercase italic tracking-tighter leading-none">{p.name.split(',')[0]}</p>
+                      <div className="bg-primary/5 rounded-lg py-1 px-3 inline-block border border-primary/5">
+                        <p className="text-sm font-black text-primary leading-none font-mono">{p.score}</p>
                       </div>
                     </div>
                   </Card>
