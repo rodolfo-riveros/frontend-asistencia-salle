@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -40,7 +41,6 @@ export default function InstructorQuizPage() {
   const [showAcademicSummary, setShowAcademicSummary] = React.useState(false)
   const [mounted, setMounted] = React.useState(false)
   
-  // Fase de ceremonia: idle -> announcement -> podium
   const [ceremonyPhase, setCeremonyPhase] = React.useState<'idle' | 'announcement' | 'podium'>('idle')
 
   const unidadIdRef = React.useRef<string | null>(null)
@@ -95,7 +95,6 @@ export default function InstructorQuizPage() {
     fetchSession()
   }, [fetchSession])
 
-  // Lógica de Ceremonia Automática
   React.useEffect(() => {
     if (room?.status === 'finished' && isFullscreen && ceremonyPhase === 'idle') {
       setCeremonyPhase('announcement')
@@ -106,7 +105,6 @@ export default function InstructorQuizPage() {
         colors: ['#FFD700', '#FFFFFF', '#6D28D9']
       })
       
-      // Pasar a podio después de 4 segundos de gloria central
       const timer = setTimeout(() => {
         setCeremonyPhase('podium')
       }, 4000)
@@ -400,7 +398,6 @@ export default function InstructorQuizPage() {
       <div className="fixed inset-0 z-[100] bg-[#6D28D9] flex flex-col animate-in fade-in duration-500 overflow-hidden font-body">
         <div className="h-2 bg-yellow-400 w-full shadow-lg" />
         <div className="flex-grow flex flex-col lg:flex-row overflow-hidden">
-          {/* Panel Lateral con ScrollArea para evitar desaparición de botones */}
           <div className="w-full lg:w-[450px] bg-white/10 backdrop-blur-md border-r border-white/10 shadow-2xl z-20 flex flex-col overflow-hidden">
             <ScrollArea className="flex-grow p-10">
               <div className="space-y-12 pb-10">
@@ -459,11 +456,9 @@ export default function InstructorQuizPage() {
             </ScrollArea>
           </div>
 
-          {/* Área Principal del Monitor */}
           <div className="flex-grow p-10 bg-[#6D28D9] overflow-y-auto relative">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_2px_2px,rgba(255,255,255,0.05)_2px,transparent_0)] bg-[size:64px_64px]" />
             
-            {/* FASE 1: ANUNCIO CENTRAL (Flashes con confeti) */}
             {ceremonyPhase === 'announcement' && (
               <div className="h-full flex flex-col items-center justify-center animate-in zoom-in-50 duration-700 relative z-50">
                  <Trophy className="h-32 w-32 text-yellow-400 animate-bounce mb-8" />
@@ -474,7 +469,6 @@ export default function InstructorQuizPage() {
               </div>
             )}
 
-            {/* FASE 2: PODIO REAL */}
             {ceremonyPhase === 'podium' && (
               <div className="h-full flex flex-col items-center justify-center animate-in fade-in duration-1000 relative z-10">
                 <div className="text-center mb-10">
@@ -482,7 +476,6 @@ export default function InstructorQuizPage() {
                 </div>
 
                 <div className="flex items-end justify-center gap-6 md:gap-16 h-[400px] mb-16 relative z-40">
-                  {/* Puesto 2 */}
                   {sortedParticipants[1] && (
                     <div className="flex flex-col items-center gap-6 animate-in slide-in-from-bottom-24 duration-700">
                       <div className="relative group">
@@ -503,7 +496,6 @@ export default function InstructorQuizPage() {
                     </div>
                   )}
 
-                  {/* Puesto 1 */}
                   {sortedParticipants[0] && (
                     <div className="flex flex-col items-center gap-8 animate-in slide-in-from-bottom-40 duration-1000 relative z-50">
                       <Crown className="h-16 w-16 text-yellow-400 animate-bounce filter drop-shadow-[0_0_15px_rgba(250,204,21,0.5)]" />
@@ -527,7 +519,6 @@ export default function InstructorQuizPage() {
                     </div>
                   )}
 
-                  {/* Puesto 3 */}
                   {sortedParticipants[2] && (
                     <div className="flex flex-col items-center gap-6 animate-in slide-in-from-bottom-16 duration-1000">
                       <div className="relative group">
@@ -576,7 +567,6 @@ export default function InstructorQuizPage() {
               </div>
             )}
 
-            {/* FASE LOBBY: Cuadrícula de alumnos conectándose */}
             {ceremonyPhase === 'idle' && (
               <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-8 gap-4 relative z-10">
                 {room?.participants?.map((p: any) => (

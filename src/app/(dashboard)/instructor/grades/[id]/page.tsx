@@ -106,6 +106,10 @@ function GradebookContent() {
         api.get<any[]>('/programas/')
       ]);
 
+      if (process.env.NODE_ENV === 'development') {
+        console.log("[GRADEBOOK DEBUG] configData:", configData);
+      }
+
       setStudents(studentData)
       if (userData.data.user?.user_metadata) {
         setUserName(`${userData.data.user.user_metadata.firstname || ""} ${userData.data.user.user_metadata.lastname || ""}`.trim().toUpperCase());
@@ -129,7 +133,6 @@ function GradebookContent() {
           const groupMap: Record<string, string> = {};
           const evalGroups = configData.grupos?.filter((g: any) => g.evaluacion_id === ev.id) || [];
           evalGroups.forEach((g: any) => {
-            // FIX: integrantes puede ser un array de objetos con alumno_id
             g.integrantes?.forEach((integrante: any) => {
               const sid = typeof integrante === 'string' ? integrante : (integrante.alumno_id || integrante.id);
               if (sid) groupMap[sid] = g.nombre_grupo;
@@ -175,7 +178,7 @@ function GradebookContent() {
 
         (configData.calificaciones || []).forEach((cal: any) => {
           if (!gradesMap[cal.alumno_id]) gradesMap[cal.alumno_id] = {};
-          gradesMap[cal.alumno_id][cal.evaluacion_id] = cal.puntaje;
+          gradesMap[cal.alumno_id][cal.evaluacion_id] = parseFloat(cal.puntaje) || 0;
 
           if (!detailsMap[cal.alumno_id]) detailsMap[cal.alumno_id] = {};
           detailsMap[cal.alumno_id][cal.evaluacion_id] = cal.detalles_json;
@@ -247,7 +250,6 @@ function GradebookContent() {
     if (!column) return
     const max = column.maxPoints || 20
     
-    // Identificar IDs de destino (si es grupal, incluir a los compañeros)
     const targetStudentIds = [studentId];
     if (column.strategy === 'grupal' && column.groups) {
       const groupName = column.groups[studentId];
@@ -278,7 +280,6 @@ function GradebookContent() {
     const numValue = Math.min(max, Math.max(0, parseFloat(value)));
     if (isNaN(numValue)) return;
     
-    // Actualizar estado local para todos los alumnos del grupo
     setGrades(prev => {
       const next = { ...prev };
       targetStudentIds.forEach(id => {
@@ -307,7 +308,6 @@ function GradebookContent() {
       });
     }
 
-    // Persistencia masiva en DB
     try {
       const promises = targetStudentIds.map(id => 
         api.post('/evaluaciones/calificar/', {
@@ -320,7 +320,7 @@ function GradebookContent() {
       );
       await Promise.all(promises);
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Error al calificar", description: "No se pudo sincronizar la nota grupal." })
+      toast({ variant: "destructive", title: "Error al calificar", description: "No se pudo sincronizar la nota con el servidor." })
     }
   }
 
@@ -429,7 +429,7 @@ function GradebookContent() {
         </div>
         <div className="space-y-2">
           <h3 className="text-xl font-black text-slate-900 uppercase">Fallo de Conexión</h3>
-          <p className="text-slate-400 font-medium max-w-md">No se pudo recuperar la información del servidor. Esto puede deberse a saturación de recursos temporales.</p>
+          <p className="text-slate-400 font-medium max-w-md">No se pudo recuperar la información del servidor. Reintente la sincronización.</p>
         </div>
         <Button onClick={fetchFullGradebook} className="bg-primary px-10 h-14 font-black uppercase text-xs tracking-widest shadow-xl shadow-primary/20 gap-3">
           <RefreshCcw className="h-5 w-5" /> REINTENTAR SINCRONIZACIÓN
