@@ -106,10 +106,6 @@ function GradebookContent() {
         api.get<any[]>('/programas/')
       ]);
 
-      if (process.env.NODE_ENV === 'development') {
-        console.log("[GRADEBOOK DEBUG] configData:", configData);
-      }
-
       setStudents(studentData)
       if (userData.data.user?.user_metadata) {
         setUserName(`${userData.data.user.user_metadata.firstname || ""} ${userData.data.user.user_metadata.lastname || ""}`.trim().toUpperCase());
