@@ -18,7 +18,7 @@ export default function StudentGameRoomPage() {
   
   const [localQuestionIndex, setLocalQuestionIndex] = React.useState(0)
   const [hasAnswered, setHasAnswered] = React.useState(false)
-  const [shuffledOptions, setShuffledOptions] = React.useState<{text: string, originalIndex: number}[]>([])
+  const [displayOptions, setDisplayOptions] = React.useState<{text: string, originalIndex: number}[]>([])
   const [lastAnswerCorrect, setLastAnswerCorrect] = React.useState<boolean | null>(null)
   const [shakeScreen, setShakeScreen] = React.useState(false)
   const [isQuizFinished, setIsQuizFinished] = React.useState(false)
@@ -66,13 +66,14 @@ export default function StudentGameRoomPage() {
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange)
   }, [participantId, reportCheat])
 
-  // Lógica de Preguntas y Opciones
+  // Lógica de Preguntas y Opciones - SIN ALEATORIEDAD
   React.useEffect(() => {
     if (room?.status === 'active' && room.questions) {
       const currentQ = room.questions[localQuestionIndex]
       if (currentQ) {
+        // Mapeamos las opciones manteniendo su orden original generado por la IA
         const options = currentQ.options.map((opt: string, i: number) => ({ text: opt, originalIndex: i }))
-        setShuffledOptions([...options].sort(() => Math.random() - 0.5))
+        setDisplayOptions(options) 
         setHasAnswered(false)
         setLastAnswerCorrect(null)
         setTimeLeft(currentQ.timeLimit || 20)
@@ -228,7 +229,7 @@ export default function StudentGameRoomPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-4xl mx-auto">
-              {shuffledOptions.map((opt, i) => (
+              {displayOptions.map((opt, i) => (
                 <Button 
                   key={`opt-${i}`} 
                   disabled={hasAnswered}
@@ -243,7 +244,7 @@ export default function StudentGameRoomPage() {
                 >
                   <div className={cn(
                     "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border-2 font-black text-xs mr-5 transition-colors",
-                    hasAnswered && opt.originalIndex === currentQ?.correctIndex ? "bg-white text-emerald-600 border-white" : "bg-slate-50 text-slate-400 border-slate-100 group-hover:border-primary/30"
+                    hasAnswered && opt.originalIndex === currentQ?.correctIndex ? "bg-white text-emerald-600 border-white" : "bg-slate-50 text-slate-300 border-slate-100 group-hover:border-primary/30"
                   )}>
                     {String.fromCharCode(65 + i)}
                   </div>
