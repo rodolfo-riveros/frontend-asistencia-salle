@@ -72,7 +72,6 @@ export default function StudentGameRoomPage() {
     if (room?.status === 'active' && room.questions) {
       const currentQ = room.questions[localQuestionIndex]
       if (currentQ) {
-        // Mapeamos las opciones manteniendo su orden original generado por la IA
         const options = currentQ.options.map((opt: string, i: number) => ({ text: opt, originalIndex: i }))
         setDisplayOptions(options) 
         setHasAnswered(false)
@@ -130,7 +129,6 @@ export default function StudentGameRoomPage() {
         isCorrect: isCorrect
       })
       
-      // Delay de transición: 1.2s si es correcto, 3s si falló para que vea el error
       const transitionDelay = isCorrect ? 1200 : 3000;
 
       setTimeout(() => {
@@ -245,14 +243,14 @@ export default function StudentGameRoomPage() {
                     className={cn(
                       "min-h-[100px] h-auto text-sm md:text-base font-bold uppercase rounded-3xl border-2 transition-all shadow-md whitespace-normal px-8 py-6 flex items-center justify-start text-left overflow-visible",
                       !hasAnswered && "hover:border-primary hover:bg-white hover:scale-[1.02] active:scale-95 group",
-                      hasAnswered && isCorrect && "bg-emerald-500 text-white border-emerald-500 shadow-emerald-200 z-10 scale-[1.03]",
+                      hasAnswered && isCorrect && isSelected && "bg-emerald-500 text-white border-emerald-500 shadow-emerald-200 z-10 scale-[1.03]",
                       hasAnswered && !isCorrect && isSelected && "bg-red-500 text-white border-red-500 shadow-red-200",
-                      hasAnswered && !isCorrect && !isSelected && "opacity-40 grayscale"
+                      hasAnswered && !isSelected && "opacity-40 grayscale"
                     )}
                   >
                     <div className={cn(
                       "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border-2 font-black text-xs mr-5 transition-colors",
-                      hasAnswered && isCorrect ? "bg-white text-emerald-600 border-white" : 
+                      hasAnswered && isSelected && isCorrect ? "bg-white text-emerald-600 border-white" : 
                       hasAnswered && isSelected && !isCorrect ? "bg-white text-red-600 border-white" :
                       "bg-slate-50 text-slate-300 border-slate-100 group-hover:border-primary/30"
                     )}>
@@ -260,7 +258,7 @@ export default function StudentGameRoomPage() {
                     </div>
                     <span className={cn(
                       "flex-1 font-black leading-tight transition-colors",
-                      hasAnswered ? "text-white" : "text-slate-700 group-hover:text-primary"
+                      hasAnswered && isSelected ? "text-white" : "text-slate-700 group-hover:text-primary"
                     )}>{opt.text}</span>
                   </Button>
                 )

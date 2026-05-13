@@ -42,6 +42,7 @@ export default function InstructorQuizPage() {
   const [mounted, setMounted] = React.useState(false)
   
   const [ceremonyPhase, setCeremonyPhase] = React.useState<'idle' | 'announcement' | 'podium'>('idle')
+  const ceremonyStartedRef = React.useRef(false)
 
   const unidadIdRef = React.useRef<string | null>(null)
   const periodoIdRef = React.useRef<string | null>(null)
@@ -95,9 +96,12 @@ export default function InstructorQuizPage() {
     fetchSession()
   }, [fetchSession])
 
+  // Lógica de Ceremonia Blindada
   React.useEffect(() => {
-    if (room?.status === 'finished' && isFullscreen && ceremonyPhase === 'idle') {
+    if (room?.status === 'finished' && isFullscreen && !ceremonyStartedRef.current) {
+      ceremonyStartedRef.current = true
       setCeremonyPhase('announcement')
+      
       confetti({
         particleCount: 200,
         spread: 100,
@@ -111,7 +115,7 @@ export default function InstructorQuizPage() {
       
       return () => clearTimeout(timer)
     }
-  }, [room?.status, isFullscreen, ceremonyPhase])
+  }, [room?.status, isFullscreen])
 
   const handleLaunchRoom = async () => {
     const questions = config?.configuracion_json?.questions;
