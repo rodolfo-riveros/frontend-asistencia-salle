@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -18,9 +19,9 @@ export default function StudentGameRoomPage() {
   
   const [localQuestionIndex, setLocalQuestionIndex] = React.useState(0)
   const [hasAnswered, setHasAnswered] = React.useState(false)
+  const [selectedOptionIndex, setSelectedOptionIndex] = React.useState<number | null>(null)
   const [displayOptions, setDisplayOptions] = React.useState<{text: string, originalIndex: number}[]>([])
   const [lastAnswerCorrect, setLastAnswerCorrect] = React.useState<boolean | null>(null)
-  const [shakeScreen, setShakeScreen] = React.useState(false)
   const [isQuizFinished, setIsQuizFinished] = React.useState(false)
   const [timeLeft, setTimeLeft] = React.useState(20)
 
@@ -75,6 +76,7 @@ export default function StudentGameRoomPage() {
         const options = currentQ.options.map((opt: string, i: number) => ({ text: opt, originalIndex: i }))
         setDisplayOptions(options) 
         setHasAnswered(false)
+        setSelectedOptionIndex(null)
         setLastAnswerCorrect(null)
         setTimeLeft(currentQ.timeLimit || 20)
       } else if (localQuestionIndex >= room.questions.length) {
@@ -106,7 +108,9 @@ export default function StudentGameRoomPage() {
     
     const currentQ = room.questions[localQuestionIndex]
     const isCorrect = originalIndex === currentQ?.correctIndex
+    
     setHasAnswered(true)
+    setSelectedOptionIndex(originalIndex)
     setLastAnswerCorrect(isCorrect)
 
     if (isCorrect) {
@@ -116,9 +120,6 @@ export default function StudentGameRoomPage() {
         origin: { y: 0.8 },
         colors: ['#2261CB', '#FFD700']
       });
-    } else {
-      setShakeScreen(true)
-      setTimeout(() => setShakeScreen(false), 500)
     }
 
     try {
@@ -129,13 +130,16 @@ export default function StudentGameRoomPage() {
         isCorrect: isCorrect
       })
       
+      // Delay de transición: 1.2s si es correcto, 3s si falló para que vea el error
+      const transitionDelay = isCorrect ? 1200 : 3000;
+
       setTimeout(() => {
         if (localQuestionIndex + 1 < room.questions.length) {
           setLocalQuestionIndex(prev => prev + 1)
         } else {
           setIsQuizFinished(true)
         }
-      }, 1200)
+      }, transitionDelay)
 
     } catch (e) {
       console.error("Error enviando respuesta:", e)
@@ -158,8 +162,7 @@ export default function StudentGameRoomPage() {
 
   return (
     <div className={cn(
-      "min-h-screen bg-[#f8f9fa] p-4 flex flex-col justify-between overflow-hidden transition-all duration-500 font-body",
-      shakeScreen && "animate-shake bg-red-600/5"
+      "min-h-screen bg-[#f8f9fa] p-4 flex flex-col justify-between overflow-hidden transition-all duration-500 font-body"
     )}>
       <div className="absolute top-0 left-0 w-full h-2 bg-slate-200">
         <div 
@@ -229,40 +232,60 @@ export default function StudentGameRoomPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-4xl mx-auto">
-              {displayOptions.map((opt, i) => (
-                <Button 
-                  key={`opt-${i}`} 
-                  disabled={hasAnswered}
-                  onClick={() => handleAnswer(opt.originalIndex)}
-                  variant="outline"
-                  className={cn(
-                    "min-h-[100px] h-auto text-sm md:text-base font-bold uppercase rounded-3xl border-2 transition-all shadow-md whitespace-normal px-8 py-6 flex items-center justify-start text-left overflow-visible",
-                    !hasAnswered && "hover:border-primary hover:bg-white hover:scale-[1.02] active:scale-95 group",
-                    hasAnswered && opt.originalIndex === currentQ?.correctIndex && "bg-emerald-500 text-white border-emerald-500 shadow-emerald-200",
-                    hasAnswered && opt.originalIndex !== currentQ?.correctIndex && "opacity-40 grayscale"
-                  )}
-                >
-                  <div className={cn(
-                    "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border-2 font-black text-xs mr-5 transition-colors",
-                    hasAnswered && opt.originalIndex === currentQ?.correctIndex ? "bg-white text-emerald-600 border-white" : "bg-slate-50 text-slate-300 border-slate-100 group-hover:border-primary/30"
-                  )}>
-                    {String.fromCharCode(65 + i)}
-                  </div>
-                  <span className="flex-1 font-black leading-tight text-slate-700 group-hover:text-primary transition-colors">{opt.text}</span>
-                </Button>
-              ))}
+              {displayOptions.map((opt, i) => {
+                const isCorrect = opt.originalIndex === currentQ?.correctIndex;
+                const isSelected = opt.originalIndex === selectedOptionIndex;
+
+                return (
+                  <Button 
+                    key={`opt-${i}`} 
+                    disabled={hasAnswered}
+                    onClick={() => handleAnswer(opt.originalIndex)}
+                    variant="outline"
+                    className={cn(
+                      "min-h-[100px] h-auto text-sm md:text-base font-bold uppercase rounded-3xl border-2 transition-all shadow-md whitespace-normal px-8 py-6 flex items-center justify-start text-left overflow-visible",
+                      !hasAnswered && "hover:border-primary hover:bg-white hover:scale-[1.02] active:scale-95 group",
+                      hasAnswered && isCorrect && "bg-emerald-500 text-white border-emerald-500 shadow-emerald-200 z-10 scale-[1.03]",
+                      hasAnswered && !isCorrect && isSelected && "bg-red-500 text-white border-red-500 shadow-red-200",
+                      hasAnswered && !isCorrect && !isSelected && "opacity-40 grayscale"
+                    )}
+                  >
+                    <div className={cn(
+                      "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border-2 font-black text-xs mr-5 transition-colors",
+                      hasAnswered && isCorrect ? "bg-white text-emerald-600 border-white" : 
+                      hasAnswered && isSelected && !isCorrect ? "bg-white text-red-600 border-white" :
+                      "bg-slate-50 text-slate-300 border-slate-100 group-hover:border-primary/30"
+                    )}>
+                      {String.fromCharCode(65 + i)}
+                    </div>
+                    <span className={cn(
+                      "flex-1 font-black leading-tight transition-colors",
+                      hasAnswered ? "text-white" : "text-slate-700 group-hover:text-primary"
+                    )}>{opt.text}</span>
+                  </Button>
+                )
+              })}
             </div>
             
             {hasAnswered && (
               <div className="text-center animate-in slide-in-from-bottom-4 duration-300">
                 <div className={cn(
-                  "inline-flex items-center gap-3 h-14 px-10 rounded-2xl uppercase font-black tracking-widest shadow-xl text-white text-sm",
-                  lastAnswerCorrect ? "bg-emerald-600" : "bg-red-600"
+                  "inline-flex flex-col items-center gap-2",
                 )}>
-                  {lastAnswerCorrect ? (
-                    <><CheckCircle2 className="h-6 w-6" /> ¡ACIERTO ÉPICO!</>
-                  ) : (
-                    <><XCircle className="h-6 w-6" /> ¡FALLO TÉCNICO!</>
+                  <div className={cn(
+                    "inline-flex items-center gap-3 h-14 px-10 rounded-2xl uppercase font-black tracking-widest shadow-xl text-white text-sm",
+                    lastAnswerCorrect ? "bg-emerald-600" : "bg-red-600"
+                  )}>
+                    {lastAnswerCorrect ? (
+                      <><CheckCircle2 className="h-6 w-6" /> ¡ACIERTO ÉPICO!</>
+                    ) : (
+                      <><XCircle className="h-6 w-6" /> ¡FALLO TÉCNICO!</>
+                    )}
+                  </div>
+                  {!lastAnswerCorrect && (
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2 animate-pulse">
+                      Preparando siguiente pregunta...
+                    </p>
                   )}
                 </div>
               </div>
