@@ -130,16 +130,14 @@ export default function StudentGameRoomPage() {
         selectedOption: originalIndex
       })
       
-      // Transición inmediata: un delay muy corto para ver el feedback visual
-      const transitionDelay = isCorrect ? 800 : 1000;
-
+      // Transición ultra rápida (800ms) para mantener el ritmo, sea correcto o incorrecto
       setTimeout(() => {
         if (localQuestionIndex + 1 < room.questions.length) {
           setLocalQuestionIndex(prev => prev + 1)
         } else {
           setIsQuizFinished(true)
         }
-      }, transitionDelay)
+      }, 800)
 
     } catch (e) {
       console.error("Error enviando respuesta:", e)
@@ -268,18 +266,6 @@ export default function StudentGameRoomPage() {
                 )
               })}
             </div>
-            
-            {hasAnswered && (
-              <div className="text-center animate-in slide-in-from-bottom-4 duration-300">
-                <div className="inline-flex items-center gap-3 h-14 px-10 rounded-2xl uppercase font-black tracking-widest shadow-xl text-white text-sm bg-slate-900">
-                  {lastAnswerCorrect ? (
-                    <><CheckCircle2 className="h-6 w-6 text-emerald-500" /> ¡PROCESANDO!</>
-                  ) : (
-                    <><XCircle className="h-6 w-6 text-red-500" /> ¡SIGUIENTE!</>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
         ) : (
           <div className="w-full max-w-4xl mx-auto space-y-8 py-6 animate-in zoom-in-95 duration-500">

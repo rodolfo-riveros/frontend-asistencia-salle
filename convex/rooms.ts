@@ -59,7 +59,7 @@ export const joinRoom = mutation({
       
     if (!room) throw new Error("La sala no existe.");
 
-    // RECUPERACIÓN DE SESIÓN POR UUID TÉCNICO
+    // Recuperación de sesión por ID de alumno
     const existingParticipant = await ctx.db
       .query("participants")
       .withIndex("by_alumno_in_room", (q) => q.eq("roomId", room._id).eq("alumno_id", args.alumno_id))
