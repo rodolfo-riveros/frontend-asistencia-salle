@@ -104,10 +104,11 @@ export const reportCheat = mutation({
 
 export const submitAnswer = mutation({
   args: {
-    roomCode:      v.string(),
-    participantId: v.string(),
-    questionIndex: v.number(),
-    isCorrect:     v.boolean(),
+    roomCode:       v.string(),
+    participantId:  v.string(),
+    questionIndex:  v.number(),
+    isCorrect:      v.boolean(),
+    selectedOption: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const pId = args.participantId as any;
@@ -117,7 +118,13 @@ export const submitAnswer = mutation({
     const yaRespondio = participant.answers.some((a: any) => a.questionIndex === args.questionIndex);
     if (yaRespondio) return { alreadyAnswered: true };
 
-    const newAnswers = [...participant.answers, { questionIndex: args.questionIndex, isCorrect: args.isCorrect }];
+    const newAnswer = { 
+      questionIndex: args.questionIndex, 
+      isCorrect: args.isCorrect,
+      selectedOption: args.selectedOption 
+    };
+    const newAnswers = [...participant.answers, newAnswer];
+    
     await ctx.db.patch(participant._id, {
       answers: newAnswers,
       score:   participant.score + (args.isCorrect ? 100 : 0), 

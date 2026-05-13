@@ -1,9 +1,8 @@
-
 "use client"
 
 import * as React from "react"
 import { useParams, useRouter } from "next/navigation"
-import { Loader2, Trophy, CheckCircle2, Zap, Clock, ShieldCheck, XCircle, Sparkles, LogOut } from "lucide-react"
+import { Loader2, Trophy, CheckCircle2, Zap, Clock, ShieldCheck, XCircle, Sparkles, LogOut, ListChecks, ArrowRight, HelpCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useQuery, useMutation } from "convex/react"
 import { api as convexApi } from "@convex/_generated/api"
@@ -11,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { cn, getInitials } from "@/lib/utils"
 import confetti from "canvas-confetti"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 export default function StudentGameRoomPage() {
   const params = useParams()
@@ -67,7 +67,7 @@ export default function StudentGameRoomPage() {
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange)
   }, [participantId, reportCheat])
 
-  // Lógica de Preguntas y Opciones - SIN ALEATORIEDAD
+  // Lógica de Preguntas y Opciones
   React.useEffect(() => {
     if (room?.status === 'active' && room.questions) {
       const currentQ = room.questions[localQuestionIndex]
@@ -126,10 +126,12 @@ export default function StudentGameRoomPage() {
         roomCode: params.roomId as string,
         participantId,
         questionIndex: localQuestionIndex,
-        isCorrect: isCorrect
+        isCorrect: isCorrect,
+        selectedOption: originalIndex
       })
       
-      const transitionDelay = isCorrect ? 1200 : 3000;
+      // Transición inmediata: un delay muy corto para ver el feedback visual
+      const transitionDelay = isCorrect ? 800 : 1000;
 
       setTimeout(() => {
         if (localQuestionIndex + 1 < room.questions.length) {
@@ -157,6 +159,8 @@ export default function StudentGameRoomPage() {
   )
 
   const currentQ = room.questions[localQuestionIndex]
+  const correctsCount = myData?.answers?.filter((a: any) => a.isCorrect).length || 0;
+  const incorrectsCount = (myData?.answers?.length || 0) - correctsCount;
 
   return (
     <div className={cn(
@@ -267,71 +271,111 @@ export default function StudentGameRoomPage() {
             
             {hasAnswered && (
               <div className="text-center animate-in slide-in-from-bottom-4 duration-300">
-                <div className={cn(
-                  "inline-flex flex-col items-center gap-2",
-                )}>
-                  <div className={cn(
-                    "inline-flex items-center gap-3 h-14 px-10 rounded-2xl uppercase font-black tracking-widest shadow-xl text-white text-sm",
-                    lastAnswerCorrect ? "bg-emerald-600" : "bg-red-600"
-                  )}>
-                    {lastAnswerCorrect ? (
-                      <><CheckCircle2 className="h-6 w-6" /> ¡ACIERTO ÉPICO!</>
-                    ) : (
-                      <><XCircle className="h-6 w-6" /> ¡FALLO TÉCNICO!</>
-                    )}
-                  </div>
-                  {!lastAnswerCorrect && (
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2 animate-pulse">
-                      Preparando siguiente pregunta...
-                    </p>
+                <div className="inline-flex items-center gap-3 h-14 px-10 rounded-2xl uppercase font-black tracking-widest shadow-xl text-white text-sm bg-slate-900">
+                  {lastAnswerCorrect ? (
+                    <><CheckCircle2 className="h-6 w-6 text-emerald-500" /> ¡PROCESANDO!</>
+                  ) : (
+                    <><XCircle className="h-6 w-6 text-red-500" /> ¡SIGUIENTE!</>
                   )}
                 </div>
               </div>
             )}
           </div>
         ) : (
-          <div className="text-center space-y-10 animate-in zoom-in-95 w-full px-4 max-w-2xl mx-auto">
-            <div className="p-12 md:p-20 bg-white rounded-[4rem] border-t-[14px] border-emerald-500 shadow-2xl space-y-12 relative overflow-hidden">
-              <div className="absolute -top-12 -right-12 w-64 h-64 bg-primary/5 rounded-full blur-[100px]" />
-              <div className="relative">
-                 <Trophy className="h-32 w-32 text-yellow-400 mx-auto animate-bounce drop-shadow-2xl" />
-                 <Sparkles className="h-10 w-10 text-yellow-400 absolute top-0 right-1/4 animate-pulse" />
-              </div>
-              
-              <div className="space-y-6">
-                <h2 className="text-4xl md:text-6xl font-black text-slate-900 uppercase italic tracking-tighter leading-none">Desafío Terminado</h2>
-                <div className="bg-slate-50 rounded-[3rem] p-10 border-4 border-slate-100 inline-block shadow-inner">
-                   <p className="text-[12px] font-black uppercase text-slate-400 tracking-[0.4em] mb-4">PUNTAJE ACUMULADO</p>
-                   <span className="text-6xl md:text-8xl font-black text-primary font-mono tracking-tighter">{myData?.score || 0}</span>
+          <div className="w-full max-w-4xl mx-auto space-y-8 py-6 animate-in zoom-in-95 duration-500">
+            {room.status === 'finished' ? (
+              <div className="space-y-8">
+                <div className="bg-white p-8 md:p-12 rounded-[3rem] border-b-[8px] border-emerald-500 shadow-2xl text-center space-y-6">
+                  <div className="relative inline-block">
+                    <Trophy className="h-24 w-24 text-yellow-400 mx-auto animate-bounce" />
+                    <Sparkles className="h-8 w-8 text-yellow-400 absolute -top-4 -right-4 animate-pulse" />
+                  </div>
+                  <h2 className="text-4xl md:text-5xl font-black text-slate-900 uppercase italic tracking-tighter">Feedback de Arena</h2>
+                  <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">Revisión técnica de tus resultados</p>
+                  
+                  <div className="grid grid-cols-2 gap-4 max-w-md mx-auto pt-4">
+                    <div className="bg-emerald-50 p-6 rounded-3xl border-2 border-emerald-100 flex flex-col items-center">
+                      <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Aciertos</span>
+                      <span className="text-4xl font-black text-emerald-700">{correctsCount}</span>
+                    </div>
+                    <div className="bg-red-50 p-6 rounded-3xl border-2 border-red-100 flex flex-col items-center">
+                      <span className="text-[10px] font-black text-red-600 uppercase tracking-widest mb-1">Fallos</span>
+                      <span className="text-4xl font-black text-red-700">{incorrectsCount}</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex flex-col items-center gap-3 pt-6">
-                   <Avatar className="h-12 w-12 border-2 border-primary/20">
-                      <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(myData?.avatar || "salle")}`} />
-                      <AvatarFallback className="bg-primary/5 text-primary font-bold">{getInitials(myData?.name || "??")}</AvatarFallback>
-                   </Avatar>
-                   <p className="text-slate-500 font-bold uppercase tracking-[0.2em] text-[11px] italic">
-                      Héroe Salle: {myData?.avatar || 'Aspirante'}
-                   </p>
-                </div>
-              </div>
 
-              {room.status === 'finished' ? (
+                <div className="space-y-6">
+                  <h3 className="text-xl font-black text-slate-800 uppercase italic tracking-tighter flex items-center gap-3 ml-4">
+                    <ListChecks className="h-6 w-6 text-primary" /> Historial de Respuestas
+                  </h3>
+                  <div className="grid gap-4">
+                    {room.questions.map((q: any, idx: number) => {
+                      const answer = myData?.answers?.find((a: any) => a.questionIndex === idx);
+                      const wasCorrect = answer?.isCorrect;
+                      
+                      return (
+                        <div key={idx} className={cn(
+                          "bg-white p-6 rounded-[2rem] border-2 shadow-md transition-all flex flex-col md:flex-row items-center gap-6",
+                          wasCorrect ? "border-emerald-100" : "border-red-100"
+                        )}>
+                          <div className={cn(
+                            "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 font-black text-sm",
+                            wasCorrect ? "bg-emerald-500 text-white" : "bg-red-500 text-white"
+                          )}>
+                            {wasCorrect ? <CheckCircle2 className="h-6 w-6" /> : <XCircle className="h-6 w-6" />}
+                          </div>
+                          
+                          <div className="flex-grow space-y-2 text-center md:text-left">
+                             <p className="text-sm font-black text-slate-800 uppercase tracking-tight leading-tight">{q.text}</p>
+                             {!wasCorrect && (
+                               <div className="flex items-center justify-center md:justify-start gap-2 bg-emerald-50 px-4 py-2 rounded-xl border border-emerald-100 w-fit mx-auto md:mx-0">
+                                 <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Respuesta Correcta:</span>
+                                 <span className="text-[11px] font-bold text-emerald-700">{q.options[q.correctIndex]}</span>
+                               </div>
+                             )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+
                 <Button 
                   onClick={() => router.push('/student/quiz/join')} 
                   className="w-full h-20 bg-primary hover:bg-primary/95 text-white rounded-[2rem] font-black uppercase text-sm tracking-widest shadow-2xl transition-all active:scale-95 border-b-8 border-primary/20 gap-3"
                 >
                   <LogOut className="h-6 w-6" /> VOLVER AL PORTAL
                 </Button>
-              ) : (
+              </div>
+            ) : (
+              <div className="bg-white p-12 md:p-20 rounded-[4rem] border-t-[14px] border-primary shadow-2xl text-center space-y-12 relative overflow-hidden">
+                <div className="absolute -top-12 -right-12 w-64 h-64 bg-primary/5 rounded-full blur-[100px]" />
+                <div className="relative">
+                   <div className="bg-slate-50 rounded-[3rem] p-10 border-4 border-slate-100 inline-block shadow-inner mb-8">
+                      <p className="text-[12px] font-black uppercase text-slate-400 tracking-[0.4em] mb-4">DESEMPEÑO ACTUAL</p>
+                      <span className="text-6xl md:text-8xl font-black text-primary font-mono tracking-tighter">{myData?.score || 0}</span>
+                   </div>
+                   
+                   <div className="grid grid-cols-2 gap-4 max-w-sm mx-auto">
+                     <div className="flex flex-col items-center gap-2">
+                       <Badge className="bg-emerald-100 text-emerald-700 border-none font-black text-xs px-4">{correctsCount} CORRECTAS</Badge>
+                     </div>
+                     <div className="flex flex-col items-center gap-2">
+                       <Badge className="bg-red-100 text-red-700 border-none font-black text-xs px-4">{incorrectsCount} FALLOS</Badge>
+                     </div>
+                   </div>
+                </div>
+
                 <div className="p-8 bg-blue-50 rounded-[2.5rem] border-2 border-blue-100 flex flex-col items-center gap-4 shadow-inner">
                   <div className="flex items-center gap-4">
                     <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                    <p className="text-[11px] font-black text-primary uppercase tracking-[0.2em]">Esperando resultados oficiales...</p>
+                    <p className="text-[11px] font-black text-primary uppercase tracking-[0.2em]">Esperando cierre del docente...</p>
                   </div>
-                  <p className="text-[9px] font-black text-blue-300 uppercase tracking-widest">NO CIERRES ESTA PANTALLA, ASPIRANTE</p>
+                  <p className="text-[9px] font-black text-blue-300 uppercase tracking-widest">PARA VER TU FEEDBACK DETALLADO</p>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         )}
       </main>

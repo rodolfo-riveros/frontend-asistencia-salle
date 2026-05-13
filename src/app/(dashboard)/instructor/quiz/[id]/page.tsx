@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -778,5 +777,24 @@ export default function InstructorQuizPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+function ActionBtn({ icon: Icon, active, color, onClick }: any) {
+  const styles: any = {
+    green: active ? "bg-emerald-600 text-white scale-110 shadow-lg shadow-emerald-200" : "text-slate-300 hover:text-emerald-600 hover:bg-emerald-50",
+    amber: active ? "bg-amber-500 text-white scale-110 shadow-lg shadow-amber-200" : "text-slate-300 hover:text-amber-600 hover:bg-amber-50",
+    red: active ? "bg-red-600 text-white scale-110 shadow-lg shadow-red-200" : "text-slate-300 hover:text-red-600 hover:bg-red-50",
+    blue: active ? "bg-blue-600 text-white scale-110 shadow-lg shadow-blue-200" : "text-slate-300 hover:text-blue-600 hover:bg-blue-50",
+  }
+  return (
+    <Button 
+      size="icon" 
+      variant="outline" 
+      onClick={onClick} 
+      className={`h-11 w-11 rounded-2xl border-slate-100 transition-all duration-300 ${styles[color]}`}
+    >
+      <Icon className="h-5 w-5" />
+    </Button>
   )
 }

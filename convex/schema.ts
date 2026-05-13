@@ -36,6 +36,7 @@ export default defineSchema({
       v.object({
         questionIndex: v.number(),
         isCorrect:     v.boolean(),
+        selectedOption: v.optional(v.number()), // Guardamos qué marcó para el feedback
       })
     ),
   }).index("by_room", ["roomId"])
