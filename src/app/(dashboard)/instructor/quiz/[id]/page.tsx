@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -7,7 +8,7 @@ import {
   Loader2, Radio, Users, Maximize2, Play, Trophy, 
   ShieldCheck, UserX, Crown, Zap, Clock, BookOpen, 
   AlertTriangle, Target, Percent, Award, ChevronRight,
-  Medal, ListChecks, CheckCircle2, XCircle, LogOut, Download, Copy, Link as LinkIcon
+  Medal, ListChecks, CheckCircle2, Download, Copy, Link as LinkIcon
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardTitle } from "@/components/ui/card"
@@ -154,6 +155,17 @@ export default function InstructorQuizPage() {
     }
   }
 
+  const handleNextQuestion = async () => {
+    if (!roomCode || !room) return
+    const nextIdx = room.currentQuestionIndex + 1
+    if (nextIdx >= room.questions.length) {
+      await handleFinishGame()
+    } else {
+      await updateStatus({ roomCode, status: 'active', nextQuestion: nextIdx })
+      toast({ title: `Pregunta ${nextIdx + 1} de ${room.questions.length}` })
+    }
+  }
+
   const handleProjectArena = async () => {
     if (!roomCode || !config) return;
     if (!room) {
@@ -184,7 +196,7 @@ export default function InstructorQuizPage() {
 
   const handleStartGame = async () => {
     if (!roomCode) return
-    await updateStatus({ roomCode, status: 'active' })
+    await updateStatus({ roomCode, status: 'active', nextQuestion: 0 })
     toast({ title: "¡Arena Iniciada!" })
   }
 
@@ -403,33 +415,31 @@ export default function InstructorQuizPage() {
         <div className="flex-grow flex flex-col lg:flex-row overflow-hidden">
           <div className="w-full lg:w-[450px] bg-white/10 backdrop-blur-md border-r border-white/10 shadow-2xl z-20 flex flex-col overflow-hidden">
             <ScrollArea className="flex-grow p-10">
-              <div className="space-y-12 pb-10">
+              <div className="space-y-10 pb-10">
                 <div className="flex items-center gap-4">
                   <Zap className="h-10 w-10 text-yellow-400 fill-yellow-400" />
                   <h2 className="text-3xl font-black text-white uppercase tracking-tighter italic leading-none">Arena Live</h2>
                 </div>
 
-                <div className="bg-white p-8 rounded-[3rem] shadow-2xl text-center space-y-4 border-b-8 border-yellow-400 relative overflow-hidden">
+                <div className="bg-white p-6 rounded-[2.5rem] shadow-2xl text-center space-y-4 border-b-8 border-yellow-400 relative overflow-hidden">
                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">CÓDIGO PIN</p>
-                   <h3 className="text-7xl font-black text-primary font-mono tracking-tighter leading-none">{roomCode}</h3>
-                   <div className="p-4 bg-slate-50 rounded-[2.5rem] border-2 border-slate-100 shadow-inner">
+                   <h3 className="text-6xl font-black text-primary font-mono tracking-tighter leading-none">{roomCode}</h3>
+                   <div className="p-4 bg-slate-50 rounded-[2rem] border-2 border-slate-100 shadow-inner">
                       {mounted && (
                         <img 
                           src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(window.location.origin)}/student/quiz/join?pin=${roomCode}`} 
-                          className="w-40 h-44 mix-blend-multiply mx-auto" 
+                          className="w-32 h-32 mix-blend-multiply mx-auto" 
                           alt="QR" 
                         />
                       )}
                    </div>
-                   <div className="pt-2 flex flex-col gap-2">
-                      <Button onClick={handleCopyLink} variant="ghost" className="h-10 gap-2 text-primary font-black uppercase text-[9px] tracking-widest hover:bg-slate-100 rounded-xl w-full">
-                        <LinkIcon className="h-3.5 w-3.5" /> Copiar Enlace Directo
-                      </Button>
-                   </div>
+                   <Button onClick={handleCopyLink} variant="ghost" className="h-10 gap-2 text-primary font-black uppercase text-[9px] tracking-widest hover:bg-slate-100 rounded-xl w-full">
+                     <LinkIcon className="h-3.5 w-3.5" /> Copiar Enlace
+                   </Button>
                 </div>
 
-                <div className="space-y-6">
-                  <div className="flex justify-between items-center px-6">
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center px-4">
                     <div className="flex flex-col text-white">
                       <span className="text-[10px] font-black uppercase opacity-60 tracking-widest">ASPIRANTES</span>
                       <div className="flex items-center gap-2">
@@ -437,6 +447,12 @@ export default function InstructorQuizPage() {
                         <span className="text-4xl font-black">{room?.participants?.length || 0}</span>
                       </div>
                     </div>
+                    {room.status === 'active' && (
+                      <div className="text-right">
+                         <span className="text-[10px] font-black uppercase opacity-60 tracking-widest">PREGUNTA</span>
+                         <div className="text-2xl font-black text-white">{room.currentQuestionIndex + 1} / {room.questions.length}</div>
+                      </div>
+                    )}
                   </div>
                   
                   {room.status === 'lobby' ? (
@@ -444,9 +460,14 @@ export default function InstructorQuizPage() {
                       INICIAR ARENA
                     </Button>
                   ) : room.status === 'active' ? (
-                    <Button onClick={handleFinishGame} className="w-full h-20 bg-red-500 text-white rounded-[2rem] font-black text-xl shadow-2xl transition-all hover:scale-[1.02] border-b-4 border-red-700">
-                      FINALIZAR DESAFÍO
-                    </Button>
+                    <div className="space-y-3">
+                      <Button onClick={handleNextQuestion} className="w-full h-20 bg-emerald-500 text-white rounded-[2rem] font-black text-xl shadow-2xl transition-all hover:scale-[1.02] border-b-4 border-emerald-700 gap-3">
+                        <ChevronRight className="h-6 w-6" /> SIGUIENTE PREGUNTA
+                      </Button>
+                      <Button onClick={handleFinishGame} variant="outline" className="w-full h-14 bg-red-500/10 border-red-500 text-red-500 rounded-[1.5rem] font-black text-sm uppercase tracking-widest">
+                        FINALIZAR DESAFÍO
+                      </Button>
+                    </div>
                   ) : (
                     <Button onClick={handleShowSummary} className="w-full h-20 bg-white text-primary rounded-[2rem] font-black text-xl shadow-2xl border-b-4 border-slate-200 gap-3">
                       <CheckCircle2 className="h-6 w-6" /> VER RESULTADOS
@@ -777,24 +798,5 @@ export default function InstructorQuizPage() {
         </div>
       </div>
     </div>
-  )
-}
-
-function ActionBtn({ icon: Icon, active, color, onClick }: any) {
-  const styles: any = {
-    green: active ? "bg-emerald-600 text-white scale-110 shadow-lg shadow-emerald-200" : "text-slate-300 hover:text-emerald-600 hover:bg-emerald-50",
-    amber: active ? "bg-amber-500 text-white scale-110 shadow-lg shadow-amber-200" : "text-slate-300 hover:text-amber-600 hover:bg-amber-50",
-    red: active ? "bg-red-600 text-white scale-110 shadow-lg shadow-red-200" : "text-slate-300 hover:text-red-600 hover:bg-red-50",
-    blue: active ? "bg-blue-600 text-white scale-110 shadow-lg shadow-blue-200" : "text-slate-300 hover:text-blue-600 hover:bg-blue-50",
-  }
-  return (
-    <Button 
-      size="icon" 
-      variant="outline" 
-      onClick={onClick} 
-      className={`h-11 w-11 rounded-2xl border-slate-100 transition-all duration-300 ${styles[color]}`}
-    >
-      <Icon className="h-5 w-5" />
-    </Button>
   )
 }

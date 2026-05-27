@@ -17,12 +17,9 @@ export default function StudentGameRoomPage() {
   const router = useRouter()
   const [participantId, setParticipantId] = React.useState<string | null>(null)
   
-  const [localQuestionIndex, setLocalQuestionIndex] = React.useState(0)
   const [hasAnswered, setHasAnswered] = React.useState(false)
   const [selectedOptionIndex, setSelectedOptionIndex] = React.useState<number | null>(null)
-  const [displayOptions, setDisplayOptions] = React.useState<{text: string, originalIndex: number}[]>([])
   const [lastAnswerCorrect, setLastAnswerCorrect] = React.useState<boolean | null>(null)
-  const [isQuizFinished, setIsQuizFinished] = React.useState(false)
   const [timeLeft, setTimeLeft] = React.useState(20)
 
   const room = useQuery(convexApi.rooms.getRoom, { roomCode: (params.roomId as string).toUpperCase() })
@@ -34,7 +31,11 @@ export default function StudentGameRoomPage() {
     return room.participants.find((p: any) => p._id === participantId)
   }, [room?.participants, participantId])
 
-  // Cargar sesión y sincronizar progreso
+  const currentQuestionIndex = room?.currentQuestionIndex ?? 0
+  const currentQ = room?.questions ? room.questions[currentQuestionIndex] : null
+  const isQuizFinished = room?.status === 'finished' || (room?.questions && currentQuestionIndex >= room.questions.length)
+
+  // Cargar sesión
   React.useEffect(() => {
     const pId = localStorage.getItem(`p_${params.roomId}`)
     if (!pId) {
@@ -44,17 +45,25 @@ export default function StudentGameRoomPage() {
     }
   }, [params.roomId, router])
 
-  // Sincronizar indice de pregunta si ya respondió algunas
+  // Resetear estado local cuando el docente avanza de pregunta
   React.useEffect(() => {
-    if (myData?.answers && room?.questions) {
-      const nextIdx = myData.answers.length;
-      if (nextIdx >= room.questions.length) {
-        setIsQuizFinished(true);
-      } else {
-        setLocalQuestionIndex(nextIdx);
+    if (currentQ) {
+      setHasAnswered(false)
+      setSelectedOptionIndex(null)
+      setLastAnswerCorrect(null)
+      setTimeLeft(currentQ.timeLimit || 20)
+      
+      // Verificar si ya respondió esta pregunta anteriormente (por si se reconecta)
+      if (myData?.answers) {
+        const prevAnswer = myData.answers.find((a: any) => a.questionIndex === currentQuestionIndex)
+        if (prevAnswer) {
+          setHasAnswered(true)
+          setSelectedOptionIndex(prevAnswer.selectedOption)
+          setLastAnswerCorrect(prevAnswer.isCorrect)
+        }
       }
     }
-  }, [myData?.answers, room?.questions])
+  }, [currentQuestionIndex, !!currentQ, myData?.answers])
 
   // Detector de Fraude
   React.useEffect(() => {
@@ -67,26 +76,9 @@ export default function StudentGameRoomPage() {
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange)
   }, [participantId, reportCheat])
 
-  // Lógica de Preguntas y Opciones
+  // Contador de Tiempo Maestro - Solo corre si la pregunta está activa y no ha respondido
   React.useEffect(() => {
-    if (room?.status === 'active' && room.questions) {
-      const currentQ = room.questions[localQuestionIndex]
-      if (currentQ) {
-        const options = currentQ.options.map((opt: string, i: number) => ({ text: opt, originalIndex: i }))
-        setDisplayOptions(options) 
-        setHasAnswered(false)
-        setSelectedOptionIndex(null)
-        setLastAnswerCorrect(null)
-        setTimeLeft(currentQ.timeLimit || 20)
-      } else if (localQuestionIndex >= room.questions.length) {
-        setIsQuizFinished(true)
-      }
-    }
-  }, [localQuestionIndex, room?.status, room?.questions])
-
-  // Contador de Tiempo Maestro
-  React.useEffect(() => {
-    if (room?.status !== 'active' || isQuizFinished || hasAnswered) return
+    if (room?.status !== 'active' || isQuizFinished || hasAnswered || !currentQ) return
 
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
@@ -100,13 +92,12 @@ export default function StudentGameRoomPage() {
     }, 1000)
 
     return () => clearInterval(timer)
-  }, [localQuestionIndex, hasAnswered, room?.status, isQuizFinished])
+  }, [currentQuestionIndex, hasAnswered, room?.status, isQuizFinished, !!currentQ])
 
   const handleAnswer = async (originalIndex: number) => {
-    if (hasAnswered || !participantId || !room?.questions) return
+    if (hasAnswered || !participantId || !currentQ) return
     
-    const currentQ = room.questions[localQuestionIndex]
-    const isCorrect = originalIndex === currentQ?.correctIndex
+    const isCorrect = originalIndex === currentQ.correctIndex
     
     setHasAnswered(true)
     setSelectedOptionIndex(originalIndex)
@@ -114,7 +105,7 @@ export default function StudentGameRoomPage() {
 
     if (isCorrect) {
       confetti({
-        particleCount: 100,
+        particleCount: 80,
         spread: 70,
         origin: { y: 0.8 },
         colors: ['#2261CB', '#FFD700']
@@ -125,20 +116,10 @@ export default function StudentGameRoomPage() {
       await submitAnswer({
         roomCode: params.roomId as string,
         participantId,
-        questionIndex: localQuestionIndex,
+        questionIndex: currentQuestionIndex,
         isCorrect: isCorrect,
         selectedOption: originalIndex
       })
-      
-      // Transición ultra rápida (800ms) para mantener el ritmo, sea correcto o incorrecto
-      setTimeout(() => {
-        if (localQuestionIndex + 1 < room.questions.length) {
-          setLocalQuestionIndex(prev => prev + 1)
-        } else {
-          setIsQuizFinished(true)
-        }
-      }, 800)
-
     } catch (e) {
       console.error("Error enviando respuesta:", e)
     }
@@ -156,7 +137,6 @@ export default function StudentGameRoomPage() {
     </div>
   )
 
-  const currentQ = room.questions[localQuestionIndex]
   const correctsCount = myData?.answers?.filter((a: any) => a.isCorrect).length || 0;
   const incorrectsCount = (myData?.answers?.length || 0) - correctsCount;
 
@@ -167,7 +147,7 @@ export default function StudentGameRoomPage() {
       <div className="absolute top-0 left-0 w-full h-2 bg-slate-200">
         <div 
           className="h-full bg-primary transition-all duration-500 ease-out shadow-[0_0_15px_rgba(34,97,203,0.4)]" 
-          style={{ width: `${((localQuestionIndex + (hasAnswered ? 1 : 0)) / (room.questions?.length || 1)) * 100}%` }} 
+          style={{ width: `${((currentQuestionIndex + (hasAnswered ? 1 : 0)) / (room.questions?.length || 1)) * 100}%` }} 
         />
       </div>
 
@@ -192,7 +172,7 @@ export default function StudentGameRoomPage() {
             </div>
           )}
           <Badge className="h-10 px-4 rounded-xl bg-white border-2 border-primary/5 text-primary font-black text-[10px] uppercase tracking-widest shadow-md">
-            {Math.min(localQuestionIndex + 1, room.questions.length)} / {room.questions.length}
+            {Math.min(currentQuestionIndex + 1, room.questions.length)} / {room.questions.length}
           </Badge>
         </div>
       </header>
@@ -217,55 +197,62 @@ export default function StudentGameRoomPage() {
           </div>
         ) : (room.status === 'active' && !isQuizFinished) ? (
           <div className="w-full space-y-10 animate-in fade-in duration-500 px-4">
-            <div className="text-center space-y-6">
-               <div className="flex items-center justify-center gap-3 mb-4">
-                  <div className={cn(
-                    "flex items-center gap-2 px-6 py-2 rounded-full border-2 font-black text-sm",
-                    timeLeft <= 5 ? "bg-red-50 border-red-500 text-red-600 animate-pulse" : "bg-white border-slate-100 text-slate-400"
-                  )}>
-                    <Clock className="h-4 w-4" /> {timeLeft}s
-                  </div>
-               </div>
-               <h1 className="text-xl md:text-2xl font-black text-slate-900 leading-snug uppercase italic tracking-tight max-w-3xl mx-auto">
-                 {currentQ?.text}
-               </h1>
-            </div>
+            {hasAnswered ? (
+              <div className="text-center space-y-8 animate-in zoom-in-95">
+                <div className={cn(
+                  "p-12 md:p-20 rounded-[4rem] border-b-[12px] shadow-2xl space-y-6",
+                  lastAnswerCorrect ? "bg-emerald-50 border-emerald-500" : "bg-red-50 border-red-500"
+                )}>
+                  {lastAnswerCorrect ? (
+                    <CheckCircle2 className="h-24 w-24 text-emerald-500 mx-auto animate-bounce" />
+                  ) : (
+                    <XCircle className="h-24 w-24 text-red-500 mx-auto" />
+                  )}
+                  <h3 className="text-4xl font-black uppercase italic tracking-tighter text-slate-900">
+                    {lastAnswerCorrect ? "¡EXCELENTE!" : "¡SIGUE ADELANTE!"}
+                  </h3>
+                  <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.4em]">
+                    Esperando a que el docente avance...
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="text-center space-y-6">
+                   <div className="flex items-center justify-center gap-3 mb-4">
+                      <div className={cn(
+                        "flex items-center gap-2 px-6 py-2 rounded-full border-2 font-black text-sm",
+                        timeLeft <= 5 ? "bg-red-50 border-red-500 text-red-600 animate-pulse" : "bg-white border-slate-100 text-slate-400"
+                      )}>
+                        <Clock className="h-4 w-4" /> {timeLeft}s
+                      </div>
+                   </div>
+                   <h1 className="text-xl md:text-2xl font-black text-slate-900 leading-snug uppercase italic tracking-tight max-w-3xl mx-auto">
+                     {currentQ?.text}
+                   </h1>
+                </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-4xl mx-auto">
-              {displayOptions.map((opt, i) => {
-                const isCorrect = opt.originalIndex === currentQ?.correctIndex;
-                const isSelected = opt.originalIndex === selectedOptionIndex;
-
-                return (
-                  <Button 
-                    key={`opt-${i}`} 
-                    disabled={hasAnswered}
-                    onClick={() => handleAnswer(opt.originalIndex)}
-                    variant="outline"
-                    className={cn(
-                      "min-h-[100px] h-auto text-sm md:text-base font-bold uppercase rounded-3xl border-2 transition-all shadow-md whitespace-normal px-8 py-6 flex items-center justify-start text-left overflow-visible",
-                      !hasAnswered && "hover:border-primary hover:bg-white hover:scale-[1.02] active:scale-95 group",
-                      hasAnswered && isCorrect && isSelected && "bg-emerald-500 text-white border-emerald-500 shadow-emerald-200 z-10 scale-[1.03]",
-                      hasAnswered && !isCorrect && isSelected && "bg-red-500 text-white border-red-500 shadow-red-200",
-                      hasAnswered && !isSelected && "opacity-40 grayscale"
-                    )}
-                  >
-                    <div className={cn(
-                      "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border-2 font-black text-xs mr-5 transition-colors",
-                      hasAnswered && isSelected && isCorrect ? "bg-white text-emerald-600 border-white" : 
-                      hasAnswered && isSelected && !isCorrect ? "bg-white text-red-600 border-white" :
-                      "bg-slate-50 text-slate-300 border-slate-100 group-hover:border-primary/30"
-                    )}>
-                      {String.fromCharCode(65 + i)}
-                    </div>
-                    <span className={cn(
-                      "flex-1 font-black leading-tight transition-colors",
-                      hasAnswered && isSelected ? "text-white" : "text-slate-700 group-hover:text-primary"
-                    )}>{opt.text}</span>
-                  </Button>
-                )
-              })}
-            </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-4xl mx-auto">
+                  {currentQ?.options.map((opt: string, i: number) => (
+                    <Button 
+                      key={`opt-${i}`} 
+                      disabled={hasAnswered}
+                      onClick={() => handleAnswer(i)}
+                      variant="outline"
+                      className={cn(
+                        "min-h-[100px] h-auto text-sm md:text-base font-bold uppercase rounded-3xl border-2 transition-all shadow-md whitespace-normal px-8 py-6 flex items-center justify-start text-left overflow-visible",
+                        "hover:border-primary hover:bg-white hover:scale-[1.02] active:scale-95 group"
+                      )}
+                    >
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border-2 font-black text-xs mr-5 bg-slate-50 text-slate-300 border-slate-100 group-hover:border-primary/30">
+                        {String.fromCharCode(65 + i)}
+                      </div>
+                      <span className="flex-1 font-black leading-tight text-slate-700 group-hover:text-primary">{opt}</span>
+                    </Button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         ) : (
           <div className="w-full max-w-4xl mx-auto space-y-8 py-6 animate-in zoom-in-95 duration-500">
@@ -356,9 +343,9 @@ export default function StudentGameRoomPage() {
                 <div className="p-8 bg-blue-50 rounded-[2.5rem] border-2 border-blue-100 flex flex-col items-center gap-4 shadow-inner">
                   <div className="flex items-center gap-4">
                     <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                    <p className="text-[11px] font-black text-primary uppercase tracking-[0.2em]">Esperando cierre del docente...</p>
+                    <p className="text-[11px] font-black text-primary uppercase tracking-[0.2em]">Esperando que el docente avance...</p>
                   </div>
-                  <p className="text-[9px] font-black text-blue-300 uppercase tracking-widest">PARA VER TU FEEDBACK DETALLADO</p>
+                  <p className="text-[9px] font-black text-blue-300 uppercase tracking-widest">PARA VER TU SIGUIENTE RETO O FEEDBACK FINAL</p>
                 </div>
               </div>
             )}

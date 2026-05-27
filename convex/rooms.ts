@@ -59,7 +59,6 @@ export const joinRoom = mutation({
       
     if (!room) throw new Error("La sala no existe.");
 
-    // Recuperación de sesión por ID de alumno
     const existingParticipant = await ctx.db
       .query("participants")
       .withIndex("by_alumno_in_room", (q) => q.eq("roomId", room._id).eq("alumno_id", args.alumno_id))
@@ -145,7 +144,12 @@ export const updateStatus = mutation({
       
     if (!room) throw new Error("Sala no encontrada.");
     const patch: any = { status: args.status };
-    if (args.nextQuestion !== undefined) patch.currentQuestionIndex = args.nextQuestion;
+    if (args.nextQuestion !== undefined) {
+      // No permitir retroceder preguntas
+      if (args.nextQuestion > room.currentQuestionIndex) {
+        patch.currentQuestionIndex = args.nextQuestion;
+      }
+    }
     await ctx.db.patch(room._id, patch);
   },
 });
