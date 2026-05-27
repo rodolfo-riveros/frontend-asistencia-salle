@@ -495,7 +495,7 @@ export default function InstructorQuizPage() {
                       </div>
                       <div className="text-center space-y-2">
                         <p className="font-black text-white text-2xl uppercase tracking-tighter drop-shadow-lg">{sortedParticipants[0].name.split(',')[0]}</p>
-                        <div className="bg-yellow-400 px-6 py-1.5 rounded-full shadow-[0_0_20px_rgba(250,204,21,0.4)]">
+                        <div className="bg-yellow-400 px-6 py-1.5 rounded-full shadow-[0_0_20px_rgba(0,0,0,0.4)]">
                           <span className="text-primary font-black text-2xl">{sortedParticipants[0].score}</span>
                         </div>
                       </div>
