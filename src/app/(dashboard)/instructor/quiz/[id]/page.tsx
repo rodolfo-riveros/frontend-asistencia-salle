@@ -39,7 +39,7 @@ export default function InstructorQuizPage() {
   const [mounted, setMounted] = React.useState(false)
   
   const [ceremonyPhase, setCeremonyPhase] = React.useState<'idle' | 'announcement' | 'podium'>('idle')
-  const ceremonyStartedRef = React.useRef(false)
+  const ceremonyTriggeredRef = React.useRef(false)
 
   const unidadIdRef = React.useRef<string | null>(null)
   const periodoIdRef = React.useRef<string | null>(null)
@@ -93,25 +93,29 @@ export default function InstructorQuizPage() {
     fetchSession()
   }, [fetchSession])
 
+  // MOTOR DE CEREMONIA BLINDADO CONTRA ACTUALIZACIONES DE RED
   React.useEffect(() => {
-    if (room?.status === 'finished' && isFullscreen && !ceremonyStartedRef.current) {
-      ceremonyStartedRef.current = true
-      setCeremonyPhase('announcement')
+    if (room?.status === 'finished' && isFullscreen && !ceremonyTriggeredRef.current) {
+      ceremonyTriggeredRef.current = true;
+      setCeremonyPhase('announcement');
       
       confetti({
         particleCount: 200,
         spread: 100,
         origin: { y: 0.6 },
         colors: ['#FFD700', '#FFFFFF', '#6D28D9']
-      })
-      
-      const timer = setTimeout(() => {
-        setCeremonyPhase('podium')
-      }, 4000)
-      
-      return () => clearTimeout(timer)
+      });
     }
-  }, [room?.status, isFullscreen])
+  }, [room?.status, isFullscreen]);
+
+  React.useEffect(() => {
+    if (ceremonyPhase === 'announcement') {
+      const timer = setTimeout(() => {
+        setCeremonyPhase('podium');
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [ceremonyPhase]);
 
   const handleLaunchRoom = async () => {
     const questions = config?.configuracion_json?.questions;
@@ -241,7 +245,6 @@ export default function InstructorQuizPage() {
             }
           });
           successCount++;
-          // Retardo estratégico para evitar saturar el servidor y el rate-limiting
           await new Promise(r => setTimeout(r, 150));
         } catch (e) {
           console.error(`Error calificando a ${p.name}:`, e);
@@ -372,7 +375,6 @@ export default function InstructorQuizPage() {
       <div className="fixed inset-0 z-[100] bg-[#6D28D9] flex flex-col animate-in fade-in duration-500 overflow-hidden font-body">
         <div className="h-2 bg-yellow-400 w-full shadow-lg" />
         <div className="flex-grow flex flex-col lg:flex-row overflow-hidden">
-          {/* PANEL DOCENTE CON SCROLL AREA PARA SOPORTAR MUCHOS ALUMNOS */}
           <div className="w-full lg:w-[450px] bg-white/10 backdrop-blur-md border-r border-white/10 shadow-2xl z-20 flex flex-col overflow-hidden">
             <ScrollArea className="flex-grow">
               <div className="p-10 space-y-10 pb-10">
