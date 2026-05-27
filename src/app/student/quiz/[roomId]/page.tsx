@@ -1,8 +1,9 @@
+
 "use client"
 
 import * as React from "react"
 import { useParams, useRouter } from "next/navigation"
-import { Loader2, Trophy, CheckCircle2, Zap, Clock, ShieldCheck, XCircle, Sparkles, LogOut, ListChecks, ArrowRight, HelpCircle } from "lucide-react"
+import { Loader2, Trophy, CheckCircle2, Zap, Clock, ShieldCheck, XCircle, Sparkles, LogOut, ListChecks, HelpCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useQuery, useMutation } from "convex/react"
 import { api as convexApi } from "@convex/_generated/api"
@@ -10,7 +11,6 @@ import { Badge } from "@/components/ui/badge"
 import { cn, getInitials } from "@/lib/utils"
 import confetti from "canvas-confetti"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { ScrollArea } from "@/components/ui/scroll-area"
 
 export default function StudentGameRoomPage() {
   const params = useParams()
@@ -33,7 +33,7 @@ export default function StudentGameRoomPage() {
 
   const currentQuestionIndex = room?.currentQuestionIndex ?? 0
   const currentQ = room?.questions ? room.questions[currentQuestionIndex] : null
-  const isQuizFinished = room?.status === 'finished' || (room?.questions && currentQuestionIndex >= room.questions.length)
+  const isQuizFinished = room?.status === 'finished'
 
   // Cargar sesión
   React.useEffect(() => {
@@ -45,25 +45,25 @@ export default function StudentGameRoomPage() {
     }
   }, [params.roomId, router])
 
-  // Resetear estado local cuando el docente avanza de pregunta
+  // Resetear estado local cuando el docente avanza de pregunta oficialmente
   React.useEffect(() => {
     if (currentQ) {
-      setHasAnswered(false)
-      setSelectedOptionIndex(null)
-      setLastAnswerCorrect(null)
-      setTimeLeft(currentQ.timeLimit || 20)
+      // Verificar si ya respondió esta pregunta anteriormente consultando la base de datos
+      const alreadyResponded = myData?.answers?.some((a: any) => a.questionIndex === currentQuestionIndex);
       
-      // Verificar si ya respondió esta pregunta anteriormente (por si se reconecta)
-      if (myData?.answers) {
+      if (!alreadyResponded) {
+        setHasAnswered(false)
+        setSelectedOptionIndex(null)
+        setLastAnswerCorrect(null)
+        setTimeLeft(currentQ.timeLimit || 20)
+      } else {
         const prevAnswer = myData.answers.find((a: any) => a.questionIndex === currentQuestionIndex)
-        if (prevAnswer) {
-          setHasAnswered(true)
-          setSelectedOptionIndex(prevAnswer.selectedOption)
-          setLastAnswerCorrect(prevAnswer.isCorrect)
-        }
+        setHasAnswered(true)
+        setSelectedOptionIndex(prevAnswer.selectedOption)
+        setLastAnswerCorrect(prevAnswer.isCorrect)
       }
     }
-  }, [currentQuestionIndex, !!currentQ, myData?.answers])
+  }, [currentQuestionIndex, !!currentQ, myData?.answers?.length])
 
   // Detector de Fraude
   React.useEffect(() => {
@@ -76,7 +76,7 @@ export default function StudentGameRoomPage() {
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange)
   }, [participantId, reportCheat])
 
-  // Contador de Tiempo Maestro - Solo corre si la pregunta está activa y no ha respondido
+  // Contador de Tiempo Maestro - Solo corre si no ha respondido
   React.useEffect(() => {
     if (room?.status !== 'active' || isQuizFinished || hasAnswered || !currentQ) return
 
@@ -98,7 +98,6 @@ export default function StudentGameRoomPage() {
     if (hasAnswered || !participantId || !currentQ) return
     
     const isCorrect = originalIndex === currentQ.correctIndex
-    
     setHasAnswered(true)
     setSelectedOptionIndex(originalIndex)
     setLastAnswerCorrect(isCorrect)
@@ -141,9 +140,7 @@ export default function StudentGameRoomPage() {
   const incorrectsCount = (myData?.answers?.length || 0) - correctsCount;
 
   return (
-    <div className={cn(
-      "min-h-screen bg-[#f8f9fa] p-4 flex flex-col justify-between overflow-hidden transition-all duration-500 font-body"
-    )}>
+    <div className="min-h-screen bg-[#f8f9fa] p-4 flex flex-col justify-between overflow-hidden transition-all duration-500 font-body">
       <div className="absolute top-0 left-0 w-full h-2 bg-slate-200">
         <div 
           className="h-full bg-primary transition-all duration-500 ease-out shadow-[0_0_15px_rgba(34,97,203,0.4)]" 
@@ -200,20 +197,27 @@ export default function StudentGameRoomPage() {
             {hasAnswered ? (
               <div className="text-center space-y-8 animate-in zoom-in-95">
                 <div className={cn(
-                  "p-12 md:p-20 rounded-[4rem] border-b-[12px] shadow-2xl space-y-6",
-                  lastAnswerCorrect ? "bg-emerald-50 border-emerald-500" : "bg-red-50 border-red-500"
+                  "p-12 md:p-20 rounded-[4rem] border-b-[12px] shadow-2xl space-y-6 transition-colors duration-500",
+                  lastAnswerCorrect === true ? "bg-emerald-50 border-emerald-500" : 
+                  lastAnswerCorrect === false ? "bg-red-50 border-red-500" : "bg-white border-slate-100"
                 )}>
-                  {lastAnswerCorrect ? (
+                  {lastAnswerCorrect === true ? (
                     <CheckCircle2 className="h-24 w-24 text-emerald-500 mx-auto animate-bounce" />
-                  ) : (
+                  ) : lastAnswerCorrect === false ? (
                     <XCircle className="h-24 w-24 text-red-500 mx-auto" />
+                  ) : (
+                    <Loader2 className="h-24 w-24 text-primary animate-spin mx-auto opacity-20" />
                   )}
                   <h3 className="text-4xl font-black uppercase italic tracking-tighter text-slate-900">
-                    {lastAnswerCorrect ? "¡EXCELENTE!" : "¡SIGUE ADELANTE!"}
+                    {lastAnswerCorrect === true ? "¡LOGRADO!" : 
+                     lastAnswerCorrect === false ? "¡SIGUE INTENTANDO!" : "¡ENVIADO!"}
                   </h3>
-                  <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.4em]">
-                    Esperando a que el docente avance...
-                  </p>
+                  <div className="p-8 bg-white/50 backdrop-blur-sm rounded-[2rem] border-2 border-slate-100 flex flex-col items-center gap-3">
+                    <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.4em]">
+                      Siguiente reto en camino...
+                    </p>
+                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                  </div>
                 </div>
               </div>
             ) : (
@@ -241,13 +245,24 @@ export default function StudentGameRoomPage() {
                       variant="outline"
                       className={cn(
                         "min-h-[100px] h-auto text-sm md:text-base font-bold uppercase rounded-3xl border-2 transition-all shadow-md whitespace-normal px-8 py-6 flex items-center justify-start text-left overflow-visible",
-                        "hover:border-primary hover:bg-white hover:scale-[1.02] active:scale-95 group"
+                        "hover:border-primary hover:bg-white hover:scale-[1.02] active:scale-95 group",
+                        hasAnswered && selectedOptionIndex === i && (lastAnswerCorrect ? "border-emerald-500 bg-emerald-50" : "border-red-500 bg-red-50")
                       )}
                     >
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border-2 font-black text-xs mr-5 bg-slate-50 text-slate-300 border-slate-100 group-hover:border-primary/30">
+                      <div className={cn(
+                        "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border-2 font-black text-xs mr-5 transition-colors",
+                        hasAnswered && selectedOptionIndex === i 
+                          ? (lastAnswerCorrect ? "bg-emerald-500 border-emerald-500 text-white" : "bg-red-500 border-red-500 text-white")
+                          : "bg-slate-50 text-slate-300 border-slate-100 group-hover:border-primary/30"
+                      )}>
                         {String.fromCharCode(65 + i)}
                       </div>
-                      <span className="flex-1 font-black leading-tight text-slate-700 group-hover:text-primary">{opt}</span>
+                      <span className={cn(
+                        "flex-1 font-black leading-tight",
+                        hasAnswered && selectedOptionIndex === i 
+                          ? (lastAnswerCorrect ? "text-emerald-700" : "text-red-700")
+                          : "text-slate-700 group-hover:text-primary"
+                      )}>{opt}</span>
                     </Button>
                   ))}
                 </div>
@@ -263,7 +278,7 @@ export default function StudentGameRoomPage() {
                     <Trophy className="h-24 w-24 text-yellow-400 mx-auto animate-bounce" />
                     <Sparkles className="h-8 w-8 text-yellow-400 absolute -top-4 -right-4 animate-pulse" />
                   </div>
-                  <h2 className="text-4xl md:text-5xl font-black text-slate-900 uppercase italic tracking-tighter">Feedback de Arena</h2>
+                  <h2 className="text-4xl md:text-5xl font-black text-slate-900 uppercase italic tracking-tighter">Arena Rank-UP Finalizada</h2>
                   <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">Revisión técnica de tus resultados</p>
                   
                   <div className="grid grid-cols-2 gap-4 max-w-md mx-auto pt-4">
@@ -280,7 +295,7 @@ export default function StudentGameRoomPage() {
 
                 <div className="space-y-6">
                   <h3 className="text-xl font-black text-slate-800 uppercase italic tracking-tighter flex items-center gap-3 ml-4">
-                    <ListChecks className="h-6 w-6 text-primary" /> Historial de Respuestas
+                    <ListChecks className="h-6 w-6 text-primary" /> Portal de Retroalimentación Técnica
                   </h3>
                   <div className="grid gap-4">
                     {room.questions.map((q: any, idx: number) => {
@@ -302,9 +317,14 @@ export default function StudentGameRoomPage() {
                           <div className="flex-grow space-y-2 text-center md:text-left">
                              <p className="text-sm font-black text-slate-800 uppercase tracking-tight leading-tight">{q.text}</p>
                              {!wasCorrect && (
-                               <div className="flex items-center justify-center md:justify-start gap-2 bg-emerald-50 px-4 py-2 rounded-xl border border-emerald-100 w-fit mx-auto md:mx-0">
-                                 <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Respuesta Correcta:</span>
-                                 <span className="text-[11px] font-bold text-emerald-700">{q.options[q.correctIndex]}</span>
+                               <div className="flex flex-col gap-1">
+                                 <div className="flex items-center gap-2 text-[10px] font-bold text-red-400">
+                                   <span>Tu respuesta: {q.options[answer?.selectedOption] || "Tiempo agotado"}</span>
+                                 </div>
+                                 <div className="flex items-center justify-center md:justify-start gap-2 bg-emerald-50 px-4 py-2 rounded-xl border border-emerald-100 w-fit mx-auto md:mx-0">
+                                   <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Respuesta Correcta:</span>
+                                   <span className="text-[11px] font-bold text-emerald-700">{q.options[q.correctIndex]}</span>
+                                 </div>
                                </div>
                              )}
                           </div>
@@ -318,7 +338,7 @@ export default function StudentGameRoomPage() {
                   onClick={() => router.push('/student/quiz/join')} 
                   className="w-full h-20 bg-primary hover:bg-primary/95 text-white rounded-[2rem] font-black uppercase text-sm tracking-widest shadow-2xl transition-all active:scale-95 border-b-8 border-primary/20 gap-3"
                 >
-                  <LogOut className="h-6 w-6" /> VOLVER AL PORTAL
+                  <LogOut className="h-6 w-6" /> VOLVER AL INICIO
                 </Button>
               </div>
             ) : (
@@ -326,13 +346,13 @@ export default function StudentGameRoomPage() {
                 <div className="absolute -top-12 -right-12 w-64 h-64 bg-primary/5 rounded-full blur-[100px]" />
                 <div className="relative">
                    <div className="bg-slate-50 rounded-[3rem] p-10 border-4 border-slate-100 inline-block shadow-inner mb-8">
-                      <p className="text-[12px] font-black uppercase text-slate-400 tracking-[0.4em] mb-4">DESEMPEÑO ACTUAL</p>
+                      <p className="text-[12px] font-black uppercase text-slate-400 tracking-[0.4em] mb-4">PUNTAJE EN ARENA</p>
                       <span className="text-6xl md:text-8xl font-black text-primary font-mono tracking-tighter">{myData?.score || 0}</span>
                    </div>
                    
                    <div className="grid grid-cols-2 gap-4 max-w-sm mx-auto">
                      <div className="flex flex-col items-center gap-2">
-                       <Badge className="bg-emerald-100 text-emerald-700 border-none font-black text-xs px-4">{correctsCount} CORRECTAS</Badge>
+                       <Badge className="bg-emerald-100 text-emerald-700 border-none font-black text-xs px-4">{correctsCount} ACIERTOS</Badge>
                      </div>
                      <div className="flex flex-col items-center gap-2">
                        <Badge className="bg-red-100 text-red-700 border-none font-black text-xs px-4">{incorrectsCount} FALLOS</Badge>
@@ -343,9 +363,9 @@ export default function StudentGameRoomPage() {
                 <div className="p-8 bg-blue-50 rounded-[2.5rem] border-2 border-blue-100 flex flex-col items-center gap-4 shadow-inner">
                   <div className="flex items-center gap-4">
                     <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                    <p className="text-[11px] font-black text-primary uppercase tracking-[0.2em]">Esperando que el docente avance...</p>
+                    <p className="text-[11px] font-black text-primary uppercase tracking-[0.2em]">Esperando al Docente...</p>
                   </div>
-                  <p className="text-[9px] font-black text-blue-300 uppercase tracking-widest">PARA VER TU SIGUIENTE RETO O FEEDBACK FINAL</p>
+                  <p className="text-[9px] font-black text-blue-300 uppercase tracking-widest">PARA VER EL SIGUIENTE RETO O RESULTADOS FINALES</p>
                 </div>
               </div>
             )}
@@ -357,7 +377,7 @@ export default function StudentGameRoomPage() {
         <div className="flex items-center justify-center gap-2">
           <ShieldCheck className="h-4 w-4 text-primary" />
           <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">
-            IES LA SALLE URUBAMBA • SISTEMA RANK-UP
+            IES LA SALLE URUBAMBA • SISTEMA RANK-UP v2.0
           </p>
         </div>
       </footer>

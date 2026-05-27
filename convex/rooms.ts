@@ -1,3 +1,4 @@
+
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
@@ -59,6 +60,7 @@ export const joinRoom = mutation({
       
     if (!room) throw new Error("La sala no existe.");
 
+    // Intentamos buscar si ya existe para evitar duplicados por refresco
     const existingParticipant = await ctx.db
       .query("participants")
       .withIndex("by_alumno_in_room", (q) => q.eq("roomId", room._id).eq("alumno_id", args.alumno_id))
@@ -145,7 +147,7 @@ export const updateStatus = mutation({
     if (!room) throw new Error("Sala no encontrada.");
     const patch: any = { status: args.status };
     if (args.nextQuestion !== undefined) {
-      // No permitir retroceder preguntas
+      // No permitir retroceder preguntas para mantener integridad de resultados
       if (args.nextQuestion > room.currentQuestionIndex) {
         patch.currentQuestionIndex = args.nextQuestion;
       }

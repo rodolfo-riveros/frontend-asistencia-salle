@@ -309,7 +309,7 @@ function GradebookContent() {
         api.post('/evaluaciones/calificar/', {
           evaluacion_id: columnId,
           alumno_id: id,
-          puntaje: numValue,
+          puntaje: parseFloat(numValue.toFixed(2)),
           observacion: overrideComment ?? (comments[id]?.[columnId] || ""),
           detalles_json: overrideDetails ?? (evalDetails[id]?.[columnId] || null)
         })

@@ -4,14 +4,12 @@
 import * as React from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { 
-  ArrowLeft, Gamepad2, Sparkles, 
-  Loader2, Radio, Users, Maximize2, Play, Trophy, 
-  ShieldCheck, UserX, Crown, Zap, Clock, BookOpen, 
-  AlertTriangle, Target, Percent, Award, ChevronRight,
-  Medal, ListChecks, CheckCircle2, Download, Copy, Link as LinkIcon
+  ArrowLeft, Zap, Sparkles, Loader2, Radio, Users, Maximize2, Trophy, 
+  ShieldCheck, Crown, BookOpen, AlertTriangle, Target, Award, ChevronRight,
+  Medal, ListChecks, CheckCircle2, Download, Link as LinkIcon, Percent
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardTitle } from "@/components/ui/card"
+import { Card, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
@@ -96,7 +94,6 @@ export default function InstructorQuizPage() {
     fetchSession()
   }, [fetchSession])
 
-  // Lógica de Ceremonia Blindada
   React.useEffect(() => {
     if (room?.status === 'finished' && isFullscreen && !ceremonyStartedRef.current) {
       ceremonyStartedRef.current = true
@@ -704,7 +701,7 @@ export default function InstructorQuizPage() {
                        <p className="text-2xl font-black text-slate-800 uppercase tracking-tight leading-tight max-w-2xl">{q.text}</p>
                     </div>
                     <div className="bg-white p-4 rounded-3xl border-2 border-slate-100 shadow-sm shrink-0 flex flex-col items-center">
-                      <Clock className="h-5 w-5 text-primary mb-1" />
+                      <Percent className="h-5 w-5 text-primary mb-1" />
                       <span className="font-black text-xl text-slate-900">{q.timeLimit}s</span>
                     </div>
                   </div>
