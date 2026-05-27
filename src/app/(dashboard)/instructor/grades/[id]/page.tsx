@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useParams, useSearchParams, useRouter } from "next/navigation"
-import { Target, FileText, LayoutList, Star, Quote, Loader2, Gamepad2, Play, RefreshCcw } from "lucide-react"
+import { Target, FileText, LayoutList, Star, Quote, Loader2, Gamepad2, Play, RefreshCcw, Users } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -187,8 +187,8 @@ function GradebookContent() {
         setComments(commentsMap);
       }
     } catch (err: any) {
-      console.error("Error al cargar datos:", err)
-      setError(err.message || "Error de base de datos");
+      console.error("[GRADEBOOK ERROR]", err)
+      setError(err.message || "Error de sincronización de datos");
     } finally {
       setIsLoading(false)
     }
@@ -315,7 +315,7 @@ function GradebookContent() {
       );
       await Promise.all(promises);
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Error al calificar", description: "No se pudo sincronizar la nota con el servidor." })
+      toast({ variant: "destructive", title: "Error de Sincronización", description: "No se pudo guardar la nota." })
     }
   }
 
@@ -411,7 +411,7 @@ function GradebookContent() {
     return (
       <div className="h-screen flex flex-col items-center justify-center gap-4">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        <p className="font-black uppercase text-xs tracking-widest text-slate-400">Sincronizando Registro Auxiliar...</p>
+        <p className="font-black uppercase text-xs tracking-widest text-slate-400">Cargando Registro Auxiliar...</p>
       </div>
     )
   }
@@ -424,7 +424,7 @@ function GradebookContent() {
         </div>
         <div className="space-y-2">
           <h3 className="text-xl font-black text-slate-900 uppercase">Fallo de Conexión</h3>
-          <p className="text-slate-400 font-medium max-w-md">No se pudo recuperar la información del servidor. Reintente la sincronización.</p>
+          <p className="text-slate-400 font-medium max-w-md">No se pudo recuperar la información. Reintente la sincronización.</p>
         </div>
         <Button onClick={fetchFullGradebook} className="bg-primary px-10 h-14 font-black uppercase text-xs tracking-widest shadow-xl shadow-primary/20 gap-3">
           <RefreshCcw className="h-5 w-5" /> REINTENTAR SINCRONIZACIÓN
@@ -460,21 +460,20 @@ function GradebookContent() {
                       </TableHead>
                       {columns.map(c => (
                         <TableHead key={c.id} className="text-center font-black text-[10px] uppercase text-slate-400 tracking-widest px-4 md:px-6 border-l min-w-[120px] md:min-w-[140px]">
-                          <div className="flex flex-col items-center gap-1">
-                            <div className="flex items-center justify-center gap-1">
-                              <Badge variant="outline" className="border-primary/20 text-primary text-[8px] font-black px-1.5">{c.indicatorCode}</Badge>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-slate-900 truncate w-24 md:w-32 font-extrabold text-[11px]">{c.name}</span>
-                              {c.strategy === 'quizz' && (
-                                <button 
-                                  onClick={() => router.push(`/instructor/quiz/${c.id}?periodo_id=${periodoId}&unidad_id=${params.id}`)}
-                                  className="h-6 w-6 rounded-full bg-accent text-white flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
-                                >
-                                  <Play className="h-3 w-3" />
-                                </button>
-                              )}
-                            </div>
+                          <div className="flex items-center justify-center gap-1.5 mb-1">
+                            <Badge variant="outline" className="border-primary/20 text-primary text-[8px] font-black px-1.5">{c.indicatorCode}</Badge>
+                            {c.strategy === 'grupal' && <Users className="h-3 w-3 text-blue-400" />}
+                          </div>
+                          <div className="flex items-center gap-2 justify-center">
+                            <span className="text-slate-900 truncate w-24 md:w-32 font-extrabold text-[11px]">{c.name}</span>
+                            {c.strategy === 'quizz' && (
+                              <button 
+                                onClick={() => router.push(`/instructor/quiz/${c.id}?periodo_id=${periodoId}&unidad_id=${params.id}`)}
+                                className="h-6 w-6 rounded-full bg-accent text-white flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
+                              >
+                                <Play className="h-3 w-3" />
+                              </button>
+                            )}
                           </div>
                         </TableHead>
                       ))}
@@ -593,7 +592,7 @@ function GradebookContent() {
 
 export default function AcademicGradebookPage() {
   return (
-    <React.Suspense fallback={<div className="h-screen flex flex-col items-center justify-center gap-4"><Loader2 className="h-12 w-12 animate-spin text-primary" /><p className="font-black uppercase text-xs tracking-widest text-slate-400">Sincronizando Registro Auxiliar...</p></div>}>
+    <React.Suspense fallback={<div className="h-screen flex flex-col items-center justify-center gap-4"><Loader2 className="h-12 w-12 animate-spin text-primary" /><p className="font-black uppercase text-xs tracking-widest text-slate-400">Sincronizando...</p></div>}>
       <GradebookContent />
     </React.Suspense>
   )

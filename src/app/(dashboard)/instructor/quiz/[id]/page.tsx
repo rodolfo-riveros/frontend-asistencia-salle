@@ -238,36 +238,42 @@ export default function InstructorQuizPage() {
 
       const validParticipants = room.participants.filter((p: any) => {
         const aid = p.alumno_id || p.studentId;
-        return aid && aid !== "undefined" && aid.length >= 36;
+        return aid && aid !== "undefined";
       });
 
-      const gradePromises = validParticipants.map((p: any) => {
+      let successCount = 0;
+      // PROCESAMIENTO SECUENCIAL CON DELAY PARA EVITAR RATE-LIMITING (SOLUCIÓN 32/32 NOTAS)
+      for (const p of validParticipants) {
         const alumnoId = p.alumno_id || p.studentId;
         const correctAnswers = p.answers?.filter((a: any) => a.isCorrect).length || 0;
         const academicGrade = parseFloat(((correctAnswers / totalQuestions) * maxScore).toFixed(2));
         
-        return api.post('/evaluaciones/calificar/', {
-          evaluacion_id: finalEvalId,
-          alumno_id: alumnoId,
-          puntaje: academicGrade,
-          observacion: `Rank-UP: ${correctAnswers}/${totalQuestions} correctas. (${p.score} pts)`,
-          detalles_json: { 
-            aciertos: correctAnswers, 
-            total_preguntas: totalQuestions,
-            ranking_pts: p.score, 
-            avatar: p.avatar 
-          }
-        });
-      });
-
-      const results = await Promise.allSettled(gradePromises);
-      const exitosas = results.filter(r => r.status === 'fulfilled').length;
+        try {
+          await api.post('/evaluaciones/calificar/', {
+            evaluacion_id: finalEvalId,
+            alumno_id: alumnoId,
+            puntaje: academicGrade,
+            observacion: `Rank-UP: ${correctAnswers}/${totalQuestions} correctas. (${p.score} pts)`,
+            detalles_json: { 
+              aciertos: correctAnswers, 
+              total_preguntas: totalQuestions,
+              ranking_pts: p.score, 
+              avatar: p.avatar 
+            }
+          });
+          successCount++;
+          // Delay de 100ms para no saturar Render/Supabase
+          await new Promise(r => setTimeout(r, 100));
+        } catch (e) {
+          console.error(`Error calificando a ${p.name}:`, e);
+        }
+      }
 
       if (sessionId && sessionId.length >= 36) {
         await api.post(`/gamificacion/sesion/${sessionId}/finalizar/`, { notas: [] }).catch(() => {});
       }
 
-      toast({ title: "Sincronización Exitosa", description: `${exitosas} notas registradas en el auxiliar.` });
+      toast({ title: "Sincronización Exitosa", description: `${successCount} notas registradas en el auxiliar.` });
       router.push(`/instructor/grades/${finalUnidadId}?periodo_id=${finalPeriodoId}`);
     } catch (e: any) {
       toast({ variant: "destructive", title: "Fallo Crítico", description: e.message });
