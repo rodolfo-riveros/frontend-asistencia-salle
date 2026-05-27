@@ -367,18 +367,8 @@ function GradebookContent() {
       const doc = new jsPDF('l', 'mm', 'a4');
       doc.setFontSize(16); doc.setTextColor(0, 51, 102); doc.setFont("helvetica", "bold");
       doc.text("INSTITUTO DE EDUCACIÓN SUPERIOR LA SALLE - URUBAMBA", 14, 15);
-      
       doc.setFontSize(9); doc.setTextColor(100); doc.text("REGISTRO AUXILIAR DE CALIFICACIONES ACADÉMICAS", 14, 22);
       
-      doc.setFontSize(8); doc.setTextColor(0); doc.setFont("helvetica", "normal");
-      doc.text("UNIDAD DIDÁCTICA:", 14, 30); doc.setFont("helvetica", "bold"); doc.text(`${(courseInfo?.nombre || "N/A").toUpperCase()}`, 45, 30);
-      doc.setFont("helvetica", "normal"); doc.text("PROGRAMA PROFESIONAL:", 14, 35); doc.setFont("helvetica", "bold"); doc.text(`${(courseInfo?.programa || "N/A").toUpperCase()}`, 55, 35);
-      doc.setFont("helvetica", "normal"); doc.text("DOCENTE RESPONSABLE:", 14, 40); doc.setFont("helvetica", "bold"); doc.text(`${userName}`, 55, 40);
-      
-      doc.setFont("helvetica", "normal"); doc.text("CICLO ACADÉMICO:", 230, 30); doc.setFont("helvetica", "bold"); doc.text(`${courseInfo?.periodoNombre || "N/A"}`, 265, 30);
-      doc.setFont("helvetica", "normal"); doc.text("SEMESTRE:", 230, 35); doc.setFont("helvetica", "bold"); doc.text(`${courseInfo?.semestre || "N/A"}`, 255, 35);
-      doc.setFont("helvetica", "normal"); doc.text("FECHA EMISIÓN:", 230, 40); doc.setFont("helvetica", "bold"); doc.text(`${new Date().toLocaleDateString()}`, 260, 40);
-
       const head = ["N°", "APELLIDOS Y NOMBRES", ...columns.map(c => c.indicatorCode), "PROMEDIO"];
       const body = students.sort((a, b) => a.nombre.localeCompare(b.nombre)).map((s, i) => [
         (i + 1).toString().padStart(2, '0'),
@@ -388,10 +378,7 @@ function GradebookContent() {
       ]);
 
       autoTable(doc, {
-        startY: 48,
-        head: [head],
-        body: body,
-        theme: 'grid',
+        startY: 48, head: [head], body: body, theme: 'grid',
         styles: { fontSize: 7, halign: 'center' },
         headStyles: { fillColor: [0, 51, 102], textColor: 255 },
         columnStyles: { 1: { halign: 'left', fontStyle: 'bold', cellWidth: 70 } }
@@ -416,23 +403,6 @@ function GradebookContent() {
     )
   }
 
-  if (error && students.length === 0) {
-    return (
-      <div className="h-screen flex flex-col items-center justify-center gap-6 p-10 text-center">
-        <div className="p-6 bg-red-50 rounded-full text-red-500 shadow-inner">
-          <RefreshCcw className="h-12 w-12" />
-        </div>
-        <div className="space-y-2">
-          <h3 className="text-xl font-black text-slate-900 uppercase">Fallo de Conexión</h3>
-          <p className="text-slate-400 font-medium max-w-md">No se pudo recuperar la información. Reintente la sincronización.</p>
-        </div>
-        <Button onClick={fetchFullGradebook} className="bg-primary px-10 h-14 font-black uppercase text-xs tracking-widest shadow-xl shadow-primary/20 gap-3">
-          <RefreshCcw className="h-5 w-5" /> REINTENTAR SINCRONIZACIÓN
-        </Button>
-      </div>
-    )
-  }
-
   return (
     <div className="space-y-6 md:space-y-10 pb-20">
       <GradebookHeader 
@@ -443,11 +413,7 @@ function GradebookContent() {
       />
 
       <Card className="border-none shadow-2xl overflow-hidden bg-white rounded-2xl md:rounded-[2.5rem]">
-        <GradebookToolbar 
-          searchTerm={searchTerm} 
-          setSearchTerm={setSearchTerm} 
-        />
-        
+        <GradebookToolbar searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
         <CardContent className="p-0 overflow-hidden">
           <ScrollArea className="w-full">
             <div className="min-w-full inline-block align-middle">
@@ -455,13 +421,13 @@ function GradebookContent() {
                 <Table className="relative border-collapse">
                   <TableHeader className="bg-slate-50/30">
                     <TableRow className="border-none">
-                      <TableHead className="pl-6 md:pl-10 font-black text-[10px] uppercase text-slate-400 tracking-widest w-[250px] md:w-[350px] py-4 md:py-6 sticky left-0 z-30 bg-slate-50 backdrop-blur-sm border-r shadow-[2px_0_5px_rgba(0,0,0,0.02)]">
+                      <TableHead className="pl-6 md:pl-10 font-black text-[10px] uppercase text-slate-400 tracking-widest w-[250px] md:w-[350px] py-4 md:py-6 sticky left-0 z-30 bg-slate-50 backdrop-blur-sm border-r">
                         Alumno
                       </TableHead>
                       {columns.map(c => (
-                        <TableHead key={c.id} className="text-center font-black text-[10px] uppercase text-slate-400 tracking-widest px-4 md:px-6 border-l min-w-[120px] md:min-w-[140px]">
+                        <TableHead key={c.id} className="text-center font-black text-[10px] uppercase text-slate-400 tracking-widest px-4 md:px-6 border-l min-w-[120px]">
                           <div className="flex items-center justify-center gap-1.5 mb-1">
-                            <Badge variant="outline" className="border-primary/20 text-primary text-[8px] font-black px-1.5">{c.indicatorCode}</Badge>
+                            <Badge variant="outline" className="border-primary/20 text-primary text-[8px] font-black">{c.indicatorCode}</Badge>
                             {c.strategy === 'grupal' && <Users className="h-3 w-3 text-blue-400" />}
                           </div>
                           <div className="flex items-center gap-2 justify-center">
@@ -469,7 +435,7 @@ function GradebookContent() {
                             {c.strategy === 'quizz' && (
                               <button 
                                 onClick={() => router.push(`/instructor/quiz/${c.id}?periodo_id=${periodoId}&unidad_id=${params.id}`)}
-                                className="h-6 w-6 rounded-full bg-accent text-white flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
+                                className="h-6 w-6 rounded-full bg-accent text-white flex items-center justify-center shadow-lg hover:scale-110"
                               >
                                 <Play className="h-3 w-3" />
                               </button>
@@ -477,73 +443,60 @@ function GradebookContent() {
                           </div>
                         </TableHead>
                       ))}
-                      <TableHead className="text-center font-black text-[10px] uppercase text-primary tracking-widest w-[100px] md:w-[120px] border-l sticky right-0 z-30 bg-primary/5 backdrop-blur-sm shadow-[-2px_0_5px_rgba(0,0,0,0.02)]">
+                      <TableHead className="text-center font-black text-[10px] uppercase text-primary tracking-widest w-[100px] border-l sticky right-0 z-30 bg-primary/5">
                         Promedio
                       </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filtered.length > 0 ? (
-                      filtered.map((s) => {
-                        const finalScore = calculateFinal(s.id);
-                        return (
-                          <TableRow key={s.id} className="hover:bg-slate-50/50 transition-all group border-b">
-                            <TableCell className="pl-6 md:pl-10 py-4 md:py-6 sticky left-0 z-20 bg-white group-hover:bg-slate-50/50 border-r shadow-[2px_0_5px_rgba(0,0,0,0.02)]">
-                              <div className="flex items-center gap-3 md:gap-4">
-                                <Avatar className="h-8 w-8 md:h-9 md:w-9 border-2 border-white shadow-sm">
-                                  <AvatarFallback className="bg-primary/5 text-primary font-black text-[10px] md:text-xs">{getInitials(s.nombre)}</AvatarFallback>
-                                </Avatar>
-                                <div className="flex flex-col overflow-hidden">
-                                  <span className="font-bold text-xs text-slate-800 uppercase truncate w-32 md:w-48">{s.nombre}</span>
-                                  <span className="text-[8px] md:text-[9px] text-slate-400 font-mono">DNI: {s.dni}</span>
-                                </div>
+                    {filtered.map((s) => {
+                      const finalScore = calculateFinal(s.id);
+                      return (
+                        <TableRow key={s.id} className="hover:bg-slate-50 transition-all border-b">
+                          <TableCell className="pl-6 md:pl-10 py-4 sticky left-0 z-20 bg-white border-r">
+                            <div className="flex items-center gap-3">
+                              <Avatar className="h-8 w-8 border-2 border-white shadow-sm">
+                                <AvatarFallback className="bg-primary/5 text-primary font-black text-[10px]">{getInitials(s.nombre)}</AvatarFallback>
+                              </Avatar>
+                              <div className="flex flex-col">
+                                <span className="font-bold text-xs text-slate-800 uppercase truncate w-32 md:w-48">{s.nombre}</span>
+                                <span className="text-[8px] text-slate-400 font-mono">DNI: {s.dni}</span>
                               </div>
-                            </TableCell>
-                            {columns.map(c => {
-                              const gradeValue = grades[s.id]?.[c.id];
-                              return (
-                                <TableCell key={c.id} className="text-center px-2 md:px-4 border-l">
-                                  <div className="flex items-center justify-center gap-1.5">
-                                    <Input 
-                                      type="number" 
-                                      placeholder="-"
-                                      className={cn(
-                                        "w-12 h-8 md:h-9 text-center font-bold text-xs md:text-sm border-none shadow-inner rounded-lg p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus-visible:ring-1 focus-visible:ring-primary/20", 
-                                        (gradeValue !== undefined && gradeValue < 13) ? 'text-red-600 bg-red-50' : 'text-emerald-700 bg-emerald-50',
-                                        gradeValue === undefined && 'bg-slate-50 text-slate-300'
-                                      )} 
-                                      value={gradeValue === undefined ? "" : gradeValue} 
-                                      onChange={e => handleGradeChange(s.id, c.id, e.target.value)} 
-                                    />
-                                    {(c.type !== 'manual' && c.type !== 'quizz') && (
-                                      <button 
-                                        className="h-7 w-7 md:h-8 md:w-8 rounded-lg hover:bg-primary/10 text-primary border-2 border-primary/5 shrink-0 flex items-center justify-center transition-colors" 
-                                        onClick={() => { 
-                                          setActiveEval({ student: s, column: c }); 
-                                          setEvalData(evalDetails[s.id]?.[c.id] || {}); 
-                                          setEvalComment(comments[s.id]?.[c.id] || ""); 
-                                        }}
-                                      >
-                                        <Target className="h-3.5 w-3.5" />
-                                      </button>
-                                    )}
-                                  </div>
-                                </TableCell>
-                              );
-                            })}
-                            <TableCell className="text-center bg-primary/5 border-l py-4 md:py-6 sticky right-0 z-20 group-hover:bg-primary/10 backdrop-blur-sm shadow-[-2px_0_5px_rgba(0,0,0,0.02)]">
-                              <span className={cn("text-base md:text-lg font-black font-mono", finalScore < 13 ? 'text-red-600' : 'text-primary')}>{finalScore.toString().padStart(2, '0')}</span>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={columns.length + 2} className="h-64 text-center text-slate-400 font-black uppercase text-xs tracking-widest">
-                          No se encontraron estudiantes
-                        </TableCell>
-                      </TableRow>
-                    )}
+                            </div>
+                          </TableCell>
+                          {columns.map(c => {
+                            const gradeValue = grades[s.id]?.[c.id];
+                            return (
+                              <TableCell key={c.id} className="text-center border-l">
+                                <div className="flex items-center justify-center gap-1.5">
+                                  <Input 
+                                    type="number" 
+                                    placeholder="-"
+                                    className={cn(
+                                      "w-12 h-8 text-center font-bold text-xs border-none shadow-inner rounded-lg", 
+                                      (gradeValue !== undefined && gradeValue < 13) ? 'text-red-600 bg-red-50' : 'text-emerald-700 bg-emerald-50'
+                                    )} 
+                                    value={gradeValue === undefined ? "" : gradeValue} 
+                                    onChange={e => handleGradeChange(s.id, c.id, e.target.value)} 
+                                  />
+                                  {(c.type !== 'manual' && c.type !== 'quizz') && (
+                                    <button 
+                                      className="h-7 w-7 rounded-lg hover:bg-primary/10 text-primary border-2 border-primary/5 flex items-center justify-center" 
+                                      onClick={() => { setActiveEval({ student: s, column: c }); setEvalData(evalDetails[s.id]?.[c.id] || {}); setEvalComment(comments[s.id]?.[column.id] || ""); }}
+                                    >
+                                      <Target className="h-3.5 w-3.5" />
+                                    </button>
+                                  )}
+                                </div>
+                              </TableCell>
+                            );
+                          })}
+                          <TableCell className="text-center bg-primary/5 border-l sticky right-0 z-20">
+                            <span className={cn("text-base font-black font-mono", finalScore < 13 ? 'text-red-600' : 'text-primary')}>{finalScore.toString().padStart(2, '0')}</span>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>

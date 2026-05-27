@@ -1,9 +1,6 @@
 /**
- * ARCHIVO DESHABILITADO PARA RESOLVER CONFLICTO DE RUTAS NEXT.JS
+ * ARCHIVO DESACTIVADO - CONFLICTO DE RUTAS SOLUCIONADO
  * La lógica oficial reside en: src/app/(dashboard)/instructor/quiz/[id]/page.tsx
- * Por favor, elimine esta carpeta manualmente si el error persiste.
+ * Se eliminan todas las exportaciones para que Next.js no lo trate como una página.
  */
 export const dynamic = 'force-static';
-export default function Page() {
-  return null;
-}
