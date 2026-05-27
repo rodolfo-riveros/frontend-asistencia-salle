@@ -1,9 +1,8 @@
-
 "use client"
 
 import * as React from "react"
 import { useParams, useRouter } from "next/navigation"
-import { Loader2, Trophy, CheckCircle2, Zap, Clock, ShieldCheck, XCircle, Sparkles, LogOut, ListChecks, HelpCircle } from "lucide-react"
+import { Loader2, Trophy, CheckCircle2, Zap, Clock, ShieldCheck, XCircle, Sparkles, LogOut, ListChecks } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useQuery, useMutation } from "convex/react"
 import { api as convexApi } from "@convex/_generated/api"
@@ -35,7 +34,6 @@ export default function StudentGameRoomPage() {
   const currentQ = room?.questions ? room.questions[currentQuestionIndex] : null
   const isQuizFinished = room?.status === 'finished'
 
-  // Cargar sesión
   React.useEffect(() => {
     const pId = localStorage.getItem(`p_${params.roomId}`)
     if (!pId) {
@@ -45,10 +43,9 @@ export default function StudentGameRoomPage() {
     }
   }, [params.roomId, router])
 
-  // Resetear estado local cuando el docente avanza de pregunta oficialmente
+  // Reset local state when the instructor advances the question
   React.useEffect(() => {
     if (currentQ) {
-      // Verificar si ya respondió esta pregunta anteriormente consultando la base de datos
       const alreadyResponded = myData?.answers?.some((a: any) => a.questionIndex === currentQuestionIndex);
       
       if (!alreadyResponded) {
@@ -65,7 +62,6 @@ export default function StudentGameRoomPage() {
     }
   }, [currentQuestionIndex, !!currentQ, myData?.answers?.length])
 
-  // Detector de Fraude
   React.useEffect(() => {
     const handleVisibilityChange = () => {
       if (participantId) {
@@ -76,7 +72,6 @@ export default function StudentGameRoomPage() {
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange)
   }, [participantId, reportCheat])
 
-  // Contador de Tiempo Maestro - Solo corre si no ha respondido
   React.useEffect(() => {
     if (room?.status !== 'active' || isQuizFinished || hasAnswered || !currentQ) return
 
@@ -84,7 +79,7 @@ export default function StudentGameRoomPage() {
       setTimeLeft((prev) => {
         if (prev <= 1) {
           clearInterval(timer)
-          handleAnswer(-1) // Tiempo agotado
+          handleAnswer(-1)
           return 0
         }
         return prev - 1

@@ -1,13 +1,7 @@
-
 /**
- * @fileOverview Archivo neutralizado para evitar conflictos de rutas Next.js.
- * La lógica de la Arena de Gamificación reside exclusivamente en:
- * src/app/(dashboard)/instructor/quiz/[id]/page.tsx
+ * ARCHIVO DESHABILITADO PARA RESOLVER CONFLICTO DE RUTAS NEXT.JS
+ * La lógica oficial reside en: src/app/(dashboard)/instructor/quiz/[id]/page.tsx
  */
-import { redirect } from 'next/navigation';
-
-export default async function NeutralizedConflictPage(props: any) {
-  const { id } = await props.params;
-  // Redirigir a la ruta oficial dentro del grupo (dashboard) para heredar el layout institucional
-  redirect(`/instructor/quiz/${id}`);
+export default function Page() {
+  return null;
 }
