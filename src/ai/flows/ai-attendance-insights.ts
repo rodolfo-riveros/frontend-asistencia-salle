@@ -62,11 +62,12 @@ Contexto adicional: {{{analysisContext}}}
 INSTRUCCIONES CRÍTICAS:
 1. DESERCIÓN: Calcula el % de 'Falta' sobre el total. Si es >= 30%, inclúyelo en 'atRiskStudents'.
 2. ADVERTENCIA TEMPRANA (TARDANZAS): Identifica alumnos con 2 o más estados 'Tarde'. Inclúyelos en 'warningStudents'. Explica por qué es una señal de alerta y qué decirle al alumno.
-3. Identifica patrones como inasistencias o tardanzas consecutivas o en días específicos.
-4. Genera todas las descripciones, nombres y recomendaciones en ESPAÑOL.
-5. Sé preciso con los nombres y proporciona recomendaciones pedagógicas reales.
+3. TENDENCIAS ('trends'): Identifica patrones como inasistencias o tardanzas consecutivas, días específicos con mayor ausentismo, o tendencias generales del grupo. Incluye al menos 2 elementos.
+4. RECOMENDACIONES ('recommendations'): Genera recomendaciones pedagógicas accionables para el docente. Incluye al menos 2 elementos.
+5. Genera todas las descripciones, nombres y recomendaciones en ESPAÑOL.
+6. Sé preciso con los nombres y proporciona recomendaciones pedagógicas reales.
 
-La salida debe ser un objeto JSON que siga estrictamente el esquema definido.`,
+La salida debe ser un objeto JSON que siga estrictamente el esquema definido. Los campos 'trends' y 'recommendations' son obligatorios y deben ser arrays con al menos 1 elemento cada uno.`,
 });
 
 const aiAttendanceInsightsFlow = ai.defineFlow(

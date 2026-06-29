@@ -113,14 +113,14 @@ export default function AdminDashboard() {
           <Badge className="bg-primary/10 text-primary border-none font-bold uppercase tracking-widest px-3 py-1 text-xs">
             Admin Central
           </Badge>
-          <h2 className="text-3xl font-headline font-extrabold tracking-tight text-slate-900 leading-tight">
+          <h2 className="text-3xl font-headline font-extrabold tracking-tight text-foreground leading-tight">
             Panel de Control Estratégico
           </h2>
-          <div className="flex items-center gap-2 text-slate-500 font-medium">
+          <div className="flex items-center gap-2 text-muted-foreground font-medium">
             <Calendar className="h-4 w-4" />
             <span>Contexto Académico:</span>
             <Select value={activePeriodId} onValueChange={setActivePeriodId}>
-              <SelectTrigger className="w-[180px] h-8 font-bold border-none bg-white shadow-sm">
+              <SelectTrigger className="w-[180px] h-8 font-bold border-none bg-card shadow-sm">
                 <SelectValue placeholder="Seleccione ciclo" />
               </SelectTrigger>
               <SelectContent>
@@ -147,14 +147,14 @@ export default function AdminDashboard() {
         {stats.map((stat) => (
           <Card key={stat.name} className="border-none shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden group">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <div className={`p-2.5 rounded-2xl bg-gradient-to-br ${stat.color} text-white shadow-lg shadow-slate-200 group-hover:scale-110 transition-transform`}>
+              <div className={`p-2.5 rounded-2xl bg-gradient-to-br ${stat.color} text-white shadow-lg shadow-black/10 group-hover:scale-110 transition-transform`}>
                 <stat.icon className="h-5 w-5" />
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">{stat.name}</div>
-              <div className="text-2xl font-black text-slate-900">{isLoadingStats ? "..." : stat.value}</div>
-              <p className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+              <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">{stat.name}</div>
+              <div className="text-2xl font-black text-foreground">{isLoadingStats ? "..." : stat.value}</div>
+              <p className="text-[10px] font-bold text-muted-foreground flex items-center gap-1">
                 <TrendingUp className="h-3 w-3 text-emerald-500" />
                 {stat.change}
               </p>
@@ -200,27 +200,27 @@ export default function AdminDashboard() {
 
       <div className="grid gap-8 lg:grid-cols-3">
         <Card className="lg:col-span-2 border-none shadow-xl">
-          <CardHeader className="border-b bg-slate-50/50 p-6 flex items-center justify-between flex-row">
+          <CardHeader className="border-b bg-muted/30 p-6 flex items-center justify-between flex-row">
             <div className="space-y-1">
-              <CardTitle className="text-lg font-black text-slate-900">Actividad del Sistema</CardTitle>
-              <p className="text-xs text-slate-500">Monitor de sincronización en tiempo real</p>
+              <CardTitle className="text-lg font-black text-foreground">Actividad del Sistema</CardTitle>
+              <p className="text-xs text-muted-foreground">Monitor de sincronización en tiempo real</p>
             </div>
             <Activity className="h-5 w-5 text-primary animate-pulse" />
           </CardHeader>
           <CardContent className="p-6">
              <div className="space-y-6">
                 {[
-                  { title: "Servidor FastAPI", status: "Conectado", icon: Zap, color: "text-emerald-500", bg: "bg-emerald-50" },
-                  { title: "Supabase DB", status: "Sincronizado", icon: UserCheck, color: "text-blue-500", bg: "bg-blue-50" },
-                  { title: "Genkit AI", status: "Listo", icon: Sparkles, color: "text-indigo-500", bg: "bg-indigo-50" }
+                  { title: "Servidor FastAPI", status: "Conectado", icon: Zap, color: "text-emerald-500", bg: "bg-emerald-500/10" },
+                  { title: "Supabase DB", status: "Sincronizado", icon: UserCheck, color: "text-blue-500", bg: "bg-blue-500/10" },
+                  { title: "Genkit AI", status: "Listo", icon: Sparkles, color: "text-indigo-500", bg: "bg-indigo-500/10" }
                 ].map((s, i) => (
                   <div key={i} className="flex items-center gap-4">
                     <div className={`h-12 w-12 rounded-xl ${s.bg} flex items-center justify-center ${s.color}`}>
                       <s.icon className="h-6 w-6" />
                     </div>
                     <div className="flex-1">
-                      <p className="font-bold text-slate-900 text-sm">{s.title}</p>
-                      <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest">{s.status}</p>
+                      <p className="font-bold text-foreground text-sm">{s.title}</p>
+                      <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">{s.status}</p>
                     </div>
                   </div>
                 ))}

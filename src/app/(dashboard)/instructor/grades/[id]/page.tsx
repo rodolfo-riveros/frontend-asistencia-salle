@@ -365,10 +365,33 @@ function GradebookContent() {
     setIsExporting(true);
     try {
       const doc = new jsPDF('l', 'mm', 'a4');
+      
       doc.setFontSize(16); doc.setTextColor(0, 51, 102); doc.setFont("helvetica", "bold");
       doc.text("INSTITUTO DE EDUCACIÓN SUPERIOR LA SALLE - URUBAMBA", 14, 15);
-      doc.setFontSize(9); doc.setTextColor(100); doc.text("REGISTRO AUXILIAR DE CALIFICACIONES ACADÉMICAS", 14, 22);
       
+      doc.setFontSize(9); doc.setTextColor(100); doc.setFont("helvetica", "bold");
+      doc.text("REGISTRO AUXILIAR DE CALIFICACIONES ACADÉMICAS", 14, 22);
+      
+      doc.setFontSize(8); doc.setTextColor(0); doc.setFont("helvetica", "normal");
+      doc.text("UNIDAD DIDÁCTICA:", 14, 30); doc.setFont("helvetica", "bold");
+      doc.text(`${(courseInfo?.nombre || "N/A").toUpperCase()}`, 45, 30);
+      
+      doc.setFont("helvetica", "normal");
+      doc.text("PROGRAMA PROFESIONAL:", 14, 35); doc.setFont("helvetica", "bold");
+      doc.text(`${(courseInfo?.programa || "N/A").toUpperCase()}`, 55, 35);
+      
+      doc.setFont("helvetica", "normal");
+      doc.text("DOCENTE RESPONSABLE:", 14, 40); doc.setFont("helvetica", "bold");
+      doc.text(`${userName}`, 55, 40);
+      
+      doc.setFont("helvetica", "normal");
+      doc.text("SEMESTRE ACADÉMICO:", 230, 30); doc.setFont("helvetica", "bold");
+      doc.text(`${courseInfo?.semestre || "N/A"}`, 270, 30);
+      
+      doc.setFont("helvetica", "normal");
+      doc.text("FECHA DE EMISIÓN:", 230, 35); doc.setFont("helvetica", "bold");
+      doc.text(`${new Date().toLocaleDateString()}`, 265, 35);
+
       const head = ["N°", "APELLIDOS Y NOMBRES", ...columns.map(c => c.indicatorCode), "PROMEDIO"];
       const body = students.sort((a, b) => a.nombre.localeCompare(b.nombre)).map((s, i) => [
         (i + 1).toString().padStart(2, '0'),
@@ -398,7 +421,7 @@ function GradebookContent() {
     return (
       <div className="h-screen flex flex-col items-center justify-center gap-4">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        <p className="font-black uppercase text-xs tracking-widest text-slate-400">Cargando Registro Auxiliar...</p>
+        <p className="font-black uppercase text-xs tracking-widest text-muted-foreground">Cargando Registro Auxiliar...</p>
       </div>
     )
   }
@@ -412,26 +435,26 @@ function GradebookContent() {
         isExporting={isExporting}
       />
 
-      <Card className="border-none shadow-2xl overflow-hidden bg-white rounded-2xl md:rounded-[2.5rem]">
+      <Card className="border-none shadow-2xl overflow-hidden bg-card rounded-2xl md:rounded-[2.5rem]">
         <GradebookToolbar searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
         <CardContent className="p-0 overflow-hidden">
           <ScrollArea className="w-full">
             <div className="min-w-full inline-block align-middle">
               <div className="overflow-x-auto">
                 <Table className="relative border-collapse">
-                  <TableHeader className="bg-slate-50/30">
+                  <TableHeader className="bg-muted/30">
                     <TableRow className="border-none">
-                      <TableHead className="pl-6 md:pl-10 font-black text-[10px] uppercase text-slate-400 tracking-widest w-[250px] md:w-[350px] py-4 md:py-6 sticky left-0 z-30 bg-slate-50 backdrop-blur-sm border-r">
+                      <TableHead className="pl-6 md:pl-10 font-black text-[10px] uppercase text-muted-foreground tracking-widest w-[250px] md:w-[350px] py-4 md:py-6 sticky left-0 z-30 bg-muted backdrop-blur-sm border-r">
                         Alumno
                       </TableHead>
                       {columns.map(c => (
-                        <TableHead key={c.id} className="text-center font-black text-[10px] uppercase text-slate-400 tracking-widest px-4 md:px-6 border-l min-w-[120px]">
+                        <TableHead key={c.id} className="text-center font-black text-[10px] uppercase text-muted-foreground tracking-widest px-4 md:px-6 border-l min-w-[120px]">
                           <div className="flex items-center justify-center gap-1.5 mb-1">
                             <Badge variant="outline" className="border-primary/20 text-primary text-[8px] font-black">{c.indicatorCode}</Badge>
                             {c.strategy === 'grupal' && <Users className="h-3 w-3 text-blue-400" />}
                           </div>
                           <div className="flex items-center gap-2 justify-center">
-                            <span className="text-slate-900 truncate w-24 md:w-32 font-extrabold text-[11px]">{c.name}</span>
+                            <span className="text-foreground truncate w-24 md:w-32 font-extrabold text-[11px]">{c.name}</span>
                             {c.strategy === 'quizz' && (
                               <button 
                                 onClick={() => router.push(`/instructor/quiz/${c.id}?periodo_id=${periodoId}&unidad_id=${params.id}`)}
@@ -452,15 +475,15 @@ function GradebookContent() {
                     {filtered.map((s) => {
                       const finalScore = calculateFinal(s.id);
                       return (
-                        <TableRow key={s.id} className="hover:bg-slate-50 transition-all border-b">
-                          <TableCell className="pl-6 md:pl-10 py-4 sticky left-0 z-20 bg-white border-r">
+                        <TableRow key={s.id} className="hover:bg-muted transition-all border-b">
+                          <TableCell className="pl-6 md:pl-10 py-4 sticky left-0 z-20 bg-card border-r">
                             <div className="flex items-center gap-3">
                               <Avatar className="h-8 w-8 border-2 border-white shadow-sm">
                                 <AvatarFallback className="bg-primary/5 text-primary font-black text-[10px]">{getInitials(s.nombre)}</AvatarFallback>
                               </Avatar>
                               <div className="flex flex-col">
                                 <span className="font-bold text-xs text-slate-800 uppercase truncate w-32 md:w-48">{s.nombre}</span>
-                                <span className="text-[8px] text-slate-400 font-mono">DNI: {s.dni}</span>
+                                <span className="text-[8px] text-muted-foreground font-mono">DNI: {s.dni}</span>
                               </div>
                             </div>
                           </TableCell>
@@ -472,9 +495,9 @@ function GradebookContent() {
                                   <Input 
                                     type="number" 
                                     placeholder="-"
-                                    className={cn(
-                                      "w-12 h-8 text-center font-bold text-xs border-none shadow-inner rounded-lg", 
-                                      (gradeValue !== undefined && gradeValue < 13) ? 'text-red-600 bg-red-50' : 'text-emerald-700 bg-emerald-50'
+                                      className={cn(
+                                        "w-16 h-8 text-center font-bold text-xs border-none shadow-inner rounded-lg", 
+                                        (gradeValue !== undefined && gradeValue < 13) ? 'text-red-600 bg-red-50' : 'text-emerald-700 bg-emerald-50'
                                     )} 
                                     value={gradeValue === undefined ? "" : gradeValue} 
                                     onChange={e => handleGradeChange(s.id, c.id, e.target.value)} 
@@ -545,7 +568,7 @@ function GradebookContent() {
 
 export default function AcademicGradebookPage() {
   return (
-    <React.Suspense fallback={<div className="h-screen flex flex-col items-center justify-center gap-4"><Loader2 className="h-12 w-12 animate-spin text-primary" /><p className="font-black uppercase text-xs tracking-widest text-slate-400">Sincronizando...</p></div>}>
+    <React.Suspense fallback={<div className="h-screen flex flex-col items-center justify-center gap-4"><Loader2 className="h-12 w-12 animate-spin text-primary" /><p className="font-black uppercase text-xs tracking-widest text-muted-foreground">Sincronizando...</p></div>}>
       <GradebookContent />
     </React.Suspense>
   )

@@ -87,7 +87,7 @@ export default function RegisterPage() {
   return (
     <div className="bg-background text-on-surface min-h-screen flex flex-col">
       <main className="flex-grow flex items-center justify-center p-6 md:p-12">
-        <div className="max-w-6xl w-full grid grid-cols-1 md:grid-cols-2 bg-white rounded-xl overflow-hidden shadow-[0_12px_32px_-4px_rgba(25,28,29,0.06)]">
+        <div className="max-w-6xl w-full grid grid-cols-1 md:grid-cols-2 bg-card rounded-xl overflow-hidden shadow-[0_12px_32px_-4px_rgba(25,28,29,0.06)]">
           
           <div className="hidden md:flex flex-col justify-between p-12 bg-primary relative overflow-hidden text-white">
             <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '32px 32px' }}></div>
@@ -132,7 +132,7 @@ export default function RegisterPage() {
             <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-blue-700 rounded-full blur-3xl opacity-50"></div>
           </div>
 
-          <div className="p-8 md:p-12 flex flex-col justify-center bg-white">
+          <div className="p-8 md:p-12 flex flex-col justify-center bg-card">
             <div className="md:hidden flex items-center gap-3 mb-8">
               <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center">
                 <GraduationCap className="h-7 w-7 text-white" />
@@ -141,48 +141,48 @@ export default function RegisterPage() {
             </div>
             
             <div className="mb-8">
-              <h3 className="font-headline text-2xl font-bold text-slate-900 mb-2">Registro de Docente</h3>
-              <p className="text-slate-500 text-sm">Crea tu cuenta institucional para acceder al sistema.</p>
+              <h3 className="font-headline text-2xl font-bold text-foreground mb-2">Registro de Docente</h3>
+              <p className="text-muted-foreground text-sm">Crea tu cuenta institucional para acceder al sistema.</p>
             </div>
 
             <form className="space-y-4" onSubmit={handleSubmit}>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-bold uppercase tracking-widest text-slate-400" htmlFor="firstname">Nombres</Label>
+                  <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground" htmlFor="firstname">Nombres</Label>
                   <div className="relative group">
-                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-primary" />
-                    <Input className="bg-slate-50 border-none pl-11 py-5" id="firstname" name="firstname" placeholder="Ej. Juan" required />
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary" />
+                    <Input className="bg-muted border-none pl-11 py-5" id="firstname" name="firstname" placeholder="Ej. Juan" required />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-bold uppercase tracking-widest text-slate-400" htmlFor="lastname">Apellidos</Label>
-                  <Input className="bg-slate-50 border-none py-5" id="lastname" name="lastname" placeholder="Ej. Pérez García" required />
+                  <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground" htmlFor="lastname">Apellidos</Label>
+                  <Input className="bg-muted border-none py-5" id="lastname" name="lastname" placeholder="Ej. Pérez García" required />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label className="text-[10px] font-bold uppercase tracking-widest text-slate-400" htmlFor="email">Correo Institucional</Label>
+                <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground" htmlFor="email">Correo Institucional</Label>
                 <div className="relative group">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-primary" />
-                  <Input className="bg-slate-50 border-none pl-11 py-5" id="email" name="email" type="email" placeholder="usuario@lasalleurubamba.edu.pe" required />
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary" />
+                  <Input className="bg-muted border-none pl-11 py-5" id="email" name="email" type="email" placeholder="usuario@lasalleurubamba.edu.pe" required />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 gap-4">
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-bold uppercase tracking-widest text-slate-400" htmlFor="dni">DNI (Será su contraseña inicial)</Label>
+                  <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground" htmlFor="dni">DNI (Será su contraseña inicial)</Label>
                   <div className="relative group">
-                    <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-primary" />
-                    <Input className="bg-slate-50 border-none pl-11 py-5" id="dni" name="dni" placeholder="8 dígitos" required maxLength={8} pattern="[0-9]{8}" />
+                    <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary" />
+                    <Input className="bg-muted border-none pl-11 py-5" id="dni" name="dni" placeholder="8 dígitos" required maxLength={8} pattern="[0-9]{8}" />
                   </div>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label className="text-[10px] font-bold uppercase tracking-widest text-slate-400" htmlFor="especialidad">Especialidad / Programa</Label>
+                <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground" htmlFor="especialidad">Especialidad / Programa</Label>
                 <div className="relative group">
-                  <BookOpen className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-primary" />
-                  <Input className="bg-slate-50 border-none pl-11 py-5" id="especialidad" name="especialidad" placeholder="Ej. Sistemas, Contabilidad" required />
+                  <BookOpen className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary" />
+                  <Input className="bg-muted border-none pl-11 py-5" id="especialidad" name="especialidad" placeholder="Ej. Sistemas, Contabilidad" required />
                 </div>
               </div>
 
@@ -200,7 +200,7 @@ export default function RegisterPage() {
               </Button>
 
               <div className="text-center pt-2">
-                <Button variant="link" className="text-slate-500 hover:text-primary text-sm font-medium" asChild>
+                <Button variant="link" className="text-muted-foreground hover:text-primary text-sm font-medium" asChild>
                   <Link href="/" className="flex items-center gap-2">
                     <ArrowLeft className="w-4 h-4" /> Volver al inicio
                   </Link>
@@ -208,9 +208,9 @@ export default function RegisterPage() {
               </div>
             </form>
 
-            <div className="mt-6 pt-4 border-t border-slate-100 text-center flex items-center justify-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-slate-400" />
-              <p className="text-[10px] text-slate-400 uppercase tracking-widest font-medium">
+            <div className="mt-6 pt-4 border-t border-border text-center flex items-center justify-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-muted-foreground" />
+              <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium">
                 Portal de Gestión Académica - IES LA SALLE URUBAMBA
               </p>
             </div>
@@ -218,12 +218,19 @@ export default function RegisterPage() {
         </div>
       </main>
 
-      <footer className="bg-white w-full py-4 px-8 mt-auto flex flex-col md:flex-row justify-between items-center border-t border-slate-100 gap-4 text-[10px] uppercase tracking-widest font-bold">
-        <div className="text-slate-500 text-center md:text-left">
+      <footer className="bg-card w-full py-4 px-8 mt-auto flex flex-col md:flex-row justify-between items-center border-t border-border gap-4 text-[10px] uppercase tracking-widest font-bold">
+        <div className="text-muted-foreground text-center md:text-left">
           © {currentYear || '2024'} IES La Salle Urubamba | Cusco - Perú
         </div>
-        <div className="text-slate-400 text-center md:text-right">
-          Desarrollado por Rodolfo Riveros
+        <div className="text-muted-foreground text-center md:text-right">
+          <a
+            href="https://portafolio-rodolfo.vercel.app/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-primary transition-colors"
+          >
+            Desarrollado por Rodolfo Riveros Mitma
+          </a>
         </div>
       </footer>
     </div>

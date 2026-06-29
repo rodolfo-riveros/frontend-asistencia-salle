@@ -186,11 +186,11 @@ export default function AcademicAssignmentsPage() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div className="space-y-1">
           <p className="text-primary font-bold uppercase tracking-[0.2em] text-xs">Carga Académica</p>
-          <h2 className="text-3xl font-headline font-extrabold tracking-tight text-slate-900">Asignación por Ciclo</h2>
+          <h2 className="text-3xl font-headline font-extrabold tracking-tight text-foreground">Asignación por Ciclo</h2>
           <div className="flex items-center gap-3 mt-3">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Filtrar Ciclo:</span>
+            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Filtrar Ciclo:</span>
             <Select value={selectedPeriodFilter} onValueChange={setSelectedPeriodFilter}>
-              <SelectTrigger className="h-8 w-[180px] bg-white border-none shadow-sm font-bold text-xs text-slate-900">
+              <SelectTrigger className="h-8 w-[180px] bg-card border-none shadow-sm font-bold text-xs text-foreground">
                 <SelectValue placeholder="Seleccione Ciclo" />
               </SelectTrigger>
               <SelectContent>
@@ -255,7 +255,7 @@ export default function AcademicAssignmentsPage() {
                       <SelectContent>
                         {courses.map(course => (
                           <SelectItem key={course.id} value={course.id}>
-                            {course.nombre} ({course.programa_nombre})
+                            {course.nombre} ({course.programa_nombre}) — {course.seccion === 'REC' ? 'REC' : 'U'}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -273,10 +273,10 @@ export default function AcademicAssignmentsPage() {
       </div>
 
       <div className="relative mb-4">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
         <Input 
           placeholder="Busca por docente o unidad..." 
-          className="pl-11 py-6 bg-white border-slate-100 shadow-sm"
+          className="pl-11 py-6 bg-white border-border shadow-sm"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
@@ -285,33 +285,33 @@ export default function AcademicAssignmentsPage() {
       <Card className="border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
         <CardContent className="p-0">
           {isLoading && assignments.length === 0 ? (
-            <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-3">
+            <div className="h-64 flex flex-col items-center justify-center text-muted-foreground gap-3">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
               <p className="text-sm font-medium">Cargando asignaciones...</p>
             </div>
           ) : (
             <>
               <Table>
-                <TableHeader className="bg-slate-50/50">
+                <TableHeader className="bg-muted/30">
                   <TableRow className="hover:bg-transparent">
-                    <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest pl-6">Responsable</TableHead>
-                    <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest">Unidad Didáctica</TableHead>
-                    <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest text-center">Periodo</TableHead>
+                    <TableHead className="font-bold text-muted-foreground uppercase text-[10px] tracking-widest pl-6">Responsable</TableHead>
+                    <TableHead className="font-bold text-muted-foreground uppercase text-[10px] tracking-widest">Unidad Didáctica</TableHead>
+                    <TableHead className="font-bold text-muted-foreground uppercase text-[10px] tracking-widest text-center">Periodo</TableHead>
                     <TableHead className="w-[80px] pr-6 text-right"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {paginatedAssignments.length > 0 ? (
                     paginatedAssignments.map((asg) => (
-                      <TableRow key={asg.id} className="group hover:bg-slate-50/50 transition-colors">
+                      <TableRow key={asg.id} className="group hover:bg-muted/30 transition-colors">
                         <TableCell className="pl-6 py-4">
                           <div className="flex items-center gap-3">
                             <Avatar className="h-9 w-9 border shadow-sm">
-                              <AvatarFallback className="bg-primary/5 text-primary font-bold text-xs text-slate-900">
+                              <AvatarFallback className="bg-primary/5 text-primary font-bold text-xs text-foreground">
                                 {asg.docente_nombre?.[0] || 'D'}
                               </AvatarFallback>
                             </Avatar>
-                            <span className="font-bold text-slate-900 text-sm">{asg.docente_nombre}</span>
+                            <span className="font-bold text-foreground text-sm">{asg.docente_nombre}</span>
                           </div>
                         </TableCell>
                         <TableCell>
@@ -320,8 +320,13 @@ export default function AcademicAssignmentsPage() {
                               <BookOpen className="h-4 w-4" />
                             </div>
                             <div className="flex flex-col">
-                              <span className="font-semibold text-slate-700 text-sm">{asg.unidad_nombre}</span>
-                              <span className="text-[10px] text-slate-400 uppercase">{asg.programa_nombre} - Sem {asg.semestre}</span>
+                              <span className="font-semibold text-foreground/90 text-sm">{asg.unidad_nombre}</span>
+                              <span className="text-[10px] text-muted-foreground uppercase">{asg.programa_nombre} - Sem {asg.semestre}</span>
+                              <span>
+                                <Badge className={`font-bold text-[10px] px-2 py-0 border-none mt-0.5 ${asg.seccion === 'REC' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                                  {asg.seccion === 'REC' ? 'REC - Recuperación' : 'U - Regular'}
+                                </Badge>
+                              </span>
                             </div>
                           </div>
                         </TableCell>
@@ -334,7 +339,7 @@ export default function AcademicAssignmentsPage() {
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="ghost" size="icon" className="rounded-full h-8 w-8">
-                                <MoreVertical className="h-4 w-4 text-slate-400" />
+                                <MoreVertical className="h-4 w-4 text-muted-foreground" />
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-40">
@@ -348,10 +353,10 @@ export default function AcademicAssignmentsPage() {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={4} className="h-48 text-center text-slate-400">
+                      <TableCell colSpan={4} className="h-48 text-center text-muted-foreground">
                         <div className="flex flex-col items-center gap-3">
                           <CalendarDays className="h-10 w-10 opacity-10" />
-                          <p className="font-bold text-slate-900 uppercase text-xs tracking-widest">Sin asignaciones registradas</p>
+                          <p className="font-bold text-foreground uppercase text-xs tracking-widest">Sin asignaciones registradas</p>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -361,8 +366,8 @@ export default function AcademicAssignmentsPage() {
               
               {/* Pagination Controls */}
               {totalPages > 1 && (
-                <div className="flex items-center justify-between px-6 py-4 bg-slate-50/30 border-t">
-                  <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                <div className="flex items-center justify-between px-6 py-4 bg-muted/20 border-t">
+                  <div className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
                     Página {currentPage} de {totalPages} ({filteredAssignments.length} registros)
                   </div>
                   <div className="flex gap-2">

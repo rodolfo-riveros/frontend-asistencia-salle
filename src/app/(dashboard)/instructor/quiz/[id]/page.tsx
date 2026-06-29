@@ -289,9 +289,9 @@ export default function InstructorQuizPage() {
 
   if (!mounted || loadingConfig) {
     return (
-      <div className="h-screen flex flex-col items-center justify-center bg-white gap-4">
+      <div className="h-screen flex flex-col items-center justify-center bg-card gap-4">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
-        <p className="font-black uppercase text-[10px] tracking-widest text-slate-400">Iniciando Rank-UP Arena...</p>
+        <p className="font-black uppercase text-[10px] tracking-widest text-muted-foreground">Iniciando Rank-UP Arena...</p>
       </div>
     )
   }
@@ -299,11 +299,11 @@ export default function InstructorQuizPage() {
   if (showAcademicSummary) {
     return (
       <div className="space-y-12 pb-20 animate-in fade-in slide-in-from-bottom-4 duration-700">
-        <div className="flex flex-col md:flex-row justify-between items-end gap-6 border-b-2 border-slate-100 pb-10">
+        <div className="flex flex-col md:flex-row justify-between items-end gap-6 border-b-2 border-border pb-10">
           <div className="space-y-2">
             <Badge className="bg-emerald-100 text-emerald-700 border-none font-black uppercase text-[9px] px-3 tracking-widest">Desafío Completado</Badge>
-            <h2 className="text-4xl font-black text-slate-900 uppercase italic tracking-tighter leading-none">Resumen de Notas</h2>
-            <p className="text-slate-400 font-medium italic">Sincronización masiva con el Registro Auxiliar</p>
+            <h2 className="text-4xl font-black text-foreground uppercase italic tracking-tighter leading-none">Resumen de Notas</h2>
+            <p className="text-muted-foreground font-medium italic">Sincronización masiva con el Registro Auxiliar</p>
           </div>
           <Button 
             onClick={handleCloseAndPersist} 
@@ -315,13 +315,13 @@ export default function InstructorQuizPage() {
           </Button>
         </div>
 
-        <Card className="p-0 border-none shadow-2xl rounded-[3rem] overflow-hidden bg-white">
+        <Card className="p-0 border-none shadow-2xl rounded-[3rem] overflow-hidden bg-card">
           <Table>
-            <TableHeader className="bg-slate-50/50">
-              <TableRow>
-                <TableHead className="pl-10 font-black text-[10px] uppercase text-slate-400 tracking-widest">Aspirante</TableHead>
-                <TableHead className="font-black text-[10px] uppercase text-slate-400 tracking-widest">Ranking pts</TableHead>
-                <TableHead className="text-center font-black text-[10px] uppercase text-slate-400 tracking-widest">Desempeño</TableHead>
+              <TableHeader className="bg-muted/30">
+                <TableRow>
+                  <TableHead className="pl-10 font-black text-[10px] uppercase text-muted-foreground tracking-widest">Aspirante</TableHead>
+                  <TableHead className="font-black text-[10px] uppercase text-muted-foreground tracking-widest">Ranking pts</TableHead>
+                  <TableHead className="text-center font-black text-[10px] uppercase text-muted-foreground tracking-widest">Desempeño</TableHead>
                 <TableHead className="text-right pr-10 font-black text-[10px] uppercase text-primary tracking-widest">Nota 0-20</TableHead>
               </TableRow>
             </TableHeader>
@@ -332,21 +332,21 @@ export default function InstructorQuizPage() {
                 const grade = Math.round((corrects / totalQ) * (config?.puntaje_maximo || 20));
                 
                 return (
-                  <TableRow key={p._id} className="hover:bg-slate-50 transition-colors">
+                  <TableRow key={p._id} className="hover:bg-muted transition-colors">
                     <TableCell className="pl-10 py-6">
                         <div className="flex items-center gap-4">
                           <Avatar className="h-10 w-10 border-2 border-white shadow-md">
                               <AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(p.avatar)}`} />
                               <AvatarFallback className="bg-slate-100 font-black text-[10px]">{getInitials(p.name)}</AvatarFallback>
                           </Avatar>
-                          <span className="font-bold text-slate-900 uppercase text-sm truncate w-64">{p.name}</span>
+                          <span className="font-bold text-foreground uppercase text-sm truncate w-64">{p.name}</span>
                         </div>
                     </TableCell>
                     <TableCell>
                         <Badge variant="outline" className="border-primary/20 text-primary font-mono font-black">{p.score} PTS</Badge>
                     </TableCell>
                     <TableCell className="text-center">
-                        <span className="text-xs font-bold text-slate-500">{corrects} / {totalQ} correctas</span>
+                        <span className="text-xs font-bold text-muted-foreground">{corrects} / {totalQ} correctas</span>
                     </TableCell>
                     <TableCell className="text-right pr-10">
                         <span className={cn("text-2xl font-black font-mono", grade < 13 ? 'text-red-600' : 'text-emerald-600')}>
@@ -365,9 +365,9 @@ export default function InstructorQuizPage() {
 
   if (isFullscreen && roomCode) {
     if (room === undefined) return (
-      <div className="fixed inset-0 z-[100] bg-white flex flex-col items-center justify-center gap-6">
+      <div className="fixed inset-0 z-[100] bg-card flex flex-col items-center justify-center gap-6">
         <Loader2 className="h-12 w-12 animate-spin text-primary opacity-20" />
-        <p className="font-black uppercase text-[10px] text-slate-400 tracking-widest">Sincronizando Arena...</p>
+        <p className="font-black uppercase text-[10px] text-muted-foreground tracking-widest">Sincronizando Arena...</p>
       </div>
     )
 
@@ -383,10 +383,10 @@ export default function InstructorQuizPage() {
                   <h2 className="text-3xl font-black text-white uppercase tracking-tighter italic leading-none">Arena Live</h2>
                 </div>
 
-                <div className="bg-white p-6 rounded-[2.5rem] shadow-2xl text-center space-y-4 border-b-8 border-yellow-400 relative overflow-hidden">
-                   <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">CÓDIGO PIN</p>
+                <div className="bg-card p-6 rounded-[2.5rem] shadow-2xl text-center space-y-4 border-b-8 border-yellow-400 relative overflow-hidden">
+                   <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">CÓDIGO PIN</p>
                    <h3 className="text-6xl font-black text-primary font-mono tracking-tighter leading-none">{roomCode}</h3>
-                   <div className="p-4 bg-slate-50 rounded-[2rem] border-2 border-slate-100 shadow-inner">
+                   <div className="p-4 bg-muted rounded-[2rem] border-2 border-border shadow-inner">
                       {mounted && (
                         <img 
                           src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(window.location.origin)}/student/quiz/join?pin=${roomCode}`} 
@@ -431,7 +431,7 @@ export default function InstructorQuizPage() {
                       </Button>
                     </div>
                   ) : (
-                    <Button onClick={handleShowSummary} className="w-full h-20 bg-white text-primary rounded-[2rem] font-black text-xl shadow-2xl border-b-4 border-slate-200 gap-3">
+                    <Button onClick={handleShowSummary} className="w-full h-20 bg-card text-primary rounded-[2rem] font-black text-xl shadow-2xl border-b-4 border-border gap-3">
                       <CheckCircle2 className="h-6 w-6" /> VER RESULTADOS
                     </Button>
                   )}
@@ -529,7 +529,7 @@ export default function InstructorQuizPage() {
               <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-8 gap-4 relative z-10">
                 {room?.participants?.map((p: any) => (
                   <Card key={p._id} className={cn(
-                    "flex flex-col items-center gap-3 p-4 rounded-[2rem] border-4 transition-all group relative bg-white shadow-xl",
+                    "flex flex-col items-center gap-3 p-4 rounded-[2rem] border-4 transition-all group relative bg-card shadow-xl",
                     p.isCheating ? "border-red-500 animate-pulse bg-red-50" : "border-transparent hover:border-yellow-400/30"
                   )}>
                     {p.isCheating && (
@@ -545,7 +545,8 @@ export default function InstructorQuizPage() {
                       </AvatarFallback>
                     </Avatar>
                     <div className="text-center space-y-1 w-full overflow-hidden relative z-10">
-                      <p className="text-[10px] font-black text-slate-900 truncate w-full uppercase italic tracking-tighter leading-none">{p.name.split(',')[0]}</p>
+                      <p className="text-[10px] font-black text-foreground truncate w-full uppercase italic tracking-tighter leading-none">{p.name.split(',')[0]}</p>
+                      <Badge variant="outline" className="border-accent/30 text-accent text-[8px] font-black uppercase tracking-widest px-2">{p.avatar || "ASPIRANTE"}</Badge>
                       <div className="bg-primary/5 rounded-lg py-1 px-3 inline-block border border-primary/5">
                         <p className="text-sm font-black text-primary leading-none font-mono">{p.score}</p>
                       </div>
@@ -562,7 +563,7 @@ export default function InstructorQuizPage() {
 
   return (
     <div className="space-y-12 pb-20 font-body">
-      <div className="flex flex-col md:flex-row justify-between items-start gap-8 border-b-2 border-slate-100 pb-10">
+      <div className="flex flex-col md:flex-row justify-between items-start gap-8 border-b-2 border-border pb-10">
         <div className="space-y-6">
           <div className="flex items-center gap-4">
             <Button variant="ghost" onClick={() => router.back()} className="h-10 text-primary font-black px-0 hover:bg-transparent uppercase tracking-[0.2em] text-[10px] gap-3">
@@ -584,8 +585,8 @@ export default function InstructorQuizPage() {
               <Zap className="h-10 w-10 fill-current" />
             </div>
             <div>
-              <h2 className="text-4xl md:text-5xl font-black text-slate-900 uppercase italic tracking-tighter leading-none">Rank-UP Arena</h2>
-              <p className="text-slate-400 font-bold italic text-base mt-2 flex items-center gap-2"><Sparkles className="h-4 w-4 text-accent" /> Desafío de Gamificación Técnica Salle</p>
+              <h2 className="text-4xl md:text-5xl font-black text-foreground uppercase italic tracking-tighter leading-none">Rank-UP Arena</h2>
+              <p className="text-muted-foreground font-bold italic text-base mt-2 flex items-center gap-2"><Sparkles className="h-4 w-4 text-accent" /> Desafío de Gamificación Técnica Salle</p>
             </div>
           </div>
         </div>
@@ -595,9 +596,9 @@ export default function InstructorQuizPage() {
               {isSyncing ? <Loader2 className="h-6 w-6 animate-spin" /> : <Radio className="h-6 w-6 animate-pulse" />} LANZAR DESAFÍO
             </Button>
           ) : (
-            <div className="flex items-center gap-6 bg-white border-2 border-slate-100 p-6 rounded-[2.5rem] shadow-2xl">
-              <div className="flex flex-col px-8 border-r-2 border-slate-100">
-                <span className="text-[11px] font-black uppercase text-slate-400 tracking-[0.3em]">PIN ACTIVO</span>
+            <div className="flex items-center gap-6 bg-card border-2 border-border p-6 rounded-[2.5rem] shadow-2xl">
+              <div className="flex flex-col px-8 border-r-2 border-border">
+                <span className="text-[11px] font-black uppercase text-muted-foreground tracking-[0.3em]">PIN ACTIVO</span>
                 <span className="text-5xl font-black font-mono text-primary tracking-tighter">{roomCode}</span>
               </div>
               <Button onClick={() => setIsFullscreen(true)} className="bg-primary text-white h-20 px-12 rounded-[2rem] font-black uppercase text-sm tracking-widest gap-4 shadow-xl hover:scale-105 active:scale-95 transition-all">
@@ -610,34 +611,53 @@ export default function InstructorQuizPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
         <div className="lg:col-span-2 space-y-12">
-          <Card className="p-12 border-none shadow-2xl bg-white rounded-[4rem] relative overflow-hidden">
+          <Card className="p-12 border-none shadow-2xl bg-card rounded-[4rem] relative overflow-hidden">
             <h3 className="text-2xl font-black uppercase tracking-tighter italic text-slate-800 mb-10 flex items-center gap-4"><BookOpen className="h-7 w-7 text-primary" /> Banco de Preguntas Generadas</h3>
             <div className="space-y-10">
               {(config?.configuracion_json?.questions || []).map((q: any, idx: number) => (
-                <div key={idx} className="p-10 bg-slate-50/50 rounded-[3.5rem] border-2 border-slate-100 space-y-8 group hover:bg-white transition-all">
+                <div key={idx} className="p-10 bg-muted/30 rounded-[3.5rem] border-2 border-border space-y-8 group hover:bg-card transition-all">
                   <div className="flex justify-between items-start">
                     <Badge className="bg-primary text-white font-black text-[10px] px-6 py-1 rounded-full uppercase tracking-[0.3em]">ITEM {idx + 1}</Badge>
-                    <div className="bg-white p-4 rounded-3xl border-2 border-slate-100 shadow-sm shrink-0 flex flex-col items-center">
+                    <div className="bg-card p-4 rounded-3xl border-2 border-border shadow-sm shrink-0 flex flex-col items-center">
                       <Percent className="h-5 w-5 text-primary mb-1" />
-                      <span className="font-black text-xl text-slate-900">{q.timeLimit}s</span>
+                      <span className="font-black text-xl text-foreground">{q.timeLimit || 20}s</span>
                     </div>
                   </div>
                   <p className="text-2xl font-black text-slate-800 uppercase tracking-tight leading-tight max-w-2xl">{q.text}</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {(q.options || []).map((opt: string, oIdx: number) => (
+                      <div key={oIdx} className={cn(
+                        "p-4 rounded-2xl border-2 flex items-center gap-3 font-bold text-sm transition-all",
+                        q.correctIndex === oIdx
+                          ? "bg-emerald-50 border-emerald-400 text-emerald-800"
+                          : "bg-card border-border text-foreground/90"
+                      )}>
+                        <div className={cn(
+                          "w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs shrink-0",
+                          q.correctIndex === oIdx ? "bg-emerald-500 text-white" : "bg-slate-100 text-muted-foreground"
+                        )}>
+                          {String.fromCharCode(65 + oIdx)}
+                        </div>
+                        <span className={cn(q.correctIndex === oIdx && "font-black")}>{opt}</span>
+                        {q.correctIndex === oIdx && <CheckCircle2 className="h-4 w-4 ml-auto text-emerald-500 shrink-0" />}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>
           </Card>
         </div>
         <div className="space-y-8">
-          <Card className="p-10 border-none shadow-2xl bg-white rounded-[3.5rem] sticky top-28 overflow-hidden border-2 border-slate-50">
-            <h4 className="text-xl font-black uppercase tracking-widest mb-10 flex items-center gap-4 text-slate-900"><ShieldCheck className="h-7 w-7 text-primary" /> Datos de la Actividad</h4>
+          <Card className="p-10 border-none shadow-2xl bg-card rounded-[3.5rem] sticky top-28 overflow-hidden border-2 border-slate-50">
+            <h4 className="text-xl font-black uppercase tracking-widest mb-10 flex items-center gap-4 text-foreground"><ShieldCheck className="h-7 w-7 text-primary" /> Datos de la Actividad</h4>
             {config && (
               <div className="space-y-10">
-                <div className="p-6 bg-slate-50 rounded-[2.5rem] border-2 border-slate-100 space-y-5">
-                   <div className="flex flex-col"><span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Actividad</span><p className="text-lg font-black text-slate-900 uppercase leading-tight italic">{config.nombre}</p></div>
+                <div className="p-6 bg-muted rounded-[2.5rem] border-2 border-border space-y-5">
+                   <div className="flex flex-col"><span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1">Actividad</span><p className="text-lg font-black text-foreground uppercase leading-tight italic">{config.nombre}</p></div>
                    <div className="grid grid-cols-2 gap-4">
-                      <div className="bg-white p-4 rounded-2xl border border-slate-100 flex items-center gap-3"><div className="p-2 bg-primary/10 rounded-xl text-primary"><Percent className="h-4 w-4" /></div><div className="flex flex-col"><span className="text-[8px] font-black text-slate-400 uppercase">Peso</span><span className="text-sm font-black text-primary">{config.peso_instrumento}%</span></div></div>
-                      <div className="bg-white p-4 rounded-2xl border border-slate-100 flex items-center gap-3"><div className="p-2 bg-accent/10 rounded-xl text-accent"><Award className="h-4 w-4" /></div><div className="flex flex-col"><span className="text-[8px] font-black text-slate-400 uppercase">Máximo</span><span className="text-sm font-black text-accent">{config.puntaje_maximo} pts</span></div></div>
+                      <div className="bg-card p-4 rounded-2xl border border-border flex items-center gap-3"><div className="p-2 bg-primary/10 rounded-xl text-primary"><Percent className="h-4 w-4" /></div><div className="flex flex-col"><span className="text-[8px] font-black text-muted-foreground uppercase">Peso</span><span className="text-sm font-black text-primary">{config.peso_instrumento}%</span></div></div>
+                      <div className="bg-card p-4 rounded-2xl border border-border flex items-center gap-3"><div className="p-2 bg-accent/10 rounded-xl text-accent"><Award className="h-4 w-4" /></div><div className="flex flex-col"><span className="text-[8px] font-black text-muted-foreground uppercase">Máximo</span><span className="text-sm font-black text-accent">{config.puntaje_maximo} pts</span></div></div>
                    </div>
                 </div>
                 <div className="p-6 bg-primary/5 rounded-3xl border-2 border-primary/10 space-y-4">

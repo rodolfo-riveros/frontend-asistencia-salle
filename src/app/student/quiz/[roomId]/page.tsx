@@ -113,9 +113,9 @@ export default function StudentGameRoomPage() {
   }
 
   if (!room) return (
-    <div className="min-h-screen bg-white flex flex-col items-center justify-center gap-8 p-10">
+    <div className="min-h-screen bg-card flex flex-col items-center justify-center gap-8 p-10">
       <div className="relative"><Loader2 className="h-20 w-20 animate-spin text-primary opacity-20" /><Zap className="h-10 w-10 text-primary absolute inset-0 m-auto animate-pulse" /></div>
-      <p className="text-slate-400 font-black uppercase text-[12px] tracking-[0.5em] text-center">Sincronizando Arena Rank-UP...</p>
+      <p className="text-muted-foreground font-black uppercase text-[12px] tracking-[0.5em] text-center">Sincronizando Arena Rank-UP...</p>
     </div>
   )
 
@@ -129,12 +129,12 @@ export default function StudentGameRoomPage() {
       </div>
 
       <header className="flex justify-between items-center max-w-5xl mx-auto w-full mb-6 mt-4">
-        <div className="flex items-center gap-3"><div className="p-2.5 bg-white border-2 border-primary/10 rounded-xl shadow-lg"><Zap className="h-5 w-5 text-primary fill-primary" /></div><h2 className="text-xl font-black text-slate-900 uppercase italic">Rank-UP</h2></div>
+        <div className="flex items-center gap-3"><div className="p-2.5 bg-white border-2 border-primary/10 rounded-xl shadow-lg"><Zap className="h-5 w-5 text-primary fill-primary" /></div><h2 className="text-xl font-black text-foreground uppercase italic">Rank-UP</h2></div>
         <div className="flex items-center gap-3">
           {myData && (
-            <div className="flex items-center gap-2.5 bg-white pr-5 pl-2 py-1 rounded-full border-2 border-primary/5 shadow-md">
+            <div className="flex items-center gap-2.5 bg-card pr-5 pl-2 py-1 rounded-full border-2 border-primary/5 shadow-md">
               <Avatar className="h-8 w-8"><AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(myData.avatar)}`} /><AvatarFallback className="text-[8px] font-black bg-slate-100">{getInitials(myData.name)}</AvatarFallback></Avatar>
-              <span className="text-[10px] font-black text-slate-900 uppercase truncate w-24">{myData.name.split(',')[0]}</span>
+              <span className="text-[10px] font-black text-foreground uppercase truncate w-24">{myData.name.split(',')[0]}</span>
             </div>
           )}
           <Badge className="h-10 px-4 rounded-xl bg-white text-primary font-black text-[10px] uppercase">
@@ -145,30 +145,30 @@ export default function StudentGameRoomPage() {
 
       <main className="flex-grow flex flex-col items-center justify-center max-w-5xl mx-auto w-full">
         {room.status === 'lobby' ? (
-          <div className="text-center p-10 md:p-20 bg-white rounded-[3rem] border-b-[8px] border-primary shadow-xl space-y-8">
+          <div className="text-center p-10 md:p-20 bg-card rounded-[3rem] border-b-[8px] border-primary shadow-xl space-y-8">
              {myData && <Avatar className="h-32 w-32 mx-auto border-4 border-white shadow-xl mb-6"><AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(myData.avatar)}`} /><AvatarFallback className="text-3xl font-black">{getInitials(myData.name)}</AvatarFallback></Avatar>}
-             <h3 className="text-3xl md:text-5xl font-black text-slate-900 uppercase italic tracking-tighter">¡En Arena!</h3>
-             <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.4em]">Espera el ascenso técnico del docente.</p>
+             <h3 className="text-3xl md:text-5xl font-black text-foreground uppercase italic tracking-tighter">¡En Arena!</h3>
+             <p className="text-muted-foreground text-[10px] font-black uppercase tracking-[0.4em]">Espera el ascenso técnico del docente.</p>
           </div>
         ) : (room.status === 'active' && !isQuizFinished) ? (
           <div className="w-full space-y-10 px-4">
             {hasAnswered ? (
               <div className={cn("text-center p-12 md:p-20 rounded-[4rem] border-b-[12px] shadow-2xl space-y-6", lastAnswerCorrect ? "bg-emerald-50 border-emerald-500" : "bg-red-50 border-red-500")}>
                 {lastAnswerCorrect ? <CheckCircle2 className="h-24 w-24 text-emerald-500 mx-auto" /> : <XCircle className="h-24 w-24 text-red-500 mx-auto" />}
-                <h3 className="text-4xl font-black uppercase italic text-slate-900">{lastAnswerCorrect ? "¡LOGRADO!" : "¡SIGUE ASÍ!"}</h3>
-                <div className="flex flex-col items-center gap-3"><p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.4em]">Espera el siguiente reto...</p><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
+                <h3 className="text-4xl font-black uppercase italic text-foreground">{lastAnswerCorrect ? "¡LOGRADO!" : "¡SIGUE ASÍ!"}</h3>
+                <div className="flex flex-col items-center gap-3"><p className="text-muted-foreground text-[10px] font-black uppercase tracking-[0.4em]">Espera el siguiente reto...</p><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
               </div>
             ) : (
               <>
                 <div className="text-center space-y-6">
-                   <div className={cn("inline-flex items-center gap-2 px-6 py-2 rounded-full border-2 font-black text-sm", timeLeft <= 5 ? "bg-red-50 border-red-500 text-red-600 animate-pulse" : "bg-white border-slate-100 text-slate-400")}><Clock className="h-4 w-4" /> {timeLeft}s</div>
-                   <h1 className="text-xl md:text-2xl font-black text-slate-900 uppercase italic max-w-3xl mx-auto">{currentQ?.text}</h1>
+                   <div className={cn("inline-flex items-center gap-2 px-6 py-2 rounded-full border-2 font-black text-sm", timeLeft <= 5 ? "bg-red-50 border-red-500 text-red-600 animate-pulse" : "bg-card border-border text-muted-foreground")}><Clock className="h-4 w-4" /> {timeLeft}s</div>
+                   <h1 className="text-xl md:text-2xl font-black text-foreground uppercase italic max-w-3xl mx-auto">{currentQ?.text}</h1>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-4xl mx-auto">
                   {currentQ?.options.map((opt: string, i: number) => (
                     <Button key={i} disabled={hasAnswered} onClick={() => handleAnswer(i)} variant="outline" className={cn("min-h-[100px] rounded-3xl border-2 px-8 py-6 flex items-center justify-start text-left whitespace-normal", hasAnswered && selectedOptionIndex === i && (lastAnswerCorrect ? "border-emerald-500 bg-emerald-50" : "border-red-500 bg-red-50"))}>
-                      <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border-2 font-black text-xs mr-5", hasAnswered && selectedOptionIndex === i ? (lastAnswerCorrect ? "bg-emerald-500 text-white" : "bg-red-500 text-white") : "bg-slate-50 text-slate-300")}>{String.fromCharCode(65 + i)}</div>
-                      <span className="flex-1 font-black text-slate-700 leading-tight">{opt}</span>
+                      <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border-2 font-black text-xs mr-5", hasAnswered && selectedOptionIndex === i ? (lastAnswerCorrect ? "bg-emerald-500 text-white" : "bg-red-500 text-white") : "bg-muted text-slate-300")}>{String.fromCharCode(65 + i)}</div>
+                      <span className="flex-1 font-black text-foreground/90 leading-tight">{opt}</span>
                     </Button>
                   ))}
                 </div>
@@ -179,9 +179,9 @@ export default function StudentGameRoomPage() {
           <div className="w-full max-w-4xl mx-auto space-y-8 py-6">
             {isQuizFinished ? (
               <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
-                <div className="bg-white p-8 rounded-[3rem] border-b-[8px] border-emerald-500 shadow-2xl text-center space-y-6">
+                <div className="bg-card p-8 rounded-[3rem] border-b-[8px] border-emerald-500 shadow-2xl text-center space-y-6">
                   <Trophy className="h-20 w-20 text-yellow-400 mx-auto animate-bounce" />
-                  <h2 className="text-4xl font-black text-slate-900 uppercase italic">Arena Finalizada</h2>
+                  <h2 className="text-4xl font-black text-foreground uppercase italic">Arena Finalizada</h2>
                   <div className="grid grid-cols-2 gap-4 max-w-md mx-auto pt-4">
                     <div className="bg-emerald-50 p-6 rounded-3xl border-2 border-emerald-100 flex flex-col items-center"><span className="text-[10px] font-black text-emerald-600 uppercase mb-1">Aciertos</span><span className="text-4xl font-black text-emerald-700">{correctsCount}</span></div>
                     <div className="bg-red-50 p-6 rounded-3xl border-2 border-red-100 flex flex-col items-center"><span className="text-[10px] font-black text-red-600 uppercase mb-1">Fallos</span><span className="text-4xl font-black text-red-700">{incorrectsCount}</span></div>
@@ -196,7 +196,7 @@ export default function StudentGameRoomPage() {
                       const ans = myData?.answers?.find((a: any) => a.questionIndex === idx);
                       const isOk = ans?.isCorrect;
                       return (
-                        <div key={idx} className={cn("bg-white p-6 rounded-[2rem] border-2 shadow-md flex items-center gap-6", isOk ? "border-emerald-100" : "border-red-100")}>
+                        <div key={idx} className={cn("bg-card p-6 rounded-[2rem] border-2 shadow-md flex items-center gap-6", isOk ? "border-emerald-100" : "border-red-100")}>
                           <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 font-black", isOk ? "bg-emerald-500 text-white" : "bg-red-500 text-white")}>{isOk ? <CheckCircle2 className="h-6 w-6" /> : <XCircle className="h-6 w-6" />}</div>
                           <div className="flex-grow space-y-2">
                              <p className="text-sm font-black text-slate-800 uppercase leading-tight">{q.text}</p>
@@ -210,8 +210,8 @@ export default function StudentGameRoomPage() {
                 <Button onClick={() => router.push('/student/quiz/join')} className="w-full h-20 bg-primary text-white rounded-[2rem] font-black uppercase text-sm shadow-2xl border-b-8 border-primary/20 gap-3"><LogOut className="h-6 w-6" /> VOLVER AL INICIO</Button>
               </div>
             ) : (
-              <div className="bg-white p-12 rounded-[4rem] border-t-[14px] border-primary shadow-2xl text-center space-y-12">
-                <div className="bg-slate-50 rounded-[3rem] p-10 border-4 border-slate-100 inline-block shadow-inner"><p className="text-[12px] font-black uppercase text-slate-400 tracking-[0.4em] mb-4">PUNTAJE EN ARENA</p><span className="text-6xl md:text-8xl font-black text-primary font-mono">{myData?.score || 0}</span></div>
+              <div className="bg-card p-12 rounded-[4rem] border-t-[14px] border-primary shadow-2xl text-center space-y-12">
+                <div className="bg-muted rounded-[3rem] p-10 border-4 border-border inline-block shadow-inner"><p className="text-[12px] font-black uppercase text-muted-foreground tracking-[0.4em] mb-4">PUNTAJE EN ARENA</p><span className="text-6xl md:text-8xl font-black text-primary font-mono">{myData?.score || 0}</span></div>
                 <div className="p-8 bg-blue-50 rounded-[2.5rem] border-2 border-blue-100 flex flex-col items-center gap-4"><div className="flex items-center gap-4"><Loader2 className="h-6 w-6 animate-spin text-primary" /><p className="text-[11px] font-black text-primary uppercase">Esperando al Docente...</p></div></div>
               </div>
             )}
@@ -219,7 +219,7 @@ export default function StudentGameRoomPage() {
         )}
       </main>
 
-      <footer className="w-full text-center pb-6 pt-8 opacity-40"><div className="flex items-center justify-center gap-2"><ShieldCheck className="h-4 w-4 text-primary" /><p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">IES LA SALLE URUBAMBA • RANK-UP v2.0</p></div></footer>
+      <footer className="w-full text-center pb-6 pt-8 opacity-40"><div className="flex items-center justify-center gap-2"><ShieldCheck className="h-4 w-4 text-primary" /><p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">IES LA SALLE URUBAMBA • RANK-UP v2.0</p></div></footer>
     </div>
   )
 }

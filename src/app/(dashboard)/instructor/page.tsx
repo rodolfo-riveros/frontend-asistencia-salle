@@ -22,6 +22,100 @@ import { toast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
 import { supabase } from "@/lib/supabase"
 
+function CourseCard({ asg, attendanceStatus, selectedPeriodId }: {
+  asg: any
+  attendanceStatus: Record<string, boolean>
+  selectedPeriodId: string
+}) {
+  const isRec = asg.seccion === 'REC'
+  const accent = isRec ? 'amber' : 'primary'
+  const accentBg = isRec ? 'bg-amber-500/10' : 'bg-primary/5'
+  const accentBorder = isRec ? 'border-amber-500/20' : 'border-primary/10'
+  const statusOk = attendanceStatus[asg.unidad_id]
+
+  return (
+    <Card className="group border-0 bg-card rounded-3xl overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 shadow-lg relative">
+      {/* Accent top bar */}
+      <div className={`h-1.5 w-full ${isRec ? 'bg-gradient-to-r from-amber-400 to-amber-500' : 'bg-gradient-to-r from-primary/80 to-primary'}`} />
+
+      {/* Header */}
+      <CardHeader className="px-6 pt-6 pb-0 space-y-4">
+        <div className="flex items-start justify-between">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge className={`text-[9px] font-bold px-2.5 py-1 rounded-lg border ${isRec ? 'bg-amber-500/10 text-amber-300 border-amber-500/20' : 'bg-primary/5 text-primary border-primary/10'}`}>
+              <BookOpen className="h-3 w-3 mr-1" />
+              {asg.unidad_id.substring(0, 8)}
+            </Badge>
+            <Badge className={`text-[9px] font-bold px-2.5 py-1 rounded-lg border ${
+              isRec
+                ? 'bg-amber-500/10 text-amber-300 border-amber-500/20'
+                : 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20'
+            }`}>
+              {isRec ? 'Recuperación' : 'Regular'}
+            </Badge>
+          </div>
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${accentBg} border ${accentBorder}`}>
+            <GraduationCap className={`h-5 w-5 ${isRec ? 'text-amber-500' : 'text-primary'}`} />
+          </div>
+        </div>
+
+        <div>
+          <CardTitle className="text-lg font-bold text-foreground leading-snug line-clamp-2">
+            {asg.unidad_nombre}
+          </CardTitle>
+          <p className="text-xs font-semibold text-muted-foreground mt-1.5 tracking-wide">
+            {asg.programa_nombre}
+          </p>
+        </div>
+      </CardHeader>
+
+      {/* Stats */}
+      <CardContent className="px-6 pt-5 pb-0">
+        <div className="flex items-center gap-4 p-3.5 rounded-2xl bg-muted/50 border border-border">
+          <div className="flex items-center gap-3 flex-1">
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${accentBg} border ${accentBorder}`}>
+              <Calendar className={`h-4 w-4 ${isRec ? 'text-amber-500' : 'text-primary'}`} />
+            </div>
+            <div>
+              <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Ciclo</p>
+              <p className="text-sm font-bold text-foreground/90">Sem {asg.semestre}</p>
+            </div>
+          </div>
+          <div className="w-px h-10 bg-border" />
+          <div className="flex items-center gap-3 flex-1">
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${statusOk ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-amber-500/10 border-amber-500/20'} border`}>
+              {statusOk
+                ? <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                : <CircleDashed className="h-4 w-4 text-amber-400" />
+              }
+            </div>
+            <div>
+              <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Estado Hoy</p>
+              <p className={`text-sm font-bold ${statusOk ? 'text-emerald-400' : 'text-amber-500'}`}>
+                {statusOk ? 'Completado' : 'Pendiente'}
+              </p>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+
+      {/* Actions */}
+      <CardFooter className="px-6 pt-5 pb-6 mt-5 flex gap-3">
+        <Button asChild className={`flex-1 h-12 font-bold text-xs rounded-2xl shadow-lg ${isRec ? 'shadow-amber-500/20 bg-amber-500 hover:bg-amber-600' : 'shadow-primary/20 bg-primary hover:bg-primary/90'} text-white`}>
+          <Link href={`/instructor/attendance/${asg.unidad_id}?periodo_id=${selectedPeriodId}`}>
+            <Users className="h-4 w-4 mr-1.5" /> ASISTENCIA
+          </Link>
+        </Button>
+        <Button asChild variant="outline" className={`flex-1 h-12 font-bold text-xs rounded-2xl border-2 ${isRec ? 'border-amber-500/20 text-amber-400 hover:bg-amber-500/10' : 'border-primary/20 text-primary hover:bg-primary/5'}`}>
+          <Link href={`/instructor/grades/${asg.unidad_id}?periodo_id=${selectedPeriodId}`}>
+            <ClipboardCheck className="h-4 w-4 mr-1.5" /> NOTAS
+          </Link>
+        </Button>
+      </CardFooter>
+    </Card>
+  )
+}
+
 export default function InstructorDashboard() {
   const [asignaciones, setAsignaciones] = React.useState<any[]>([])
   const [periods, setPeriods] = React.useState<any[]>([])
@@ -87,16 +181,16 @@ export default function InstructorDashboard() {
             <div className="h-1.5 w-8 bg-primary rounded-full" />
             <span className="text-primary font-bold uppercase tracking-widest text-[10px]">Portal del Docente</span>
           </div>
-          <h2 className="text-3xl md:text-5xl font-headline font-black tracking-tighter text-slate-900 leading-tight">
+          <h2 className="text-3xl md:text-5xl font-headline font-black tracking-tighter text-foreground leading-tight">
             Gestión de Cursos
           </h2>
         </div>
         
-        <div className="bg-white p-4 rounded-2xl border shadow-sm flex items-center gap-4">
+        <div className="bg-card p-4 rounded-2xl border shadow-sm flex items-center gap-4">
           <div className="flex flex-col">
-            <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Periodo Actual</span>
+            <span className="text-[10px] font-black uppercase text-muted-foreground tracking-widest mb-1">Periodo Actual</span>
             <Select value={selectedPeriodId} onValueChange={setSelectedPeriodId}>
-              <SelectTrigger className="h-9 w-[220px] border-none bg-slate-50 font-bold text-slate-900">
+              <SelectTrigger className="h-9 w-[220px] border-none bg-muted font-bold text-foreground">
                 <Calendar className="h-4 w-4 mr-2 text-primary" />
                 <SelectValue placeholder="Seleccione Ciclo" />
               </SelectTrigger>
@@ -111,79 +205,47 @@ export default function InstructorDashboard() {
       </div>
 
       {isLoading ? (
-        <div className="h-96 flex flex-col items-center justify-center text-slate-400 gap-4">
+        <div className="h-96 flex flex-col items-center justify-center text-muted-foreground gap-4">
           <Loader2 className="h-12 w-12 animate-spin text-primary" />
           <p className="font-bold uppercase text-xs tracking-widest">Sincronizando...</p>
         </div>
       ) : asignaciones.length > 0 ? (
-        <div className="grid gap-6 md:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-          {asignaciones.map((asg) => (
-            <Card key={asg.id} className="group border-none shadow-xl hover:shadow-2xl transition-all bg-white flex flex-col overflow-hidden rounded-[2rem]">
-              <div className="h-2 bg-primary" />
-              <CardHeader className="space-y-4 p-8">
-                <div className="flex justify-between items-start">
-                  <Badge variant="outline" className="text-[10px] font-black uppercase tracking-widest bg-slate-50 text-slate-500 rounded-lg px-3 py-1">
-                    UD: {asg.unidad_id.substring(0,8)}
-                  </Badge>
-                  <GraduationCap className="h-6 w-6 text-primary/20" />
-                </div>
-                <div>
-                  <CardTitle className="text-xl md:text-2xl font-headline font-black line-clamp-2 text-slate-800 leading-tight">
-                    {asg.unidad_nombre}
-                  </CardTitle>
-                  <p className="text-[10px] font-black uppercase text-primary/60 mt-2 tracking-widest">
-                    {asg.programa_nombre}
-                  </p>
-                </div>
-              </CardHeader>
-              <CardContent className="px-8 py-0 space-y-4 flex-grow">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex items-center gap-3 p-4 rounded-2xl bg-slate-50 border border-slate-100/50 shadow-inner">
-                    <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-primary shadow-sm border">
-                      <BookOpen className="h-4 w-4" />
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Ciclo</span>
-                      <span className="text-sm font-black text-slate-700">Sem {asg.semestre}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 p-4 rounded-2xl bg-slate-50 border border-slate-100/50 shadow-inner">
-                    <div className="flex flex-col flex-1">
-                      <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Estado Hoy</span>
-                      {attendanceStatus[asg.unidad_id] ? (
-                        <span className="text-[9px] font-black text-emerald-600 flex items-center gap-1.5 mt-1">
-                          <CheckCircle2 className="h-3.5 w-3.5" /> ASISTENCIA OK
-                        </span>
-                      ) : (
-                        <span className="text-[9px] font-black text-amber-600 flex items-center gap-1.5 mt-1">
-                          <CircleDashed className="h-3.5 w-3.5 animate-pulse" /> PENDIENTE
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-              <CardFooter className="bg-slate-50/50 p-8 flex gap-3 mt-8 border-t border-slate-100">
-                <Button asChild className="flex-1 h-16 font-black shadow-xl shadow-primary/20 bg-primary hover:bg-primary/90 text-white rounded-2xl uppercase text-[11px] tracking-widest gap-2">
-                  <Link href={`/instructor/attendance/${asg.unidad_id}?periodo_id=${selectedPeriodId}`}>
-                    <Users className="h-5 w-5" /> ASISTENCIA
-                  </Link>
-                </Button>
-                <Button asChild variant="outline" className="flex-1 h-16 font-black border-2 border-primary/20 text-primary hover:bg-primary/5 rounded-2xl uppercase text-[11px] tracking-widest shadow-sm">
-                  <Link href={`/instructor/grades/${asg.unidad_id}?periodo_id=${selectedPeriodId}`}>
-                    <ClipboardCheck className="h-5 w-5" /> EVALUACIÓN
-                  </Link>
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
+        <>
+          {/* ── Regulares ── */}
+          {asignaciones.filter(a => a.seccion !== 'REC').length > 0 && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                <h3 className="font-black text-xs uppercase tracking-widest text-muted-foreground">Cursos Regulares</h3>
+              </div>
+              <div className="grid gap-6 md:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                {asignaciones.filter(a => a.seccion !== 'REC').map((asg) => (
+                  <CourseCard asg={asg} attendanceStatus={attendanceStatus} selectedPeriodId={selectedPeriodId} key={asg.id} />
+                ))}
+              </div>
+            </div>
+          )}
+          {/* ── Recuperación ── */}
+          {asignaciones.filter(a => a.seccion === 'REC').length > 0 && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-amber-500" />
+                <h3 className="font-black text-xs uppercase tracking-widest text-muted-foreground">Cursos de Recuperación</h3>
+              </div>
+              <div className="grid gap-6 md:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                {asignaciones.filter(a => a.seccion === 'REC').map((asg) => (
+                  <CourseCard asg={asg} attendanceStatus={attendanceStatus} selectedPeriodId={selectedPeriodId} key={asg.id} />
+                ))}
+              </div>
+            </div>
+          )}
+        </>
       ) : (
-        <Card className="p-24 text-center border-4 border-dashed border-slate-100 text-slate-400 bg-white rounded-[3rem]">
-          <div className="p-8 bg-slate-50 rounded-full w-fit mx-auto mb-6">
+        <Card className="p-24 text-center border-4 border-dashed border-border text-muted-foreground bg-card rounded-[3rem]">
+          <div className="p-8 bg-muted rounded-full w-fit mx-auto mb-6">
             <LayoutDashboard className="h-16 w-16 opacity-10" />
           </div>
-          <p className="font-black text-2xl text-slate-900 uppercase tracking-tighter">Sin carga académica registrada</p>
+          <p className="font-black text-2xl text-foreground uppercase tracking-tighter">Sin carga académica registrada</p>
           <p className="text-sm font-medium italic mt-2">Contacta con administración para tu asignación oficial de cursos.</p>
         </Card>
       )}

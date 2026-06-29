@@ -3,6 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
+import { ThemeToggle } from "@/components/ui/theme-toggle"
 import { LayoutDashboard, Users, GraduationCap, BookOpen, UserRound, ClipboardList, Search, LogOut, Loader2, CalendarDays } from "lucide-react"
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { NavUser } from "@/components/layout/nav-user"
@@ -59,13 +60,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const handleLogout = async () => { await supabase.auth.signOut(); router.replace('/') }
 
   const Footer = () => (
-    <footer className="w-full py-6 px-8 mt-auto flex flex-col md:flex-row justify-between items-center border-t bg-white gap-4 text-[10px] uppercase tracking-widest font-bold text-slate-400">
+    <footer className="w-full py-6 px-8 mt-auto flex flex-col md:flex-row justify-between items-center border-t bg-card gap-4 text-[10px] uppercase tracking-widest font-bold text-muted-foreground">
       <div>© {new Date().getFullYear()} IES La Salle Urubamba | Cusco - Perú</div>
-      <div>Desarrollado por Rodolfo Riveros</div>
+      <div>
+        <a
+          href="https://portafolio-rodolfo.vercel.app/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hover:text-primary transition-colors"
+        >
+          Desarrollado por Rodolfo Riveros Mitma
+        </a>
+      </div>
     </footer>
   )
 
-  if (isLoading) return <div className="min-h-screen flex flex-col items-center justify-center gap-4"><Loader2 className="h-10 w-10 animate-spin text-primary" /><p className="text-sm font-bold text-slate-500 uppercase">Autorizando...</p></div>
+  if (isLoading) return <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-background"><Loader2 className="h-10 w-10 animate-spin text-primary" /><p className="text-sm font-bold text-muted-foreground uppercase">Autorizando...</p></div>
 
   if (pathname.startsWith('/admin')) {
     return (
@@ -84,8 +94,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </SidebarContent>
           <SidebarFooter className="border-t border-white/10 p-4"><NavUser user={userData} onLogout={handleLogout} /></SidebarFooter>
         </Sidebar>
-        <SidebarInset className="bg-[#f8f9fa] flex flex-col min-h-screen">
-          <header className="flex h-20 shrink-0 items-center gap-2 border-b bg-white/60 backdrop-blur-xl px-4 md:px-8 sticky top-0 z-40"><SidebarTrigger /><div className="flex-1 flex justify-end"><Search className="h-4 w-4 text-slate-400" /></div></header>
+        <SidebarInset className="bg-background flex flex-col min-h-screen">
+          <header className="flex h-20 shrink-0 items-center gap-2 border-b bg-card/80 backdrop-blur-xl px-4 md:px-8 sticky top-0 z-40"><SidebarTrigger /><div className="flex-1 flex justify-end items-center gap-2"><ThemeToggle /><Search className="h-4 w-4 text-muted-foreground" /></div></header>
           <div className="p-4 md:p-12 max-w-[1600px] mx-auto w-full flex-grow">{children}</div>
           <Footer />
         </SidebarInset>
@@ -94,7 +104,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="min-h-screen bg-[#f8f9fa] flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col">
       <header className="h-20 bg-primary sticky top-0 z-50 px-4 md:px-10 lg:px-20 flex items-center justify-between shadow-lg text-white">
         <Link href="/instructor" className="flex items-center gap-4 group">
           <div className="bg-white/20 p-2 rounded-xl shadow-lg group-hover:scale-110 transition-transform w-12 h-12 flex items-center justify-center border border-white/10">
@@ -107,6 +117,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div className="text-right flex flex-col"><span className="text-sm font-black leading-tight">{userData?.name}</span><span className="text-[10px] text-white/80 font-bold uppercase tracking-widest">{userData?.isTransversal ? "Docente Transversal" : "Docente de Especialidad"}</span></div>
             <Avatar className="h-10 w-10 border-2 border-white/20"><AvatarFallback className="bg-white/10 text-white font-bold">{userData?.initials}</AvatarFallback></Avatar>
           </div>
+          <ThemeToggle />
           <Button variant="ghost" size="icon" className="rounded-full h-11 w-11 text-white/70 hover:text-white hover:bg-white/10" onClick={handleLogout}><LogOut className="h-5 w-5" /></Button>
         </div>
       </header>

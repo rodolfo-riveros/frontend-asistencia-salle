@@ -120,7 +120,8 @@ export default function AdminStudentsPage() {
       nombre: formData.get("nombre") as string,
       dni: formData.get("dni") as string,
       programa_id: formData.get("programa_id") as string,
-      semestre: formData.get("semestre") as string
+      semestre: formData.get("semestre") as string,
+      seccion: formData.get("seccion") as string
     }
 
     try {
@@ -159,7 +160,7 @@ export default function AdminStudentsPage() {
 
   const downloadTemplate = () => {
     const templateData = [
-      { nombre: "APELLIDOS Y NOMBRES", dni: "00000000", programa_codigo: "CODIGO_AQUI", semestre: "I" },
+      { nombre: "APELLIDOS Y NOMBRES", dni: "00000000", programa_codigo: "CODIGO_AQUI", semestre: "I", seccion: "U" },
     ]
     const wsData = XLSX.utils.json_to_sheet(templateData)
     const referenceData = programs.map(p => ({
@@ -221,7 +222,8 @@ export default function AdminStudentsPage() {
               nombre: String(row.nombre).toUpperCase(),
               dni: String(row.dni),
               programa_id: program.id,
-              semestre: String(row.semestre || "I").toUpperCase()
+              semestre: String(row.semestre || "I").toUpperCase(),
+              seccion: String(row.seccion || "U").toUpperCase()
             })
             successCount++
           } catch (err) {
@@ -251,7 +253,8 @@ export default function AdminStudentsPage() {
     const result = (students || []).filter(s => 
       s.nombre.toLowerCase().includes(term) || 
       s.dni.includes(term) ||
-      (s.programa_nombre || "").toLowerCase().includes(term)
+      (s.programa_nombre || "").toLowerCase().includes(term) ||
+      (s.seccion || "").toLowerCase().includes(term)
     )
     return result
   }, [students, searchTerm])
@@ -273,8 +276,8 @@ export default function AdminStudentsPage() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
         <div className="space-y-1">
           <p className="text-primary font-bold uppercase tracking-[0.2em] text-xs">Gestión de Matrícula</p>
-          <h2 className="text-3xl font-headline font-extrabold tracking-tight text-slate-900">Alumnos</h2>
-          <p className="text-slate-500 text-sm">Registro centralizado de la comunidad estudiantil.</p>
+          <h2 className="text-3xl font-headline font-extrabold tracking-tight text-foreground">Alumnos</h2>
+          <p className="text-muted-foreground text-sm">Registro centralizado de la comunidad estudiantil.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" className="gap-2 h-11" onClick={fetchData}>
@@ -299,11 +302,11 @@ export default function AdminStudentsPage() {
 
                 {!importFile ? (
                   <div 
-                    className="border-2 border-dashed border-slate-200 rounded-xl p-10 flex flex-col items-center justify-center gap-3 hover:border-primary/50 cursor-pointer bg-slate-50/50"
+                    className="border-2 border-dashed border-border rounded-xl p-10 flex flex-col items-center justify-center gap-3 hover:border-primary/50 cursor-pointer bg-muted/30"
                     onClick={() => document.getElementById('excel-input')?.click()}
                   >
                     <FileSpreadsheet className="h-10 w-10 text-primary opacity-50" />
-                    <p className="font-bold text-slate-900 text-sm">Haz clic para subir Excel</p>
+                    <p className="font-bold text-foreground text-sm">Haz clic para subir Excel</p>
                     <input id="excel-input" type="file" accept=".xlsx, .xls" className="hidden" onChange={(e) => setImportFile(e.target.files?.[0] || null)} />
                   </div>
                 ) : (
@@ -335,10 +338,10 @@ export default function AdminStudentsPage() {
       </div>
 
       <div className="relative mb-6">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
         <Input 
           placeholder="Busca por DNI, Nombre o Carrera..." 
-          className="pl-11 h-12 bg-white border-slate-100 shadow-sm"
+          className="pl-11 h-12 bg-white border-border shadow-sm"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
@@ -347,25 +350,26 @@ export default function AdminStudentsPage() {
       <Card className="border-none shadow-sm overflow-hidden">
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-3">
+            <div className="h-64 flex flex-col items-center justify-center text-muted-foreground gap-3">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
               <p className="text-sm font-medium">Cargando...</p>
             </div>
           ) : (
             <>
               <Table>
-                <TableHeader className="bg-slate-50/50">
+                <TableHeader className="bg-muted/30">
                   <TableRow>
                     <TableHead className="w-[80px] pl-8"></TableHead>
-                    <TableHead className="font-bold text-[10px] uppercase tracking-widest text-slate-400">Estudiante</TableHead>
-                    <TableHead className="font-bold text-[10px] uppercase tracking-widest text-slate-400">Carrera Profesional</TableHead>
-                    <TableHead className="font-bold text-[10px] uppercase tracking-widest text-center text-slate-400">Ciclo</TableHead>
+                    <TableHead className="font-bold text-[10px] uppercase tracking-widest text-muted-foreground">Estudiante</TableHead>
+                    <TableHead className="font-bold text-[10px] uppercase tracking-widest text-muted-foreground">Carrera Profesional</TableHead>
+                    <TableHead className="font-bold text-[10px] uppercase tracking-widest text-center text-muted-foreground">Ciclo</TableHead>
+                    <TableHead className="font-bold text-[10px] uppercase tracking-widest text-center text-muted-foreground">Sección</TableHead>
                     <TableHead className="w-[80px] pr-8 text-right"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {paginatedStudents.map((student) => (
-                    <TableRow key={student.id} className="hover:bg-slate-50/50 transition-colors">
+                    <TableRow key={student.id} className="hover:bg-muted/30 transition-colors">
                       <TableCell className="pl-8 py-3">
                         <Avatar className="h-10 w-10 border-2 border-white shadow-sm">
                           <AvatarFallback className="bg-primary/5 text-primary font-bold text-xs">
@@ -375,25 +379,30 @@ export default function AdminStudentsPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col">
-                          <span className="font-bold text-slate-900 text-sm">{student.nombre}</span>
-                          <span className="text-[10px] text-slate-400 flex items-center gap-1 font-mono">
+                          <span className="font-bold text-foreground text-sm">{student.nombre}</span>
+                          <span className="text-[10px] text-muted-foreground flex items-center gap-1 font-mono">
                             <Fingerprint className="h-3 w-3" /> {student.dni}
                           </span>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-1.5 text-slate-600 text-xs font-medium">
+                        <div className="flex items-center gap-1.5 text-muted-foreground text-xs font-medium">
                           <GraduationCap className="h-3.5 w-3.5 text-primary/40" /> {student.programa_nombre || 'No asignado'}
                         </div>
                       </TableCell>
                       <TableCell className="text-center">
-                        <Badge className="bg-slate-100 text-slate-600 border-none font-black text-[10px] uppercase">Sem {student.semestre}</Badge>
+                        <Badge className="bg-slate-100 text-muted-foreground border-none font-black text-[10px] uppercase">Sem {student.semestre}</Badge>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge className={`font-bold text-[10px] px-3 py-0.5 border-none ${student.seccion === 'REC' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                          {student.seccion || 'U'}
+                        </Badge>
                       </TableCell>
                       <TableCell className="pr-8 text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon" className="rounded-full">
-                              <MoreVertical className="h-4 w-4 text-slate-400" />
+                              <MoreVertical className="h-4 w-4 text-muted-foreground" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
@@ -409,8 +418,8 @@ export default function AdminStudentsPage() {
 
               {/* Pagination Controls */}
               {totalPages > 1 && (
-                <div className="flex items-center justify-between px-8 py-4 bg-slate-50/30 border-t">
-                  <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                <div className="flex items-center justify-between px-8 py-4 bg-muted/20 border-t">
+                  <div className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
                     Página {currentPage} de {totalPages} ({filteredStudents.length} registros)
                   </div>
                   <div className="flex gap-2">
@@ -479,6 +488,18 @@ export default function AdminStudentsPage() {
                     {["I", "II", "III", "IV", "V", "VI"].map(s => (
                       <SelectItem key={s} value={s}>Semestre {s}</SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="seccion">Sección</Label>
+                <Select name="seccion" defaultValue={editingStudent?.seccion || "U"}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="U">U — Regular</SelectItem>
+                    <SelectItem value="REC">REC — Recuperación</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

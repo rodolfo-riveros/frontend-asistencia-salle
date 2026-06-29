@@ -114,6 +114,7 @@ export default function AdminCoursesPage() {
       nombre: formData.get("nombre") as string,
       programa_id: formData.get("programa_id") as string,
       semestre: formData.get("semestre") as string,
+      seccion: formData.get("seccion") as string,
     }
 
     try {
@@ -154,7 +155,8 @@ export default function AdminCoursesPage() {
     const result = (courses || []).filter(c => 
       c.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || 
       c.programa_nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.semestre?.toLowerCase().includes(searchTerm.toLowerCase())
+      c.semestre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.seccion?.toLowerCase().includes(searchTerm.toLowerCase())
     )
     return result
   }, [courses, searchTerm])
@@ -176,8 +178,8 @@ export default function AdminCoursesPage() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div className="space-y-1">
           <p className="text-primary font-bold uppercase tracking-[0.2em] text-xs">Unidades Didácticas</p>
-          <h2 className="text-3xl font-headline font-extrabold tracking-tight text-slate-900">Gestión de Cursos</h2>
-          <p className="text-slate-500 text-sm">Administra el catálogo de asignaturas por programa académico.</p>
+          <h2 className="text-3xl font-headline font-extrabold tracking-tight text-foreground">Gestión de Cursos</h2>
+          <p className="text-muted-foreground text-sm">Administra el catálogo de asignaturas por programa académico.</p>
         </div>
 
         <div className="flex gap-2">
@@ -227,6 +229,18 @@ export default function AdminCoursesPage() {
                       </SelectContent>
                     </Select>
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="seccion">Sección</Label>
+                    <Select name="seccion" defaultValue={editingCourse?.seccion || "U"}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="U">U — Regular</SelectItem>
+                        <SelectItem value="REC">REC — Recuperación</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <DialogFooter>
                   <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
@@ -241,10 +255,10 @@ export default function AdminCoursesPage() {
       </div>
 
       <div className="relative mb-6">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
         <Input 
           placeholder="Busca por curso, programa académico o semestre..." 
-          className="pl-11 py-6 bg-white border-slate-100 shadow-sm" 
+          className="pl-11 py-6 bg-white border-border shadow-sm" 
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
@@ -253,7 +267,7 @@ export default function AdminCoursesPage() {
       <Card className="border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-3">
+            <div className="h-64 flex flex-col items-center justify-center text-muted-foreground gap-3">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
               <p className="text-sm font-medium italic">Sincronizando con el servidor...</p>
             </div>
@@ -262,43 +276,49 @@ export default function AdminCoursesPage() {
               <Table>
                 <TableHeader className="bg-slate-50/50">
                   <TableRow className="hover:bg-transparent">
-                    <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest pl-6">Unidad Didáctica</TableHead>
-                    <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest">Programa Profesional</TableHead>
-                    <TableHead className="font-bold text-slate-400 uppercase text-[10px] tracking-widest text-center">Ciclo</TableHead>
+                    <TableHead className="font-bold text-muted-foreground uppercase text-[10px] tracking-widest pl-6">Unidad Didáctica</TableHead>
+                    <TableHead className="font-bold text-muted-foreground uppercase text-[10px] tracking-widest">Programa Profesional</TableHead>
+                    <TableHead className="font-bold text-muted-foreground uppercase text-[10px] tracking-widest text-center">Ciclo</TableHead>
+                    <TableHead className="font-bold text-muted-foreground uppercase text-[10px] tracking-widest text-center">Sección</TableHead>
                     <TableHead className="w-[100px] pr-6 text-right">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {paginatedCourses.length > 0 ? (
                     paginatedCourses.map((course) => (
-                      <TableRow key={course.id} className="group hover:bg-slate-50/50 transition-colors">
-                        <TableCell className="font-bold text-slate-700 pl-6">
+                      <TableRow key={course.id} className="group hover:bg-muted/30 transition-colors">
+                        <TableCell className="font-bold text-foreground/90 pl-6">
                           <div className="flex items-center gap-3">
                             <div className="w-9 h-9 rounded-xl bg-primary/5 flex items-center justify-center text-primary shrink-0 transition-colors group-hover:bg-primary group-hover:text-white">
                               <BookOpen className="h-4 w-4" />
                             </div>
                             <div className="flex flex-col">
                               <span className="text-sm">{course.nombre}</span>
-                              <span className="text-[10px] text-slate-400 font-mono">ID: {course.id.substring(0, 8)}...</span>
+                              <span className="text-[10px] text-muted-foreground font-mono">ID: {course.id.substring(0, 8)}...</span>
                             </div>
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-2 text-slate-500 text-sm">
+                          <div className="flex items-center gap-2 text-muted-foreground text-sm">
                             <GraduationCap className="h-3.5 w-3.5 text-primary/40" /> 
                             {course.programa_nombre || 'Sin programa asignado'}
                           </div>
                         </TableCell>
                         <TableCell className="text-center">
-                          <Badge variant="outline" className="border-slate-100 text-slate-500 font-bold px-3 py-0.5 bg-slate-50/50">
+                          <Badge variant="outline" className="border-border text-muted-foreground font-bold px-3 py-0.5 bg-muted/30">
                             Sem {course.semestre}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Badge className={`font-bold text-[10px] px-3 py-0.5 border-none ${course.seccion === 'REC' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                            {course.seccion || 'U'}
                           </Badge>
                         </TableCell>
                         <TableCell className="pr-6 text-right">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="ghost" size="icon" className="rounded-full">
-                                <MoreVertical className="h-4 w-4 text-slate-400" />
+                                <MoreVertical className="h-4 w-4 text-muted-foreground" />
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-40">
@@ -315,13 +335,13 @@ export default function AdminCoursesPage() {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={4} className="h-48 text-center text-slate-400">
+                      <TableCell colSpan={4} className="h-48 text-center text-muted-foreground">
                         <div className="flex flex-col items-center gap-3">
-                          <div className="p-4 bg-slate-50 rounded-full">
+                          <div className="p-4 bg-muted rounded-full">
                             <Layers className="h-8 w-8 opacity-20" />
                           </div>
                           <div className="space-y-1">
-                            <p className="font-bold text-slate-900">Sin unidades registradas</p>
+                            <p className="font-bold text-foreground">Sin unidades registradas</p>
                             <p className="text-sm">No se encontraron cursos que coincidan con la búsqueda.</p>
                           </div>
                         </div>
@@ -333,8 +353,8 @@ export default function AdminCoursesPage() {
 
               {/* Pagination Controls */}
               {totalPages > 1 && (
-                <div className="flex items-center justify-between px-6 py-4 bg-slate-50/30 border-t">
-                  <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                <div className="flex items-center justify-between px-6 py-4 bg-muted/20 border-t">
+                  <div className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
                     Página {currentPage} de {totalPages} ({filteredCourses.length} registros)
                   </div>
                   <div className="flex gap-2">

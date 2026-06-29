@@ -296,6 +296,8 @@ function AttendanceContent() {
         styles: { fontSize: 7, cellPadding: 2, halign: 'center', valign: 'middle' },
         headStyles: { fillColor: [0, 51, 102], textColor: 255, fontStyle: 'bold' },
         columnStyles: { 1: { halign: 'left', fontStyle: 'bold', cellWidth: 60 } },
+        horizontalPageBreak: true,
+        horizontalPageBreakRepeat: [0, 1],
         theme: 'grid'
       })
 
@@ -311,21 +313,27 @@ function AttendanceContent() {
     setIsAnalyzing(true)
     try {
       const history = await api.get<any[]>(`/asistencias/reporte/unidad/${params.id}`)
-      const records = (history || []).map(h => ({
+      if (!history || history.length === 0) {
+        toast({ variant: "destructive", title: "Sin Datos", description: "No hay registros de asistencia para analizar." })
+        setIsAnalyzing(false); return
+      }
+      const nameMap = Object.fromEntries(students.map((s: any) => [s.id, s.nombre]))
+      const records = history.map(h => ({
         studentId: h.alumno_id,
-        studentName: h.alumno,
+        studentName: nameMap[h.alumno_id] || h.alumno || "ALUMNO",
         courseUnitId: params.id as string,
         courseUnitName: "Unidad Didáctica",
         date: h.fecha,
         status: REVERSE_MAP[h.estado] || h.estado
       }))
       const result = await aiAttendanceInsights({ attendanceRecords: records as any })
-      setAiResult(result); 
+      setAiResult(result)
       toast({ title: "Análisis IA Finalizado", description: "Se han identificado riesgos y advertencias." })
-    } catch (e) { 
-      toast({ variant: "destructive", title: "Sin Datos Históricos", description: "No hay suficiente información para un análisis estratégico." }) 
-    } finally { 
-      setIsAnalyzing(false) 
+    } catch (e) {
+      console.error("AI Analysis error:", e)
+      toast({ variant: "destructive", title: "Error de IA", description: "Ocurrió un error al generar el diagnóstico. Verifica la conexión con Genkit." })
+    } finally {
+      setIsAnalyzing(false)
     }
   }
 
@@ -385,7 +393,7 @@ function AttendanceContent() {
 
 export default function AttendancePage() {
   return (
-    <React.Suspense fallback={<div className="h-screen flex flex-col items-center justify-center gap-4"><Loader2 className="h-10 w-10 animate-spin text-primary" /><p className="text-sm font-bold uppercase tracking-widest text-slate-400">Cargando Registro de Asistencia...</p></div>}>
+    <React.Suspense fallback={<div className="h-screen flex flex-col items-center justify-center gap-4"><Loader2 className="h-10 w-10 animate-spin text-primary" /><p className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Cargando Registro de Asistencia...</p></div>}>
       <AttendanceContent />
     </React.Suspense>
   )
@@ -403,17 +411,17 @@ function HeaderSection({
       </Button>
       <div className="flex flex-col lg:flex-row justify-between items-start gap-8">
         <div className="space-y-4">
-          <h2 className="text-4xl md:text-6xl font-headline font-black tracking-tighter text-slate-900 leading-tight">
+          <h2 className="text-4xl md:text-6xl font-headline font-black tracking-tighter text-foreground leading-tight">
             Pase de Lista
           </h2>
           <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-4 bg-white px-6 py-3 rounded-2xl border shadow-sm w-fit">
-              <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">FECHA ACADÉMICA:</Label>
+            <div className="flex items-center gap-4 bg-card px-6 py-3 rounded-2xl border shadow-sm w-fit">
+              <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">FECHA ACADÉMICA:</Label>
               <input 
                 type="date" 
                 value={date} 
                 onChange={e => setDate(e.target.value)} 
-                className="bg-transparent border-none font-black text-slate-900 text-sm outline-none cursor-pointer" 
+                className="bg-transparent border-none font-black text-foreground text-sm outline-none cursor-pointer" 
               />
               {isSyncing && <RefreshCcw className="h-4 w-4 animate-spin text-primary" />}
             </div>
@@ -454,18 +462,18 @@ function HeaderSection({
 
 function AttendanceTable({ isLoading, filteredStudents, attendance, onStatusChange, onMassiveMark, searchTerm, setSearchTerm }: any) {
   return (
-    <Card className="border-none shadow-2xl overflow-hidden bg-white rounded-3xl">
-      <div className="p-8 bg-slate-50/80 border-b flex flex-col md:flex-row items-center justify-between gap-8">
+    <Card className="border-none shadow-2xl overflow-hidden bg-card rounded-3xl">
+      <div className="p-8 bg-muted/50 border-b flex flex-col md:flex-row items-center justify-between gap-8">
         <div className="flex flex-wrap gap-3">
           <Button variant="outline" size="sm" className="h-10 px-4 border-green-200 text-green-700 font-black text-[10px] uppercase tracking-widest" onClick={() => onMassiveMark('Presente')}>P TODOS</Button>
           <Button variant="outline" size="sm" className="h-10 px-4 border-amber-200 text-amber-700 font-black text-[10px] uppercase tracking-widest" onClick={() => onMassiveMark('Tarde')}>T TODOS</Button>
           <Button variant="outline" size="sm" className="h-10 px-4 border-red-200 text-red-700 font-black text-[10px] uppercase tracking-widest" onClick={() => onMassiveMark('Falta')}>F TODOS</Button>
         </div>
         <div className="relative w-full md:w-80">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input 
             placeholder="Filtrar por apellidos..." 
-            className="pl-12 h-12 border-none rounded-2xl bg-white shadow-inner font-medium" 
+            className="pl-12 h-12 border-none rounded-2xl bg-card shadow-inner font-medium" 
             value={searchTerm} 
             onChange={e => setSearchTerm(e.target.value)} 
           />
@@ -475,17 +483,17 @@ function AttendanceTable({ isLoading, filteredStudents, attendance, onStatusChan
         {isLoading ? (
           <div className="p-32 text-center flex flex-col items-center gap-4">
             <Loader2 className="h-12 w-12 animate-spin text-primary opacity-20" />
-            <p className="font-black text-[10px] uppercase text-slate-400 tracking-widest">Cargando Estudiantes...</p>
+            <p className="font-black text-[10px] uppercase text-muted-foreground tracking-widest">Cargando Estudiantes...</p>
           </div>
         ) : (
           <ScrollArea className="w-full">
             <Table>
-              <TableHeader className="bg-slate-50/50">
+              <TableHeader className="bg-muted/30">
                 <TableRow className="border-none">
-                  <TableHead className="w-[100px] pl-10 font-black text-[10px] uppercase text-slate-400 tracking-widest">ID</TableHead>
-                  <TableHead className="font-black text-[10px] uppercase text-slate-400 tracking-widest">Apellidos y Nombres</TableHead>
-                  <TableHead className="text-center font-black text-[10px] uppercase text-slate-400 tracking-widest">Estado</TableHead>
-                  <TableHead className="text-right pr-10 font-black text-[10px] uppercase text-slate-400 tracking-widest">Calificar</TableHead>
+                  <TableHead className="w-[100px] pl-10 font-black text-[10px] uppercase text-muted-foreground tracking-widest">ID</TableHead>
+                  <TableHead className="font-black text-[10px] uppercase text-muted-foreground tracking-widest">Apellidos y Nombres</TableHead>
+                  <TableHead className="text-center font-black text-[10px] uppercase text-muted-foreground tracking-widest">Estado</TableHead>
+                  <TableHead className="text-right pr-10 font-black text-[10px] uppercase text-muted-foreground tracking-widest">Calificar</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -498,7 +506,7 @@ function AttendanceTable({ isLoading, filteredStudents, attendance, onStatusChan
                     </TableCell>
                     <TableCell>
                       <div className="font-bold text-sm text-slate-800 uppercase tracking-tight">{s.nombre}</div>
-                      <div className="text-[10px] text-slate-400 font-mono flex items-center gap-1 mt-1">DNI: {s.dni}</div>
+                      <div className="text-[10px] text-muted-foreground font-mono flex items-center gap-1 mt-1">DNI: {s.dni}</div>
                     </TableCell>
                     <TableCell className="text-center">
                       {attendance[s.id] ? (
@@ -532,7 +540,7 @@ function AttendanceTable({ isLoading, filteredStudents, attendance, onStatusChan
 function StatsPanel({ statsData }: any) {
   return (
     <div className="space-y-8">
-      <Card className="border-none shadow-xl bg-white p-8 rounded-3xl">
+      <Card className="border-none shadow-xl bg-card p-8 rounded-3xl">
         <CardHeader className="p-0 pb-6">
           <CardTitle className="text-lg font-black uppercase tracking-tighter flex items-center gap-3"><PieIcon className="h-5 w-5 text-primary" /> Distribución Hoy</CardTitle>
         </CardHeader>
@@ -557,11 +565,11 @@ function StatsPanel({ statsData }: any) {
           </div>
           <div className="grid grid-cols-2 gap-4 mt-6">
             {statsData.map((it: any, i: any) => (
-              <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50/50 border border-slate-100">
+              <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border">
                 <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: it.fill }} />
                 <div className="flex flex-col">
-                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{it.name}</span>
-                  <span className="text-sm font-black text-slate-900">{it.value}</span>
+                  <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">{it.name}</span>
+                  <span className="text-sm font-black text-foreground">{it.value}</span>
                 </div>
               </div>
             ))}
@@ -569,7 +577,7 @@ function StatsPanel({ statsData }: any) {
         </CardContent>
       </Card>
 
-      <Card className="border-none shadow-xl bg-white p-8 rounded-3xl">
+      <Card className="border-none shadow-xl bg-card p-8 rounded-3xl">
         <CardHeader className="p-0 pb-6">
           <CardTitle className="text-lg font-black uppercase tracking-tighter flex items-center gap-3"><BarChart3 className="h-5 w-5 text-indigo-500" /> Comparativa</CardTitle>
         </CardHeader>
@@ -602,7 +610,7 @@ function AiInsightsPanel({ aiResult }: any) {
           </div>
           <h3 className="text-3xl font-black uppercase tracking-tighter italic">Diagnóstico Estratégico</h3>
         </div>
-        <Badge className="bg-white/10 text-white/60 border-white/10 font-mono text-[10px]">VERSIÓN FLASH 2.5</Badge>
+        <Badge className="bg-card/10 text-white/60 border-white/10 font-mono text-[10px]">VERSIÓN FLASH 2.5</Badge>
       </div>
       
       <div className="grid lg:grid-cols-2 gap-16">
@@ -647,7 +655,7 @@ function AiInsightsPanel({ aiResult }: any) {
                       <p className="font-black text-lg text-amber-50 uppercase">{st.name}</p>
                       <Badge variant="outline" className="text-amber-500 border-amber-500/30 text-[10px] px-3 font-black">{st.tardyCount} Tardanzas</Badge>
                     </div>
-                    <div className="p-5 bg-white/5 rounded-2xl text-[12px] text-white/80 leading-relaxed border border-white/5">
+                    <div className="p-5 bg-card/5 rounded-2xl text-[12px] text-white/80 leading-relaxed border border-white/5">
                       <span className="text-amber-400 font-black uppercase text-[9px] block mb-2 tracking-widest">Sugerencia Pedagógica:</span>
                       {st.suggestion}
                     </div>
@@ -657,7 +665,7 @@ function AiInsightsPanel({ aiResult }: any) {
             ) : <p className="text-xs text-emerald-400/60 font-bold uppercase tracking-widest px-4 py-3 bg-emerald-500/5 rounded-xl border border-emerald-500/10 w-fit">✓ Patrones de puntualidad estables</p>}
           </div>
           
-          <div className="p-8 bg-white/5 rounded-[2rem] border border-white/10 space-y-6">
+          <div className="p-8 bg-card/5 rounded-[2rem] border border-white/10 space-y-6">
             <Label className="text-[10px] font-black uppercase text-emerald-400 tracking-[0.3em]">Hoja de Ruta del Docente</Label>
             <ul className="space-y-4">
               {aiResult.recommendations.map((r: any, i: any) => (
@@ -688,7 +696,7 @@ function ActionBtn({ icon: Icon, active, color, onClick }: any) {
       size="icon" 
       variant="outline" 
       onClick={onClick} 
-      className={`h-11 w-11 rounded-2xl border-slate-100 transition-all duration-300 ${styles[color]}`}
+      className={`h-11 w-11 rounded-2xl border-border transition-all duration-300 ${styles[color]}`}
     >
       <Icon className="h-5 w-5" />
     </Button>
