@@ -7,6 +7,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { 
   BookOpen, 
   Users, 
@@ -16,11 +17,17 @@ import {
   CircleDashed, 
   GraduationCap,
   ClipboardCheck,
-  LayoutDashboard
+  LayoutDashboard,
+  FileText,
+  BookMarked,
+  FolderOpen,
+  FileWarning
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
 import { supabase } from "@/lib/supabase"
+import { MaterialesTab } from "@/components/instructor/materiales-tab"
+import { SeccionesTab } from "@/components/instructor/secciones-tab"
 
 function CourseCard({ asg, attendanceStatus, selectedPeriodId }: {
   asg: any
@@ -204,51 +211,94 @@ export default function InstructorDashboard() {
         </div>
       </div>
 
-      {isLoading ? (
-        <div className="h-96 flex flex-col items-center justify-center text-muted-foreground gap-4">
-          <Loader2 className="h-12 w-12 animate-spin text-primary" />
-          <p className="font-bold uppercase text-xs tracking-widest">Sincronizando...</p>
-        </div>
-      ) : asignaciones.length > 0 ? (
-        <>
-          {/* ── Regulares ── */}
-          {asignaciones.filter(a => a.seccion !== 'REC').length > 0 && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                <h3 className="font-black text-xs uppercase tracking-widest text-muted-foreground">Cursos Regulares</h3>
-              </div>
-              <div className="grid gap-6 md:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                {asignaciones.filter(a => a.seccion !== 'REC').map((asg) => (
-                  <CourseCard asg={asg} attendanceStatus={attendanceStatus} selectedPeriodId={selectedPeriodId} key={asg.id} />
-                ))}
-              </div>
+      <Tabs defaultValue="cursos">
+        <TabsList className="bg-muted p-1 rounded-2xl gap-1">
+          <TabsTrigger value="cursos" className="rounded-xl data-[state=active]:bg-card data-[state=active]:shadow-md px-6 py-2.5 font-bold text-xs">
+            <GraduationCap className="h-4 w-4 mr-2" />Cursos
+          </TabsTrigger>
+          <TabsTrigger value="silabos" className="rounded-xl data-[state=active]:bg-card data-[state=active]:shadow-md px-6 py-2.5 font-bold text-xs">
+            <FileText className="h-4 w-4 mr-2" />Silabos
+            <Badge variant="outline" className="ml-2 text-[8px] px-1.5 py-0.5 border-amber-400 text-amber-500 font-bold">BETA</Badge>
+          </TabsTrigger>
+          <TabsTrigger value="secciones" className="rounded-xl data-[state=active]:bg-card data-[state=active]:shadow-md px-6 py-2.5 font-bold text-xs">
+            <BookMarked className="h-4 w-4 mr-2" />Secciones
+            <Badge variant="outline" className="ml-2 text-[8px] px-1.5 py-0.5 border-amber-400 text-amber-500 font-bold">BETA</Badge>
+          </TabsTrigger>
+          <TabsTrigger value="materiales" className="rounded-xl data-[state=active]:bg-card data-[state=active]:shadow-md px-6 py-2.5 font-bold text-xs">
+            <FolderOpen className="h-4 w-4 mr-2" />Materiales
+            <Badge variant="outline" className="ml-2 text-[8px] px-1.5 py-0.5 border-amber-400 text-amber-500 font-bold">BETA</Badge>
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="cursos" className="mt-8 space-y-8">
+          {isLoading ? (
+            <div className="h-96 flex flex-col items-center justify-center text-muted-foreground gap-4">
+              <Loader2 className="h-12 w-12 animate-spin text-primary" />
+              <p className="font-bold uppercase text-xs tracking-widest">Sincronizando...</p>
             </div>
+          ) : asignaciones.length > 0 ? (
+            <>
+              {asignaciones.filter(a => a.seccion !== 'REC').length > 0 && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                    <h3 className="font-black text-xs uppercase tracking-widest text-muted-foreground">Cursos Regulares</h3>
+                  </div>
+                  <div className="grid gap-6 md:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                    {asignaciones.filter(a => a.seccion !== 'REC').map((asg) => (
+                      <CourseCard asg={asg} attendanceStatus={attendanceStatus} selectedPeriodId={selectedPeriodId} key={asg.id} />
+                    ))}
+                  </div>
+                </div>
+              )}
+              {asignaciones.filter(a => a.seccion === 'REC').length > 0 && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-amber-500" />
+                    <h3 className="font-black text-xs uppercase tracking-widest text-muted-foreground">Cursos de Recuperación</h3>
+                  </div>
+                  <div className="grid gap-6 md:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                    {asignaciones.filter(a => a.seccion === 'REC').map((asg) => (
+                      <CourseCard asg={asg} attendanceStatus={attendanceStatus} selectedPeriodId={selectedPeriodId} key={asg.id} />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <Card className="p-24 text-center border-4 border-dashed border-border text-muted-foreground bg-card rounded-[3rem]">
+              <div className="p-8 bg-muted rounded-full w-fit mx-auto mb-6">
+                <LayoutDashboard className="h-16 w-16 opacity-10" />
+              </div>
+              <p className="font-black text-2xl text-foreground uppercase tracking-tighter">Sin carga académica registrada</p>
+              <p className="text-sm font-medium italic mt-2">Contacta con administración para tu asignación oficial de cursos.</p>
+            </Card>
           )}
-          {/* ── Recuperación ── */}
-          {asignaciones.filter(a => a.seccion === 'REC').length > 0 && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-amber-500" />
-                <h3 className="font-black text-xs uppercase tracking-widest text-muted-foreground">Cursos de Recuperación</h3>
-              </div>
-              <div className="grid gap-6 md:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                {asignaciones.filter(a => a.seccion === 'REC').map((asg) => (
-                  <CourseCard asg={asg} attendanceStatus={attendanceStatus} selectedPeriodId={selectedPeriodId} key={asg.id} />
-                ))}
-              </div>
+        </TabsContent>
+
+        <TabsContent value="silabos" className="mt-8">
+          <Card className="p-20 text-center border-2 border-dashed border-border text-muted-foreground bg-card rounded-[3rem]">
+            <div className="p-8 bg-muted rounded-full w-fit mx-auto mb-6">
+              <FileWarning className="h-20 w-20 text-amber-400" />
             </div>
-          )}
-        </>
-      ) : (
-        <Card className="p-24 text-center border-4 border-dashed border-border text-muted-foreground bg-card rounded-[3rem]">
-          <div className="p-8 bg-muted rounded-full w-fit mx-auto mb-6">
-            <LayoutDashboard className="h-16 w-16 opacity-10" />
-          </div>
-          <p className="font-black text-2xl text-foreground uppercase tracking-tighter">Sin carga académica registrada</p>
-          <p className="text-sm font-medium italic mt-2">Contacta con administración para tu asignación oficial de cursos.</p>
-        </Card>
-      )}
+            <div className="flex items-center justify-center gap-3 mb-4">
+              <h3 className="font-black text-3xl text-foreground uppercase tracking-tighter">Elaboración de Silabos</h3>
+              <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20 text-xs px-3 py-1 font-bold">En Desarrollo</Badge>
+            </div>
+            <p className="text-base font-medium italic max-w-md mx-auto text-muted-foreground">
+              Próximamente podrás crear y gestionar los silabos de tus cursos asignados.
+            </p>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="secciones" className="mt-8">
+          <SeccionesTab />
+        </TabsContent>
+
+        <TabsContent value="materiales" className="mt-8">
+          <MaterialesTab />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

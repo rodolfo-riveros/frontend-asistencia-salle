@@ -79,6 +79,7 @@ interface ConfigWizardProps {
   setStudentGroups: (val: Record<string, string>) => void
   addColumn: () => void
   resetEditor: () => void
+  isRecovery?: boolean
 }
 
 export function ConfigWizard({ 
@@ -87,7 +88,7 @@ export function ConfigWizard({
   existingIndicators, newInstType, setNewInstType, newStrategyType, setNewStrategyType,
   newColName, setNewColName, newInstrumentWeight, setNewInstrumentWeight, newMaxPoints, setNewMaxPoints,
   editorCriteria, setEditorCriteria, fileInputRef,
-  students, groupSize, setGroupSize, studentGroups, setStudentGroups, addColumn, resetEditor
+  students, groupSize, setGroupSize, studentGroups, setStudentGroups, addColumn, resetEditor, isRecovery = false
 }: ConfigWizardProps) {
   
   const [isFinishing, setIsFinishing] = React.useState(false)
@@ -99,14 +100,16 @@ export function ConfigWizard({
   const [isFromLibrary, setIsFromLibrary] = React.useState(false)
 
   const createEvaluationRecord = async (criteria: any[] = [], name?: string, weight?: number) => {
-    const payload = {
-      indicador_id: registeredIndicatorId,
+    const payload: Record<string, unknown> = {
       periodo_id: periodoId,
       nombre: name || newColName,
       tipo: newStrategyType === 'quizz' ? 'quizz' : newInstType,
       peso_instrumento: weight !== undefined ? weight : newInstrumentWeight,
       puntaje_maximo: newMaxPoints,
       configuracion_json: { strategy: newStrategyType, criteria: criteria.length > 0 ? criteria : editorCriteria }
+    }
+    if (!isRecovery) {
+      payload.indicador_id = registeredIndicatorId
     }
     const res: any = await api.post('/evaluaciones/', payload)
     setRegisteredEvalId(res.id)
@@ -316,7 +319,13 @@ export function ConfigWizard({
   }
 
   const handleNext = () => {
-    if (setupStep === 0) registerStep0();
+    if (setupStep === 0) {
+      if (isRecovery) {
+        setSetupStep(1)
+      } else {
+        registerStep0()
+      }
+    }
     else if (setupStep === 1) setSetupStep(2);
     else if (setupStep === 2) registerStep2();
     else if (setupStep === 3) registerStep3();
@@ -334,13 +343,24 @@ export function ConfigWizard({
     setIsFromLibrary(false);
   };
 
+  const handleClose = React.useCallback(async () => {
+    if (registeredIndicatorId && !registeredEvalId) {
+      try { await api.delete(`/indicadores/${registeredIndicatorId}`) } catch {}
+    }
+    setIsOpen(false)
+    resetEditor()
+    setRegisteredIndicatorId(null)
+    setRegisteredEvalId(null)
+    setIsFromLibrary(false)
+  }, [registeredIndicatorId, registeredEvalId, setIsOpen, resetEditor])
+
   return (
-    <Dialog open={isOpen} onOpenChange={(o) => { if(!isFinishing) { setIsOpen(o); if(!o) { resetEditor(); setRegisteredIndicatorId(null); setRegisteredEvalId(null); setIsFromLibrary(false); } } }}>
+    <Dialog open={isOpen} onOpenChange={(o) => { if(!isFinishing) { if(!o) handleClose(); else setIsOpen(true) } }}>
       <DialogContent className="max-w-5xl p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl flex flex-col h-[90vh]">
         <DialogHeader className="bg-primary h-28 flex flex-col justify-center px-10 text-white shrink-0">
           <DialogTitle className="text-2xl font-black uppercase tracking-tight">Configuración de Evaluación</DialogTitle>
           <DialogDescription className="text-blue-100/80 font-bold uppercase text-[10px] tracking-[0.2em] mt-1">
-            PASO {setupStep + 1}: {setupStep === 0 ? "Indicador de Logro" : setupStep === 1 ? "Instrumento" : setupStep === 2 ? "Actividad" : setupStep === 3 ? "Diseño" : setupStep === 4 ? "Equipos" : "Gamificación"}
+            PASO {setupStep + 1}: {isRecovery ? "Instrumento Directo" : setupStep === 0 ? "Indicador de Logro" : setupStep === 1 ? "Instrumento" : setupStep === 2 ? "Actividad" : setupStep === 3 ? "Diseño" : setupStep === 4 ? "Equipos" : "Gamificación"}
           </DialogDescription>
         </DialogHeader>
 
@@ -348,6 +368,21 @@ export function ConfigWizard({
           <ScrollArea className="flex-grow">
             <div className="p-10 flex flex-col items-center">
               {setupStep === 0 && (
+                isRecovery ? (
+                  <div className="flex flex-col items-center justify-center py-16 space-y-6 text-center max-w-lg">
+                    <div className="w-20 h-20 rounded-full bg-amber-100 flex items-center justify-center">
+                      <FileText className="h-10 w-10 text-amber-600" />
+                    </div>
+                    <h3 className="text-2xl font-black text-slate-800">Evaluación de Recuperación</h3>
+                    <p className="text-slate-500 text-base leading-relaxed">
+                      En cursos de recuperación se registran notas directas sin indicadores de logro.
+                      Puedes crear uno o más instrumentos y el promedio final se calculará automáticamente.
+                    </p>
+                    <Button onClick={() => setSetupStep(1)} className="bg-primary h-14 px-12 rounded-2xl font-black text-sm">
+                      Continuar a Instrumento
+                    </Button>
+                  </div>
+                ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 w-full max-w-4xl">
                   <div className="space-y-6">
                     <div className="flex items-center justify-between">
@@ -437,7 +472,7 @@ export function ConfigWizard({
                     </div>
                   </div>
                 </div>
-              )}
+              ))}
 
               {setupStep === 1 && (
                 <div className="space-y-12 w-full max-w-4xl flex flex-col items-center">

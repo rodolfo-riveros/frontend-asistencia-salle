@@ -498,14 +498,14 @@ function AttendanceTable({ isLoading, filteredStudents, attendance, onStatusChan
               </TableHeader>
               <TableBody>
                 {filteredStudents.map((s: any) => (
-                  <TableRow key={s.id} className="hover:bg-slate-50/30 border-slate-50 group transition-all">
+                  <TableRow key={s.id} className="hover:bg-muted/30 border-border group transition-all">
                     <TableCell className="pl-10 py-6">
-                      <Avatar className="h-11 w-11 border-2 border-white shadow-md ring-primary/5 transition-all group-hover:ring-primary/20">
+                      <Avatar className="h-11 w-11 border-2 border-border shadow-md ring-primary/5 transition-all group-hover:ring-primary/20">
                         <AvatarFallback className="bg-primary/5 text-primary font-black text-xs uppercase">{getInitials(s.nombre)}</AvatarFallback>
                       </Avatar>
                     </TableCell>
                     <TableCell>
-                      <div className="font-bold text-sm text-slate-800 uppercase tracking-tight">{s.nombre}</div>
+                      <div className="font-bold text-sm text-foreground uppercase tracking-tight">{s.nombre}</div>
                       <div className="text-[10px] text-muted-foreground font-mono flex items-center gap-1 mt-1">DNI: {s.dni}</div>
                     </TableCell>
                     <TableCell className="text-center">
@@ -515,7 +515,7 @@ function AttendanceTable({ isLoading, filteredStudents, attendance, onStatusChan
                           attendance[s.id] === 'Falta' ? 'bg-red-100 text-red-700' : 
                           attendance[s.id] === 'Tarde' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
                         }`}>{attendance[s.id]}</Badge>
-                      ) : <Badge variant="outline" className="text-slate-300 text-[9px] uppercase font-black tracking-widest bg-slate-25">PENDIENTE</Badge>}
+                      ) : <Badge variant="secondary" className="text-muted-foreground/60 text-[9px] uppercase font-black tracking-widest">PENDIENTE</Badge>}
                     </TableCell>
                     <TableCell className="text-right pr-10">
                       <div className="flex justify-end gap-2">
@@ -686,10 +686,10 @@ function AiInsightsPanel({ aiResult }: any) {
 
 function ActionBtn({ icon: Icon, active, color, onClick }: any) {
   const styles: any = {
-    green: active ? "bg-emerald-600 text-white scale-110 shadow-lg shadow-emerald-200" : "text-slate-300 hover:text-emerald-600 hover:bg-emerald-50",
-    amber: active ? "bg-amber-500 text-white scale-110 shadow-lg shadow-amber-200" : "text-slate-300 hover:text-amber-600 hover:bg-amber-50",
-    red: active ? "bg-red-600 text-white scale-110 shadow-lg shadow-red-200" : "text-slate-300 hover:text-red-600 hover:bg-red-50",
-    blue: active ? "bg-blue-600 text-white scale-110 shadow-lg shadow-blue-200" : "text-slate-300 hover:text-blue-600 hover:bg-blue-50",
+    green: active ? "bg-emerald-600 text-white scale-110 shadow-lg shadow-emerald-200" : "text-muted-foreground/50 hover:text-emerald-600 hover:bg-emerald-500/10",
+    amber: active ? "bg-amber-500 text-white scale-110 shadow-lg shadow-amber-200" : "text-muted-foreground/50 hover:text-amber-600 hover:bg-amber-500/10",
+    red: active ? "bg-red-600 text-white scale-110 shadow-lg shadow-red-200" : "text-muted-foreground/50 hover:text-red-600 hover:bg-red-500/10",
+    blue: active ? "bg-blue-600 text-white scale-110 shadow-lg shadow-blue-200" : "text-muted-foreground/50 hover:text-blue-600 hover:bg-blue-500/10",
   }
   return (
     <Button 

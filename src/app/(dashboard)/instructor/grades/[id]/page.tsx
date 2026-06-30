@@ -118,7 +118,8 @@ function GradebookContent() {
         nombre: currentAsg?.unidad_nombre || configData?.unidad?.nombre || "UNIDAD NO IDENTIFICADA",
         programa: progObj?.nombre || currentAsg?.programa_nombre || "PROGRAMA NO DEFINIDO",
         semestre: currentAsg?.semestre || "I",
-        periodoNombre: periodObj ? periodObj.nombre : (configData?.periodo?.nombre || "ACTUAL")
+        periodoNombre: periodObj ? periodObj.nombre : (configData?.periodo?.nombre || "ACTUAL"),
+        seccion: currentAsg?.seccion || "U"
       });
 
       if (configData) {
@@ -196,9 +197,25 @@ function GradebookContent() {
 
   React.useEffect(() => { fetchFullGradebook() }, [fetchFullGradebook])
 
+  const isRecovery = courseInfo?.seccion === 'REC'
+
   const calculateFinal = (studentId: string) => {
     const studentGrades = grades[studentId] || {}
     if (columns.length === 0) return 0
+
+    if (isRecovery) {
+      let weightedSum = 0
+      let weightFactor = 0
+      columns.forEach(c => {
+        const rawScore = studentGrades[c.id]
+        if (rawScore !== undefined) {
+          const normalized = (rawScore / c.maxPoints) * 20
+          weightedSum += normalized * (c.instrumentWeight / 100)
+          weightFactor += (c.instrumentWeight / 100)
+        }
+      })
+      return weightFactor > 0 ? Math.round(weightedSum / weightFactor) : 0
+    }
     
     const indicatorsMap = new Map<string, { weight: number, cols: Column[] }>()
     columns.forEach(c => {
@@ -450,7 +467,7 @@ function GradebookContent() {
                       {columns.map(c => (
                         <TableHead key={c.id} className="text-center font-black text-[10px] uppercase text-muted-foreground tracking-widest px-4 md:px-6 border-l min-w-[120px]">
                           <div className="flex items-center justify-center gap-1.5 mb-1">
-                            <Badge variant="outline" className="border-primary/20 text-primary text-[8px] font-black">{c.indicatorCode}</Badge>
+                            <Badge variant="outline" className="border-primary/20 text-primary text-[8px] font-black">{isRecovery ? '-' : c.indicatorCode}</Badge>
                             {c.strategy === 'grupal' && <Users className="h-3 w-3 text-blue-400" />}
                           </div>
                           <div className="flex items-center gap-2 justify-center">
@@ -478,11 +495,11 @@ function GradebookContent() {
                         <TableRow key={s.id} className="hover:bg-muted transition-all border-b">
                           <TableCell className="pl-6 md:pl-10 py-4 sticky left-0 z-20 bg-card border-r">
                             <div className="flex items-center gap-3">
-                              <Avatar className="h-8 w-8 border-2 border-white shadow-sm">
+                              <Avatar className="h-8 w-8 border-2 border-border shadow-sm">
                                 <AvatarFallback className="bg-primary/5 text-primary font-black text-[10px]">{getInitials(s.nombre)}</AvatarFallback>
                               </Avatar>
                               <div className="flex flex-col">
-                                <span className="font-bold text-xs text-slate-800 uppercase truncate w-32 md:w-48">{s.nombre}</span>
+                                <span className="font-bold text-xs text-foreground uppercase truncate w-32 md:w-48">{s.nombre}</span>
                                 <span className="text-[8px] text-muted-foreground font-mono">DNI: {s.dni}</span>
                               </div>
                             </div>
@@ -549,10 +566,11 @@ function GradebookContent() {
         groupSize={groupSize} setGroupSize={setGroupSize}
         studentGroups={studentGroups} setStudentGroups={setStudentGroups}
         addColumn={fetchFullGradebook} resetEditor={() => {
-          setSetupStep(0); setNewIndicatorCode(""); setNewIndicatorDescription(""); setNewIndicatorWeight(0)
+          setSetupStep(isRecovery ? 1 : 0); setNewIndicatorCode(""); setNewIndicatorDescription(""); setNewIndicatorWeight(0)
           setNewInstrumentWeight(0); setNewColName(""); setNewInstType('manual'); setNewStrategyType('individual')
           setNewMaxPoints(20); setEditorCriteria([]); setStudentGroups({})
         }}
+        isRecovery={isRecovery}
       />
 
       <EvaluationModal 

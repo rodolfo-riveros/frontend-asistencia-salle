@@ -30,8 +30,8 @@ export function GradebookHeader({ onNewEval, onExportExcel, onExportPdf, isExpor
             <ClipboardCheck className="h-8 w-8 md:h-10 md:h-10" />
           </div>
           <div>
-            <h2 className="text-2xl md:text-4xl font-headline font-black tracking-tight text-slate-900">Registro Auxiliar</h2>
-            <p className="text-xs md:text-sm text-slate-500 font-medium italic">Gestión de Calificaciones e Indicadores de Logro</p>
+            <h2 className="text-2xl md:text-4xl font-headline font-black tracking-tight text-foreground">Registro Auxiliar</h2>
+            <p className="text-xs md:text-sm text-muted-foreground font-medium italic">Gestión de Calificaciones e Indicadores de Logro</p>
           </div>
         </div>
       </div>
