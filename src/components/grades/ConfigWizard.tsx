@@ -101,15 +101,13 @@ export function ConfigWizard({
 
   const createEvaluationRecord = async (criteria: any[] = [], name?: string, weight?: number) => {
     const payload: Record<string, unknown> = {
+      indicador_id: registeredIndicatorId,
       periodo_id: periodoId,
       nombre: name || newColName,
       tipo: newStrategyType === 'quizz' ? 'quizz' : newInstType,
       peso_instrumento: weight !== undefined ? weight : newInstrumentWeight,
       puntaje_maximo: newMaxPoints,
       configuracion_json: { strategy: newStrategyType, criteria: criteria.length > 0 ? criteria : editorCriteria }
-    }
-    if (!isRecovery) {
-      payload.indicador_id = registeredIndicatorId
     }
     const res: any = await api.post('/evaluaciones/', payload)
     setRegisteredEvalId(res.id)

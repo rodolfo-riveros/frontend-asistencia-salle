@@ -3,17 +3,19 @@
 
 import * as React from "react"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, ClipboardCheck, FileSpreadsheet, FileText, PlusCircle, Loader2 } from "lucide-react"
+import { ArrowLeft, ClipboardCheck, FileSpreadsheet, FileText, PlusCircle, Loader2, Sparkles } from "lucide-react"
 import { useRouter } from "next/navigation"
 
 interface GradebookHeaderProps {
   onNewEval: () => void
   onExportExcel: () => void
   onExportPdf: () => void
+  onAiDiagnostic?: () => void
   isExporting: boolean
+  isAnalyzing?: boolean
 }
 
-export function GradebookHeader({ onNewEval, onExportExcel, onExportPdf, isExporting }: GradebookHeaderProps) {
+export function GradebookHeader({ onNewEval, onExportExcel, onExportPdf, onAiDiagnostic, isExporting, isAnalyzing }: GradebookHeaderProps) {
   const router = useRouter()
 
   return (
@@ -37,6 +39,16 @@ export function GradebookHeader({ onNewEval, onExportExcel, onExportPdf, isExpor
       </div>
       
       <div className="flex flex-wrap gap-3 w-full lg:w-auto">
+        {onAiDiagnostic && (
+          <Button
+            variant="outline"
+            disabled={isAnalyzing}
+            onClick={onAiDiagnostic}
+            className="flex-1 lg:flex-none h-12 md:h-14 px-4 md:px-6 gap-2 md:gap-3 border-accent/20 text-accent hover:bg-accent/5 font-black rounded-xl md:rounded-2xl uppercase text-[10px] md:text-[11px] tracking-widest"
+          >
+            <Sparkles className={`h-4 w-4 md:h-5 md:h-5 ${isAnalyzing ? 'animate-spin' : ''}`} /> {isAnalyzing ? 'Analizando...' : 'Diagnóstico IA'}
+          </Button>
+        )}
         <Button 
           variant="outline" 
           disabled={isExporting}

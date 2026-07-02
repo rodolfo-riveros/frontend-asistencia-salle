@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useParams, useSearchParams, useRouter } from "next/navigation"
-import { Target, FileText, LayoutList, Star, Quote, Loader2, Gamepad2, Play, RefreshCcw, Users } from "lucide-react"
+import { Target, FileText, LayoutList, Star, Quote, Loader2, Gamepad2, Play, RefreshCcw, Users, Sparkles } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -17,6 +17,7 @@ import { supabase } from "@/lib/supabase"
 import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { aiAcademicInsights, type AcademicInsightsInput, type AcademicInsightsOutput } from "@/ai/flows/ai-academic-insights"
 
 // Modular Components
 import { GradebookHeader } from "@/components/grades/GradebookHeader"
@@ -89,6 +90,7 @@ function GradebookContent() {
   const [courseInfo, setCourseInfo] = React.useState<any>(null)
   const [userName, setUserName] = React.useState("")
   const [isExporting, setIsExporting] = React.useState(false)
+  const [isAnalyzing, setIsAnalyzing] = React.useState(false)
 
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
@@ -432,6 +434,328 @@ function GradebookContent() {
     }
   }
 
+  const runAcademicAnalysis = async () => {
+    setIsAnalyzing(true)
+    try {
+      const studentData: AcademicInsightsInput['students'] = students.map((s: any) => ({
+        studentId: s.id,
+        studentName: s.nombre,
+        evaluations: columns.map(c => ({
+          evalName: c.name,
+          indicatorCode: c.indicatorCode,
+          score: grades[s.id]?.[c.id] ?? 0,
+          maxPoints: c.maxPoints,
+          weight: c.instrumentWeight,
+        })),
+        finalGrade: calculateFinal(s.id),
+      }))
+
+      const result = await aiAcademicInsights({
+        courseName: courseInfo?.nombre || "Unidad Didáctica",
+        programName: courseInfo?.programa || "",
+        semester: `${courseInfo?.semestre || ""} - ${courseInfo?.periodoNombre || ""}`,
+        passingGrade: 13,
+        students: studentData,
+      })
+
+      generateAcademicDiagnosticPdf(result, courseInfo, userName)
+      toast({ title: "Diagnóstico Académico Listo", description: "El PDF con el análisis de rendimiento se ha descargado." })
+    } catch (e) {
+      console.error("Academic AI error:", e)
+      toast({ variant: "destructive", title: "Error de IA", description: "Ocurrió un error al generar el diagnóstico académico." })
+    } finally {
+      setIsAnalyzing(false)
+    }
+  }
+
+  const generateAcademicDiagnosticPdf = (data: AcademicInsightsOutput, info: any, teacher: string) => {
+    const doc = new jsPDF("p", "mm", "a4")
+    const pageW = 210
+    const margin = 20
+    const contentW = pageW - margin * 2
+
+    // ============================
+    // COVER PAGE
+    // ============================
+    doc.setFillColor(15, 23, 42)
+    doc.rect(0, 0, pageW, 297, "F")
+    doc.setTextColor(251, 191, 36)
+    doc.setFontSize(42)
+    doc.setFont("helvetica", "bold")
+    doc.text("DIAGNÓSTICO", margin, 80)
+    doc.text("ACADÉMICO", margin, 118)
+    doc.setFontSize(60)
+    doc.setTextColor(255, 255, 255)
+    doc.text("RENDIMIENTO", margin, 168)
+    doc.setFontSize(13)
+    doc.setFont("helvetica", "normal")
+    doc.setTextColor(148, 163, 184)
+    doc.text(`Curso: ${info?.nombre || "N/A"}`, margin, 210)
+    doc.text(`Programa: ${info?.programa || "N/A"}`, margin, 224)
+    doc.text(`Docente: ${teacher}`, margin, 238)
+    doc.text(`Generado: ${new Date().toLocaleDateString("es-PE", { day: "numeric", month: "long", year: "numeric" })}`, margin, 252)
+    doc.setFontSize(9)
+    doc.setTextColor(100, 116, 139)
+
+    // ============================
+    // PAGE 2 — SUMMARY
+    // ============================
+    doc.addPage()
+    doc.setFillColor(15, 23, 42)
+    doc.rect(0, 0, pageW, 40, "F")
+    doc.setTextColor(251, 191, 36)
+    doc.setFontSize(18)
+    doc.setFont("helvetica", "bold")
+    doc.text("RESUMEN EJECUTIVO", margin, 26)
+    doc.setFontSize(10)
+    doc.setFont("helvetica", "normal")
+    doc.setTextColor(100, 116, 139)
+
+    let y = 56
+    doc.setTextColor(55, 65, 81)
+    doc.setFontSize(11)
+    doc.setFont("helvetica", "normal")
+    const summaryLines = doc.splitTextToSize(data.summary, contentW)
+    doc.text(summaryLines, margin, y)
+    y += summaryLines.length * 6 + 14
+
+    // ---- stats cards ----
+    const cardW = (contentW - 12) / 3
+    const statCards = [
+      { label: "PROMEDIO GRUPAL", value: data.groupAverage.toFixed(1), bg: [239, 246, 255], accent: [37, 99, 235] },
+      { label: "APROBADOS", value: `${data.passingRate.toFixed(0)}%`, bg: [240, 253, 244], accent: [22, 163, 74] },
+      { label: "DESAPROBADOS", value: `${(100 - data.passingRate).toFixed(0)}%`, bg: [254, 242, 242], accent: [220, 38, 38] },
+    ]
+    statCards.forEach((card, i) => {
+      const x = margin + i * (cardW + 6)
+      doc.setFillColor(card.bg[0], card.bg[1], card.bg[2])
+      doc.setDrawColor(card.accent[0], card.accent[1], card.accent[2])
+      doc.roundedRect(x, y, cardW, 36, 4, 4, "FD")
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(8)
+      doc.setTextColor(card.accent[0], card.accent[1], card.accent[2])
+      doc.text(card.label, x + 6, y + 12)
+      doc.setFontSize(22)
+      doc.setTextColor(30, 41, 59)
+      doc.text(card.value, x + 6, y + 30)
+    })
+    y += 52
+
+    // ============================
+    // SECTION 1 — FAILING STUDENTS (GROUPED BY INDICATOR)
+    // ============================
+    if (data.failingStudents.length > 0) {
+      if (y > 230) { doc.addPage(); y = 20 }
+      doc.setFillColor(239, 68, 68)
+      doc.rect(margin, y, 4, 14, "F")
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(14)
+      doc.setTextColor(15, 23, 42)
+      doc.text(`ALUMNOS DESAPROBADOS (${data.failingStudents.length})`, margin + 12, y + 10)
+      y += 22
+
+      // table of all failing students
+      const failRows = data.failingStudents.map((st: any, i: number) => [
+        { content: String(i + 1), styles: { halign: "center", fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: "bold" } },
+        { content: st.name, styles: { fontStyle: "bold" } },
+        { content: `${st.finalGrade}/20`, styles: { halign: "center", fontStyle: "bold", fillColor: [254, 202, 202], textColor: [185, 28, 28] } },
+      ])
+      autoTable(doc, {
+        startY: y,
+        head: [[
+          { content: "#", styles: { halign: "center", fillColor: [239, 68, 68], textColor: [255, 255, 255] } },
+          { content: "ALUMNO", styles: { fillColor: [239, 68, 68], textColor: [255, 255, 255] } },
+          { content: "NOTA", styles: { halign: "center", fillColor: [239, 68, 68], textColor: [255, 255, 255] } },
+        ]],
+        body: failRows,
+        theme: "grid",
+        headStyles: { fontStyle: "bold", fontSize: 8 },
+        bodyStyles: { fontSize: 8, lineColor: [226, 232, 240], lineWidth: 0.5 },
+        columnStyles: { 0: { cellWidth: 12 }, 1: { cellWidth: contentW - 48 }, 2: { cellWidth: 24 } },
+        margin: { left: margin, right: margin },
+      })
+      y = (doc as any).lastAutoTable?.finalY || y + 30
+
+      // group by weakestIndicators
+      y += 8
+      const groups = new Map<string, { students: string[], suggestion: string }>()
+      data.failingStudents.forEach((st: any) => {
+        const key = st.weakestIndicators || "Otros"
+        if (!groups.has(key)) groups.set(key, { students: [], suggestion: st.suggestion || "" })
+        groups.get(key)!.students.push(st.name)
+      })
+
+      groups.forEach((group, indicators) => {
+        if (y > 250) { doc.addPage(); y = 20 }
+
+        // group card
+        doc.setFillColor(255, 247, 237)
+        doc.roundedRect(margin, y, contentW, 18, 4, 4, "F")
+        doc.setFillColor(239, 68, 68)
+        doc.rect(margin, y, 4, 18, "F")
+        doc.setFont("helvetica", "bold")
+        doc.setFontSize(8)
+        doc.setTextColor(185, 28, 28)
+        const indLines = doc.splitTextToSize(indicators, contentW - 16)
+        doc.text(indLines, margin + 12, y + 7)
+        y += 24
+
+        // student names
+        doc.setFont("helvetica", "bold")
+        doc.setFontSize(8)
+        doc.setTextColor(100, 116, 139)
+        doc.text("ALUMNOS:", margin + 6, y)
+        doc.setFont("helvetica", "normal")
+        doc.setTextColor(71, 85, 105)
+        const namesText = group.students.join(", ")
+        const nameLines = doc.splitTextToSize(namesText, contentW - 18)
+        doc.text(nameLines, margin + 6, y + 5)
+        y += nameLines.length * 5 + 8
+
+        // suggestion (once per group)
+        doc.setFillColor(254, 249, 195)
+        doc.roundedRect(margin, y, contentW, 14, 3, 3, "F")
+        doc.setFillColor(234, 179, 8)
+        doc.rect(margin, y, 3, 14, "F")
+        doc.setFont("helvetica", "bold")
+        doc.setFontSize(7)
+        doc.setTextColor(146, 64, 14)
+        doc.text("RECOMENDACIÓN GRUPAL:", margin + 8, y + 5)
+        doc.setFont("helvetica", "normal")
+        doc.setTextColor(113, 63, 18)
+        const sugLines = doc.splitTextToSize(group.suggestion, contentW - 16)
+        doc.text(sugLines, margin + 8, y + 10)
+        y += 22 + (sugLines.length - 1) * 5
+      })
+    }
+
+    // ============================
+    // SECTION 2 — STRUGGLING EVALUATIONS
+    // ============================
+    if (data.strugglingEvaluations.length > 0) {
+      y += 10
+      if (y > 220) { doc.addPage(); y = 20 }
+      doc.setFillColor(245, 158, 11)
+      doc.rect(margin, y, 4, 14, "F")
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(14)
+      doc.setTextColor(15, 23, 42)
+      doc.text("EVALUACIONES CON MAYOR DIFICULTAD", margin + 12, y + 10)
+      y += 22
+
+      const evalRows = data.strugglingEvaluations.map((ev: any) => [
+        { content: ev.evalName, styles: { fontStyle: "bold" } },
+        { content: ev.indicatorCode, styles: { halign: "center" } },
+        {
+          content: `${ev.failureRate.toFixed(0)}%`,
+          styles: {
+            halign: "center",
+            fontStyle: "bold",
+            fillColor: ev.failureRate > 60 ? [254, 202, 202] : ev.failureRate > 30 ? [254, 243, 199] : [220, 252, 231],
+            textColor: ev.failureRate > 60 ? [185, 28, 28] : ev.failureRate > 30 ? [146, 64, 14] : [22, 101, 52],
+          },
+        },
+        { content: ev.analysis, styles: { fontStyle: "italic", textColor: [100, 116, 139] } },
+      ])
+      autoTable(doc, {
+        startY: y,
+        head: [[
+          { content: "EVALUACIÓN", styles: { fillColor: [245, 158, 11], textColor: [255, 255, 255] } },
+          { content: "IND.", styles: { halign: "center", fillColor: [245, 158, 11], textColor: [255, 255, 255] } },
+          { content: "FRACASO", styles: { halign: "center", fillColor: [245, 158, 11], textColor: [255, 255, 255] } },
+          { content: "ANÁLISIS", styles: { fillColor: [245, 158, 11], textColor: [255, 255, 255] } },
+        ]],
+        body: evalRows,
+        theme: "grid",
+        headStyles: { fontStyle: "bold", fontSize: 8 },
+        bodyStyles: { fontSize: 8, lineColor: [226, 232, 240], lineWidth: 0.5 },
+        columnStyles: { 0: { cellWidth: 50 }, 1: { cellWidth: 16 }, 2: { cellWidth: 20 }, 3: { cellWidth: contentW - 86 } },
+        margin: { left: margin, right: margin },
+      })
+      y = (doc as any).lastAutoTable?.finalY || y + 30
+    }
+
+    // ============================
+    // SECTION 3 — PASSING STUDENTS
+    // ============================
+    if (data.passingStudents.length > 0) {
+      y += 12
+      if (y > 220) { doc.addPage(); y = 20 }
+      doc.setFillColor(34, 197, 94)
+      doc.rect(margin, y, 4, 14, "F")
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(14)
+      doc.setTextColor(15, 23, 42)
+      doc.text(`ALUMNOS APROBADOS (${data.passingStudents.length})`, margin + 12, y + 10)
+      y += 22
+
+      const passRows = data.passingStudents.map((st: any, i: number) => [
+        { content: String(i + 1), styles: { halign: "center", fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: "bold" } },
+        { content: st.name, styles: { fontStyle: "bold" } },
+        { content: `${st.finalGrade}/20`, styles: { halign: "center", fontStyle: "bold", fillColor: [220, 252, 231], textColor: [22, 101, 52] } },
+        { content: st.strengths, styles: { fontStyle: "italic", textColor: [100, 116, 139] } },
+      ])
+      autoTable(doc, {
+        startY: y,
+        head: [[
+          { content: "#", styles: { halign: "center", fillColor: [34, 197, 94], textColor: [255, 255, 255] } },
+          { content: "ALUMNO", styles: { fillColor: [34, 197, 94], textColor: [255, 255, 255] } },
+          { content: "NOTA", styles: { halign: "center", fillColor: [34, 197, 94], textColor: [255, 255, 255] } },
+          { content: "FORTALEZAS", styles: { fillColor: [34, 197, 94], textColor: [255, 255, 255] } },
+        ]],
+        body: passRows,
+        theme: "grid",
+        headStyles: { fontStyle: "bold", fontSize: 8 },
+        bodyStyles: { fontSize: 8, lineColor: [226, 232, 240], lineWidth: 0.5 },
+        columnStyles: { 0: { cellWidth: 12 }, 1: { cellWidth: 60 }, 2: { cellWidth: 24 }, 3: { cellWidth: contentW - 96 } },
+        margin: { left: margin, right: margin },
+      })
+      y = (doc as any).lastAutoTable?.finalY || y + 30
+    }
+
+    // ============================
+    // SECTION 4 — RECOMMENDATIONS
+    // ============================
+    y += 12
+    if (y > 230) { doc.addPage(); y = 20 }
+    doc.setFillColor(16, 185, 129)
+    doc.rect(margin, y, 4, 14, "F")
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(14)
+    doc.setTextColor(15, 23, 42)
+    doc.text("HOJA DE RUTA DEL DOCENTE — RECOMENDACIONES", margin + 12, y + 10)
+    y += 22
+
+    data.recommendations.forEach((r: string, i: number) => {
+      if (y > 260) { doc.addPage(); y = 20 }
+      doc.setFillColor(i % 2 === 0 ? 236 : 240, i % 2 === 0 ? 253 : 253, i % 2 === 0 ? 245 : 244)
+      doc.roundedRect(margin, y, contentW, 16, 3, 3, "F")
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(8)
+      doc.setTextColor(16, 185, 129)
+      doc.text("→", margin + 6, y + 10)
+      doc.setFont("helvetica", "normal")
+      doc.setTextColor(71, 85, 105)
+      const recLines = doc.splitTextToSize(r, contentW - 18)
+      doc.text(recLines, margin + 14, y + 6)
+      y += 18 + (recLines.length - 1) * 5
+    })
+
+    // ============================
+    // FOOTER
+    // ============================
+    const pageCount = doc.getNumberOfPages()
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i)
+      doc.setFont("helvetica", "normal")
+      doc.setFontSize(7)
+      doc.setTextColor(156, 163, 175)
+      doc.text(`Página ${i} de ${pageCount}`, pageW - margin - doc.getTextWidth(`Página ${i} de ${pageCount}`), 288)
+    }
+
+    doc.save(`DIAGNOSTICO_ACADEMICO_${(info?.nombre || "UD").replace(/[^a-zA-Z0-9]/g, "_")}.pdf`)
+  }
+
   const filtered = students.filter(s => s.nombre.toLowerCase().includes(searchTerm.toLowerCase()))
 
   if (isLoading && students.length === 0) {
@@ -449,7 +773,9 @@ function GradebookContent() {
         onNewEval={() => setIsNewColOpen(true)} 
         onExportExcel={handleExportExcel}
         onExportPdf={handleExportPdf}
+        onAiDiagnostic={runAcademicAnalysis}
         isExporting={isExporting}
+        isAnalyzing={isAnalyzing}
       />
 
       <Card className="border-none shadow-2xl overflow-hidden bg-card rounded-2xl md:rounded-[2.5rem]">

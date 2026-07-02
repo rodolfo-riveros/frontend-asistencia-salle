@@ -328,7 +328,8 @@ function AttendanceContent() {
       }))
       const result = await aiAttendanceInsights({ attendanceRecords: records as any })
       setAiResult(result)
-      toast({ title: "Análisis IA Finalizado", description: "Se han identificado riesgos y advertencias." })
+      generateDiagnosticPdf(result, courseInfo?.unidad_nombre || "Unidad Didáctica", students as any[])
+      toast({ title: "Análisis IA Finalizado", description: "El diagnóstico PDF se ha descargado." })
     } catch (e) {
       console.error("AI Analysis error:", e)
       toast({ variant: "destructive", title: "Error de IA", description: "Ocurrió un error al generar el diagnóstico. Verifica la conexión con Genkit." })
@@ -386,7 +387,7 @@ function AttendanceContent() {
         </div>
       </div>
 
-      {aiResult && <AiInsightsPanel aiResult={aiResult} />}
+      {aiResult && <></>}
     </div>
   )
 }
@@ -600,88 +601,306 @@ function StatsPanel({ statsData }: any) {
   )
 }
 
-function AiInsightsPanel({ aiResult }: any) {
-  return (
-    <Card className="border-none shadow-2xl bg-slate-900 text-white p-10 rounded-[3rem] animate-in fade-in slide-in-from-bottom-8 duration-700">
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-12 gap-6">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-yellow-400/10 rounded-2xl">
-            <Sparkles className="h-8 w-8 text-yellow-400" />
-          </div>
-          <h3 className="text-3xl font-black uppercase tracking-tighter italic">Diagnóstico Estratégico</h3>
-        </div>
-        <Badge className="bg-card/10 text-white/60 border-white/10 font-mono text-[10px]">VERSIÓN FLASH 2.5</Badge>
-      </div>
-      
-      <div className="grid lg:grid-cols-2 gap-16">
-        <div className="space-y-12">
-          <div className="space-y-4">
-            <Label className="text-[10px] font-black uppercase text-blue-400 tracking-[0.3em]">Resumen Ejecutivo</Label>
-            <p className="text-xl text-blue-50/90 leading-relaxed font-medium">{aiResult.summary}</p>
-          </div>
-          
-          <div className="space-y-6">
-            <div className="flex items-center gap-3">
-              <UserX className="h-6 w-6 text-red-500" />
-              <Label className="text-[11px] font-black uppercase text-red-400 tracking-[0.2em]">Alerta: Riesgo de Deserción (≥ 30% Faltas)</Label>
-            </div>
-            {aiResult.atRiskStudents.length > 0 ? (
-              <div className="grid gap-3">
-                {aiResult.atRiskStudents.map((st: any, i: any) => (
-                  <div key={i} className="bg-red-500/5 border border-red-500/10 p-5 rounded-2xl flex items-center justify-between group hover:bg-red-500/10 transition-all">
-                    <div>
-                      <p className="font-black text-lg text-red-50 uppercase">{st.name}</p>
-                      <p className="text-xs text-red-200/50 mt-1 font-medium italic">{st.reason}</p>
-                    </div>
-                    <Badge className="bg-red-600 font-black px-4 py-1">{st.absencePercentage}%</Badge>
-                  </div>
-                ))}
-              </div>
-            ) : <p className="text-xs text-emerald-400/60 font-bold uppercase tracking-widest px-4 py-3 bg-emerald-500/5 rounded-xl border border-emerald-500/10 w-fit">✓ No se detectan riesgos críticos</p>}
-          </div>
-        </div>
+function generateDiagnosticPdf(data: AttendanceInsightsOutput, courseName: string, allStudents: any[]) {
+  const doc = new jsPDF("p", "mm", "a4")
+  const pageW = 210
+  const margin = 20
+  const contentW = pageW - margin * 2
 
-        <div className="space-y-12">
-          <div className="space-y-6">
-            <div className="flex items-center gap-3">
-              <AlertTriangle className="h-6 w-6 text-amber-500" />
-              <Label className="text-[11px] font-black uppercase text-amber-400 tracking-[0.2em]">Advertencia Temprana: Tardanzas</Label>
-            </div>
-            {aiResult.warningStudents.length > 0 ? (
-              <div className="grid gap-4">
-                {aiResult.warningStudents.map((st: any, i: any) => (
-                  <div key={i} className="bg-amber-500/5 border border-amber-500/10 p-6 rounded-3xl space-y-4">
-                    <div className="flex items-center justify-between">
-                      <p className="font-black text-lg text-amber-50 uppercase">{st.name}</p>
-                      <Badge variant="outline" className="text-amber-500 border-amber-500/30 text-[10px] px-3 font-black">{st.tardyCount} Tardanzas</Badge>
-                    </div>
-                    <div className="p-5 bg-card/5 rounded-2xl text-[12px] text-white/80 leading-relaxed border border-white/5">
-                      <span className="text-amber-400 font-black uppercase text-[9px] block mb-2 tracking-widest">Sugerencia Pedagógica:</span>
-                      {st.suggestion}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : <p className="text-xs text-emerald-400/60 font-bold uppercase tracking-widest px-4 py-3 bg-emerald-500/5 rounded-xl border border-emerald-500/10 w-fit">✓ Patrones de puntualidad estables</p>}
-          </div>
-          
-          <div className="p-8 bg-card/5 rounded-[2rem] border border-white/10 space-y-6">
-            <Label className="text-[10px] font-black uppercase text-emerald-400 tracking-[0.3em]">Hoja de Ruta del Docente</Label>
-            <ul className="space-y-4">
-              {aiResult.recommendations.map((r: any, i: any) => (
-                <li key={i} className="flex gap-4 text-[13px] text-blue-50/80 items-start">
-                  <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0 mt-0.5">
-                    <span className="font-black text-emerald-500 text-[10px]">✓</span>
-                  </div>
-                  {r}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      </div>
-    </Card>
-  )
+  // ---- helper: draw a heat bar ----
+  const heatColor = (pct: number): [number, number, number] => {
+    if (pct >= 30) return [220, 38, 38]   // red
+    if (pct >= 20) return [251, 146, 60]  // orange
+    if (pct >= 10) return [250, 204, 21]  // yellow
+    return [34, 197, 94]                  // green
+  }
+
+  // ---- helper: colored cell ----
+  const coloredCell = (text: string, pct: number, opts?: any) => {
+    const [r, g, b] = heatColor(pct)
+    return { content: text, styles: { fillColor: [r, g, b], textColor: [255, 255, 255], fontStyle: "bold", halign: "center", ...opts } }
+  }
+
+  // ============================
+  // COVER PAGE
+  // ============================
+  doc.setFillColor(15, 23, 42)
+  doc.rect(0, 0, pageW, 297, "F")
+  doc.setTextColor(251, 191, 36)
+  doc.setFontSize(42)
+  doc.setFont("helvetica", "bold")
+  doc.text("DIAGNÓSTICO", margin, 80)
+  doc.text("ESTRATÉGICO", margin, 118)
+  doc.setFontSize(60)
+  doc.setTextColor(255, 255, 255)
+  doc.text("ASISTENCIA", margin, 168)
+  doc.setFontSize(14)
+  doc.setFont("helvetica", "normal")
+  doc.setTextColor(148, 163, 184)
+  doc.text(`Curso: ${courseName}`, margin, 210)
+  doc.text(`Generado: ${new Date().toLocaleDateString("es-PE", { day: "numeric", month: "long", year: "numeric" })}`, margin, 224)
+  doc.setFontSize(9)
+  doc.setTextColor(100, 116, 139)
+
+  // ============================
+  // PAGE 2 — SUMMARY
+  // ============================
+  doc.addPage()
+  doc.setFillColor(15, 23, 42)
+  doc.rect(0, 0, pageW, 40, "F")
+  doc.setTextColor(251, 191, 36)
+  doc.setFontSize(18)
+  doc.setFont("helvetica", "bold")
+  doc.text("RESUMEN EJECUTIVO", margin, 26)
+  doc.setFontSize(10)
+  doc.setFont("helvetica", "normal")
+  doc.setTextColor(100, 116, 139)
+
+  let y = 58
+  doc.setTextColor(55, 65, 81)
+  doc.setFontSize(11)
+  doc.setFont("helvetica", "normal")
+  const summaryLines = doc.splitTextToSize(data.summary, contentW)
+  doc.text(summaryLines, margin, y)
+  y += summaryLines.length * 6 + 14
+
+  // ---- stats cards ----
+  const totalStudents = data.atRiskStudents.length + data.warningStudents.length + (allStudents.length - data.atRiskStudents.length - data.warningStudents.length)
+  const cardW = (contentW - 12) / 3
+  const statCards = [
+    { label: "TOTAL ALUMNOS", value: String(totalStudents), bg: [239, 246, 255], accent: [37, 99, 235] },
+    { label: "EN RIESGO", value: String(data.atRiskStudents.length), bg: [254, 242, 242], accent: [220, 38, 38] },
+    { label: "CON TARDANZAS", value: String(data.warningStudents.length), bg: [255, 247, 237], accent: [234, 88, 12] },
+  ]
+  statCards.forEach((card, i) => {
+    const x = margin + i * (cardW + 6)
+    doc.setFillColor(card.bg[0], card.bg[1], card.bg[2])
+    doc.setDrawColor(card.accent[0], card.accent[1], card.accent[2])
+    doc.roundedRect(x, y, cardW, 36, 4, 4, "FD")
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(8)
+    doc.setTextColor(card.accent[0], card.accent[1], card.accent[2])
+    doc.text(card.label, x + 6, y + 12)
+    doc.setFontSize(22)
+    doc.setTextColor(30, 41, 59)
+    doc.text(card.value, x + 6, y + 30)
+  })
+  y += 52
+
+  // ============================
+  // SECTION 1 — AT-RISK STUDENTS
+  // ============================
+  doc.setFillColor(239, 68, 68)
+  doc.rect(margin, y, 4, 14, "F")
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(14)
+  doc.setTextColor(15, 23, 42)
+  doc.text("ALUMNOS EN RIESGO DE DESERCION (>= 30% INASISTENCIA)", margin + 12, y + 10)
+  y += 24
+
+  if (data.atRiskStudents.length > 0) {
+    const rows = data.atRiskStudents.map((st: any, i: number) => [
+      { content: String(i + 1), styles: { halign: "center", fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: "bold" } },
+      { content: st.name, styles: { fontStyle: "bold" } },
+      { content: `${st.absencePercentage}%`, styles: { halign: "center", fontStyle: "bold", fillColor: [254, 202, 202], textColor: [185, 28, 28] } },
+      { content: st.reason, styles: { fontStyle: "italic", textColor: [100, 116, 139] } },
+    ])
+    autoTable(doc, {
+      startY: y,
+      head: [[{ content: "#", styles: { halign: "center", fillColor: [239, 68, 68], textColor: [255, 255, 255] } },
+              { content: "ALUMNO", styles: { fillColor: [239, 68, 68], textColor: [255, 255, 255] } },
+              { content: "% FALTAS", styles: { halign: "center", fillColor: [239, 68, 68], textColor: [255, 255, 255] } },
+              { content: "CAUSA PRINCIPAL", styles: { fillColor: [239, 68, 68], textColor: [255, 255, 255] } }]],
+      body: rows,
+      theme: "grid",
+      headStyles: { fontStyle: "bold", fontSize: 8 },
+      bodyStyles: { fontSize: 8, lineColor: [226, 232, 240], lineWidth: 0.5 },
+      columnStyles: { 0: { cellWidth: 12 }, 1: { cellWidth: 60 }, 2: { cellWidth: 24 }, 3: { cellWidth: contentW - 96 } },
+      margin: { left: margin, right: margin },
+    })
+  } else {
+    doc.setFillColor(220, 252, 231)
+    doc.roundedRect(margin, y, contentW, 20, 4, 4, "F")
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(10)
+    doc.setTextColor(22, 163, 74)
+    doc.text("✓ No se detectan alumnos con riesgo crítico de deserción.", margin + 8, y + 13)
+  }
+  y = (doc as any).lastAutoTable?.finalY || y + 30
+
+  // ---- heatmap visualization ----
+  if (data.atRiskStudents.length > 0) {
+    y += 12
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(9)
+    doc.setTextColor(100, 116, 139)
+    doc.text("MAPA DE CALOR — NIVEL DE RIESGO POR ALUMNO", margin, y)
+    y += 8
+
+    const barW = contentW / Math.max(data.atRiskStudents.length, 1)
+    const barH = 20
+    data.atRiskStudents.forEach((st: any, i: number) => {
+      const x = margin + i * barW
+      const intensity = Math.min(st.absencePercentage / 100, 1)
+      const r = Math.round(220 + (185 - 220) * intensity)
+      const g = Math.round(38 + (28 - 38) * intensity)
+      const b = Math.round(38 + (28 - 38) * intensity)
+      doc.setFillColor(r, g, b)
+      doc.roundedRect(x, y, Math.max(barW - 2, 8), barH, 2, 2, "F")
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(6)
+      doc.setTextColor(255, 255, 255)
+      doc.text(`${st.absencePercentage}%`, x + 2, y + barH / 2 + 2)
+      doc.setFontSize(5)
+      doc.text(st.name.length > 12 ? st.name.slice(0, 10) + ".." : st.name, x + 2, y + barH - 3)
+    })
+    y += barH + 16
+  }
+
+  // ============================
+  // SECTION 2 — WARNING STUDENTS
+  // ============================
+  if (y > 230) { doc.addPage(); y = 20 }
+  doc.setFillColor(245, 158, 11)
+  doc.rect(margin, y, 4, 14, "F")
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(14)
+  doc.setTextColor(15, 23, 42)
+  doc.text("ALUMNOS CON PATRÓN DE TARDANZAS", margin + 12, y + 10)
+  y += 24
+
+  if (data.warningStudents.length > 0) {
+    const rows = data.warningStudents.map((st: any, i: number) => [
+      { content: String(i + 1), styles: { halign: "center", fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: "bold" } },
+      { content: st.name, styles: { fontStyle: "bold" } },
+      { content: `${st.tardyCount}`, styles: { halign: "center", fontStyle: "bold", fillColor: [254, 243, 199], textColor: [146, 64, 14] } },
+      { content: st.suggestion, styles: { fontStyle: "italic", textColor: [100, 116, 139] } },
+    ])
+    autoTable(doc, {
+      startY: y,
+      head: [[{ content: "#", styles: { halign: "center", fillColor: [245, 158, 11], textColor: [255, 255, 255] } },
+              { content: "ALUMNO", styles: { fillColor: [245, 158, 11], textColor: [255, 255, 255] } },
+              { content: "TARD.", styles: { halign: "center", fillColor: [245, 158, 11], textColor: [255, 255, 255] } },
+              { content: "SUGERENCIA", styles: { fillColor: [245, 158, 11], textColor: [255, 255, 255] } }]],
+      body: rows,
+      theme: "grid",
+      headStyles: { fontStyle: "bold", fontSize: 8 },
+      bodyStyles: { fontSize: 8, lineColor: [226, 232, 240], lineWidth: 0.5 },
+      columnStyles: { 0: { cellWidth: 12 }, 1: { cellWidth: 60 }, 2: { cellWidth: 20 }, 3: { cellWidth: contentW - 92 } },
+      margin: { left: margin, right: margin },
+    })
+  } else {
+    doc.setFillColor(220, 252, 231)
+    doc.roundedRect(margin, y, contentW, 20, 4, 4, "F")
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(10)
+    doc.setTextColor(22, 163, 74)
+    doc.text("✓ Patrones de puntualidad estables. No se requieren intervenciones inmediatas.", margin + 8, y + 13)
+  }
+  y = (doc as any).lastAutoTable?.finalY || y + 30
+
+  // ============================
+  // SECTION 3 — PEDAGOGICAL ADVICE for LATE STUDENTS
+  // ============================
+  if (data.warningStudents.length > 0) {
+    y += 12
+    if (y > 230) { doc.addPage(); y = 20 }
+    doc.setFillColor(59, 130, 246)
+    doc.rect(margin, y, 4, 14, "F")
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(14)
+    doc.setTextColor(15, 23, 42)
+    doc.text("ESTRATEGIAS PEDAGÓGICAS PARA ABORDAR TARDANZAS", margin + 12, y + 10)
+    y += 22
+
+    const consejos = [
+      "Programa una reunión individual con cada estudiante para entender la causa raíz de sus tardanzas en un ambiente de confianza.",
+      "Establece acuerdos de puntualidad con el estudiante, firmando un compromiso escrito con metas semanales alcanzables.",
+      "Implementa un sistema de reconocimiento positivo: los estudiantes puntuales durante todo el mes ganan un pase especial.",
+      "Comunícate con los padres o apoderados para crear una red de apoyo que refuerce la importancia de la puntualidad.",
+      "Ofrece flexibilidad de 5 minutos al inicio de la clase como 'ventana de cortesía', registrando tardanzas solo después de ese margen.",
+      "Diseña actividades especialmente atractivas en los primeros 10 minutos de clase para motivar la llegada temprana.",
+    ]
+    consejos.forEach((c, i) => {
+      doc.setFillColor(239, 246, 255)
+      doc.roundedRect(margin, y, contentW, 14, 3, 3, "F")
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(8)
+      doc.setTextColor(59, 130, 246)
+      doc.text(`${i + 1}.`, margin + 6, y + 9)
+      doc.setFont("helvetica", "normal")
+      doc.setTextColor(71, 85, 105)
+      const lines = doc.splitTextToSize(c, contentW - 22)
+      doc.text(lines, margin + 14, y + 5)
+      y += 15 + (lines.length - 1) * 4
+    })
+  }
+
+  // ============================
+  // SECTION 4 — SPECIFIC SUGGESTIONS FOR EACH LATE STUDENT
+  // ============================
+  if (data.warningStudents.length > 0) {
+    y += 10
+    data.warningStudents.forEach((st: any) => {
+      if (y > 250) { doc.addPage(); y = 20 }
+      doc.setFillColor(255, 247, 237)
+      doc.roundedRect(margin, y, contentW, 22, 4, 4, "F")
+      doc.setFillColor(245, 158, 11)
+      doc.rect(margin, y, 4, 22, "F")
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(9)
+      doc.setTextColor(15, 23, 42)
+      doc.text(st.name.toUpperCase(), margin + 12, y + 8)
+      doc.setFont("helvetica", "normal")
+      doc.setFontSize(8)
+      doc.setTextColor(107, 114, 128)
+      const sugLines = doc.splitTextToSize(st.suggestion, contentW - 20)
+      doc.text(sugLines, margin + 12, y + 16)
+      y += 30
+    })
+  }
+
+  // ============================
+  // SECTION 5 — RECOMMENDATIONS
+  // ============================
+  y += 10
+  if (y > 220) { doc.addPage(); y = 20 }
+  doc.setFillColor(16, 185, 129)
+  doc.rect(margin, y, 4, 14, "F")
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(14)
+  doc.setTextColor(15, 23, 42)
+  doc.text("HOJA DE RUTA DEL DOCENTE — RECOMENDACIONES", margin + 12, y + 10)
+  y += 22
+
+  data.recommendations.forEach((r: string, i: number) => {
+    if (y > 260) { doc.addPage(); y = 20 }
+    doc.setFillColor(i % 2 === 0 ? 236 : 240, i % 2 === 0 ? 253 : 253, i % 2 === 0 ? 245 : 244)
+    doc.roundedRect(margin, y, contentW, 16, 3, 3, "F")
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(8)
+    doc.setTextColor(16, 185, 129)
+    doc.text("→", margin + 6, y + 10)
+    doc.setFont("helvetica", "normal")
+    doc.setTextColor(71, 85, 105)
+    const recLines = doc.splitTextToSize(r, contentW - 18)
+    doc.text(recLines, margin + 14, y + 6)
+    y += 18 + (recLines.length - 1) * 5
+  })
+
+  // ============================
+  // FOOTER on each page
+  // ============================
+  const pageCount = doc.getNumberOfPages()
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i)
+    doc.setFont("helvetica", "normal")
+    doc.setFontSize(7)
+    doc.setTextColor(156, 163, 175)
+    doc.text(`Página ${i} de ${pageCount}`, pageW - margin - doc.getTextWidth(`Página ${i} de ${pageCount}`), 288)
+  }
+
+  doc.save(`DIAGNOSTICO_ASISTENCIA_${courseName.replace(/[^a-zA-Z0-9]/g, "_")}.pdf`)
 }
 
 function ActionBtn({ icon: Icon, active, color, onClick }: any) {

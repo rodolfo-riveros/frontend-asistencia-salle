@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { 
   ArrowLeft, Zap, Sparkles, Loader2, Radio, Users, Maximize2, Trophy, 
   ShieldCheck, Crown, BookOpen, AlertTriangle, Award, ChevronRight,
-  Medal, ListChecks, CheckCircle2, Download, Link as LinkIcon, Percent
+  Medal, ListChecks, CheckCircle2, Download, Link as LinkIcon, Percent, Clock
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
@@ -619,7 +619,7 @@ export default function InstructorQuizPage() {
                   <div className="flex justify-between items-start">
                     <Badge className="bg-primary text-white font-black text-[10px] px-6 py-1 rounded-full uppercase tracking-[0.3em]">ITEM {idx + 1}</Badge>
                     <div className="bg-card p-4 rounded-3xl border-2 border-border shadow-sm shrink-0 flex flex-col items-center">
-                      <Percent className="h-5 w-5 text-primary mb-1" />
+                      <Clock className="h-5 w-5 text-primary mb-1" />
                       <span className="font-black text-xl text-foreground">{q.timeLimit || 20}s</span>
                     </div>
                   </div>

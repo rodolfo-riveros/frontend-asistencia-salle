@@ -166,7 +166,7 @@ export default function StudentGameRoomPage() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-4xl mx-auto">
                   {currentQ?.options.map((opt: string, i: number) => (
-                    <Button key={i} disabled={hasAnswered} onClick={() => handleAnswer(i)} variant="outline" className={cn("min-h-[100px] rounded-3xl border-2 px-8 py-6 flex items-center justify-start text-left whitespace-normal", hasAnswered && selectedOptionIndex === i && (lastAnswerCorrect ? "border-emerald-500 bg-emerald-50" : "border-red-500 bg-red-50"))}>
+                    <Button key={i} disabled={hasAnswered} onClick={() => handleAnswer(i)} variant="outline" className={cn("min-h-[100px] rounded-3xl border-2 px-8 py-6 flex items-center justify-start text-left whitespace-normal focus-visible:ring-0 focus-visible:ring-offset-0", hasAnswered && selectedOptionIndex === i && (lastAnswerCorrect ? "border-emerald-500 bg-emerald-50" : "border-red-500 bg-red-50"))}>
                       <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border-2 font-black text-xs mr-5", hasAnswered && selectedOptionIndex === i ? (lastAnswerCorrect ? "bg-emerald-500 text-white" : "bg-red-500 text-white") : "bg-muted text-slate-300")}>{String.fromCharCode(65 + i)}</div>
                       <span className="flex-1 font-black text-foreground/90 leading-tight">{opt}</span>
                     </Button>
