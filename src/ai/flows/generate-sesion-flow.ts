@@ -17,31 +17,78 @@ const GenerateSesionInputSchema = z.object({
   docente: z.string().describe('Docente responsable'),
   sesion: z.string().describe('Sesion de aprendizaje'),
   logro: z.string().describe('Logro o proposito de la sesion'),
-  contenidos: z.string().describe('Contenidos de la sesion'),
+  contenidos: z.string().describe('Contenidos de la sesion (separados por comas)'),
   lugarTipo: z.string().describe('Lugar y tipo de sesion'),
-  horasTeoricas: z.string().describe('Horas teoricas'),
-  horasPracticas: z.string().describe('Horas practicas'),
+  horasTeoricas: z.string().describe('Horas teoricas (en horas pedagogicas de 45min)'),
+  horasPracticas: z.string().describe('Horas practicas (en horas pedagogicas de 45min)'),
+  distribucionActividades: z.string().describe(
+    'Distribucion de horas por cada actividad de clase. Formato: "Actividad 1: 2h, Actividad 2: 2h, Actividad 3: 3h, Actividad 4: 2h, Actividad 5: 2h, Actividad 6: 3h". La suma total debe coincidir con horasTeoricas + horasPracticas. Cada hora = 45 min pedagogicos.'
+  ),
 });
 export type GenerateSesionInput = z.infer<typeof GenerateSesionInputSchema>;
 
-const ActividadSchema = z.object({
-  nombre: z.string().describe('Nombre de la actividad o momento'),
-  descripcion: z.string().describe('Descripcion detallada de la actividad'),
-  duracion: z.string().describe('Duracion en minutos'),
-  recursos: z.string().describe('Recursos y materiales necesarios'),
+const MomentoInicioSchema = z.object({
+  estrategia: z.string().describe('Estrategia metodologica para el inicio'),
+  motivacion: z.string().describe('Texto motivador para captar la atencion del estudiante'),
+  saberesPrevios: z.string().describe('Pregunta o actividad para recuperar saberes previos'),
+  conflictoCognitivo: z.string().describe('Pregunta desafiante que genere conflicto cognitivo'),
+});
+
+const MomentoDesarrolloSchema = z.object({
+  estrategia: z.string().describe('Estrategia metodologica para el desarrollo'),
+  construccion: z.string().describe('Explicacion teorica o conceptual del tema'),
+  contenidoPrincipal: z.string().describe('Contenido principal: codigo, ejemplos o demostracion'),
+  tiposDatos: z.string().describe('Detalle de tipos de datos, sintaxis o conceptos clave'),
+  ejercicios: z.array(z.string()).describe('Lista de ejercicios practicos a realizar'),
+});
+
+const MomentoCierreSchema = z.object({
+  metacognicion: z.string().describe('Pregunta de metacognicion para reflexion'),
+  evaluacion: z.string().describe('Estrategia de evaluacion a aplicar'),
+  instrumento: z.string().describe('Instrumento de evaluacion (Lista de Cotejo, Rubrica, etc)'),
+});
+
+const ActividadCompletaSchema = z.object({
+  numero: z.number().describe('Numero de la actividad (1, 2, 3...)'),
+  titulo: z.string().describe('Titulo de la actividad'),
+  duracion: z.string().describe('Duracion total en minutos'),
+  inicio: MomentoInicioSchema.describe('Momento de inicio de la actividad'),
+  desarrollo: MomentoDesarrolloSchema.describe('Momento de desarrollo de la actividad'),
+  cierre: MomentoCierreSchema.describe('Momento de cierre de la actividad'),
+  recursos: z.array(z.string()).describe('Recursos y materiales necesarios'),
+  estrategiaTiempo: z.string().describe('Estrategia y tiempo resumido para la tabla de tiempos'),
+});
+
+const CriterioCotejoSchema = z.object({
+  numero: z.number().describe('Numero del criterio'),
+  descripcion: z.string().describe('Descripcion del criterio a evaluar'),
+});
+
+const DimensionRubricaSchema = z.object({
+  criterio: z.string().describe('Nombre del criterio o dimension a evaluar'),
+  excelente: z.string().describe('Descripcion del nivel excelente (4 pts)'),
+  bueno: z.string().describe('Descripcion del nivel bueno (3 pts)'),
+  regular: z.string().describe('Descripcion del nivel regular (2 pts)'),
+  deficiente: z.string().describe('Descripcion del nivel deficiente (1 pt)'),
 });
 
 const GenerateSesionOutputSchema = z.object({
-  titulo: z.string().describe('Titulo completo de la sesion'),
+  titulo: z.string().describe('Titulo completo de la sesion (ej: "7. JavaScript Basico - Sintaxis, Variables y Operadores")'),
   logro: z.string().describe('Logro o proposito de la sesion'),
   capacidades: z.array(z.string()).describe('Lista de capacidades a desarrollar'),
-  secuenciaDidactica: z.object({
-    inicio: z.array(ActividadSchema).describe('Actividades de inicio (motivacion, saberes previos)'),
-    proceso: z.array(ActividadSchema).describe('Actividades de proceso (construccion del aprendizaje)'),
-    cierre: z.array(ActividadSchema).describe('Actividades de cierre (evaluacion, metacognicion)'),
-  }).describe('Secuencia didactica organizada en inicio, proceso y cierre'),
-  evaluacion: z.string().describe('Estrategia de evaluacion y criterios'),
+  indicador: z.string().describe('Indicador de logro vinculado completo'),
+  contenidos: z.array(z.string()).describe('Lista de contenidos tematicos de la sesion'),
+  actividades: z.array(ActividadCompletaSchema).describe('Actividades de la sesion (tipicamente 3: inicio global, desarrollo, cierre global)'),
+  listaCotejo: z.object({
+    titulo: z.string().describe('Titulo de la lista de cotejo'),
+    criterios: z.array(CriterioCotejoSchema).describe('Criterios de evaluacion de la lista de cotejo (4-6 criterios)'),
+  }).describe('Lista de cotejo para evaluar los aprendizajes'),
+  rubrica: z.object({
+    titulo: z.string().describe('Titulo de la rubrica'),
+    dimensiones: z.array(DimensionRubricaSchema).describe('Dimensiones de la rubrica con niveles (2-3 dimensiones)'),
+  }).describe('Rubrica de evaluacion con dimensiones y niveles'),
   observaciones: z.string().describe('Observaciones y recomendaciones para el docente'),
+  bibliografia: z.array(z.string()).describe('Referencias bibliograficas y recursos online'),
 });
 export type GenerateSesionOutput = z.infer<typeof GenerateSesionOutputSchema>;
 
@@ -73,18 +120,21 @@ INFORMACION GENERAL:
 - Logro/Proposito: {{logro}}
 - Contenidos: {{contenidos}}
 - Lugar y tipo: {{lugarTipo}}
-- Horas teoricas: {{horasTeoricas}}
-- Horas practicas: {{horasPracticas}}
+- Horas teoricas: {{horasTeoricas}} (cada hora = 45 min pedagogicos)
+- Horas practicas: {{horasPracticas}} (cada hora = 45 min pedagogicos)
+- Distribucion de actividades: {{distribucionActividades}}
 
-INSTRUCCIONES:
-1. Disena una secuencia didactica completa con actividades concretas y detalladas.
-2. Cada actividad debe tener: nombre, descripcion, duracion en minutos y recursos.
-3. Distribuye las horas teoricas y practicas de forma coherente en las actividades.
-4. Las actividades deben estar alineadas con el logro de la sesion y el indicador.
-5. Incluye estrategias de evaluacion formativa durante el proceso.
-6. Considera la competencia transversal en al menos una actividad.
-7. Responde siempre en ESPANOL con lenguaje pedagogico apropiado.
-8. Se especifico y evita respuestas genericas.`,
+INSTRUCCIONES CRITICAS:
+1. Genera EXACTAMENTE tantas actividades como se indican en la distribucion. Cada actividad corresponde a una sesion de clase completa.
+2. Cada actividad debe tener INICIO, DESARROLLO y CIERRE con sus respectivos sub-momentos y la duracion en minutos asignada en la distribucion.
+3. Usa HORAS PEDAGOGICAS: 1 hora = 45 minutos. Convierte las horas de la distribucion a minutos reales de clase.
+4. Los contenidos deben ser una lista de temas especificos y concretos.
+5. La lista de cotejo debe tener 4-6 criterios con puntajes SI=2pts y NO=0pts.
+6. La rubrica debe tener 2-3 dimensiones con niveles: Excelente(4), Bueno(3), Regular(2), Deficiente(1), No presenta(0).
+7. Las actividades deben incluir codigo, ejemplos o ejercicios practicos segun corresponda.
+8. Incluye la competencia transversal en al menos una actividad.
+9. Responde siempre en ESPANOL con lenguaje pedagogico apropiado.
+10. Se especifico y evita respuestas genericas. Cada campo debe tener contenido sustancial.`,
 });
 
 export async function generateSesion(input: GenerateSesionInput): Promise<GenerateSesionOutput> {

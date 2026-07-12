@@ -102,6 +102,7 @@ export function ConfigWizard({
   const createEvaluationRecord = async (criteria: any[] = [], name?: string, weight?: number) => {
     const payload: Record<string, unknown> = {
       indicador_id: registeredIndicatorId,
+      unidad_id: unidadId,
       periodo_id: periodoId,
       nombre: name || newColName,
       tipo: newStrategyType === 'quizz' ? 'quizz' : newInstType,

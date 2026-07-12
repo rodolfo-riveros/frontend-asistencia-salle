@@ -10,8 +10,9 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Loader2, Sparkles, Download, Clock, Target, Layers, FileText, ListChecks, Lightbulb, Zap, BookOpen, GraduationCap, ChevronRight, RefreshCw, Upload, CheckCircle2 } from "lucide-react"
+import { Loader2, Sparkles, Download, Clock, FileText, BookOpen, GraduationCap, ChevronRight, RefreshCw, Upload, CheckCircle2 } from "lucide-react"
 import { generateSesion, type GenerateSesionOutput, type GenerateSesionInput } from "@/ai/flows/generate-sesion-flow"
+import { DocxModifier } from "@/lib/docx-modifier"
 import { api } from "@/lib/api"
 import { supabase } from "@/lib/supabase"
 import { toast } from "@/hooks/use-toast"
@@ -34,6 +35,7 @@ const emptyForm: GenerateSesionInput = {
   lugarTipo: "Aula",
   horasTeoricas: "2",
   horasPracticas: "12",
+  distribucionActividades: "",
 }
 
 type FormKey = keyof GenerateSesionInput
@@ -95,113 +97,6 @@ const sections: FormSection[] = [
   },
 ]
 
-function ResultCard({ result }: { result: GenerateSesionOutput }) {
-  return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex items-center gap-3">
-        <div className="w-1 h-8 bg-primary rounded-full" />
-        <h3 className="text-xl font-black text-foreground uppercase tracking-tight">Ficha de Sesión Generada</h3>
-      </div>
-
-      <div className="bg-primary/5 border border-primary/10 rounded-2xl p-6 space-y-4">
-        <div>
-          <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-1">Título</h4>
-          <p className="text-xl font-black text-foreground">{result.titulo}</p>
-        </div>
-        <div>
-          <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-1">Logro / Propósito</h4>
-          <p className="text-sm text-foreground/80 leading-relaxed">{result.logro}</p>
-        </div>
-        <div>
-          <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-2">Capacidades</h4>
-          <div className="flex flex-wrap gap-2">
-            {result.capacidades.map((c, i) => (
-              <Badge key={i} variant="secondary" className="text-xs">{c}</Badge>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="grid gap-4">
-        <div className="bg-blue-500/5 border border-blue-500/10 rounded-2xl p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-8 h-8 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
-              <Zap className="h-4 w-4 text-blue-500" />
-            </div>
-            <h4 className="font-black text-sm uppercase tracking-wider text-blue-500">Inicio</h4>
-          </div>
-          <div className="space-y-3">
-            {result.secuenciaDidactica.inicio.map((act, i) => (
-              <div key={i} className="bg-card border border-border rounded-xl p-4">
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <h5 className="font-bold text-sm text-foreground">{act.nombre}</h5>
-                  <Badge variant="outline" className="shrink-0 text-[10px]"><Clock className="h-3 w-3 mr-1" />{act.duracion}</Badge>
-                </div>
-                <p className="text-xs text-muted-foreground leading-relaxed mb-2">{act.descripcion}</p>
-                <p className="text-[10px] font-semibold text-muted-foreground/70"><Layers className="h-3 w-3 inline mr-1" />Recursos: {act.recursos}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-2xl p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-              <Target className="h-4 w-4 text-emerald-500" />
-            </div>
-            <h4 className="font-black text-sm uppercase tracking-wider text-emerald-500">Proceso</h4>
-          </div>
-          <div className="space-y-3">
-            {result.secuenciaDidactica.proceso.map((act, i) => (
-              <div key={i} className="bg-card border border-border rounded-xl p-4">
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <h5 className="font-bold text-sm text-foreground">{act.nombre}</h5>
-                  <Badge variant="outline" className="shrink-0 text-[10px]"><Clock className="h-3 w-3 mr-1" />{act.duracion}</Badge>
-                </div>
-                <p className="text-xs text-muted-foreground leading-relaxed mb-2">{act.descripcion}</p>
-                <p className="text-[10px] font-semibold text-muted-foreground/70"><Layers className="h-3 w-3 inline mr-1" />Recursos: {act.recursos}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="bg-amber-500/5 border border-amber-500/10 rounded-2xl p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
-              <Lightbulb className="h-4 w-4 text-amber-500" />
-            </div>
-            <h4 className="font-black text-sm uppercase tracking-wider text-amber-500">Cierre</h4>
-          </div>
-          <div className="space-y-3">
-            {result.secuenciaDidactica.cierre.map((act, i) => (
-              <div key={i} className="bg-card border border-border rounded-xl p-4">
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <h5 className="font-bold text-sm text-foreground">{act.nombre}</h5>
-                  <Badge variant="outline" className="shrink-0 text-[10px]"><Clock className="h-3 w-3 mr-1" />{act.duracion}</Badge>
-                </div>
-                <p className="text-xs text-muted-foreground leading-relaxed mb-2">{act.descripcion}</p>
-                <p className="text-[10px] font-semibold text-muted-foreground/70"><Layers className="h-3 w-3 inline mr-1" />Recursos: {act.recursos}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
-        <div>
-          <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-1"><FileText className="h-3.5 w-3.5 inline mr-1" />Evaluación</h4>
-          <p className="text-sm text-foreground/80 leading-relaxed">{result.evaluacion}</p>
-        </div>
-        <Separator />
-        <div>
-          <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-1"><ListChecks className="h-3.5 w-3.5 inline mr-1" />Observaciones</h4>
-          <p className="text-sm text-foreground/80 leading-relaxed">{result.observaciones}</p>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 export function SeccionesTab() {
   const [asignaciones, setAsignaciones] = React.useState<any[]>([])
   const [selectedAsgId, setSelectedAsgId] = React.useState<string>("")
@@ -209,7 +104,10 @@ export function SeccionesTab() {
   const [isLoadingData, setIsLoadingData] = React.useState(true)
   const [form, setForm] = React.useState<GenerateSesionInput>(emptyForm)
   const [isGenerating, setIsGenerating] = React.useState(false)
+  const [isProcessingDocx, setIsProcessingDocx] = React.useState(false)
+  const [loadingText, setLoadingText] = React.useState("")
   const [result, setResult] = React.useState<GenerateSesionOutput | null>(null)
+  const [docxBlob, setDocxBlob] = React.useState<Blob | null>(null)
   const [isLoaded, setIsLoaded] = React.useState(false)
   const [indicators, setIndicators] = React.useState<any[]>([])
   const [selectedIndicatorId, setSelectedIndicatorId] = React.useState<string>("")
@@ -218,6 +116,9 @@ export function SeccionesTab() {
   const [templateFile, setTemplateFile] = React.useState<ArrayBuffer | null>(null)
   const [templateFileName, setTemplateFileName] = React.useState("")
   const [step, setStep] = React.useState(0)
+  const [placeholders, setPlaceholders] = React.useState<string[]>([])
+  const [placeholderValues, setPlaceholderValues] = React.useState<Record<string, string>>({})
+  const [actividadHours, setActividadHours] = React.useState<number[]>([2, 4, 2, 2, 2, 2])
 
   React.useEffect(() => {
     const saved = localStorage.getItem('sesion-template-buffer')
@@ -240,6 +141,16 @@ export function SeccionesTab() {
     const buffer = await file.arrayBuffer()
     setTemplateFile(buffer)
     setTemplateFileName(file.name)
+
+    try {
+      const mod = new DocxModifier(buffer)
+      const detected = mod.obtenerPlaceholders()
+      setPlaceholders(detected)
+      const vals: Record<string, string> = {}
+      detected.forEach(p => { vals[p] = "" })
+      setPlaceholderValues(vals)
+    } catch { setPlaceholders([]) }
+
     const bytes = new Uint8Array(buffer)
     let binary = ''
     for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i])
@@ -318,6 +229,7 @@ export function SeccionesTab() {
       lugarTipo: "Aula",
       horasTeoricas: "2",
       horasPracticas: "12",
+      distribucionActividades: "",
     })
     setDateStart(today.toISOString().split("T")[0])
     setDateEnd(weekLater.toISOString().split("T")[0])
@@ -341,61 +253,71 @@ export function SeccionesTab() {
     }
 
     const selectedInd = indicators.find(i => i.id === selectedIndicatorId)
+    const distribucionStr = actividadHours.map((h, i) => `Actividad ${i + 1}: ${h}h`).join(', ')
     const payload: GenerateSesionInput = {
       ...form,
       indicadorLogro: selectedInd ? `${selectedInd.codigo} ${selectedInd.descripcion}` : form.indicadorLogro,
       fechaDesarrollo: new Date(dateStart).toLocaleDateString("es-PE", { day: "numeric", month: "long" }) + " al " + new Date(dateEnd).toLocaleDateString("es-PE", { day: "numeric", month: "long", year: "numeric" }),
+      distribucionActividades: distribucionStr,
     }
 
     setIsGenerating(true)
+    setLoadingText("Generando contenido con IA...")
     setResult(null)
+    setDocxBlob(null)
     try {
       const output = await generateSesion(payload)
       setResult(output)
-      toast({ title: "Sesión generada correctamente" })
+
+      if (!templateFile) {
+        toast({ variant: "destructive", title: "Sin plantilla", description: "Debes subir una plantilla .docx primero." })
+        return
+      }
+
+      setIsProcessingDocx(true)
+      setLoadingText("Insertando contenido en la plantilla DOCX...")
+
+      const mod = new DocxModifier(templateFile)
+      mod.aplicarDatosIA(formWithDates(output), output)
+      const blob = await mod.guardar("blob") as Blob
+
+      setDocxBlob(blob)
+      downloadBlob(blob, `ficha-${form.sesion.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 30)}.docx`)
+      toast({ title: "Ficha generada y descargada", description: "La plantilla se ha llenado con los datos generados por IA." })
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Error al generar", description: e.message })
+      toast({ variant: "destructive", title: "Error", description: e.message })
     } finally {
       setIsGenerating(false)
+      setIsProcessingDocx(false)
+      setLoadingText("")
+    }
+  }
+
+  const downloadBlob = (blob: Blob, filename: string) => {
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const formWithDates = (output: GenerateSesionOutput) => {
+    const selInd = indicators.find(i => i.id === selectedIndicatorId)
+    return {
+      ...form,
+      indicadorLogro: selInd ? `${selInd.codigo} ${selInd.descripcion}` : form.indicadorLogro,
+      fechaDesarrollo: new Date(dateStart).toLocaleDateString("es-PE", { day: "numeric", month: "long" }) + " al " + new Date(dateEnd).toLocaleDateString("es-PE", { day: "numeric", month: "long", year: "numeric" }),
+      titulo: output.titulo,
     }
   }
 
   const handleDownloadDocx = async () => {
-    if (!templateFile || !result) return
-    const PizZip = (await import('pizzip')).default
-    const Docxtemplater = (await import('docxtemplater')).default
-
-    const zip = new PizZip(templateFile)
-    const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true })
-    const selInd = indicators.find(i => i.id === selectedIndicatorId)
-
-    const allData = {
-      ...form,
-      indicadorLogro: selInd ? `${selInd.codigo} ${selInd.descripcion}` : form.indicadorLogro,
-      titulo: result.titulo,
-      logroFinal: result.logro,
-      capacidades: result.capacidades.join(', '),
-      secuenciaInicio: result.secuenciaDidactica.inicio.map(a => `${a.nombre} (${a.duracion}): ${a.descripcion}`).join('\n'),
-      secuenciaProceso: result.secuenciaDidactica.proceso.map(a => `${a.nombre} (${a.duracion}): ${a.descripcion}`).join('\n'),
-      secuenciaCierre: result.secuenciaDidactica.cierre.map(a => `${a.nombre} (${a.duracion}): ${a.descripcion}`).join('\n'),
-      evaluacion: result.evaluacion,
-      observaciones: result.observaciones,
+    if (docxBlob) {
+      downloadBlob(docxBlob, `ficha-${form.sesion.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 30)}.docx`)
+      return
     }
-
-    try {
-      doc.setData(allData)
-      doc.render()
-      const blob = doc.getZip().generate({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `ficha-${form.sesion.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 30)}.docx`
-      a.click()
-      URL.revokeObjectURL(url)
-      toast({ title: "DOCX generado", description: "Ficha descargada en formato Word." })
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Error al generar DOCX", description: `Revisa que tu plantilla tenga los placeholders correctos: ${e.message}` })
-    }
+    toast({ variant: "destructive", title: "Sin ficha", description: "Primero genera la ficha con IA." })
   }
 
   if (isLoadingData) {
@@ -411,6 +333,7 @@ export function SeccionesTab() {
     { icon: Upload, label: "Plantilla" },
     { icon: BookOpen, label: "Curso" },
     { icon: FileText, label: "Formulario" },
+    { icon: Clock, label: "Distribución" },
     { icon: Download, label: "Descargar" },
   ]
 
@@ -473,9 +396,30 @@ export function SeccionesTab() {
                 <p className="text-[10px] text-muted-foreground/60 mt-1">Solo archivos .docx</p>
                 <input id="template-upload" type="file" accept=".docx" className="hidden" onChange={handleTemplateUpload} />
               </div>
+              {templateFile && placeholders.length > 0 && (
+                <div className="space-y-4 animate-in fade-in slide-in-from-top-4">
+                  <Separator />
+                  <div>
+                    <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2"><FileText className="h-3.5 w-3.5" />Placeholders detectados en la plantilla</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                      {placeholders.map(p => (
+                        <div key={p} className="flex items-center gap-2 bg-muted/30 border border-border rounded-xl px-3 py-2">
+                          <code className="text-[10px] font-mono text-primary shrink-0 min-w-[fit-content]">{`{{${p}}}`}</code>
+                          <input
+                            value={placeholderValues[p] ?? ""}
+                            onChange={e => setPlaceholderValues(prev => ({ ...prev, [p]: e.target.value }))}
+                            placeholder="Valor opcional..."
+                            className="flex-1 bg-transparent border-0 outline-none text-xs text-foreground placeholder:text-muted-foreground/40"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
               <div className="bg-muted/50 border border-border rounded-xl p-4 text-xs text-muted-foreground leading-relaxed">
-                <p className="font-bold mb-1">Placeholders para tu plantilla:</p>
-                <code className="text-[10px]">programaEstudios, moduloFormativo, unidadDidactica, docente, periodoLectivo, fechaDesarrollo, sesion, logro, contenidos, titulo, logroFinal, capacidades, secuenciaInicio, secuenciaProceso, secuenciaCierre, evaluacion, observaciones</code>
+                <p className="font-bold mb-1">Placeholders disponibles:</p>
+                <code className="text-[10px]">programaEstudios, moduloFormativo, unidadDidactica, docente, sesion, logroFinal, contenidos, actividad1Titulo, actividad1Duracion, actividad1InicioEstrategia, actividad1InicioMotivacion, actividad1InicioSaberes, actividad1InicioConflicto, actividad1DesarrolloEstrategia, actividad1DesarrolloConstruccion, actividad1DesarrolloContenido, actividad1DesarrolloEjercicios, actividad1CierreMetacognicion, actividad1CierreEvaluacion, actividad1CierreInstrumento, actividad1Recursos, actividad2Titulo, actividad2Duracion, actividad2InicioEstrategia, actividad2InicioMotivacion, actividad2InicioSaberes, actividad2InicioConflicto, actividad2DesarrolloEstrategia, actividad2DesarrolloConstruccion, actividad2DesarrolloContenido, actividad2DesarrolloEjercicios, actividad2CierreMetacognicion, actividad2CierreEvaluacion, actividad2CierreInstrumento, actividad2Recursos, actividad3Titulo, actividad3Duracion, actividad3InicioEstrategia, actividad3InicioMotivacion, actividad3InicioSaberes, actividad3InicioConflicto, actividad3DesarrolloEstrategia, actividad3DesarrolloConstruccion, actividad3DesarrolloContenido, actividad3DesarrolloEjercicios, actividad3CierreMetacognicion, actividad3CierreEvaluacion, actividad3CierreInstrumento, actividad3Recursos, listaCotejoTitulo, listaCotejoCriterios, rubricaTitulo, rubricaDimensiones, observaciones, bibliografia</code>
               </div>
             </div>
           </CardContent>
@@ -642,28 +586,120 @@ export function SeccionesTab() {
           </Card>
 
           <div className="flex items-center gap-4">
-            <Button onClick={handleGenerate} disabled={isGenerating} className="h-14 px-10 rounded-2xl font-black text-sm gap-2 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20">
-              {isGenerating ? <><Loader2 className="h-5 w-5 animate-spin" /> Generando...</> : <><Sparkles className="h-5 w-5" /> Generar Ficha con IA</>}
+            <Button onClick={() => setStep(3)} className="h-14 px-10 rounded-2xl font-black text-sm gap-2 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20">
+              Siguiente <ChevronRight className="h-5 w-5" />
             </Button>
           </div>
-
-          {result && <ResultCard result={result} />}
-
-          {result && (
-            <div className="flex items-center gap-4">
-              <Button onClick={() => setStep(3)} className="h-14 px-10 rounded-2xl font-black text-sm gap-2 bg-primary hover:bg-primary/90">
-                <Download className="h-5 w-5" /> Continuar a Descargar
-              </Button>
-              <Button variant="outline" onClick={() => { setResult(null); setStep(2) }} className="h-14 px-8 rounded-2xl font-black text-sm gap-2 border-2">
-                <RefreshCw className="h-5 w-5" /> Generar otra
-              </Button>
-            </div>
-          )}
         </>
       )}
 
-      {/* ── Step 3: Descargar ── */}
-      {step === 3 && result && (
+      {/* ── Step 3: Distribución de Horas ── */}
+      {step === 3 && (
+        <>
+          <Card className="border border-border/60 bg-card rounded-2xl overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-amber-500/5 to-amber-500/10 border-b border-border/60 px-8 py-8">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+                  <Clock className="h-8 w-8 text-amber-500" />
+                </div>
+                <div className="space-y-1">
+                  <CardTitle className="text-2xl font-black text-foreground uppercase tracking-tight">Distribución de Horas</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Total: {parseInt(form.horasTeoricas || '0') + parseInt(form.horasPracticas || '0')}h pedagógicas ({form.horasTeoricas || '0'}h teóricas + {form.horasPracticas || '0'}h prácticas)
+                  </p>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-8">
+              <div className="max-w-3xl mx-auto space-y-8">
+                <div className="space-y-4">
+                  <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Actividades y horas</Label>
+                  <p className="text-[10px] text-muted-foreground/60">Cada hora = 45 min pedagógicos. La suma debe igualar {parseInt(form.horasTeoricas || '0') + parseInt(form.horasPracticas || '0')}h totales.</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                    {actividadHours.map((h, i) => (
+                      <div key={i} className="bg-muted/30 border border-border rounded-xl p-4 space-y-2 relative group">
+                        <Button variant="ghost" size="icon" className="absolute -top-2 -right-2 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity bg-red-500/10 hover:bg-red-500/20 border border-red-500/20" onClick={() => {
+                          const next = [...actividadHours]
+                          next.splice(i, 1)
+                          setActividadHours(next)
+                        }}>
+                          <span className="text-[10px] font-black text-red-500">X</span>
+                        </Button>
+                        <Label className="text-[10px] font-black uppercase text-muted-foreground">Activ. {i + 1}</Label>
+                        <div className="flex items-center gap-2">
+                          <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg text-xs font-black shrink-0" onClick={() => {
+                            const next = [...actividadHours]
+                            next[i] = Math.max(1, h - 1)
+                            setActividadHours(next)
+                          }} disabled={h <= 1}>−</Button>
+                          <span className="flex-1 text-center font-black text-lg text-foreground">{h}h</span>
+                          <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg text-xs font-black shrink-0" onClick={() => {
+                            const next = [...actividadHours]
+                            next[i] = Math.min(12, h + 1)
+                            setActividadHours(next)
+                          }} disabled={h >= 12}>+</Button>
+                        </div>
+                      </div>
+                    ))}
+                    <Button variant="outline" className="h-full min-h-[108px] rounded-xl border-dashed" onClick={() => {
+                      setActividadHours(prev => [...prev, 2])
+                    }}>
+                      + Agregar actividad
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-3 text-sm">
+                    <span className="font-bold text-muted-foreground">Suma:</span>
+                    <span className={`font-black text-lg ${actividadHours.reduce((a, b) => a + b, 0) === parseInt(form.horasTeoricas || '0') + parseInt(form.horasPracticas || '0') ? 'text-emerald-500' : 'text-red-500'}`}>
+                      {actividadHours.reduce((a, b) => a + b, 0)}h
+                    </span>
+                    <span className="text-muted-foreground">de {parseInt(form.horasTeoricas || '0') + parseInt(form.horasPracticas || '0')}h totales</span>
+                    {actividadHours.reduce((a, b) => a + b, 0) !== parseInt(form.horasTeoricas || '0') + parseInt(form.horasPracticas || '0') && (
+                      <span className="text-[10px] text-red-500 font-bold">No coincide con el total</span>
+                    )}
+                  </div>
+                </div>
+
+                <Separator />
+
+                {(isGenerating || isProcessingDocx) ? (
+                  <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                    <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                    <p className="font-bold text-sm text-muted-foreground">{loadingText}</p>
+                  </div>
+                ) : result && docxBlob ? (
+                  <div className="space-y-4">
+                    <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-2xl p-6 text-center">
+                      <Download className="h-10 w-10 mx-auto mb-2 text-emerald-500" />
+                      <p className="font-black text-lg text-foreground">Ficha generada y descargada</p>
+                      <p className="text-xs text-muted-foreground mt-1">La plantilla se ha llenado con los datos generados por IA.</p>
+                    </div>
+                    <div className="flex items-center gap-4 justify-center">
+                      <Button onClick={handleDownloadDocx} className="h-14 px-10 rounded-2xl font-black text-sm gap-2 bg-emerald-500 hover:bg-emerald-600 shadow-lg shadow-emerald-500/20">
+                        <Download className="h-5 w-5" /> Descargar de nuevo
+                      </Button>
+                      <Button variant="outline" onClick={() => { setResult(null); setDocxBlob(null) }} className="h-14 px-8 rounded-2xl font-black text-sm gap-2 border-2">
+                        <RefreshCw className="h-5 w-5" /> Regenerar
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-4">
+                    <Button onClick={handleGenerate} disabled={isGenerating || actividadHours.reduce((a, b) => a + b, 0) !== parseInt(form.horasTeoricas || '0') + parseInt(form.horasPracticas || '0')} className="h-14 px-10 rounded-2xl font-black text-sm gap-2 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20">
+                      <Sparkles className="h-5 w-5" /> Generar Ficha con IA
+                    </Button>
+                    <Button variant="ghost" onClick={() => setStep(2)} className="h-14 px-6 rounded-2xl text-xs font-bold gap-2">
+                      ← Volver al formulario
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      )}
+
+      {/* ── Step 4: Descargar ── */}
+      {step === 4 && result && (
         <div className="space-y-6">
           <Card className="border border-border/60 bg-card rounded-2xl overflow-hidden">
             <CardHeader className="bg-gradient-to-r from-emerald-500/5 to-emerald-500/10 border-b border-border/60 px-8 py-8">
@@ -688,14 +724,13 @@ export function SeccionesTab() {
                   <Button onClick={handleDownloadDocx} className="h-14 px-10 rounded-2xl font-black text-sm gap-2 bg-emerald-500 hover:bg-emerald-600 shadow-lg shadow-emerald-500/20">
                     <Download className="h-5 w-5" /> Descargar DOCX
                   </Button>
-                  <Button variant="outline" onClick={() => { setResult(null); setStep(2) }} className="h-14 px-8 rounded-2xl font-black text-sm gap-2 border-2">
+                  <Button variant="outline" onClick={() => { setResult(null); setStep(3) }} className="h-14 px-8 rounded-2xl font-black text-sm gap-2 border-2">
                     <RefreshCw className="h-5 w-5" /> Generar otra ficha
                   </Button>
                 </div>
               </div>
             </CardContent>
           </Card>
-          <ResultCard result={result} />
         </div>
       )}
     </div>

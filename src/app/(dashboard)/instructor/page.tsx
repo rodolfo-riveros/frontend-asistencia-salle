@@ -8,31 +8,31 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { 
-  BookOpen, 
-  Users, 
-  Loader2, 
-  Calendar, 
-  CheckCircle2, 
-  CircleDashed, 
+import {
+  BookOpen,
+  Users,
+  Loader2,
+  Calendar,
+  CheckCircle2,
+  CircleDashed,
   GraduationCap,
   ClipboardCheck,
   LayoutDashboard,
   FileText,
   BookMarked,
   FolderOpen,
-  FileWarning
+  FileWarning,
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
 import { supabase } from "@/lib/supabase"
 import { MaterialesTab } from "@/components/instructor/materiales-tab"
 import { SeccionesTab } from "@/components/instructor/secciones-tab"
-
-function CourseCard({ asg, attendanceStatus, selectedPeriodId }: {
+function CourseCard({ asg, attendanceStatus, selectedPeriodId, periodName }: {
   asg: any
   attendanceStatus: Record<string, boolean>
   selectedPeriodId: string
+  periodName?: string
 }) {
   const isRec = asg.seccion === 'REC'
   const accent = isRec ? 'amber' : 'primary'
@@ -108,16 +108,26 @@ function CourseCard({ asg, attendanceStatus, selectedPeriodId }: {
 
       {/* Actions */}
       <CardFooter className="px-6 pt-5 pb-6 mt-5 flex gap-3">
-        <Button asChild className={`flex-1 h-12 font-bold text-xs rounded-2xl shadow-lg ${isRec ? 'shadow-amber-500/20 bg-amber-500 hover:bg-amber-600' : 'shadow-primary/20 bg-primary hover:bg-primary/90'} text-white`}>
-          <Link href={`/instructor/attendance/${asg.unidad_id}?periodo_id=${selectedPeriodId}`}>
-            <Users className="h-4 w-4 mr-1.5" /> ASISTENCIA
-          </Link>
-        </Button>
-        <Button asChild variant="outline" className={`flex-1 h-12 font-bold text-xs rounded-2xl border-2 ${isRec ? 'border-amber-500/20 text-amber-400 hover:bg-amber-500/10' : 'border-primary/20 text-primary hover:bg-primary/5'}`}>
-          <Link href={`/instructor/grades/${asg.unidad_id}?periodo_id=${selectedPeriodId}`}>
-            <ClipboardCheck className="h-4 w-4 mr-1.5" /> NOTAS
-          </Link>
-        </Button>
+        {!isRec && (
+          <Button asChild className="flex-1 h-12 font-bold text-xs rounded-2xl shadow-lg shadow-primary/20 bg-primary hover:bg-primary/90 text-white">
+            <Link href={`/instructor/attendance/${asg.unidad_id}?periodo_id=${selectedPeriodId}`}>
+              <Users className="h-4 w-4 mr-1.5" /> ASISTENCIA
+            </Link>
+          </Button>
+        )}
+        {isRec ? (
+          <Button asChild className="flex-1 h-12 font-bold text-xs rounded-2xl shadow-lg shadow-amber-500/20 bg-amber-500 hover:bg-amber-600 text-white">
+            <Link href={`/instructor/recovery-notas?curso=${encodeURIComponent(asg.unidad_nombre)}&programa=${encodeURIComponent(asg.programa_nombre)}&docente_id=${encodeURIComponent(asg.docente_id || "")}&docente_nombre=${encodeURIComponent(asg.docente_nombre || "")}&periodo=${encodeURIComponent(periodName || "")}`}>
+              <ClipboardCheck className="h-4 w-4 mr-1.5" /> NOTAS
+            </Link>
+          </Button>
+        ) : (
+          <Button asChild variant="outline" className="flex-1 h-12 font-bold text-xs rounded-2xl border-2 border-primary/20 text-primary hover:bg-primary/5">
+            <Link href={`/instructor/grades/${asg.unidad_id}?periodo_id=${selectedPeriodId}`}>
+              <ClipboardCheck className="h-4 w-4 mr-1.5" /> NOTAS
+            </Link>
+          </Button>
+        )}
       </CardFooter>
     </Card>
   )
@@ -129,6 +139,7 @@ export default function InstructorDashboard() {
   const [isLoading, setIsLoading] = React.useState(true)
   const [selectedPeriodId, setSelectedPeriodId] = React.useState<string>("")
   const [attendanceStatus, setAttendanceStatus] = React.useState<Record<string, boolean>>({})
+
 
   const fetchData = React.useCallback(async () => {
     setIsLoading(true)
@@ -259,7 +270,8 @@ export default function InstructorDashboard() {
                   </div>
                   <div className="grid gap-6 md:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                     {asignaciones.filter(a => a.seccion === 'REC').map((asg) => (
-                      <CourseCard asg={asg} attendanceStatus={attendanceStatus} selectedPeriodId={selectedPeriodId} key={asg.id} />
+                      <CourseCard asg={asg} attendanceStatus={attendanceStatus} selectedPeriodId={selectedPeriodId} key={asg.id}
+                        periodName={periods.find(p => p.id === selectedPeriodId)?.nombre} />
                     ))}
                   </div>
                 </div>
@@ -298,6 +310,7 @@ export default function InstructorDashboard() {
         <TabsContent value="materiales" className="mt-8">
           <MaterialesTab />
         </TabsContent>
+
       </Tabs>
     </div>
   )

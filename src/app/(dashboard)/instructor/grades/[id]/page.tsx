@@ -834,26 +834,26 @@ function GradebookContent() {
                             const gradeValue = grades[s.id]?.[c.id];
                             return (
                               <TableCell key={c.id} className="text-center border-l">
-                                <div className="flex items-center justify-center gap-1.5">
-                                  <Input 
-                                    type="number" 
-                                    placeholder="-"
+                                  <div className="flex items-center justify-center gap-1.5">
+                                    <Input 
+                                      type="number" 
+                                      placeholder="-"
                                       className={cn(
                                         "w-16 h-8 text-center font-bold text-xs border-none shadow-inner rounded-lg", 
                                         (gradeValue !== undefined && gradeValue < 13) ? 'text-red-600 bg-red-50' : 'text-emerald-700 bg-emerald-50'
-                                    )} 
-                                    value={gradeValue === undefined ? "" : gradeValue} 
-                                    onChange={e => handleGradeChange(s.id, c.id, e.target.value)} 
-                                  />
-                                  {(c.type !== 'manual' && c.type !== 'quizz') && (
-                                    <button 
-                                      className="h-7 w-7 rounded-lg hover:bg-primary/10 text-primary border-2 border-primary/5 flex items-center justify-center" 
-                                      onClick={() => { setActiveEval({ student: s, column: c }); setEvalData(evalDetails[s.id]?.[c.id] || {}); setEvalComment(comments[s.id]?.[c.id] || ""); }}
-                                    >
-                                      <Target className="h-3.5 w-3.5" />
-                                    </button>
-                                  )}
-                                </div>
+                                      )} 
+                                      value={gradeValue === undefined ? "" : gradeValue} 
+                                      onChange={e => handleGradeChange(s.id, c.id, e.target.value)} 
+                                    />
+                                    {(c.type !== 'manual' && c.type !== 'quizz') && (
+                                      <button 
+                                        className="h-7 w-7 rounded-lg hover:bg-primary/10 text-primary border-2 border-primary/5 flex items-center justify-center" 
+                                        onClick={() => { setActiveEval({ student: s, column: c }); setEvalData(evalDetails[s.id]?.[c.id] || {}); setEvalComment(comments[s.id]?.[c.id] || ""); }}
+                                      >
+                                        <Target className="h-3.5 w-3.5" />
+                                      </button>
+                                    )}
+                                  </div>
                               </TableCell>
                             );
                           })}

@@ -2,10 +2,11 @@
 
 import * as React from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Loader2, Play, Fingerprint, ShieldCheck, Zap, Sparkles } from "lucide-react"
+import { Loader2, Play, Fingerprint, ShieldCheck, Zap, Sparkles, BookOpen, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { useMutation } from "convex/react"
 import { api as convexApi } from "@convex/_generated/api"
 import { toast } from "@/hooks/use-toast"
@@ -19,6 +20,9 @@ function JoinForm() {
   
   const [pin, setPin] = React.useState(searchParams.get('pin') || "")
   const [dni, setDni] = React.useState("")
+  const cursoRecuperacion = searchParams.get('curso') || ""
+  const programaRecuperacion = searchParams.get('programa') || ""
+  const esRecuperacion = !!cursoRecuperacion
   const [studentData, setStudentData] = React.useState<any | null>(null)
   const [isValidating, setIsValidating] = React.useState(false)
   const [isJoining, setIsJoining] = React.useState(false)
@@ -86,21 +90,41 @@ function JoinForm() {
   return (
     <div className="w-full max-w-md space-y-8 z-10 my-auto px-4 font-body">
       <div className="text-center space-y-4 animate-in fade-in slide-in-from-top-4 duration-700">
-        <div className="inline-flex items-center justify-center w-24 h-24 bg-white border-4 border-primary/10 rounded-[2.5rem] shadow-2xl mb-2 group">
-           <Zap className="h-12 w-12 text-primary fill-primary group-hover:scale-110 transition-transform" />
+        <div className="inline-flex items-center justify-center w-24 h-24 bg-white border-4 border-primary/10 rounded-[2.5rem] shadow-2xl mb-2 group relative">
+          {esRecuperacion && (
+            <div className="absolute -top-2 -right-2 z-10">
+              <div className="bg-amber-500 text-white p-1.5 rounded-lg shadow-lg border-2 border-white">
+                <AlertTriangle className="h-5 w-5" />
+              </div>
+            </div>
+          )}
+          <Zap className="h-12 w-12 text-primary fill-primary group-hover:scale-110 transition-transform" />
         </div>
         <div className="space-y-1">
-          <h1 className="text-5xl font-black text-slate-900 uppercase tracking-tighter italic leading-none">Rank-UP</h1>
-          <p className="text-primary font-bold uppercase text-[10px] tracking-[0.4em] flex items-center justify-center gap-2">
-            <Sparkles className="h-3 w-3" /> Salle Arena Live
-          </p>
+          <h1 className="text-5xl font-black text-slate-900 uppercase tracking-tighter italic leading-none">
+            {esRecuperacion ? "Recuperación" : "Rank-UP"}
+          </h1>
+          {esRecuperacion ? (
+            <div className="space-y-1">
+              <p className="text-amber-600 font-black uppercase text-[10px] tracking-[0.4em] flex items-center justify-center gap-2">
+                <AlertTriangle className="h-3 w-3" /> Arena de Recuperación
+              </p>
+              <Badge variant="outline" className="border-amber-300 text-amber-700 bg-amber-50 font-black text-[9px] uppercase tracking-widest px-4 py-1">
+                <BookOpen className="h-3 w-3 mr-1" /> {cursoRecuperacion}
+              </Badge>
+            </div>
+          ) : (
+            <p className="text-primary font-bold uppercase text-[10px] tracking-[0.4em] flex items-center justify-center gap-2">
+              <Sparkles className="h-3 w-3" /> Salle Arena Live
+            </p>
+          )}
         </div>
       </div>
 
       <Card className="border-none shadow-2xl bg-white/90 backdrop-blur-xl rounded-[3rem] p-8 md:p-12 overflow-hidden relative border-t-8 border-primary">
         <form onSubmit={handleJoin} className="space-y-8">
           <div className="space-y-3">
-            <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.3em] ml-1">Pin del Desafío</label>
+            <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.3em] ml-1">{esRecuperacion ? "Pin de Recuperación" : "Pin del Desafío"}</label>
             <Input 
               value={pin}
               onChange={e => setPin(e.target.value.toUpperCase())}
@@ -152,7 +176,7 @@ function JoinForm() {
             ) : (
               <>
                 <Play className="h-5 w-5 fill-current" />
-                <span>¡Comenzar Ascenso!</span>
+                <span>{esRecuperacion ? "¡Iniciar Recuperación!" : "¡Comenzar Ascenso!"}</span>
               </>
             )}
           </Button>

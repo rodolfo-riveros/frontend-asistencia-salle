@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useParams, useRouter } from "next/navigation"
-import { Loader2, Trophy, CheckCircle2, Zap, Clock, ShieldCheck, XCircle, Sparkles, LogOut, ListChecks } from "lucide-react"
+import { Loader2, Trophy, CheckCircle2, Zap, Clock, ShieldCheck, XCircle, Sparkles, LogOut, ListChecks, AlertTriangle, BookOpen } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useQuery, useMutation } from "convex/react"
 import { api as convexApi } from "@convex/_generated/api"
@@ -129,7 +129,17 @@ export default function StudentGameRoomPage() {
       </div>
 
       <header className="flex justify-between items-center max-w-5xl mx-auto w-full mb-6 mt-4">
-        <div className="flex items-center gap-3"><div className="p-2.5 bg-white border-2 border-primary/10 rounded-xl shadow-lg"><Zap className="h-5 w-5 text-primary fill-primary" /></div><h2 className="text-xl font-black text-foreground uppercase italic">Rank-UP</h2></div>
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-white border-2 border-primary/10 rounded-xl shadow-lg"><Zap className="h-5 w-5 text-primary fill-primary" /></div>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-black text-foreground uppercase italic">{room.configId === "RECOVERY" ? "Recuperación" : "Rank-UP"}</h2>
+            {room.configId === "RECOVERY" && (
+              <Badge className="bg-amber-500 hover:bg-amber-600 text-white font-black text-[8px] uppercase tracking-widest px-2 py-1 rounded-lg gap-1">
+                <AlertTriangle className="h-3 w-3" /> Curso Jalado
+              </Badge>
+            )}
+          </div>
+        </div>
         <div className="flex items-center gap-3">
           {myData && (
             <div className="flex items-center gap-2.5 bg-card pr-5 pl-2 py-1 rounded-full border-2 border-primary/5 shadow-md">
@@ -147,8 +157,8 @@ export default function StudentGameRoomPage() {
         {room.status === 'lobby' ? (
           <div className="text-center p-10 md:p-20 bg-card rounded-[3rem] border-b-[8px] border-primary shadow-xl space-y-8">
              {myData && <Avatar className="h-32 w-32 mx-auto border-4 border-white shadow-xl mb-6"><AvatarImage src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(myData.avatar)}`} /><AvatarFallback className="text-3xl font-black">{getInitials(myData.name)}</AvatarFallback></Avatar>}
-             <h3 className="text-3xl md:text-5xl font-black text-foreground uppercase italic tracking-tighter">¡En Arena!</h3>
-             <p className="text-muted-foreground text-[10px] font-black uppercase tracking-[0.4em]">Espera el ascenso técnico del docente.</p>
+             <h3 className="text-3xl md:text-5xl font-black text-foreground uppercase italic tracking-tighter">{room.configId === "RECOVERY" ? "¡Recuperando!" : "¡En Arena!"}</h3>
+             <p className="text-muted-foreground text-[10px] font-black uppercase tracking-[0.4em]">{room.configId === "RECOVERY" ? "Espera que el docente inicie la recuperación." : "Espera el ascenso técnico del docente."}</p>
           </div>
         ) : (room.status === 'active' && !isQuizFinished) ? (
           <div className="w-full space-y-10 px-4">
@@ -181,7 +191,12 @@ export default function StudentGameRoomPage() {
               <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
                 <div className="bg-card p-8 rounded-[3rem] border-b-[8px] border-emerald-500 shadow-2xl text-center space-y-6">
                   <Trophy className="h-20 w-20 text-yellow-400 mx-auto animate-bounce" />
-                  <h2 className="text-4xl font-black text-foreground uppercase italic">Arena Finalizada</h2>
+                  <h2 className="text-4xl font-black text-foreground uppercase italic">{room.configId === "RECOVERY" ? "Recuperación Finalizada" : "Arena Finalizada"}</h2>
+                  {room.configId === "RECOVERY" && (
+                    <Badge className="bg-amber-500 text-white font-black text-[10px] uppercase tracking-widest px-4 py-2 rounded-xl gap-2">
+                      <BookOpen className="h-4 w-4" /> Recuperación de Curso
+                    </Badge>
+                  )}
                   <div className="grid grid-cols-2 gap-4 max-w-md mx-auto pt-4">
                     <div className="bg-emerald-50 p-6 rounded-3xl border-2 border-emerald-100 flex flex-col items-center"><span className="text-[10px] font-black text-emerald-600 uppercase mb-1">Aciertos</span><span className="text-4xl font-black text-emerald-700">{correctsCount}</span></div>
                     <div className="bg-red-50 p-6 rounded-3xl border-2 border-red-100 flex flex-col items-center"><span className="text-[10px] font-black text-red-600 uppercase mb-1">Fallos</span><span className="text-4xl font-black text-red-700">{incorrectsCount}</span></div>
@@ -219,7 +234,7 @@ export default function StudentGameRoomPage() {
         )}
       </main>
 
-      <footer className="w-full text-center pb-6 pt-8 opacity-40"><div className="flex items-center justify-center gap-2"><ShieldCheck className="h-4 w-4 text-primary" /><p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">IES LA SALLE URUBAMBA • RANK-UP v2.0</p></div></footer>
+      <footer className="w-full text-center pb-6 pt-8 opacity-40"><div className="flex items-center justify-center gap-2"><ShieldCheck className="h-4 w-4 text-primary" /><p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">IES LA SALLE URUBAMBA • {room.configId === "RECOVERY" ? "RECUPERACIÓN" : "RANK-UP"} v2.0</p></div></footer>
     </div>
   )
 }

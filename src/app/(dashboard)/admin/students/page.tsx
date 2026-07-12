@@ -120,8 +120,7 @@ export default function AdminStudentsPage() {
       nombre: formData.get("nombre") as string,
       dni: formData.get("dni") as string,
       programa_id: formData.get("programa_id") as string,
-      semestre: formData.get("semestre") as string,
-      seccion: formData.get("seccion") as string
+      semestre: formData.get("semestre") as string
     }
 
     try {
@@ -160,7 +159,7 @@ export default function AdminStudentsPage() {
 
   const downloadTemplate = () => {
     const templateData = [
-      { nombre: "APELLIDOS Y NOMBRES", dni: "00000000", programa_codigo: "CODIGO_AQUI", semestre: "I", seccion: "U" },
+      { nombre: "APELLIDOS Y NOMBRES", dni: "00000000", programa_codigo: "CODIGO_AQUI", semestre: "I" },
     ]
     const wsData = XLSX.utils.json_to_sheet(templateData)
     const referenceData = programs.map(p => ({
@@ -222,8 +221,7 @@ export default function AdminStudentsPage() {
               nombre: String(row.nombre).toUpperCase(),
               dni: String(row.dni),
               programa_id: program.id,
-              semestre: String(row.semestre || "I").toUpperCase(),
-              seccion: String(row.seccion || "U").toUpperCase()
+              semestre: String(row.semestre || "I").toUpperCase()
             })
             successCount++
           } catch (err) {
@@ -253,8 +251,7 @@ export default function AdminStudentsPage() {
     const result = (students || []).filter(s => 
       s.nombre.toLowerCase().includes(term) || 
       s.dni.includes(term) ||
-      (s.programa_nombre || "").toLowerCase().includes(term) ||
-      (s.seccion || "").toLowerCase().includes(term)
+      (s.programa_nombre || "").toLowerCase().includes(term)
     )
     return result
   }, [students, searchTerm])
@@ -363,7 +360,6 @@ export default function AdminStudentsPage() {
                     <TableHead className="font-bold text-[10px] uppercase tracking-widest text-muted-foreground">Estudiante</TableHead>
                     <TableHead className="font-bold text-[10px] uppercase tracking-widest text-muted-foreground">Carrera Profesional</TableHead>
                     <TableHead className="font-bold text-[10px] uppercase tracking-widest text-center text-muted-foreground">Ciclo</TableHead>
-                    <TableHead className="font-bold text-[10px] uppercase tracking-widest text-center text-muted-foreground">Sección</TableHead>
                     <TableHead className="w-[80px] pr-8 text-right"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -392,11 +388,6 @@ export default function AdminStudentsPage() {
                       </TableCell>
                       <TableCell className="text-center">
                         <Badge className="bg-slate-100 text-muted-foreground border-none font-black text-[10px] uppercase">Sem {student.semestre}</Badge>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Badge className={`font-bold text-[10px] px-3 py-0.5 border-none ${student.seccion === 'REC' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                          {student.seccion || 'U'}
-                        </Badge>
                       </TableCell>
                       <TableCell className="pr-8 text-right">
                         <DropdownMenu>
@@ -488,18 +479,6 @@ export default function AdminStudentsPage() {
                     {["I", "II", "III", "IV", "V", "VI"].map(s => (
                       <SelectItem key={s} value={s}>Semestre {s}</SelectItem>
                     ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="seccion">Sección</Label>
-                <Select name="seccion" defaultValue={editingStudent?.seccion || "U"}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="U">U — Regular</SelectItem>
-                    <SelectItem value="REC">REC — Recuperación</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

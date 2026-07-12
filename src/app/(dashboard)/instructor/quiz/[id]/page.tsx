@@ -37,6 +37,7 @@ export default function InstructorQuizPage() {
   const [isFullscreen, setIsFullscreen] = React.useState(false)
   const [showAcademicSummary, setShowAcademicSummary] = React.useState(false)
   const [mounted, setMounted] = React.useState(false)
+  const [timeLimit, setTimeLimit] = React.useState(20)
   
   const [ceremonyPhase, setCeremonyPhase] = React.useState<'idle' | 'announcement' | 'podium'>('idle')
   const ceremonyTriggeredRef = React.useRef(false)
@@ -138,9 +139,14 @@ export default function InstructorQuizPage() {
       const finalSessionId = session?.id || session?.sesion_id || session?.sesion?.id;
       if (!session?.room_code || !finalSessionId) throw new Error("No se pudo generar el PIN o ID de sesión")
 
+      const questionsWithTime = questions.map((q: any) => ({
+        ...q,
+        timeLimit: timeLimit
+      }));
+
       await createRoom({
         roomCode: session.room_code,
-        questions: questions,
+        questions: questionsWithTime,
         configId: config.id,
         unidadId: currentUnidadId
       })
@@ -620,7 +626,7 @@ export default function InstructorQuizPage() {
                     <Badge className="bg-primary text-white font-black text-[10px] px-6 py-1 rounded-full uppercase tracking-[0.3em]">ITEM {idx + 1}</Badge>
                     <div className="bg-card p-4 rounded-3xl border-2 border-border shadow-sm shrink-0 flex flex-col items-center">
                       <Clock className="h-5 w-5 text-primary mb-1" />
-                      <span className="font-black text-xl text-foreground">{q.timeLimit || 20}s</span>
+                      <span className="font-black text-xl text-foreground">{q.timeLimit || timeLimit}s</span>
                     </div>
                   </div>
                   <p className="text-2xl font-black text-slate-800 uppercase tracking-tight leading-tight max-w-2xl">{q.text}</p>
@@ -653,13 +659,30 @@ export default function InstructorQuizPage() {
             <h4 className="text-xl font-black uppercase tracking-widest mb-10 flex items-center gap-4 text-foreground"><ShieldCheck className="h-7 w-7 text-primary" /> Datos de la Actividad</h4>
             {config && (
               <div className="space-y-10">
-                <div className="p-6 bg-muted rounded-[2.5rem] border-2 border-border space-y-5">
-                   <div className="flex flex-col"><span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1">Actividad</span><p className="text-lg font-black text-foreground uppercase leading-tight italic">{config.nombre}</p></div>
-                   <div className="grid grid-cols-2 gap-4">
-                      <div className="bg-card p-4 rounded-2xl border border-border flex items-center gap-3"><div className="p-2 bg-primary/10 rounded-xl text-primary"><Percent className="h-4 w-4" /></div><div className="flex flex-col"><span className="text-[8px] font-black text-muted-foreground uppercase">Peso</span><span className="text-sm font-black text-primary">{config.peso_instrumento}%</span></div></div>
-                      <div className="bg-card p-4 rounded-2xl border border-border flex items-center gap-3"><div className="p-2 bg-accent/10 rounded-xl text-accent"><Award className="h-4 w-4" /></div><div className="flex flex-col"><span className="text-[8px] font-black text-muted-foreground uppercase">Máximo</span><span className="text-sm font-black text-accent">{config.puntaje_maximo} pts</span></div></div>
-                   </div>
-                </div>
+                    <div className="p-6 bg-muted rounded-[2.5rem] border-2 border-border space-y-5">
+                       <div className="flex flex-col"><span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1">Actividad</span><p className="text-lg font-black text-foreground uppercase leading-tight italic">{config.nombre}</p></div>
+                       <div className="grid grid-cols-2 gap-4">
+                          <div className="bg-card p-4 rounded-2xl border border-border flex items-center gap-3"><div className="p-2 bg-primary/10 rounded-xl text-primary"><Percent className="h-4 w-4" /></div><div className="flex flex-col"><span className="text-[8px] font-black text-muted-foreground uppercase">Peso</span><span className="text-sm font-black text-primary">{config.peso_instrumento}%</span></div></div>
+                          <div className="bg-card p-4 rounded-2xl border border-border flex items-center gap-3"><div className="p-2 bg-accent/10 rounded-xl text-accent"><Award className="h-4 w-4" /></div><div className="flex flex-col"><span className="text-[8px] font-black text-muted-foreground uppercase">Máximo</span><span className="text-sm font-black text-accent">{config.puntaje_maximo} pts</span></div></div>
+                       </div>
+                       <div className="bg-card p-4 rounded-2xl border border-border flex items-center gap-3">
+                          <div className="p-2 bg-amber-500/10 rounded-xl text-amber-600"><Clock className="h-4 w-4" /></div>
+                          <div className="flex flex-col flex-1">
+                            <span className="text-[8px] font-black text-muted-foreground uppercase">Tiempo por pregunta</span>
+                            <div className="flex items-center gap-2 mt-1">
+                              <input
+                                type="number"
+                                min={5}
+                                max={180}
+                                value={timeLimit}
+                                onChange={e => setTimeLimit(Math.max(5, Math.min(180, parseInt(e.target.value) || 5)))}
+                                className="w-16 h-8 text-center font-black text-sm bg-card border-2 border-border rounded-xl outline-none focus:border-amber-400"
+                              />
+                              <span className="text-sm font-black text-foreground">seg</span>
+                            </div>
+                          </div>
+                       </div>
+                    </div>
                 <div className="p-6 bg-primary/5 rounded-3xl border-2 border-primary/10 space-y-4">
                   <Badge className="bg-primary text-white font-black text-[9px] px-3 py-0.5 rounded-lg tracking-widest uppercase">{config.indicador_codigo || "LOGRO"}</Badge>
                   <p className="text-[11px] font-bold text-primary uppercase leading-relaxed">{config.indicador_desc || "No hay descripción disponible."}</p>

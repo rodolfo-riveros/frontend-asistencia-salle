@@ -4,7 +4,7 @@ import * as React from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
-import { LayoutDashboard, Users, GraduationCap, BookOpen, UserRound, ClipboardList, Search, LogOut, Loader2, CalendarDays } from "lucide-react"
+import { LayoutDashboard, Users, GraduationCap, BookOpen, UserRound, ClipboardList, Search, LogOut, Loader2, CalendarDays, AlertTriangle } from "lucide-react"
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { NavUser } from "@/components/layout/nav-user"
 import { Button } from "@/components/ui/button"
@@ -20,6 +20,7 @@ const ADMIN_NAV = [
   { name: "Docentes", href: "/admin/instructors", icon: UserRound },
   { name: "Asignaciones", href: "/admin/assignments", icon: ClipboardList },
   { name: "Alumnos", href: "/admin/students", icon: Users },
+  { name: "Recuperaciones", href: "/admin/recovery", icon: AlertTriangle },
 ]
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
