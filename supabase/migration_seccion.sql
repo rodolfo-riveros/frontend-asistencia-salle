@@ -9,7 +9,13 @@ ADD COLUMN IF NOT EXISTS seccion VARCHAR(10) NOT NULL DEFAULT 'U';
 
 COMMENT ON COLUMN matriculas.seccion IS 'U = Regular, REC = Recuperación';
 
--- 3. Vista principal para filtrado por unidad + seccion
+-- 3. Agregar seccion a unidades_didacticas (necesario para el JOIN con matriculas)
+ALTER TABLE unidades_didacticas
+ADD COLUMN IF NOT EXISTS seccion VARCHAR(10) NOT NULL DEFAULT 'U';
+
+COMMENT ON COLUMN unidades_didacticas.seccion IS 'U = Regular, REC = Recuperación';
+
+-- 4. Vista principal para filtrado por unidad + seccion
 DROP VIEW IF EXISTS v_alumnos_por_unidad;
 CREATE VIEW v_alumnos_por_unidad AS
 SELECT
@@ -29,7 +35,7 @@ JOIN matriculas m ON m.programa_id = u.programa_id
                   AND m.seccion = u.seccion
 JOIN alumnos a ON a.id = m.alumno_id;
 
--- 4. Vista para listado de alumnos con su última sección
+-- 5. Vista para listado de alumnos con su última sección
 DROP VIEW IF EXISTS v_alumnos_listado;
 CREATE VIEW v_alumnos_listado AS
 SELECT DISTINCT ON (a.id)

@@ -137,6 +137,19 @@ export default function AdminRecoveryPage() {
         })
         toast({ title: "Matrícula creada" })
       }
+
+      // Auto-crear asignacion_docente si no existe
+      if (fCursoId && fDocenteId && fPeriodo) {
+        const periodoObj = periodos.find((p: any) => p.nombre === fPeriodo)
+        if (periodoObj) {
+          await api.post('/asignaciones/', {
+            docente_id: fDocenteId,
+            unidad_id: fCursoId,
+            periodo_id: periodoObj.id,
+          }).catch(() => {})
+        }
+      }
+
       setDialogOpen(false)
       resetForm()
       fetchAll()

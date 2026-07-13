@@ -42,15 +42,6 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -125,9 +116,9 @@ export default function AdminCoursesPage() {
         await api.post('/unidades/', courseData)
         toast({ title: "Unidad Creada", description: "El curso ha sido registrado exitosamente." })
       }
-      fetchData()
       setIsModalOpen(false)
       setEditingCourse(null)
+      await fetchData()
     } catch (err: any) {
       toast({ variant: "destructive", title: "Error al guardar", description: err.message })
     } finally {
@@ -186,71 +177,71 @@ export default function AdminCoursesPage() {
           <Button variant="outline" onClick={fetchData} className="gap-2 h-11">
             <RefreshCcw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
           </Button>
-          <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if(!open) setEditingCourse(null); }}>
-            <DialogTrigger asChild>
-              <Button className="bg-primary hover:bg-primary/90 gap-2 shadow-lg shadow-primary/20 h-11 px-6 font-bold text-white">
-                <Plus className="h-4 w-4" /> Nueva Unidad
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
-              <form onSubmit={handleSave}>
-                <DialogHeader>
-                  <DialogTitle>{editingCourse ? "Editar Unidad" : "Registrar Nueva Unidad"}</DialogTitle>
-                  <DialogDescription>Configura los detalles técnicos de la asignatura.</DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="nombre">Nombre de la Unidad</Label>
-                    <Input id="nombre" name="nombre" defaultValue={editingCourse?.nombre} placeholder="Ej. Arquitectura de Sistemas" required />
+          <Button onClick={() => { setEditingCourse(null); setIsModalOpen(true) }} className="bg-primary hover:bg-primary/90 gap-2 shadow-lg shadow-primary/20 h-11 px-6 font-bold text-white">
+            <Plus className="h-4 w-4" /> Nueva Unidad
+          </Button>
+          {isModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => { setIsModalOpen(false); setEditingCourse(null) }}>
+              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+                <form onSubmit={handleSave}>
+                  <div className="p-6 border-b space-y-1">
+                    <h3 className="text-lg font-bold">{editingCourse ? "Editar Unidad" : "Registrar Nueva Unidad"}</h3>
+                    <p className="text-sm text-muted-foreground">Configura los detalles técnicos de la asignatura.</p>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="programa_id">Programa de Estudio</Label>
-                    <Select name="programa_id" defaultValue={editingCourse?.programa_id}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccione la carrera" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {programs.map(p => (
-                          <SelectItem key={p.id} value={p.id}>{p.nombre}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <div className="grid gap-4 p-6">
+                    <div className="space-y-2">
+                      <Label htmlFor="nombre">Nombre de la Unidad</Label>
+                      <Input id="nombre" name="nombre" defaultValue={editingCourse?.nombre} placeholder="Ej. Arquitectura de Sistemas" required />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="programa_id">Programa de Estudio</Label>
+                      <Select name="programa_id" defaultValue={editingCourse?.programa_id}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleccione la carrera" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {programs.map(p => (
+                            <SelectItem key={p.id} value={p.id}>{p.nombre}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="semestre">Semestre / Ciclo</Label>
+                      <Select name="semestre" defaultValue={editingCourse?.semestre || "I"}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {["I", "II", "III", "IV", "V", "VI"].map(s => (
+                            <SelectItem key={s} value={s}>Semestre {s}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="seccion">Sección</Label>
+                      <Select name="seccion" defaultValue={editingCourse?.seccion || "U"}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="U">U — Regular</SelectItem>
+                          <SelectItem value="REC">REC — Recuperación</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="semestre">Semestre / Ciclo</Label>
-                    <Select name="semestre" defaultValue={editingCourse?.semestre || "I"}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {["I", "II", "III", "IV", "V", "VI"].map(s => (
-                          <SelectItem key={s} value={s}>Semestre {s}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <div className="flex justify-end gap-2 p-6 border-t bg-muted/20">
+                    <Button type="button" variant="ghost" onClick={() => { setIsModalOpen(false); setEditingCourse(null) }}>Cancelar</Button>
+                    <Button type="submit" className="bg-primary font-bold text-white" disabled={isSaving}>
+                      {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Guardar Unidad"}
+                    </Button>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="seccion">Sección</Label>
-                    <Select name="seccion" defaultValue={editingCourse?.seccion || "U"}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="U">U — Regular</SelectItem>
-                        <SelectItem value="REC">REC — Recuperación</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
-                  <Button type="submit" className="bg-primary font-bold text-white" disabled={isSaving}>
-                    {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Guardar Unidad"}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
+                </form>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -311,7 +302,7 @@ export default function AdminCoursesPage() {
                         </TableCell>
                         <TableCell className="text-center">
                           <Badge className={`font-bold text-[10px] px-3 py-0.5 border-none ${course.seccion === 'REC' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                            {course.seccion || 'U'}
+                            {course.seccion === 'REC' ? 'Recuperación' : course.seccion === 'U' ? 'Regular' : (course.seccion || 'Regular')}
                           </Badge>
                         </TableCell>
                         <TableCell className="pr-6 text-right">
