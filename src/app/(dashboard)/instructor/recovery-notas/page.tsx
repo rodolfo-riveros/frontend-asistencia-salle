@@ -620,7 +620,7 @@ function RecoveryNotasContent() {
     for (const p of arenaRoom.participants) {
       const correctas = p.answers?.filter((a: any) => a.isCorrect).length || 0
       const nota = Math.round((correctas / totalQ) * 20 * 100) / 100
-      const matricula = matriculas.find(m => m.estudiante_dni === p.alumno_id || m.estudiante_nombre.toLowerCase().includes(p.name.toLowerCase()))
+      const matricula = matriculas.find(m => m.estudiante_id === p.alumno_id || m.estudiante_dni === p.alumno_id || m.estudiante_nombre.toLowerCase().includes(p.name.toLowerCase()))
       if (matricula) {
         await api.post("/recuperaciones/evaluaciones", {
           matricula_id: matricula.id, titulo: newTitulo || "Quiz recuperacion", nota,
