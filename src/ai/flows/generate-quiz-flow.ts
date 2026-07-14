@@ -11,7 +11,7 @@ const QuizQuestionSchema = z.object({
   text: z.string().describe('The question text.'),
   options: z.array(z.string()).length(4).describe('Four possible answers.'),
   correctIndex: z.number().min(0).max(3).describe('Index of the correct answer.'),
-  timeLimit: z.number().default(20).describe('Seconds to answer.'),
+  timeLimit: z.number().default(60).describe('Seconds to answer.'),
   criterionId: z.string().describe('The ID of the criterion this question evaluates.'),
 });
 

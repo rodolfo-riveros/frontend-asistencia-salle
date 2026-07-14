@@ -50,7 +50,7 @@ export default function StudentGameRoomPage() {
         setHasAnswered(false)
         setSelectedOptionIndex(null)
         setLastAnswerCorrect(null)
-        setTimeLeft(currentQ.timeLimit || 20)
+        setTimeLeft(currentQ.timeLimit || 60)
       } else {
         setHasAnswered(true)
         setSelectedOptionIndex(alreadyResponded.selectedOption)

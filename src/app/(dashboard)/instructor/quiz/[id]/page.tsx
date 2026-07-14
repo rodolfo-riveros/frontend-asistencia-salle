@@ -37,8 +37,14 @@ export default function InstructorQuizPage() {
   const [isFullscreen, setIsFullscreen] = React.useState(false)
   const [showAcademicSummary, setShowAcademicSummary] = React.useState(false)
   const [mounted, setMounted] = React.useState(false)
-  const [timeLimit, setTimeLimit] = React.useState(20)
-  
+  const [timeLimit, setTimeLimit] = React.useState(60)
+  const [instructorTimeLeft, setInstructorTimeLeft] = React.useState(0)
+  const autoAdvanceRef = React.useRef(false)
+  const timerRef = React.useRef<ReturnType<typeof setInterval> | null>(null)
+  const timerIsRunningRef = React.useRef(false)
+  const arenaRoomRef = React.useRef<any>(null)
+  const roomCodeRef2 = React.useRef<string | null>(null)
+
   const [ceremonyPhase, setCeremonyPhase] = React.useState<'idle' | 'announcement' | 'podium'>('idle')
   const ceremonyTriggeredRef = React.useRef(false)
 
@@ -48,6 +54,9 @@ export default function InstructorQuizPage() {
   const createRoom = useMutation(convexApi.rooms.createRoom)
   const updateStatus = useMutation(convexApi.rooms.updateStatus)
   const room = useQuery(convexApi.rooms.getRoom, roomCode ? { roomCode } : "skip")
+
+  React.useEffect(() => { arenaRoomRef.current = room }, [room])
+  React.useEffect(() => { roomCodeRef2.current = roomCode }, [roomCode])
 
   React.useEffect(() => {
     const uid = searchParams.get('unidad_id') ?? searchParams.get('unidadId')
@@ -117,6 +126,49 @@ export default function InstructorQuizPage() {
       return () => clearTimeout(timer);
     }
   }, [ceremonyPhase]);
+
+  // Timer countdown en el proyector
+  React.useEffect(() => {
+    if (timerRef.current) clearInterval(timerRef.current)
+    timerIsRunningRef.current = false
+    if (room?.status !== "active") {
+      setInstructorTimeLeft(0)
+      autoAdvanceRef.current = false
+      return
+    }
+    const currentQ = room.questions[room.currentQuestionIndex]
+    const limit = currentQ?.timeLimit || timeLimit
+    setInstructorTimeLeft(limit)
+    autoAdvanceRef.current = false
+
+    timerRef.current = setInterval(() => {
+      timerIsRunningRef.current = true
+      setInstructorTimeLeft(prev => prev - 1)
+    }, 1000)
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current)
+    }
+  }, [room?.status, room?.currentQuestionIndex])
+
+  // Auto-avanzar cuando el timer llega a 0
+  React.useEffect(() => {
+    if (room?.status !== "active" || instructorTimeLeft > 0 || autoAdvanceRef.current || !timerIsRunningRef.current) return
+    autoAdvanceRef.current = true
+    if (timerRef.current) clearInterval(timerRef.current)
+
+    const t = setTimeout(async () => {
+      const r = arenaRoomRef.current
+      const code = roomCodeRef2.current
+      if (!r || !code) return
+      const nextIdx = r.currentQuestionIndex + 1
+      if (nextIdx >= r.questions.length) {
+        await updateStatus({ roomCode: code, status: 'finished' })
+      } else {
+        await updateStatus({ roomCode: code, status: 'active', nextQuestion: nextIdx })
+      }
+    }, 300)
+    return () => clearTimeout(t)
+  }, [instructorTimeLeft, room?.status])
 
   const handleLaunchRoom = async () => {
     const questions = config?.configuracion_json?.questions;
@@ -381,22 +433,22 @@ export default function InstructorQuizPage() {
       <div className="fixed inset-0 z-[100] bg-[#6D28D9] flex flex-col animate-in fade-in duration-500 overflow-hidden font-body">
         <div className="h-2 bg-yellow-400 w-full shadow-lg" />
         <div className="flex-grow flex flex-col lg:flex-row overflow-hidden">
-          <div className="w-full lg:w-[450px] bg-white/10 backdrop-blur-md border-r border-white/10 shadow-2xl z-20 flex flex-col overflow-hidden">
+          <div className="w-full lg:w-[380px] xl:w-[420px] bg-white/10 backdrop-blur-md border-r border-white/10 shadow-2xl z-20 flex flex-col overflow-hidden">
             <ScrollArea className="flex-grow">
-              <div className="p-10 space-y-10 pb-10">
+              <div className="p-6 lg:p-8 space-y-6 lg:space-y-8 pb-8">
                 <div className="flex items-center gap-4">
-                  <Zap className="h-10 w-10 text-yellow-400 fill-yellow-400" />
-                  <h2 className="text-3xl font-black text-white uppercase tracking-tighter italic leading-none">Arena Live</h2>
+                  <Zap className="h-8 w-8 lg:h-10 lg:w-10 text-yellow-400 fill-yellow-400" />
+                  <h2 className="text-2xl lg:text-3xl font-black text-white uppercase tracking-tighter italic leading-none">Arena Live</h2>
                 </div>
 
-                <div className="bg-card p-6 rounded-[2.5rem] shadow-2xl text-center space-y-4 border-b-8 border-yellow-400 relative overflow-hidden">
+                <div className="bg-card p-5 lg:p-6 rounded-[2.5rem] shadow-2xl text-center space-y-4 border-b-8 border-yellow-400 relative overflow-hidden">
                    <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">CÓDIGO PIN</p>
-                   <h3 className="text-6xl font-black text-primary font-mono tracking-tighter leading-none">{roomCode}</h3>
-                   <div className="p-4 bg-muted rounded-[2rem] border-2 border-border shadow-inner">
+                   <h3 className="text-5xl lg:text-6xl font-black text-primary font-mono tracking-tighter leading-none">{roomCode}</h3>
+                   <div className="p-3 lg:p-4 bg-muted rounded-[2rem] border-2 border-border shadow-inner">
                       {mounted && (
                         <img 
                           src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(window.location.origin)}/student/quiz/join?pin=${roomCode}`} 
-                          className="w-32 h-32 mix-blend-multiply mx-auto" 
+                          className="w-24 h-24 lg:w-32 lg:h-32 mix-blend-multiply mx-auto" 
                           alt="QR" 
                         />
                       )}
@@ -412,33 +464,36 @@ export default function InstructorQuizPage() {
                       <span className="text-[10px] font-black uppercase opacity-60 tracking-widest">ASPIRANTES</span>
                       <div className="flex items-center gap-2">
                         <Users className="h-5 w-5 text-yellow-400" />
-                        <span className="text-4xl font-black">{room?.participants?.length || 0}</span>
+                        <span className="text-3xl lg:text-4xl font-black">{room?.participants?.length || 0}</span>
                       </div>
                     </div>
                     {room.status === 'active' && (
-                      <div className="text-right">
+                      <div className="text-right space-y-1">
                          <span className="text-[10px] font-black uppercase opacity-60 tracking-widest">PREGUNTA</span>
-                         <div className="text-2xl font-black text-white">{room.currentQuestionIndex + 1} / {room.questions.length}</div>
+                         <div className="text-xl lg:text-2xl font-black text-white">{room.currentQuestionIndex + 1} / {room.questions.length}</div>
+                         <div className={cn("text-lg font-black font-mono", instructorTimeLeft <= 5 ? "text-red-400 animate-pulse" : "text-yellow-400")}>
+                            {instructorTimeLeft}s
+                         </div>
                       </div>
                     )}
                   </div>
                   
                   {room.status === 'lobby' ? (
-                    <Button onClick={handleStartGame} disabled={!room?.participants?.length} className="w-full h-20 bg-yellow-400 text-primary rounded-[2rem] font-black text-xl shadow-2xl transition-all hover:scale-[1.02] border-b-4 border-yellow-600">
+                    <Button onClick={handleStartGame} disabled={!room?.participants?.length} className="w-full h-16 lg:h-20 bg-yellow-400 text-primary rounded-[2rem] font-black text-lg lg:text-xl shadow-2xl transition-all hover:scale-[1.02] border-b-4 border-yellow-600">
                       INICIAR ARENA
                     </Button>
                   ) : room.status === 'active' ? (
                     <div className="space-y-3">
-                      <Button onClick={handleNextQuestion} className="w-full h-20 bg-emerald-500 text-white rounded-[2rem] font-black text-xl shadow-2xl transition-all hover:scale-[1.02] border-b-4 border-emerald-700 gap-3">
-                        <ChevronRight className="h-6 w-6" /> SIGUIENTE PREGUNTA
+                      <Button onClick={handleNextQuestion} className="w-full h-16 lg:h-20 bg-emerald-500 text-white rounded-[2rem] font-black text-lg lg:text-xl shadow-2xl transition-all hover:scale-[1.02] border-b-4 border-emerald-700 gap-3">
+                        <ChevronRight className="h-5 w-5 lg:h-6 lg:w-6" /> SIGUIENTE PREGUNTA
                       </Button>
-                      <Button onClick={handleFinishGame} variant="outline" className="w-full h-14 bg-red-500/10 border-red-500 text-red-500 rounded-[1.5rem] font-black text-sm uppercase tracking-widest">
+                      <Button onClick={handleFinishGame} variant="outline" className="w-full h-12 lg:h-14 bg-red-500/10 border-red-500 text-red-500 rounded-[1.5rem] font-black text-sm uppercase tracking-widest">
                         FINALIZAR DESAFÍO
                       </Button>
                     </div>
                   ) : (
-                    <Button onClick={handleShowSummary} className="w-full h-20 bg-card text-primary rounded-[2rem] font-black text-xl shadow-2xl border-b-4 border-border gap-3">
-                      <CheckCircle2 className="h-6 w-6" /> VER RESULTADOS
+                    <Button onClick={handleShowSummary} className="w-full h-16 lg:h-20 bg-card text-primary rounded-[2rem] font-black text-lg lg:text-xl shadow-2xl border-b-4 border-border gap-3">
+                      <CheckCircle2 className="h-5 w-5 lg:h-6 lg:w-6" /> VER RESULTADOS
                     </Button>
                   )}
                   
@@ -448,7 +503,7 @@ export default function InstructorQuizPage() {
             </ScrollArea>
           </div>
 
-          <div className="flex-grow p-10 bg-[#6D28D9] overflow-y-auto relative">
+          <div className="flex-grow p-6 lg:p-10 bg-[#6D28D9] overflow-y-auto relative">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_2px_2px,rgba(255,255,255,0.05)_2px,transparent_0)] bg-[size:64px_64px]" />
             
             {ceremonyPhase === 'announcement' && (

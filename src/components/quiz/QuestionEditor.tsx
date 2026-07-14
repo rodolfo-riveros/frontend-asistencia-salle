@@ -18,7 +18,7 @@ export function QuestionEditor({ questions, onUpdate }: { questions: any[], onUp
       text: "",
       options: ["", "", "", ""],
       correctIndex: 0,
-      timeLimit: 20
+      timeLimit: 60
     }])
   }
 
@@ -93,7 +93,7 @@ export function QuestionEditor({ questions, onUpdate }: { questions: any[], onUp
                     <Input 
                       type="number" 
                       value={q.timeLimit} 
-                      onChange={e => updateQ(q.id, 'timeLimit', parseInt(e.target.value) || 20)}
+                      onChange={e => updateQ(q.id, 'timeLimit', parseInt(e.target.value) || 60)}
                       className="w-20 h-10 rounded-xl text-center font-black bg-white border-2 border-slate-100 shadow-none text-primary"
                     />
                     <span className="text-[10px] font-black uppercase text-slate-300 tracking-widest">SEG</span>
