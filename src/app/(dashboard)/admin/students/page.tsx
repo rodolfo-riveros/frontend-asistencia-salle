@@ -20,7 +20,8 @@ import {
   ChevronLeft,
   ChevronRight,
   ArrowRight,
-  UsersRound
+  UsersRound,
+  Wrench
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -93,6 +94,7 @@ export default function AdminStudentsPage() {
   const [promoteSemestreNuevo, setPromoteSemestreNuevo] = React.useState("")
   const [isPromoting, setIsPromoting] = React.useState(false)
   const [promotePreview, setPromotePreview] = React.useState<{ count: number; nombres: string[] } | null>(null)
+  const [isRepairing, setIsRepairing] = React.useState(false)
 
   const semestres = ["I", "II", "III", "IV", "V", "VI"]
 
@@ -201,6 +203,22 @@ export default function AdminStudentsPage() {
       toast({ variant: "destructive", title: "Error al promover", description: e?.message })
     } finally {
       setIsPromoting(false)
+    }
+  }
+
+  const handleRepairMatriculas = async () => {
+    setIsRepairing(true)
+    try {
+      const res = await api.post<{ creados: number; actualizados: number }>('/alumnos/repair-matriculas', {})
+      toast({ 
+        title: "Matrículas sincronizadas", 
+        description: `Creadas: ${res.creados || 0}, Actualizadas: ${res.actualizados || 0}.` 
+      })
+      fetchData()
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Error al reparar", description: e?.message })
+    } finally {
+      setIsRepairing(false)
     }
   }
 
@@ -334,6 +352,11 @@ export default function AdminStudentsPage() {
                 <UsersRound className="h-4 w-4" /> Promover Salón
               </Button>
             </DialogTrigger>
+
+            <Button variant="outline" className="gap-2 h-11 border-primary text-primary hover:bg-primary/5 font-bold" onClick={handleRepairMatriculas} disabled={isRepairing}>
+              {isRepairing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wrench className="h-4 w-4" />}
+              Reparar Matrícula
+            </Button>
             <DialogContent className="sm:max-w-[520px]">
               <DialogHeader>
                 <DialogTitle>Promoción Masiva de Semestre</DialogTitle>
