@@ -14,7 +14,9 @@ import {
   XCircle,
   RefreshCcw,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Power,
+  PowerOff
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -127,6 +129,21 @@ export default function AdminPeriodsPage() {
     } finally {
       setIsDeletingLoading(false)
       setPeriodToDelete(null)
+    }
+  }
+
+  const [togglingId, setTogglingId] = React.useState<string | null>(null)
+
+  const toggleActive = async (p: any) => {
+    setTogglingId(p.id)
+    try {
+      await api.patch(`/periodos/${p.id}`, { es_activo: !p.es_activo })
+      toast({ title: p.es_activo ? "Periodo desactivado" : "Periodo activado" })
+      fetchPeriods()
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Error al cambiar estado", description: err.message })
+    } finally {
+      setTogglingId(null)
     }
   }
 
@@ -258,7 +275,15 @@ export default function AdminPeriodsPage() {
                                 <MoreVertical className="h-4 w-4 text-slate-400" />
                               </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-40">
+                            <DropdownMenuContent align="end" className="w-48">
+                              <DropdownMenuItem 
+                                className="gap-2 cursor-pointer"
+                                onClick={() => toggleActive(p)}
+                                disabled={togglingId === p.id}
+                              >
+                                {togglingId === p.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : (p.es_activo ? <PowerOff className="h-3.5 w-3.5" /> : <Power className="h-3.5 w-3.5" />)}
+                                {p.es_activo ? "Desactivar Ciclo" : "Activar Ciclo"}
+                              </DropdownMenuItem>
                               <DropdownMenuItem 
                                 className="gap-2 text-destructive focus:text-destructive focus:bg-red-50 cursor-pointer" 
                                 onClick={() => { setPeriodToDelete(p); setIsDeletingDialogOpen(true); }}

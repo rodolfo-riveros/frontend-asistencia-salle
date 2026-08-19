@@ -277,60 +277,16 @@ function RecoveryNotasContent() {
   const handleGenerate = async () => {
     if (!docxFile) { toast({ variant: "destructive", title: "Sube un archivo .docx o .pdf" }); return }
     setGenerating(true)
-    toast({ title: "Generando 20 preguntas...", description: "Paso 1/3: Genkit (Gemini)..." })
+    toast({ title: "Generando 20 preguntas...", description: "IA: Genkit (Gemini)..." })
     const md = await docxToMarkdown(docxFile)
-    // 1) Genkit (Gemini via Next.js server, no extra network hop)
-    const genkitPromise = (async () => {
-      const { generateRecoveryQuiz } = await import("@/ai/flows/generate-recovery-quiz-flow")
-      return generateRecoveryQuiz({ temaMarkdown: md, cantidad: 20 })
-    })()
-    const genkitWithTimeout = Promise.race([
-      genkitPromise,
-      new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timeout")), 30000)),
-    ])
     try {
-      const r = await genkitWithTimeout
+      const { generateRecoveryQuizWithFallback } = await import("@/ai/flows/generate-recovery-quiz-flow")
+      const r = await generateRecoveryQuizWithFallback({ temaMarkdown: md, cantidad: 20 })
       setQuizPreguntas(r.preguntas.map(q => ({ text: q.pregunta, options: q.opciones, correctIndex: q.correcta, timeLimit: tiempoLimite })))
-      toast({ title: "20 preguntas generadas", description: "IA: Genkit (Gemini directo)" })
-      setGenerating(false); return
-    } catch { /* fall through */ }
-    // 2) FastAPI → NVIDIA (funciona bien, ~30-60s)
-    toast({ title: "Generando 20 preguntas...", description: "Paso 2/3: NVIDIA DeepSeek..." })
-    try {
-      const r = await api.post<{ preguntas: any[]; fuente: string }>(
-        "/recuperaciones/evaluaciones/generar-preguntas",
-        { texto_markdown: md, cantidad: 20 },
-        { signal: AbortSignal.timeout(90000) },
-      )
-      const normalizadas: QuizQuestion[] = (r.preguntas || []).map(q => ({
-        text: q.text || q.pregunta || "",
-        options: q.options || q.opciones || [],
-        correctIndex: q.correctIndex ?? q.correcta ?? 0,
-        timeLimit: tiempoLimite,
-      }))
-      setQuizPreguntas(normalizadas)
-      const fuente = (r as any).fuente || "nvidia"
-      toast({ title: "20 preguntas generadas", description: `IA: ${fuente === "gemini" ? "Gemini 2.5 Flash" : "NVIDIA DeepSeek"}` })
-      setGenerating(false); return
-    } catch { /* fall through */ }
-    // 3) Gemini directo via FastAPI (último recurso)
-    toast({ title: "Generando 20 preguntas...", description: "Paso 3/3: Gemini (pago)..." })
-    try {
-      const r = await api.post<{ preguntas: any[]; fuente: string }>(
-        "/recuperaciones/evaluaciones/generar-preguntas-forzar-gemini",
-        { texto_markdown: md, cantidad: 20 },
-        { signal: AbortSignal.timeout(90000) },
-      )
-      const normalizadas: QuizQuestion[] = (r.preguntas || []).map(q => ({
-        text: q.text || q.pregunta || "",
-        options: q.options || q.opciones || [],
-        correctIndex: q.correctIndex ?? q.correcta ?? 0,
-        timeLimit: tiempoLimite,
-      }))
-      setQuizPreguntas(normalizadas)
-      toast({ title: "20 preguntas generadas", description: "IA: Gemini 2.5 Flash (pago)" })
-      setGenerating(false); return
-    } catch (e: any) { toast({ variant: "destructive", title: "Error", description: e?.message }) }
+      toast({ title: "20 preguntas generadas", description: "IA: Gemini 2.5 Flash" })
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Error al generar", description: e?.message || "La IA no pudo generar preguntas. Verifica el contenido del documento." })
+    }
     setGenerating(false)
   }
 

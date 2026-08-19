@@ -18,7 +18,9 @@ import {
   CheckCircle2,
   X,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  ArrowRight,
+  UsersRound
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -83,6 +85,16 @@ export default function AdminStudentsPage() {
   const [importFile, setImportFile] = React.useState<File | null>(null)
   const [isUploading, setIsUploading] = React.useState(false)
   const [uploadProgress, setUploadProgress] = React.useState(0)
+
+  // Promoción masiva de semestre
+  const [isPromoteModalOpen, setIsPromoteModalOpen] = React.useState(false)
+  const [promoteProgramaId, setPromoteProgramaId] = React.useState("")
+  const [promoteSemestreActual, setPromoteSemestreActual] = React.useState("")
+  const [promoteSemestreNuevo, setPromoteSemestreNuevo] = React.useState("")
+  const [isPromoting, setIsPromoting] = React.useState(false)
+  const [promotePreview, setPromotePreview] = React.useState<{ count: number; nombres: string[] } | null>(null)
+
+  const semestres = ["I", "II", "III", "IV", "V", "VI"]
 
   // Pagination State
   const [currentPage, setCurrentPage] = React.useState(1)
@@ -154,6 +166,41 @@ export default function AdminStudentsPage() {
     } finally {
       setIsDeletingLoading(false)
       setStudentToDelete(null)
+    }
+  }
+
+  const handlePreviewPromote = async () => {
+    if (!promoteProgramaId || !promoteSemestreActual) return
+    setPromotePreview(null)
+    try {
+      const data = await api.get<any[]>(`/alumnos/?programa_id=${promoteProgramaId}&semestre=${promoteSemestreActual}`)
+      const nombres = (data || []).map(s => s.nombre)
+      setPromotePreview({ count: nombres.length, nombres })
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Error", description: e?.message })
+    }
+  }
+
+  const handlePromote = async () => {
+    if (!promoteProgramaId || !promoteSemestreActual || !promoteSemestreNuevo) {
+      toast({ variant: "destructive", title: "Selecciona todos los campos" })
+      return
+    }
+    setIsPromoting(true)
+    try {
+      const res = await api.post<{ promovidos: number }>('/alumnos/promover-salon', {
+        programa_id: promoteProgramaId,
+        semestre_actual: promoteSemestreActual,
+        semestre_nuevo: promoteSemestreNuevo,
+      })
+      toast({ title: "Salón promovido", description: `${res.promovidos} alumno(s) pasaron a semestre ${promoteSemestreNuevo}.` })
+      setIsPromoteModalOpen(false)
+      setPromotePreview(null)
+      fetchData()
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Error al promover", description: e?.message })
+    } finally {
+      setIsPromoting(false)
     }
   }
 
@@ -281,13 +328,97 @@ export default function AdminStudentsPage() {
             <RefreshCcw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
           </Button>
           
+          <Dialog open={isPromoteModalOpen} onOpenChange={setIsPromoteModalOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="gap-2 h-11 border-emerald-500 text-emerald-600 hover:bg-emerald-50 font-bold">
+                <UsersRound className="h-4 w-4" /> Promover Salón
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[520px]">
+              <DialogHeader>
+                <DialogTitle>Promoción Masiva de Semestre</DialogTitle>
+                <DialogDescription>Pasa a todo el salón (programa + semestre actual) al siguiente semestre académico.</DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="space-y-2">
+                  <Label>Programa Académico</Label>
+                  <Select value={promoteProgramaId} onValueChange={(v) => { setPromoteProgramaId(v); setPromotePreview(null) }}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona una carrera" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {programs.map(p => (
+                        <SelectItem key={p.id} value={p.id}>{p.nombre}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Semestre Actual</Label>
+                    <Select value={promoteSemestreActual} onValueChange={(v) => { setPromoteSemestreActual(v); setPromotePreview(null) }}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Semestre" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {semestres.map(s => (
+                          <SelectItem key={s} value={s}>Semestre {s}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Semestre Nuevo</Label>
+                    <Select value={promoteSemestreNuevo} onValueChange={setPromoteSemestreNuevo}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Semestre" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {semestres.map(s => (
+                          <SelectItem key={s} value={s}>Semestre {s}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <Button type="button" variant="outline" onClick={handlePreviewPromote} disabled={!promoteProgramaId || !promoteSemestreActual}>
+                  Ver alumnos del salón
+                </Button>
+
+                {promotePreview && (
+                  <div className="rounded-xl border bg-muted/30 p-3 space-y-2">
+                    <p className="text-sm font-bold flex items-center gap-2">
+                      <UsersRound className="h-4 w-4 text-emerald-500" />
+                      {promotePreview.count} alumno(s) en semestre {promoteSemestreActual}
+                    </p>
+                    {promotePreview.count > 0 && (
+                      <div className="max-h-28 overflow-y-auto text-xs text-muted-foreground space-y-1">
+                        {promotePreview.nombres.slice(0, 10).map((n, i) => (
+                          <p key={i}>• {n}</p>
+                        ))}
+                        {promotePreview.count > 10 && <p>... y {promotePreview.count - 10} más</p>}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              <DialogFooter>
+                <Button variant="ghost" onClick={() => setIsPromoteModalOpen(false)}>Cancelar</Button>
+                <Button onClick={handlePromote} disabled={!promoteProgramaId || !promoteSemestreActual || !promoteSemestreNuevo || isPromoting} className="bg-emerald-600 hover:bg-emerald-700 font-bold text-white">
+                  {isPromoting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <ArrowRight className="h-4 w-4 mr-2" />}
+                  Promover {promoteSemestreActual} → {promoteSemestreNuevo}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           <Dialog open={isImportModalOpen} onOpenChange={setIsImportModalOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" className="gap-2 h-11 border-primary text-primary hover:bg-primary/5 font-bold">
                 <FileUp className="h-4 w-4" /> Importar Masivo
               </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[550px]">
+            </DialogTrigger>            <DialogContent className="sm:max-w-[550px]">
               <DialogHeader>
                 <DialogTitle>Importador de Alumnos</DialogTitle>
                 <DialogDescription>Sube tu padrón de alumnos. Usa los códigos oficiales de carrera.</DialogDescription>

@@ -147,14 +147,15 @@ export default function InstructorDashboard() {
       const { data: { user } } = await supabase.auth.getUser()
 
       const periodData = await api.get<any[]>('/periodos/')
-      setPeriods(periodData)
+      // Solo períodos activos visibles para el docente
+      const activePeriods = periodData.filter((p: any) => p.es_activo)
+      setPeriods(activePeriods)
       
-      const active = periodData.find((p: any) => p.es_activo)
-      const currentId = selectedPeriodId || (active ? active.id : "")
+      const active = activePeriods[0] || null
+      const currentId = active ? active.id : ""
       
-      if (!selectedPeriodId && active) {
-        setSelectedPeriodId(active.id)
-      }
+      // Siempre forzar el período activo
+      setSelectedPeriodId(currentId)
 
       if (currentId) {
         const data = await api.get<any[]>(`/me/asignaciones/?periodo_id=${currentId}`)
@@ -175,6 +176,7 @@ export default function InstructorDashboard() {
         setAttendanceStatus(statusMap);
       } else {
         setAsignaciones([])
+        setAttendanceStatus({})
       }
     } catch (err: any) {
       toast({ 
@@ -185,7 +187,7 @@ export default function InstructorDashboard() {
     } finally {
       setIsLoading(false)
     }
-  }, [selectedPeriodId])
+  }, [])
 
   React.useEffect(() => {
     fetchData()
@@ -207,10 +209,10 @@ export default function InstructorDashboard() {
         <div className="bg-card p-4 rounded-2xl border shadow-sm flex items-center gap-4">
           <div className="flex flex-col">
             <span className="text-[10px] font-black uppercase text-muted-foreground tracking-widest mb-1">Periodo Actual</span>
-            <Select value={selectedPeriodId} onValueChange={setSelectedPeriodId}>
+            <Select value={selectedPeriodId} onValueChange={setSelectedPeriodId} disabled={periods.length !== 1 || !selectedPeriodId}>
               <SelectTrigger className="h-9 w-[220px] border-none bg-muted font-bold text-foreground">
                 <Calendar className="h-4 w-4 mr-2 text-primary" />
-                <SelectValue placeholder="Seleccione Ciclo" />
+                <SelectValue placeholder={selectedPeriodId ? "" : "Sin periodo activo"} />
               </SelectTrigger>
               <SelectContent>
                 {periods.map(p => (

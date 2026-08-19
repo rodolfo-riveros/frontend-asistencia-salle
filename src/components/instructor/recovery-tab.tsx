@@ -180,32 +180,14 @@ export function RecoveryTab() {
     setGenerating(true)
     try {
       const markdown = await handleDocxToMarkdown(docxFile)
-      const { generateRecoveryQuiz } = await import("@/ai/flows/generate-recovery-quiz-flow")
-      const result = await generateRecoveryQuiz({ temaMarkdown: markdown, cantidad: 5 })
+      const { generateRecoveryQuizWithFallback } = await import("@/ai/flows/generate-recovery-quiz-flow")
+      const result = await generateRecoveryQuizWithFallback({ temaMarkdown: markdown, cantidad: 5 })
       if (result.preguntas && result.preguntas.length > 0) {
         setQuizPreguntas(result.preguntas)
-        toast({ title: "Preguntas generadas", description: `Se generaron ${result.preguntas.length} preguntas vía Genkit.` })
+        toast({ title: "Preguntas generadas", description: `Se generaron ${result.preguntas.length} preguntas.` })
       }
-    } catch (err) {
-      // Fallback a NVIDIA via FastAPI
-      try {
-        const mammoth = await import("mammoth")
-        const arrayBuffer = await docxFile.arrayBuffer()
-        const htmlResult = await mammoth.convertToHtml({ arrayBuffer })
-        const Turndown = (await import("turndown")).default
-        const turndown = new Turndown()
-        const markdown = turndown.turndown(htmlResult.value)
-        const resp = await api.post<{ preguntas: QuizPregunta[]; fuente: string }>(
-          "/recuperaciones/evaluaciones/generar-preguntas",
-          { texto_markdown: markdown, cantidad: 5 }
-        )
-        if (resp.preguntas && resp.preguntas.length > 0) {
-          setQuizPreguntas(resp.preguntas)
-          toast({ title: "Preguntas generadas", description: `Se generaron ${resp.preguntas.length} preguntas vía NVIDIA DeepSeek.` })
-        }
-      } catch (fallbackErr: any) {
-        toast({ variant: "destructive", title: "Error al generar", description: fallbackErr?.message || "Ambos proveedores de IA fallaron." })
-      }
+    } catch (fallbackErr: any) {
+      toast({ variant: "destructive", title: "Error al generar", description: fallbackErr?.message || "La IA no pudo generar preguntas." })
     } finally {
       setGenerating(false)
     }

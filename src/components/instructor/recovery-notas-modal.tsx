@@ -103,16 +103,11 @@ export function RecoveryNotasModal({ open, onOpenChange, cursoNombre, programaNo
     setGenerating(true)
     try {
       const md = await docxToMarkdown(docxFile)
-      const { generateRecoveryQuiz } = await import("@/ai/flows/generate-recovery-quiz-flow")
-      const r = await generateRecoveryQuiz({ temaMarkdown: md, cantidad: 5 })
-      setQuizPreguntas(r.preguntas); toast({ title: "Preguntas via Genkit" })
-    } catch {
-      try {
-        const md = await docxToMarkdown(docxFile)
-        const r = await api.post<{ preguntas: QuizPregunta[] }>("/recuperaciones/evaluaciones/generar-preguntas", { texto_markdown: md, cantidad: 5 })
-        setQuizPreguntas(r.preguntas); toast({ title: "Preguntas via NVIDIA" })
-      } catch (e: any) { toast({ variant: "destructive", title: "Error", description: e?.message }) }
-    } finally { setGenerating(false) }
+      const { generateRecoveryQuizWithFallback } = await import("@/ai/flows/generate-recovery-quiz-flow")
+      const r = await generateRecoveryQuizWithFallback({ temaMarkdown: md, cantidad: 5 })
+      setQuizPreguntas(r.preguntas); toast({ title: "Preguntas generadas", description: "IA: Gemini 2.5 Flash" })
+    } catch (e: any) { toast({ variant: "destructive", title: "Error al generar", description: e?.message || "La IA no pudo generar preguntas." }) }
+    finally { setGenerating(false) }
   }
 
   const handleSaveQuiz = async () => {
