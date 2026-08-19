@@ -159,12 +159,14 @@ export default function InstructorDashboard() {
 
       if (currentId) {
         const data = await api.get<any[]>(`/me/asignaciones/?periodo_id=${currentId}`)
-        setAsignaciones(data)
+        // Filtro defensivo: el backend puede devolver cursos de otros periodos
+        const filtered = (data || []).filter((a: any) => a.periodo_id === currentId)
+        setAsignaciones(filtered)
         
         const today = new Date(new Date().getTime() - (5 * 60 * 60 * 1000)).toISOString().split('T')[0];
         const statusMap: Record<string, boolean> = {};
         
-        await Promise.all(data.map(async (asg) => {
+        await Promise.all(filtered.map(async (asg) => {
           try {
             const history = await api.get<any[]>(`/asistencias/reporte/unidad/${asg.unidad_id}?fecha_inicio=${today}&fecha_fin=${today}`)
             statusMap[asg.unidad_id] = history && history.length > 0;
